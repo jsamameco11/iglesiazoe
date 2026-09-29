@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-manrope);
+  --font-script: var(--font-allura);
+  --color-paper: #f4f1ec;
+  --color-ink: #161616;
+  --color-muted: #6f6962;
+  --color-line: #e5e0d8;
+  --color-card: #fffcf9;
+  --color-orange: #e38b3a;
+  --color-orange-deep: #c56f1d;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-manrope), sans-serif;
+}
+
+::selection {
+  background: #f3d2ae;
+}
+
+.display {
+  font-weight: 300;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+
+.script {
+  font-family: var(--font-allura), cursive;
+}
