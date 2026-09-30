@@ -1,38 +1,40 @@
-import Link from "next/link";
 import { signOut } from "@/app/actions/auth";
+import type { AdminCapabilities } from "@/lib/access";
+import { AdminNav } from "./admin-nav";
 
-const links = [
-  ["/admin", "Resumen"],
-  ["/admin/contenido", "Contenido"],
-  ["/admin/ministerios", "Ministerios"],
-  ["/admin/predicas", "Prédicas"],
-  ["/admin/bautismos", "Bautismos"],
-  ["/admin/generosidad", "Generosidad"],
-  ["/admin/celulas", "Células"],
-  ["/admin/usuarios", "Usuarios"],
-  ["/admin/temas", "Temas"],
-  ["/admin/informes", "Informes"],
-  ["/admin/bandeja", "Bandeja"],
-];
-
-export function AdminShell({ children }: { children: React.ReactNode }) {
+export function AdminShell({
+  children,
+  roleLabel,
+  superadmin,
+  capabilities,
+}: {
+  children: React.ReactNode;
+  roleLabel: string;
+  superadmin: boolean;
+  capabilities: AdminCapabilities;
+}) {
   return (
-    <div className="min-h-screen bg-paper md:grid md:grid-cols-[240px_1fr]">
-      <aside className="border-b border-line bg-ink text-white md:min-h-screen md:border-b-0">
-        <div className="px-5 py-6">
-          <p className="script text-4xl">Zoe</p>
-          <p className="text-xs uppercase tracking-[0.16em] text-white/50">Administrador</p>
+    <div className="min-h-screen bg-paper md:grid md:grid-cols-[260px_1fr]">
+      <aside className="border-b border-white/10 bg-ink text-white md:sticky md:top-0 md:h-screen md:border-b-0">
+        <div className="px-6 py-7">
+          <p className="text-[11px] uppercase tracking-[0.22em] text-white/40">Iglesia Zoe</p>
+          <p className="mt-2 text-lg font-semibold tracking-[-0.03em]">{roleLabel}</p>
         </div>
-        <nav className="flex gap-1 overflow-x-auto px-3 pb-4 md:block">
-          {links.map(([href, label]) => (
-            <Link key={href} href={href} className="block whitespace-nowrap rounded-xl px-3 py-2 text-sm text-white/80 hover:bg-white/10 hover:text-white">
-              {label}
-            </Link>
-          ))}
-        </nav>
-        <form action={signOut} className="px-5 py-4"><button className="text-sm text-white/60">Salir</button></form>
+        <AdminNav capabilities={capabilities} superadmin={superadmin} />
+        <form action={signOut} className="px-4 pb-4 md:hidden">
+          <button className="rounded-xl border border-white/10 px-4 py-2 text-sm text-white/65">Cerrar sesión</button>
+        </form>
+        <div className="hidden px-6 md:absolute md:bottom-6 md:block md:w-full">
+          <div className="border-t border-white/10 pt-5">
+            <form action={signOut}>
+              <button className="flex w-full items-center justify-between rounded-xl border border-white/10 px-3 py-2.5 text-sm text-white/65 transition hover:bg-white/10 hover:text-white">
+                Cerrar sesión <span>→</span>
+              </button>
+            </form>
+          </div>
+        </div>
       </aside>
-      <div className="px-5 py-8 md:px-10">{children}</div>
+      <main className="min-w-0 px-5 py-7 md:px-10 md:py-9 xl:px-14">{children}</main>
     </div>
   );
 }

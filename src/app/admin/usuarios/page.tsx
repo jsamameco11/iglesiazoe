@@ -1,14 +1,16 @@
 import { createLeader, resetPassword } from "@/app/actions/admin";
+import { isSuperadmin } from "@/lib/access";
 import { getSession } from "@/lib/session";
 
 const roles = [
   ["cell_leader", "Líder de célula"],
   ["red_leader", "Líder de red"],
-  ["admin", "Administrador"],
 ];
 
 export default async function UsersAdmin() {
-  const { supabase } = await getSession();
+  const { supabase, profile } = await getSession();
+  const superadmin = isSuperadmin(profile?.role);
+  const availableRoles = superadmin ? [...roles, ["admin", "Administrador"]] : roles;
   const { data: profiles } = await supabase.from("profiles").select("*, networks(code)").order("username");
   const letters = "ABCDEFGHIJKL".split("");
   return (
@@ -19,7 +21,7 @@ export default async function UsersAdmin() {
         <input name="username" placeholder="Usuario" required className="rounded-xl border border-line px-3 py-2" />
         <input name="password" type="password" placeholder="Clave" required className="rounded-xl border border-line px-3 py-2" />
         <select name="role" className="rounded-xl border border-line px-3 py-2">
-          {roles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          {availableRoles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </select>
         <select name="network_code" className="rounded-xl border border-line px-3 py-2">
           <option value="">Sin red</option>

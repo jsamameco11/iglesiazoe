@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { Allura, Manrope } from "next/font/google";
+import { Caveat, Instrument_Serif, Manrope } from "next/font/google";
+import { headers } from "next/headers";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -8,10 +9,17 @@ const manrope = Manrope({
   variable: "--font-manrope",
 });
 
-const allura = Allura({
+const instrument = Instrument_Serif({
   subsets: ["latin"],
   weight: "400",
-  variable: "--font-allura",
+  style: ["normal", "italic"],
+  variable: "--font-instrument",
+});
+
+const caveat = Caveat({
+  subsets: ["latin"],
+  weight: ["500", "600", "700"],
+  variable: "--font-caveat",
 });
 
 export const metadata: Metadata = {
@@ -23,9 +31,11 @@ export const metadata: Metadata = {
     "Tu iglesia local en Chiclayo, donde la atmósfera de Dios se manifiesta en amor.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const host = (await headers()).get("host") || "";
+  const skin = host.toLowerCase().startsWith("iglesiacristianazoe2.") ? "marea" : "aire";
   return (
-    <html lang="es" className={`${manrope.variable} ${allura.variable} h-full antialiased`}>
+    <html lang="es" data-skin={skin} className={`${manrope.variable} ${instrument.variable} ${caveat.variable} h-full antialiased`}>
       <body className="min-h-full font-sans">{children}</body>
     </html>
   );

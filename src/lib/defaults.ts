@@ -48,6 +48,9 @@ export const defaultSettings: SiteSettings = {
   cardUrl: "",
   phone: "",
   email: "",
+  headingColor: "#1a1a1a",
+  bodyColor: "#8a8884",
+  fontPair: "mixed",
 };
 
 export const defaultMinistries: Ministry[] = [

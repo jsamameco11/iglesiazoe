@@ -1,4 +1,4 @@
-export type Role = "admin" | "red_leader" | "cell_leader";
+export type Role = "superadmin" | "admin" | "red_leader" | "cell_leader";
 
 export type Profile = {
   id: string;
@@ -34,6 +34,9 @@ export type SiteSettings = {
   cardUrl: string;
   phone: string;
   email: string;
+  headingColor: string;
+  bodyColor: string;
+  fontPair: "mixed" | "grotesque" | "editorial";
 };
 
 export type Ministry = {

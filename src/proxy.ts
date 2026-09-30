@@ -61,11 +61,11 @@ export async function proxy(request: NextRequest) {
       .eq("id", user.id)
       .maybeSingle();
 
-    if (path.startsWith("/admin") && profile?.role !== "admin") {
+    if (path.startsWith("/admin") && profile?.role !== "admin" && profile?.role !== "superadmin") {
       return redirect("/portal/informe");
     }
     if (path === "/ingresar") {
-      return redirect(profile?.role === "admin" ? "/admin" : "/portal/informe");
+      return redirect(profile?.role === "admin" || profile?.role === "superadmin" ? "/admin" : "/portal/informe");
     }
   }
 

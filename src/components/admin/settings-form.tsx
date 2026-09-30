@@ -42,6 +42,21 @@ function ContentFields({ settings }: { settings: SiteSettings }) {
         <Field name="mapUrl" label="Enlace de mapa" defaultValue={settings.mapUrl} />
         <Field name="liveYoutubeId" label="ID de YouTube en vivo" defaultValue={settings.liveYoutubeId} />
       </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        <label className="text-sm">Color de títulos
+          <input name="headingColor" type="color" defaultValue={settings.headingColor || "#1c1b19"} className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-2" />
+        </label>
+        <label className="text-sm">Color de textos
+          <input name="bodyColor" type="color" defaultValue={settings.bodyColor || "#5e5a54"} className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-2" />
+        </label>
+        <label className="text-sm">Tipografía
+          <select name="fontPair" defaultValue={settings.fontPair || "mixed"} className={field}>
+            <option value="mixed">Mixta, títulos y texto</option>
+            <option value="grotesque">Moderna, toda en sans</option>
+            <option value="editorial">Editorial, toda en serif</option>
+          </select>
+        </label>
+      </div>
       {settings.values.map((value, index) => (
         <div key={index} className="grid gap-3 md:grid-cols-2">
           <Field name={`value_title_${index + 1}`} label={`Valor ${index + 1}`} defaultValue={value.title} />
@@ -68,7 +83,7 @@ function GivingFields({ settings }: { settings: SiteSettings }) {
 }
 
 function HiddenContent({ settings }: { settings: SiteSettings }) {
-  const keys = ["heroTitle","heroSubtitle","aboutQuote","aboutText","history","vision","sunday","wednesday","address","city","pastorsLabel","pastor","phone","email","facebook","youtube","mapUrl","liveYoutubeId"] as const;
+  const keys = ["heroTitle","heroSubtitle","aboutQuote","aboutText","history","vision","sunday","wednesday","address","city","pastorsLabel","pastor","phone","email","facebook","youtube","mapUrl","liveYoutubeId","headingColor","bodyColor","fontPair"] as const;
   return (
     <>
       {keys.map((key) => <input key={key} type="hidden" name={key} value={settings[key]} />)}

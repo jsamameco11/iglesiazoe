@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isStaff } from "@/lib/access";
 import { getSession } from "@/lib/session";
 
 export default async function HistorialPage({ searchParams }: { searchParams: Promise<{ year?: string; month?: string; cell?: string }> }) {
@@ -9,7 +10,7 @@ export default async function HistorialPage({ searchParams }: { searchParams: Pr
     id: row.cell_id as string,
     code: (row.cells as { code?: string } | null)?.code || "",
   }));
-  const cellIds = profile?.role === "admin" ? null : ownCells.map((cell) => cell.id);
+  const cellIds = isStaff(profile?.role) ? null : ownCells.map((cell) => cell.id);
   let query = supabase.from("reports").select("id, year, week, meeting_date, theme_title, met, cell_id, cells(code), report_attendance(attended)").order("year", { ascending: false }).order("week", { ascending: false });
   if (cellIds) query = query.in("cell_id", cellIds.length ? cellIds : ["00000000-0000-0000-0000-000000000000"]);
   if (params.year) query = query.eq("year", Number(params.year));

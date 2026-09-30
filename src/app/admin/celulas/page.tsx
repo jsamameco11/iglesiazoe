@@ -1,9 +1,11 @@
 import { CellsManager } from "@/components/admin/cells-manager";
+import { getCapabilities, isSuperadmin } from "@/lib/access";
 import { getSession } from "@/lib/session";
 import type { Cell, Member } from "@/lib/types";
 
 export default async function CellsAdmin() {
-  const { supabase } = await getSession();
+  const { supabase, profile } = await getSession();
+  const capabilities = await getCapabilities(supabase, profile?.role);
   const [{ data: networks }, { data: cells }, { data: members }] = await Promise.all([
     supabase.from("networks").select("id, code, name").order("code"),
     supabase.from("cells").select("*").order("code"),
@@ -15,7 +17,12 @@ export default async function CellsAdmin() {
       <p className="mt-2 mb-6 max-w-2xl text-muted">
         Redes de la A a la L. Por defecto cada red tiene seis células: 01A, 02A… Una hija de 06A se llama 0106A: la primera célula hija de 06A.
       </p>
-      <CellsManager networks={networks || []} cells={(cells || []) as Cell[]} members={(members || []) as Member[]} />
+      <CellsManager
+        networks={networks || []}
+        cells={(cells || []) as Cell[]}
+        members={(members || []) as Member[]}
+        canManageMembers={isSuperadmin(profile?.role) || capabilities.manageMembers}
+      />
     </div>
   );
 }

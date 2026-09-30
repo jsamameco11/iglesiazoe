@@ -9,6 +9,7 @@ export default async function MinistriesAdmin() {
   return (
     <div>
       <h1 className="display text-4xl">Ministerios</h1>
+      <p className="mt-2 max-w-2xl text-muted">La foto o el video de cada ministerio se publica en Medios.</p>
       <div className="mt-8 grid gap-8">
         {ministries.map((ministry) => (
           <form key={ministry.id} action={saveMinistry} className="grid gap-3 rounded-[1.5rem] border border-line bg-card p-5">

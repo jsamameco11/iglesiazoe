@@ -1,4 +1,5 @@
 import { InformeForm } from "@/components/portal/informe-form";
+import { isStaff } from "@/lib/access";
 import { getSession } from "@/lib/session";
 import { currentWeek } from "@/lib/weeks";
 import type { Cell } from "@/lib/types";
@@ -7,7 +8,7 @@ export default async function InformePage() {
   const { supabase, profile } = await getSession();
   const { year, week } = currentWeek();
   let cells: Cell[] = [];
-  if (profile?.role === "admin") {
+  if (isStaff(profile?.role)) {
     const { data } = await supabase.from("cells").select("*").eq("active", true).order("code");
     cells = (data || []) as Cell[];
   } else {

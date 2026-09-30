@@ -1,3 +1,4 @@
+import { isStaff } from "@/lib/access";
 import { getSession } from "@/lib/session";
 import { currentWeek, weeksOfYear } from "@/lib/weeks";
 import type { Cell } from "@/lib/types";
@@ -9,7 +10,7 @@ export default async function SeguimientoPage({ searchParams }: { searchParams: 
   const year = Number(params.year || now.year);
   const week = Number(params.week || now.week);
   const { data: networks } = await supabase.from("networks").select("id, code, name").order("code");
-  const network = profile?.role === "admin"
+  const network = isStaff(profile?.role)
     ? networks?.find((item) => item.code === (params.red || "G")) || networks?.[0]
     : networks?.find((item) => item.id === profile?.network_id);
 
@@ -43,7 +44,7 @@ export default async function SeguimientoPage({ searchParams }: { searchParams: 
             {weeksOfYear(year).map((item) => <option key={item.week} value={item.week}>{item.label}</option>)}
           </select>
         </label>
-        {profile?.role === "admin" && (
+        {isStaff(profile?.role) && (
           <label className="text-sm">Red
             <select name="red" defaultValue={network?.code} className="mt-1 w-full rounded-xl border border-line px-3 py-2">
               {(networks || []).map((item) => <option key={item.id}>{item.code}</option>)}

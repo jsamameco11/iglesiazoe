@@ -3,11 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { daughterCellCode, rootCellCode } from "@/lib/cells";
 import { getSession } from "@/lib/session";
+import { isStaff, isSuperadmin, type AdminCapabilities } from "@/lib/access";
 import type { SiteSettings } from "@/lib/types";
 
 async function requireAdmin() {
   const session = await getSession();
-  if (session.profile?.role !== "admin") throw new Error("No autorizado");
+  if (!isStaff(session.profile?.role)) throw new Error("No autorizado");
   return session;
 }
 
@@ -49,6 +50,11 @@ export async function saveSettings(formData: FormData) {
     bankDollarsCci: text(formData, "bankDollarsCci", 40),
     yape: text(formData, "yape", 20),
     cardUrl: text(formData, "cardUrl", 400),
+    headingColor: text(formData, "headingColor", 20) || "#1c1b19",
+    bodyColor: text(formData, "bodyColor", 20) || "#5e5a54",
+    fontPair: (["mixed", "grotesque", "editorial"].includes(text(formData, "fontPair", 20))
+      ? text(formData, "fontPair", 20)
+      : "mixed") as SiteSettings["fontPair"],
   };
   const { error } = await supabase.from("site_settings").upsert({
     key: "site",
@@ -205,7 +211,12 @@ export async function createDaughter(parentId: string, parentCode: string, netwo
 }
 
 export async function addMember(formData: FormData) {
-  const { supabase } = await requireAdmin();
+  const { supabase, profile } = await requireAdmin();
+  const { getCapabilities, isSuperadmin } = await import("@/lib/access");
+  const caps = await getCapabilities(supabase, profile?.role);
+  if (!isSuperadmin(profile?.role) && !caps.manageMembers) {
+    throw new Error("El superadministrador no habilitó la gestión de integrantes.");
+  }
   const full_name = text(formData, "full_name", 160);
   const cell_id = text(formData, "cell_id", 40);
   if (!full_name || !cell_id) throw new Error("Falta el nombre o la célula.");
@@ -219,13 +230,27 @@ export async function addMember(formData: FormData) {
 }
 
 export async function removeMember(id: string) {
-  const { supabase } = await requireAdmin();
+  const { supabase, profile } = await requireAdmin();
+  const { getCapabilities, isSuperadmin } = await import("@/lib/access");
+  const caps = await getCapabilities(supabase, profile?.role);
+  if (!isSuperadmin(profile?.role) && !caps.manageMembers) {
+    throw new Error("El superadministrador no habilitó la gestión de integrantes.");
+  }
   await supabase.from("cell_members").update({ active: false }).eq("id", id);
   revalidatePath("/admin/celulas");
 }
 
 export async function createLeader(formData: FormData) {
-  const { supabase } = await requireAdmin();
+  const { supabase, profile } = await requireAdmin();
+  const { getCapabilities, isSuperadmin } = await import("@/lib/access");
+  const caps = await getCapabilities(supabase, profile?.role);
+  if (!isSuperadmin(profile?.role) && !caps.manageUsers) {
+    throw new Error("El superadministrador no habilitó la gestión de usuarios.");
+  }
+  const role = text(formData, "role", 20);
+  if (role === "admin" && !isSuperadmin(profile?.role)) {
+    throw new Error("Solo el superadministrador puede crear administradores.");
+  }
   const cellCodes = text(formData, "cell_codes", 200)
     .split(",")
     .map((code) => code.trim())
@@ -234,7 +259,7 @@ export async function createLeader(formData: FormData) {
     p_username: text(formData, "username", 40),
     p_password: String(formData.get("password") || ""),
     p_full_name: text(formData, "full_name", 160),
-    p_role: text(formData, "role", 20),
+    p_role: role,
     p_network_code: text(formData, "network_code", 2),
     p_cell_codes: cellCodes,
   });
@@ -283,4 +308,28 @@ export async function deleteTheme(id: string) {
   await supabase.from("themes").update({ active: false }).eq("id", id);
   revalidatePath("/portal/temas");
   revalidatePath("/admin/temas");
+}
+
+export async function saveCapabilities(formData: FormData) {
+  const { supabase, profile } = await requireAdmin();
+  if (!isSuperadmin(profile?.role)) throw new Error("Solo el superadministrador puede definir estos accesos.");
+  const keys: (keyof AdminCapabilities)[] = [
+    "manageMembers",
+    "viewOfferings",
+    "viewCellActivity",
+    "manageMedia",
+    "manageContent",
+    "manageCells",
+    "manageUsers",
+    "manageGenerosity",
+  ];
+  const value = Object.fromEntries(keys.map((key) => [key, formData.get(key) === "on"])) as AdminCapabilities;
+  const { error } = await supabase.from("site_settings").upsert({
+    key: "admin_capabilities",
+    value,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) throw new Error("No se pudieron guardar los accesos del administrador.");
+  revalidatePath("/admin");
+  revalidatePath("/admin/accesos");
 }

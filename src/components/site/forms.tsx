@@ -9,7 +9,7 @@ function Note({ state }: { state: { ok?: boolean; error?: string } | undefined }
   return null;
 }
 
-const field = "mt-2 w-full rounded-2xl border border-line bg-white px-4 py-3 outline-none focus:border-ink";
+const field = "mt-2 w-full border-0 border-b border-ink/15 bg-transparent px-0 py-3 outline-none focus:border-ink";
 
 export function VisitForm() {
   const [state, action, pending] = useActionState(submitVisit, undefined);
@@ -43,7 +43,7 @@ export function VisitForm() {
 export function BaptismForm({ events }: { events: { id: string; event_date: string | null; location: string | null }[] }) {
   const [state, action, pending] = useActionState(submitBaptism, undefined);
   return (
-    <form action={action} className="grid gap-4 rounded-[1.75rem] border border-line bg-card p-6">
+    <form action={action} className="grid gap-4">
       <Note state={state} />
       <label className="text-sm">Nombre completo<input name="full_name" required className={field} /></label>
       <label className="text-sm">Teléfono<input name="phone" required className={field} /></label>
@@ -61,7 +61,7 @@ export function BaptismForm({ events }: { events: { id: string; event_date: stri
         </label>
       )}
       <label className="text-sm">Cuéntanos tu decisión<textarea name="notes" rows={3} className={field} /></label>
-      <button disabled={pending} className="rounded-full bg-orange px-6 py-3 text-sm font-medium text-white disabled:opacity-60">
+      <button disabled={pending} className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-white disabled:opacity-60">
         {pending ? "Enviando…" : "¡Quiero bautizarme!"}
       </button>
     </form>

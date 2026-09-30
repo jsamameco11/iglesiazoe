@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { isStaff } from "@/lib/access";
 import { leaderEmail } from "@/lib/session";
 import { createClient } from "@/lib/supabase/server";
 
@@ -27,9 +28,9 @@ export async function signIn(_state: { error?: string } | undefined, formData: F
     .eq("id", user!.id)
     .maybeSingle();
 
-  if (next.startsWith("/admin") && profile?.role === "admin") redirect(next);
+  if (next.startsWith("/admin") && isStaff(profile?.role)) redirect(next);
   if (next.startsWith("/portal")) redirect(next);
-  redirect(profile?.role === "admin" ? "/admin" : "/portal/informe");
+  redirect(isStaff(profile?.role) ? "/admin" : "/portal/informe");
 }
 
 export async function signOut() {

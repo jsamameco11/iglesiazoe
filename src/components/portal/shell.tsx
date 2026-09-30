@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { signOut } from "@/app/actions/auth";
+import { isStaff } from "@/lib/access";
 import type { Profile } from "@/lib/types";
 
 const tabs = [
@@ -20,7 +21,7 @@ export function PortalShell({ profile, children }: { profile: Profile; children:
           </div>
           <div className="flex items-center gap-4 text-sm">
             <span className="hidden text-white/70 sm:inline">{profile.full_name || profile.username}</span>
-            {profile.role === "admin" && <Link href="/admin" className="text-orange">Administrador</Link>}
+            {isStaff(profile.role) && <Link href="/admin" className="text-orange">Panel</Link>}
             <form action={signOut}><button className="text-white/70">Salir</button></form>
           </div>
         </div>

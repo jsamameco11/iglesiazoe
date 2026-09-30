@@ -8,10 +8,12 @@ export function CellsManager({
   networks,
   cells,
   members,
+  canManageMembers,
 }: {
   networks: { id: string; code: string; name: string }[];
   cells: Cell[];
   members: Member[];
+  canManageMembers: boolean;
 }) {
   const [red, setRed] = useState(networks.find((item) => item.code === "G")?.code || networks[0]?.code || "A");
   const [message, setMessage] = useState("");
@@ -71,16 +73,22 @@ export function CellsManager({
                 {members.filter((member) => member.cell_id === cell.id && member.active).map((member) => (
                   <li key={member.id} className="flex items-center justify-between">
                     <span>{member.full_name}</span>
-                    <button className="text-red-700" onClick={() => run(async () => { await removeMember(member.id); return { ok: true }; })}>Quitar</button>
+                    {canManageMembers && (
+                      <button className="text-red-700" onClick={() => run(async () => { await removeMember(member.id); return { ok: true }; })}>Quitar</button>
+                    )}
                   </li>
                 ))}
               </ul>
-              <form action={addMember} className="mt-3 flex gap-2">
-                <input type="hidden" name="cell_id" value={cell.id} />
-                <input name="full_name" placeholder="Nombre" className="flex-1 rounded-xl border border-line px-3 py-2" />
-                <input name="phone" placeholder="Teléfono" className="w-36 rounded-xl border border-line px-3 py-2" />
-                <button className="rounded-full border border-line px-3 text-sm">Agregar</button>
-              </form>
+              {canManageMembers ? (
+                <form action={addMember} className="mt-3 flex gap-2">
+                  <input type="hidden" name="cell_id" value={cell.id} />
+                  <input name="full_name" placeholder="Nombre" className="flex-1 rounded-xl border border-line px-3 py-2" />
+                  <input name="phone" placeholder="Teléfono" className="w-36 rounded-xl border border-line px-3 py-2" />
+                  <button className="rounded-full border border-line px-3 text-sm">Agregar</button>
+                </form>
+              ) : (
+                <p className="mt-3 text-sm text-muted">El superadministrador no habilitó agregar integrantes.</p>
+              )}
             </div>
           </details>
         ))}
