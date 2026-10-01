@@ -1,4 +1,7 @@
 #!/bin/bash
+# Full install on the VPS: vendor, .env, migrations, first seed, Apache vhost.
+# Expects the whole app (without vendor/ and node_modules/) packed at /tmp/iglesia-zoe-laravel.tgz.
+# For everyday code changes use release.ps1 instead; it never touches data.
 set -euo pipefail
 
 APP_DIR=/opt/iglesia-zoe-app
