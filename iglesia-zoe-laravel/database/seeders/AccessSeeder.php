@@ -9,12 +9,13 @@ use App\Models\Cell;
 use App\Models\Network;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 
 class AccessSeeder extends Seeder
 {
     public function run(): void
     {
-        $password = env('TEST_ACCOUNTS_PASSWORD', 'Pruebas.Zoe2026');
+        $password = env('TEST_ACCOUNTS_PASSWORD') ?: throw new RuntimeException('Define TEST_ACCOUNTS_PASSWORD in .env before seeding test accounts.');
         $networkA = Network::query()->where('code', 'A')->first();
         $networkB = Network::query()->where('code', 'B')->first();
         $cellA = $networkA ? Cell::query()->firstOrCreate(

@@ -64,7 +64,7 @@ export function ThemeBrowser({ themes }: { themes: Theme[] }) {
                     <button
                       className="rounded-lg bg-orange px-3 py-1 text-xs font-medium text-white"
                       onClick={async () => {
-                        const result = await themeDownloadUrl(theme.file_path!);
+                        const result = await themeDownloadUrl(theme.id);
                         if (result.url) window.open(result.url, "_blank");
                         else setError(result.error || "No disponible");
                       }}

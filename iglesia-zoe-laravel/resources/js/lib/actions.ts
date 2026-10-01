@@ -130,29 +130,25 @@ export async function saveCell(formData: FormData) {
   router.reload();
 }
 
-export async function createRootCell(networkId: string, networkCode: string) {
+export async function createRootCell(networkId: string) {
   const formData = new FormData();
   formData.set("network_id", networkId);
-  formData.set("network_code", networkCode);
   const data = await postJson("/admin/celulas/raiz", formData);
   if (data?.ok) router.reload();
   return data;
 }
 
-export async function ensureSixCells(networkId: string, networkCode: string) {
+export async function ensureSixCells(networkId: string) {
   const formData = new FormData();
   formData.set("network_id", networkId);
-  formData.set("network_code", networkCode);
   const data = await postJson("/admin/celulas/completar", formData);
   if (data?.ok) router.reload();
   return data;
 }
 
-export async function createDaughter(parentId: string, parentCode: string, networkId: string) {
+export async function createDaughter(parentId: string) {
   const formData = new FormData();
   formData.set("parent_id", parentId);
-  formData.set("parent_code", parentCode);
-  formData.set("network_id", networkId);
   const data = await postJson("/admin/celulas/hija", formData);
   if (data?.ok) router.reload();
   return data;
@@ -204,8 +200,8 @@ export async function saveReport(formData: FormData) {
   return postJson("/portal/informe", formData);
 }
 
-export async function themeDownloadUrl(filePath: string) {
-  const res = await fetch(`/portal/temas/archivo?path=${encodeURIComponent(filePath)}`, {
+export async function themeDownloadUrl(themeId: string) {
+  const res = await fetch(`/portal/temas/archivo?id=${encodeURIComponent(themeId)}`, {
     headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
   });
   return res.json();

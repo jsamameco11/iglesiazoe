@@ -10,6 +10,11 @@ use Illuminate\Support\Str;
 
 class ManageSiteMedia
 {
+    private const ALLOWED = [
+        'image' => ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'],
+        'video' => ['mp4', 'webm', 'mov'],
+    ];
+
     public function save(Request $request): array
     {
         $id = (string) $request->input('id');
@@ -45,6 +50,13 @@ class ManageSiteMedia
         $poster = $request->file('poster');
         $src = $previous['src'] ?? '';
         $posterSrc = $previous['poster'] ?? '';
+
+        if ($file instanceof UploadedFile && ! $this->extension($file, $kind)) {
+            return ['error' => $kind === 'video' ? 'El video debe ser MP4, WebM o MOV.' : 'La imagen debe ser JPG, PNG, WebP, GIF o AVIF.'];
+        }
+        if ($kind === 'video' && $poster instanceof UploadedFile && ! $this->extension($poster, 'image')) {
+            return ['error' => 'La portada debe ser JPG, PNG, WebP, GIF o AVIF.'];
+        }
 
         if ($file instanceof UploadedFile) {
             $src = $this->store($file, $id, $kind);
@@ -130,9 +142,16 @@ class ManageSiteMedia
         );
     }
 
+    private function extension(UploadedFile $file, string $kind): ?string
+    {
+        $ext = $file->isValid() ? strtolower((string) $file->guessExtension()) : '';
+
+        return in_array($ext, self::ALLOWED[$kind] ?? [], true) ? $ext : null;
+    }
+
     private function store(UploadedFile $file, string $id, string $kind): string
     {
-        $ext = strtolower($file->getClientOriginalExtension() ?: ($kind === 'video' ? 'mp4' : 'jpg'));
+        $ext = $this->extension($file, $kind);
         $path = 'medios/site/'.str_replace(':', '/', $id).'/'.time().'.'.$ext;
         Storage::disk('public')->putFileAs(dirname($path), $file, basename($path));
 

@@ -49,7 +49,6 @@ APP_URL=https://iglesiacristianazoe.miacademiapreu.com
 APP_LOCALE=es
 APP_FALLBACK_LOCALE=es
 APP_FAKER_LOCALE=es_PE
-SEED_PASSWORD=
 APP_MAINTENANCE_DRIVER=file
 BCRYPT_ROUNDS=12
 LOG_CHANNEL=stack
@@ -72,6 +71,10 @@ MAIL_FROM_ADDRESS="contacto@iglesiacristianazoe.miacademiapreu.com"
 MAIL_FROM_NAME="${APP_NAME}"
 VITE_APP_NAME="${APP_NAME}"
 ENV
+fi
+if ! grep -q '^SEED_PASSWORD=.' "${STAGING}/.env"; then
+  echo "==> Generating SEED_PASSWORD in .env (read it there after the first seed)"
+  printf 'SEED_PASSWORD=%s\n' "$(openssl rand -base64 18)" >> "${STAGING}/.env"
 fi
 
 echo "==> Composer install"

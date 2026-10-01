@@ -11,6 +11,7 @@ use App\Models\Network;
 use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use RuntimeException;
 
 class ChurchSeeder extends Seeder
 {
@@ -50,7 +51,7 @@ class ChurchSeeder extends Seeder
             ],
         );
 
-        $password = env('SEED_PASSWORD', '');
+        $password = env('SEED_PASSWORD') ?: throw new RuntimeException('Define SEED_PASSWORD in .env before seeding.');
 
         User::query()->updateOrCreate(
             ['username' => 'superadmi'],
