@@ -122,7 +122,7 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   username text unique not null,
   full_name text,
-  role text not null check (role in ('admin', 'red_leader', 'cell_leader')),
+  role text not null check (role in ('superadmin', 'admin', 'red_leader', 'cell_leader')),
   network_id uuid references public.networks(id) on delete set null,
   created_at timestamptz not null default now()
 );
@@ -205,7 +205,20 @@ set search_path = public
 as $$
   select exists (
     select 1 from public.profiles
-    where id = auth.uid() and role = 'admin'
+    where id = auth.uid() and role in ('admin', 'superadmin')
+  );
+$$;
+
+create or replace function public.is_superadmin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and role = 'superadmin'
   );
 $$;
 
@@ -314,6 +327,10 @@ begin
 
   if p_role not in ('admin', 'red_leader', 'cell_leader') then
     raise exception 'Rol inválido';
+  end if;
+
+  if p_role = 'admin' and not public.is_superadmin() then
+    raise exception 'Solo el superadministrador puede crear administradores';
   end if;
 
   if p_username is null or length(trim(p_username)) < 3 then
