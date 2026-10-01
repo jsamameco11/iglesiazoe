@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Rise } from "@/Components/motion/rise";
 import { LeadTitle } from "@/Components/site/lead-title";
 import { MediaView } from "@/Components/site/media-view";
+import { readCopy } from "@/lib/copy";
 import type { ResolvedMedia } from "@/lib/media";
 import type { Ministry, SiteSettings } from "@/lib/types";
 
@@ -90,7 +91,7 @@ export function MinistryFeature({
     <section className={`ministry-feature ${showCopy ? "" : "ministry-feature-photos"}`.trim()}>
       {showCopy ? (
         <Rise className="ministry-copy-col">
-          <p className="kicker">Ministerios</p>
+          <p className="kicker">{readCopy(settings, "home.ministriesKicker")}</p>
           <LeadTitle
             as="h2"
             text={settings.homeMinistriesTitle || settings.ministriesTitle}
@@ -98,7 +99,7 @@ export function MinistryFeature({
           />
           <p className="mt-5 max-w-md text-base font-light leading-7 text-muted">{settings.ministriesText}</p>
           <Link href="/ministerios" className="ministry-more">
-            Conoce más
+            {readCopy(settings, "home.ministriesMore")}
           </Link>
         </Rise>
       ) : (

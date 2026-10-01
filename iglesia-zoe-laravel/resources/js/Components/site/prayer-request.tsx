@@ -1,7 +1,8 @@
+import { usePage } from "@inertiajs/react";
 import { useRef, useState, useTransition, type FormEvent } from "react";
 import { submitPrayer } from "@/lib/actions";
-
-export const PRAYER_TOPICS = ["Salud", "Familia", "Trabajo y finanzas", "Vida espiritual", "Estudios", "Gratitud", "Otro"];
+import { useCopy } from "@/lib/copy";
+import type { SiteSettings } from "@/lib/types";
 
 const MAX = 2000;
 
@@ -16,6 +17,9 @@ function HandsIcon() {
 }
 
 export function PrayerRequestForm() {
+  const { settings } = usePage().props as unknown as { settings?: SiteSettings };
+  const topics = Array.isArray(settings?.prayerTopics) ? settings.prayerTopics : [];
+  const t = useCopy();
   const form = useRef<HTMLFormElement>(null);
   const [topic, setTopic] = useState("");
   const [text, setText] = useState("");
@@ -50,9 +54,9 @@ export function PrayerRequestForm() {
         <span className="prayer-sent-icon"><HandsIcon /></span>
         <p className="editorial mt-6 text-[2.1rem] leading-tight">Gracias, {sentTo}.</p>
         <p className="mx-auto mt-3 max-w-sm text-[15px] leading-7 text-muted">
-          Recibimos tu petición. Nuestro equipo de intercesión estará orando por ti esta semana.
+          {t("prayer.thanks")}
         </p>
-        <p className="editorial mt-5 text-lg italic text-muted">«La oración eficaz del justo puede mucho.» Santiago 5:16</p>
+        <p className="editorial mt-5 text-lg italic text-muted">{t("prayer.thanksVerse")}</p>
         <button type="button" onClick={() => setSentTo("")} className="prayer-again">Enviar otra petición</button>
       </div>
     );
@@ -60,10 +64,11 @@ export function PrayerRequestForm() {
 
   return (
     <form ref={form} onSubmit={submit} className="visit-form" noValidate>
+      {topics.length > 0 && (
       <fieldset className="min-w-0">
         <legend className="text-sm">¿Por qué motivo oramos? <span className="text-muted">(opcional)</span></legend>
         <div className="prayer-topics">
-          {PRAYER_TOPICS.map((item) => (
+          {topics.map((item) => (
             <label key={item} className="prayer-topic" data-on={topic === item ? "true" : "false"}>
               <input
                 type="radio"
@@ -79,6 +84,7 @@ export function PrayerRequestForm() {
           ))}
         </div>
       </fieldset>
+      )}
 
       <label className="visit-label text-sm">
         Nombre
@@ -111,7 +117,7 @@ export function PrayerRequestForm() {
         <span className="mt-1.5 self-end text-[11px] text-muted">{text.length} / {MAX}</span>
       </label>
 
-      <p className="text-[12.5px] leading-5 text-muted">Tu petición es confidencial: solo la recibe el equipo pastoral y de intercesión.</p>
+      <p className="text-[12.5px] leading-5 text-muted">{t("prayer.privacy")}</p>
 
       {error && <p className="visit-note is-error" role="alert">{error}</p>}
 

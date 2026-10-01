@@ -20,7 +20,7 @@ export default function SiteLayout({
   overMedia = false,
 }: {
   children: React.ReactNode;
-  overMedia?: boolean | "split";
+  overMedia?: boolean | "split" | "page";
 }) {
   const { settings, ministries, skin, design } = usePage<{ props: Shared }>().props as unknown as Shared;
   const { style, attrs } = useSitePalette();

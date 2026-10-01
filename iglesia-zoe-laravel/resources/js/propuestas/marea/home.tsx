@@ -5,6 +5,7 @@ import { HeroSplit } from "@/Components/site/hero-film";
 import { LeadTitle } from "@/Components/site/lead-title";
 import { MinistryFeature } from "@/Components/site/ministry-feature";
 import { MediaView } from "@/Components/site/media-view";
+import { readCopy } from "@/lib/copy";
 import type { ResolvedMedia } from "@/lib/media";
 import type { Ministry, SiteSettings } from "@/lib/types";
 
@@ -42,19 +43,19 @@ export function MareaHome({
       <Rise>
         <section className="home-band">
           <div className="home-band-copy">
-            <p className="luz-kicker luz-kicker-light">Horarios y sede</p>
-            <h2 className="editorial mt-4 text-5xl italic leading-[1.05] text-white sm:text-6xl">Una casa abierta cada semana.</h2>
+            <p className="luz-kicker luz-kicker-light">{readCopy(settings, "home.scheduleKicker")}</p>
+            <h2 className="editorial mt-4 text-5xl italic leading-[1.05] text-white sm:text-6xl">{readCopy(settings, "home.scheduleTitleLuz")}</h2>
             <dl className="mt-8 space-y-4 text-white/85">
               <div>
-                <dt className="text-[11px] uppercase tracking-[0.22em] text-white/45">Domingo</dt>
+                <dt className="text-[11px] uppercase tracking-[0.22em] text-white/45">{readCopy(settings, "facts.sunday")}</dt>
                 <dd className="mt-1 text-lg">{settings.sunday}</dd>
               </div>
               <div>
-                <dt className="text-[11px] uppercase tracking-[0.22em] text-white/45">Entre semana</dt>
+                <dt className="text-[11px] uppercase tracking-[0.22em] text-white/45">{readCopy(settings, "facts.week")}</dt>
                 <dd className="mt-1 text-lg">{settings.wednesday}</dd>
               </div>
               <div>
-                <dt className="text-[11px] uppercase tracking-[0.22em] text-white/45">Sede</dt>
+                <dt className="text-[11px] uppercase tracking-[0.22em] text-white/45">{readCopy(settings, "facts.place")}</dt>
                 <dd className="mt-1 text-lg">{settings.address}</dd>
               </div>
             </dl>
@@ -63,7 +64,7 @@ export function MareaHome({
             </Link>
           </div>
           <div className="home-band-photo">
-            <MediaView asset={media.mareaFamily} fit="cover" />
+            <MediaView asset={media.mareaCulto} fit="cover" />
           </div>
         </section>
       </Rise>
@@ -98,7 +99,7 @@ export function MareaHome({
         </Rise>
         <Rise delay={180} from="right">
           <Link href="/dar" className="luz-cta-cell" style={{ background: "var(--clay)" }}>
-            <h3 className="headline text-4xl italic">Generosidad</h3>
+            <h3 className="headline text-4xl italic">{readCopy(settings, "home.giveCardTitle")}</h3>
             <p className="mt-4 max-w-sm leading-7 opacity-75">{settings.giveLead}</p>
           </Link>
         </Rise>

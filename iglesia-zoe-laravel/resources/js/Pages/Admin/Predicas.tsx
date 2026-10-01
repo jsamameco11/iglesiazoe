@@ -21,7 +21,7 @@ export default function Predicas({ sermons }: { sermons: Sermon[] }) {
         <input name="preacher" placeholder="Predicador" className="rounded-xl border border-line px-3 py-2" />
         <input name="series" placeholder="Serie" className="rounded-xl border border-line px-3 py-2" />
         <input name="sermon_date" type="date" className="rounded-xl border border-line px-3 py-2" />
-        <input name="youtube_id" placeholder="ID de YouTube" className="rounded-xl border border-line px-3 py-2" />
+        <input name="youtube_id" placeholder="Enlace o ID de YouTube" className="rounded-xl border border-line px-3 py-2" />
         <label className="text-sm"><input type="checkbox" name="is_live" /> Marcar como transmisión principal</label>
         <label className="text-sm"><input type="checkbox" name="published" defaultChecked /> Publicada</label>
         <button className="w-fit rounded-full bg-accent px-5 py-2 text-sm text-white">Agregar</button>
@@ -34,7 +34,7 @@ export default function Predicas({ sermons }: { sermons: Sermon[] }) {
             <input name="preacher" defaultValue={sermon.preacher || ""} className="rounded-xl border border-line px-3 py-2" />
             <input name="series" defaultValue={sermon.series || ""} className="rounded-xl border border-line px-3 py-2" />
             <input name="sermon_date" type="date" defaultValue={sermon.sermon_date || ""} className="rounded-xl border border-line px-3 py-2" />
-            <input name="youtube_id" defaultValue={sermon.youtube_id || ""} className="rounded-xl border border-line px-3 py-2" />
+            <input name="youtube_id" defaultValue={sermon.youtube_id || ""} placeholder="Enlace o ID de YouTube" className="rounded-xl border border-line px-3 py-2" />
             <label className="text-sm"><input type="checkbox" name="is_live" defaultChecked={sermon.is_live} /> En vivo</label>
             <label className="text-sm"><input type="checkbox" name="published" defaultChecked={sermon.published} /> Publicada</label>
             <div className="flex gap-3">

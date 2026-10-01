@@ -24,8 +24,16 @@ export type SiteSettings = {
   values: { title: string; text: string }[];
   facebook: string;
   youtube: string;
+  instagram: string;
+  tiktok: string;
+  messengerUrl: string;
+  liveUrl: string;
   mapUrl: string;
   liveYoutubeId: string;
+  serviceDayMain: string;
+  serviceDayWeek: string;
+  prayerTopics: string[];
+  copy: Record<string, string>;
   bankSoles: string;
   bankSolesCci: string;
   bankDollars: string;

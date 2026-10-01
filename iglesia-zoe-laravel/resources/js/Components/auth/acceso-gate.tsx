@@ -1,18 +1,21 @@
+import { usePage } from "@inertiajs/react";
 import { useEffect, useId, useState } from "react";
+import { readPairs } from "@/lib/copy";
+import type { SiteSettings } from "@/lib/types";
 
-const verses = [
-  { kicker: "Juan 1:1", line: "En el principio era el Verbo" },
-  { kicker: "CEREAL", line: "Informe de tu grupo" },
-  { kicker: "Salmo 119:105", line: "Lámpara es a mis pies tu palabra" },
-];
+const fallback = [{ kicker: "CEREAL", line: "Informe de tu grupo" }];
 
 export function AccesoGate() {
+  const { settings } = usePage().props as unknown as { settings?: SiteSettings };
+  const pairs = readPairs(settings, "acceso.lines").map((pair) => ({ kicker: pair.ref ? pair.text : "", line: pair.ref || pair.text }));
+  const verses = pairs.length ? pairs : fallback;
   const uid = useId().replace(/:/g, "");
   const [index, setIndex] = useState(0);
   const [typed, setTyped] = useState("");
+  const verse = verses[index % verses.length];
 
   useEffect(() => {
-    const word = verses[index].line;
+    const word = verse.line;
     if (typed.length < word.length) {
       const timer = window.setTimeout(() => setTyped(word.slice(0, typed.length + 1)), 42);
       return () => window.clearTimeout(timer);
@@ -22,7 +25,7 @@ export function AccesoGate() {
       setIndex((current) => (current + 1) % verses.length);
     }, 2200);
     return () => window.clearTimeout(pause);
-  }, [index, typed]);
+  }, [verse.line, verses.length, typed]);
 
   return (
     <div className="acceso-gate" aria-hidden="true">
@@ -95,7 +98,7 @@ export function AccesoGate() {
             <rect x="182" y="132" width="356" height="216" rx="12" fill="#c7923d" opacity="0.06" />
             <circle cx="360" cy="124" r="3" fill="#5c6570" />
             <text x="204" y="172" fill="#c5cbb8" fontFamily="Inter, sans-serif" fontSize="11" fontWeight="500" letterSpacing="3.2">
-              IGLESIA ZOE · {verses[index].kicker}
+              {verse.kicker ? `IGLESIA ZOE · ${verse.kicker}` : "IGLESIA ZOE"}
             </text>
             <text x="204" y="228" fill="#fbfaf6" fontFamily="'Cormorant Garamond', serif" fontSize="25" fontWeight="500" fontStyle="italic">
               {typed}

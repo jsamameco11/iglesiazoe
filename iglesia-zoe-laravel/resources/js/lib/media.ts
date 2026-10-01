@@ -217,14 +217,7 @@ function baptismDefaults(): Record<string, MediaAsset> {
 
 export const ABOUT_PHOTOS = 8;
 
-const aboutPool = [
-  "/images/familia1.jpg",
-  "/images/banner4.jpg",
-  "/images/pastores.jpg",
-  "/images/banner8.jpg",
-  "/images/man1.jpg",
-  "/images/man2.jpg",
-];
+const aboutPool = ["/images/banner4.jpg", "/images/familia1.jpg", "/images/banner8.jpg"];
 
 export function aboutSlotId(photo: number) {
   return `about-${photo}`;
@@ -235,7 +228,7 @@ function aboutDefaults(): Record<string, MediaAsset> {
   for (let photo = 1; photo <= ABOUT_PHOTOS; photo += 1) {
     result[aboutSlotId(photo)] = {
       kind: "image",
-      src: aboutPool[(photo - 1) % aboutPool.length],
+      src: aboutPool[photo - 1] ?? "",
       poster: "",
       alt: `Iglesia Cristiana Zoe · foto ${photo}`,
     };
@@ -354,8 +347,8 @@ const fixedCatalog: MediaSlotMeta[] = [
   {
     id: "marea-culto",
     group: "Inicio",
-    label: "El culto",
-    hint: "Primera pieza visual de la opción Luz.",
+    label: "Horarios y sede",
+    hint: "Foto junto a los horarios y la dirección en el inicio de la opción Luz.",
   },
   {
     id: "marea-ciudad",
@@ -372,8 +365,8 @@ const fixedCatalog: MediaSlotMeta[] = [
   ...Array.from({ length: ABOUT_PHOTOS }, (_, index) => ({
     id: aboutSlotId(index + 1),
     group: "Conócenos",
-    label: `Carrusel · Foto ${index + 1}`,
-    hint: "Se ve en la cinta de fotos de Conócenos, sobre la franja. Es independiente del carrusel del inicio.",
+    label: `Fondo de pantalla · Foto ${index + 1}`,
+    hint: "Fondo a pantalla completa de Conócenos; cambia cada 4 segundos. Usa fotos horizontales de buena resolución (mín. 1920 px de ancho).",
   })),
   {
     id: "visit",
@@ -412,6 +405,8 @@ const fixedCatalog: MediaSlotMeta[] = [
     hint: "La pantalla de acceso usa una ilustración propia del sistema (computadora y Biblia).",
   },
 ];
+
+const retiredSlots = ["marea-ciudad", "login"];
 
 export function ministrySlotId(slug: string, photo = 1) {
   return photo <= 1 ? `ministry:${slug}` : `ministry:${slug}:${photo}`;
@@ -467,7 +462,7 @@ export function mediaCatalog(
     })),
   );
   const hero = fixedCatalog.filter((slot) => slot.id === "hero");
-  const rest = fixedCatalog.filter((slot) => slot.id !== "hero");
+  const rest = fixedCatalog.filter((slot) => slot.id !== "hero" && !retiredSlots.includes(slot.id));
   const aboutIndex = rest.findIndex((slot) => slot.id === "visit");
   return [...hero, ...gallerySlots, ...rest.slice(0, aboutIndex), ...ministrySlots, ...rest.slice(aboutIndex)];
 }

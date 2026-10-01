@@ -83,7 +83,7 @@ function CreateAccount({ catalog, networks, cells }: { catalog: Catalog; network
   }
 
   return (
-    <Panel title="Nuevo administrador" text="Las funciones por defecto (crear servidores y diseño de la página) ya vienen marcadas. Puedes quitarlas.">
+    <Panel title="Nuevo administrador" text="La función por defecto (crear servidores) ya viene marcada. Puedes quitarlas.">
       <form onSubmit={submit} className="space-y-5">
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="text-xs font-semibold text-muted">Nombre completo<input name="name" required className={input} placeholder="Ej. María Torres" /></label>

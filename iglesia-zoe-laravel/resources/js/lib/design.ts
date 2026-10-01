@@ -41,6 +41,7 @@ export const pageOfComponent: Record<string, string> = {
   Sermons: "sermons",
   Give: "give",
   Contact: "contact",
+  Acceso: "acceso",
 };
 
 export function fontStack(name: string, fonts?: FontOption[]) {

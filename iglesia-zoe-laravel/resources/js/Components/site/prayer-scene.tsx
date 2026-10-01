@@ -1,22 +1,9 @@
-import { Link } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import { useEffect, useRef, useState } from "react";
-
-const VERSES = [
-  { text: "Por nada estéis afanosos, sino sean conocidas vuestras peticiones delante de Dios.", ref: "Filipenses 4:6" },
-  { text: "Clama a mí, y yo te responderé, y te enseñaré cosas grandes y ocultas que tú no conoces.", ref: "Jeremías 33:3" },
-  { text: "Pedid, y se os dará; buscad, y hallaréis; llamad, y se os abrirá.", ref: "Mateo 7:7" },
-  { text: "Echando toda vuestra ansiedad sobre él, porque él tiene cuidado de vosotros.", ref: "1 Pedro 5:7" },
-  { text: "Cercano está Jehová a todos los que le invocan, a todos los que le invocan de veras.", ref: "Salmos 145:18" },
-  { text: "Orad unos por otros… La oración eficaz del justo puede mucho.", ref: "Santiago 5:16" },
-];
+import { readPairs, splitEmphasis, useCopy } from "@/lib/copy";
+import type { SiteSettings } from "@/lib/types";
 
 const VERSE_MS = 4000;
-
-const STEPS = [
-  { title: "Escribe tu petición", text: "Cuéntanos el motivo con la confianza de que será tratado con respeto." },
-  { title: "Oramos por ti", text: "Nuestro equipo de intercesión presenta cada petición delante de Dios durante la semana." },
-  { title: "Te acompañamos", text: "Si nos dejas tu teléfono, un servidor de la casa puede escribirte." },
-];
 
 function useVerseCycle(count: number) {
   const [index, setIndex] = useState(0);
@@ -55,7 +42,15 @@ function useVerseCycle(count: number) {
 }
 
 export function PrayerLight() {
-  const { index, setIndex, paused, setHovered } = useVerseCycle(VERSES.length);
+  const { settings } = usePage().props as unknown as { settings?: SiteSettings };
+  const t = useCopy();
+  const verses = readPairs(settings, "prayer.verses");
+  const steps = [
+    { title: t("prayer.step1Title"), text: t("prayer.step1Text") },
+    { title: t("prayer.step2Title"), text: t("prayer.step2Text") },
+    { title: t("prayer.step3Title"), text: t("prayer.step3Text") },
+  ];
+  const { index, setIndex, paused, setHovered } = useVerseCycle(Math.max(verses.length, 1));
 
   return (
     <section className="prayer-light" aria-label="Cómo oramos por ti">
@@ -63,9 +58,9 @@ export function PrayerLight() {
       <span className="prayer-light-mark" aria-hidden="true">“</span>
 
       <div className="relative">
-        <p className="prayer-light-kicker">Oramos contigo</p>
+        <p className="prayer-light-kicker">{t("prayer.kicker")}</p>
         <h2 className="editorial mt-4 text-[2.5rem] leading-[1.02] text-ink md:text-[3.1rem]">
-          No tienes que <em>cargarlo solo.</em>
+          {splitEmphasis(t("prayer.title")).map((part, i) => (part.em ? <em key={i}>{part.text}</em> : <span key={i}>{part.text}</span>))}
         </h2>
 
         <div
@@ -76,8 +71,8 @@ export function PrayerLight() {
           onBlur={() => setHovered(false)}
         >
           <div className="prayer-verse" aria-live="polite">
-            {VERSES.map((verse, i) => (
-              <blockquote key={verse.ref} className="prayer-verse-item" data-on={i === index ? "true" : "false"} aria-hidden={i !== index}>
+            {verses.map((verse, i) => (
+              <blockquote key={`${verse.ref}-${i}`} className="prayer-verse-item" data-on={i === index ? "true" : "false"} aria-hidden={i !== index}>
                 <p className="editorial text-[1.4rem] italic leading-[1.38] md:text-[1.62rem]">{verse.text}</p>
                 <cite className="prayer-verse-ref">{verse.ref}</cite>
               </blockquote>
@@ -86,13 +81,13 @@ export function PrayerLight() {
 
           <div className="prayer-verse-nav">
             <div className="prayer-progress" role="tablist" aria-label="Versículos de oración">
-              {VERSES.map((verse, i) => (
+              {verses.map((verse, i) => (
                 <button
-                  key={verse.ref}
+                  key={`${verse.ref}-${i}`}
                   type="button"
                   role="tab"
                   aria-selected={i === index}
-                  aria-label={verse.ref}
+                  aria-label={verse.ref || `Versículo ${i + 1}`}
                   className="prayer-progress-seg"
                   data-state={i === index ? "on" : i < index ? "done" : "off"}
                   data-paused={paused ? "true" : "false"}
@@ -104,14 +99,14 @@ export function PrayerLight() {
               ))}
             </div>
             <span className="prayer-verse-count" aria-hidden="true">
-              {String(index + 1).padStart(2, "0")} <span>/ {String(VERSES.length).padStart(2, "0")}</span>
+              {String(index + 1).padStart(2, "0")} <span>/ {String(verses.length).padStart(2, "0")}</span>
             </span>
           </div>
         </div>
       </div>
 
       <ol className="prayer-steps">
-        {STEPS.map((step, i) => (
+        {steps.map((step, i) => (
           <li key={step.title} className="prayer-step" style={{ animationDelay: `${0.25 + i * 0.18}s` }}>
             <span className="prayer-step-num">{String(i + 1).padStart(2, "0")}</span>
             <div>
@@ -125,7 +120,18 @@ export function PrayerLight() {
   );
 }
 
+function InviteTitle({ text }: { text: string }) {
+  const cut = text.lastIndexOf(" ");
+  if (cut <= 0) return <em>{text}</em>;
+  return (
+    <>
+      {text.slice(0, cut)} <em>{text.slice(cut + 1)}</em>
+    </>
+  );
+}
+
 export function VisitInvite({ sunday, wednesday }: { sunday?: string; wednesday?: string }) {
+  const t = useCopy();
   return (
     <Link href="/visita" className="visit-invite group">
       <span className="visit-invite-shine" aria-hidden="true" />
@@ -136,12 +142,12 @@ export function VisitInvite({ sunday, wednesday }: { sunday?: string; wednesday?
         </svg>
       </span>
       <span className="relative min-w-0 flex-1">
-        <span className="kicker block">¿Quieres conocernos en persona?</span>
+        <span className="kicker block">{t("contact.visitKicker")}</span>
         <span className="editorial mt-3 block text-[2.3rem] leading-[1.02] md:text-[3.2rem]">
-          Planifica tu <em>visita</em>
+          <InviteTitle text={t("contact.visitTitle")} />
         </span>
         <span className="mt-3 block max-w-xl text-[15px] leading-7 text-muted">
-          Déjanos tus datos y un equipo de la casa te recibirá en tu primera visita.
+          {t("contact.visitText")}
           {(sunday || wednesday) && <span className="mt-1 block text-sm text-ink/70">{[sunday, wednesday].filter(Boolean).join(" · ")}</span>}
         </span>
       </span>
