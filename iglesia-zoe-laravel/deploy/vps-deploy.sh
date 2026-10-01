@@ -26,20 +26,7 @@ if [[ -d "${APP_DIR}/storage/app" ]]; then
   cp -a "${APP_DIR}/storage/app/." "${STAGING}/storage/app/"
 fi
 
-echo "==> Restoring public media"
-mkdir -p "${STAGING}/public/images" "${STAGING}/public/videos"
-if [[ -d "${APP_DIR}/public/images" ]]; then
-  cp -a "${APP_DIR}/public/images/." "${STAGING}/public/images/"
-elif [[ -d "${NEXT_DIR}/public/images" ]]; then
-  cp -a "${NEXT_DIR}/public/images/." "${STAGING}/public/images/"
-fi
-if [[ -f "${APP_DIR}/public/videos/siguientepaso.mp4" ]]; then
-  cp -f "${APP_DIR}/public/videos/siguientepaso.mp4" "${STAGING}/public/videos/siguientepaso.mp4"
-elif [[ -f "${NEXT_DIR}/public/videos/siguientepaso.mp4" ]]; then
-  cp -f "${NEXT_DIR}/public/videos/siguientepaso.mp4" "${STAGING}/public/videos/siguientepaso.mp4"
-elif [[ -f /tmp/siguientepaso.mp4 ]]; then
-  cp -f /tmp/siguientepaso.mp4 "${STAGING}/public/videos/siguientepaso.mp4"
-fi
+# Photos, videos and files live in the Wasabi bucket (/images, /videos and /media redirect there).
 
 if [[ ! -f "${STAGING}/.env" ]]; then
   echo "==> Creating production environment"
