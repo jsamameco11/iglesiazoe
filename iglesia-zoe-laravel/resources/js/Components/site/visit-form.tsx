@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { SelectField, type SelectOption } from "@/Components/ui/select-field";
 import { submitVisit } from "@/lib/actions";
+import { useCopy } from "@/lib/copy";
 import { citiesOf, cityName, districtsOf, flagUrl, geo, type GeoCountry, type GeoTree } from "@/lib/geo";
 
 const SEXES = ["Masculino", "Femenino"];
@@ -28,6 +29,7 @@ export function VisitForm({
   sunday?: string;
   wednesday?: string;
 }) {
+  const t = useCopy();
   const form = useRef<HTMLFormElement>(null);
   const [countries, setCountries] = useState<GeoCountry[]>([]);
   const [tree, setTree] = useState<GeoTree>([]);
@@ -180,12 +182,12 @@ export function VisitForm({
 
   return (
     <form ref={form} onSubmit={onSubmit} noValidate className="visit-form">
-      {status.ok && <p className="visit-note is-ok">¡Gracias! Recibimos tus datos y te esperamos con los brazos abiertos.</p>}
+      {status.ok && <p className="visit-note is-ok">{t("visit.thanks")}</p>}
       {status.error && <p className="visit-note is-error">{status.error}</p>}
 
       <div className="visit-row cols-2">
         <label className="visit-label">
-          <span className="text-sm">Nombres</span>
+          <span className="text-sm">{t("forms.firstName")}</span>
           <input
             className={input}
             value={firstName}
@@ -200,7 +202,7 @@ export function VisitForm({
           {errors.first_name && <span className="select-field-error">{errors.first_name}</span>}
         </label>
         <label className="visit-label">
-          <span className="text-sm">Apellidos</span>
+          <span className="text-sm">{t("forms.lastName")}</span>
           <input
             className={input}
             value={lastName}
@@ -218,7 +220,7 @@ export function VisitForm({
 
       <div className="visit-row cols-3">
         <SelectField
-          label="Sexo"
+          label={t("forms.sex")}
           value={sex}
           options={SEXES.map((item) => ({ value: item, label: item }))}
           onChange={(value) => {
@@ -228,7 +230,7 @@ export function VisitForm({
           error={errors.sex}
         />
         <label className="visit-label">
-          <span className="text-sm">Edad</span>
+          <span className="text-sm">{t("forms.age")}</span>
           <input
             className={input}
             value={age}
@@ -239,13 +241,13 @@ export function VisitForm({
             inputMode="numeric"
             pattern="[0-9]*"
             maxLength={3}
-            placeholder="Años"
+            placeholder={t("forms.agePlaceholder")}
             aria-invalid={errors.age ? true : undefined}
           />
           {errors.age && <span className="select-field-error">{errors.age}</span>}
         </label>
         <SelectField
-          label="Estado civil"
+          label={t("forms.marital")}
           value={marital}
           options={MARITAL.map((item) => ({ value: item, label: item }))}
           onChange={(value) => {
@@ -258,7 +260,7 @@ export function VisitForm({
 
       <div className="visit-row cols-2">
         <SelectField
-          label="País"
+          label={t("forms.country")}
           value={country}
           options={countryOptions}
           loading={loading.countries}
@@ -271,7 +273,7 @@ export function VisitForm({
           searchable
         />
         <div className="visit-label">
-          <span className="text-sm">Teléfono</span>
+          <span className="text-sm">{t("forms.phone")}</span>
           <div className="visit-phone">
             <SelectField
               label="Código"
@@ -301,7 +303,7 @@ export function VisitForm({
               }}
               inputMode="tel"
               autoComplete="tel-national"
-              placeholder="Número"
+              placeholder={t("forms.phonePlaceholder")}
               aria-label="Número de teléfono"
               aria-invalid={errors.phone ? true : undefined}
             />
@@ -311,7 +313,7 @@ export function VisitForm({
       </div>
 
       <label className="visit-label">
-        <span className="text-sm">Correo electrónico</span>
+        <span className="text-sm">{t("forms.email")}</span>
         <input
           className={input}
           type="email"
@@ -374,11 +376,11 @@ export function VisitForm({
             searchable
           />
         )}
-        <SelectField label="Servicio al que asistirás" value={service} options={serviceOptions} onChange={setService} />
+        <SelectField label={t("visit.service")} value={service} options={serviceOptions} onChange={setService} />
       </div>
 
       <button type="submit" disabled={pending} className="visit-submit">
-        {pending ? "Enviando…" : cta}
+        {pending ? t("forms.sending") : cta}
       </button>
     </form>
   );

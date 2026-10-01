@@ -75,7 +75,7 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
           <p className="text-[11px] uppercase tracking-[0.24em] text-white/40">Iglesia Zoe · Panel</p>
           <div className="mt-5">{identity}</div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-color:rgba(255,255,255,0.18)_transparent] [scrollbar-width:thin]">
           <AdminNav user={user} />
         </div>
         <div className="border-t border-white/10 px-5 py-4">{footer}</div>

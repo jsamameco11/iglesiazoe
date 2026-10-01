@@ -52,12 +52,12 @@ export function PrayerRequestForm() {
       <div className="prayer-sent" role="status">
         <span className="prayer-sent-glow" aria-hidden="true" />
         <span className="prayer-sent-icon"><HandsIcon /></span>
-        <p className="editorial mt-6 text-[2.1rem] leading-tight">Gracias, {sentTo}.</p>
+        <p className="editorial mt-6 text-[2.1rem] leading-tight">{t("prayer.thanksHello").replace("{nombre}", sentTo)}</p>
         <p className="mx-auto mt-3 max-w-sm text-[15px] leading-7 text-muted">
           {t("prayer.thanks")}
         </p>
         <p className="editorial mt-5 text-lg italic text-muted">{t("prayer.thanksVerse")}</p>
-        <button type="button" onClick={() => setSentTo("")} className="prayer-again">Enviar otra petición</button>
+        <button type="button" onClick={() => setSentTo("")} className="prayer-again">{t("prayer.again")}</button>
       </div>
     );
   }
@@ -66,7 +66,7 @@ export function PrayerRequestForm() {
     <form ref={form} onSubmit={submit} className="visit-form" noValidate>
       {topics.length > 0 && (
       <fieldset className="min-w-0">
-        <legend className="text-sm">¿Por qué motivo oramos? <span className="text-muted">(opcional)</span></legend>
+        <legend className="text-sm">{t("prayer.topicLabel")} <span className="text-muted">{t("forms.optional")}</span></legend>
         <div className="prayer-topics">
           {topics.map((item) => (
             <label key={item} className="prayer-topic" data-on={topic === item ? "true" : "false"}>
@@ -87,23 +87,23 @@ export function PrayerRequestForm() {
       )}
 
       <label className="visit-label text-sm">
-        Nombre
-        <input name="full_name" required minLength={3} maxLength={120} autoComplete="name" placeholder="¿Cómo te llamas?" className="visit-input" />
+        {t("prayer.name")}
+        <input name="full_name" required minLength={3} maxLength={120} autoComplete="name" placeholder={t("prayer.namePlaceholder")} className="visit-input" />
       </label>
 
       <div className="visit-row cols-2">
         <label className="visit-label text-sm">
-          Teléfono <span className="sr-only">(opcional)</span>
-          <input name="phone" inputMode="tel" maxLength={30} autoComplete="tel" placeholder="Opcional" className="visit-input" />
+          {t("prayer.phone")} <span className="sr-only">{t("forms.optional")}</span>
+          <input name="phone" inputMode="tel" maxLength={30} autoComplete="tel" placeholder={t("prayer.optionalPlaceholder")} className="visit-input" />
         </label>
         <label className="visit-label text-sm">
-          Correo <span className="sr-only">(opcional)</span>
-          <input name="email" type="email" maxLength={160} autoComplete="email" placeholder="Opcional" className="visit-input" />
+          {t("prayer.email")} <span className="sr-only">{t("forms.optional")}</span>
+          <input name="email" type="email" maxLength={160} autoComplete="email" placeholder={t("prayer.optionalPlaceholder")} className="visit-input" />
         </label>
       </div>
 
       <label className="visit-label text-sm">
-        Tu petición
+        {t("prayer.request")}
         <textarea
           name="request"
           required
@@ -111,7 +111,7 @@ export function PrayerRequestForm() {
           maxLength={MAX}
           value={text}
           onChange={(event) => setText(event.target.value)}
-          placeholder="Cuéntanos por quién o por qué situación quieres que oremos."
+          placeholder={t("prayer.requestPlaceholder")}
           className="visit-input resize-none leading-7"
         />
         <span className="mt-1.5 self-end text-[11px] text-muted">{text.length} / {MAX}</span>
@@ -122,7 +122,7 @@ export function PrayerRequestForm() {
       {error && <p className="visit-note is-error" role="alert">{error}</p>}
 
       <button disabled={pending} className="visit-submit prayer-submit">
-        <span>{pending ? "Enviando…" : "Enviar mi petición"}</span>
+        <span>{pending ? t("forms.sending") : t("prayer.submit")}</span>
       </button>
     </form>
   );

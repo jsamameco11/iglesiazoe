@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { SelectField, type SelectOption } from "@/Components/ui/select-field";
 import { submitBaptism } from "@/lib/actions";
+import { useCopy } from "@/lib/copy";
 import { flagUrl, geo, type GeoCountry } from "@/lib/geo";
 
 const SEXES = ["Masculino", "Femenino"];
@@ -35,6 +36,7 @@ export function BaptismForm({
   cta?: string;
   fallback?: string;
 }) {
+  const t = useCopy();
   const form = useRef<HTMLFormElement>(null);
   const [countries, setCountries] = useState<GeoCountry[]>([]);
   const [loadingCountries, setLoadingCountries] = useState(true);
@@ -146,12 +148,12 @@ export function BaptismForm({
 
   return (
     <form ref={form} onSubmit={onSubmit} noValidate className="visit-form">
-      {status.ok && <p className="visit-note is-ok">¡Gloria a Dios! Recibimos tu inscripción y pronto te contactaremos.</p>}
+      {status.ok && <p className="visit-note is-ok">{t("baptism.thanks")}</p>}
       {status.error && <p className="visit-note is-error">{status.error}</p>}
 
       <div className="visit-row cols-2">
         <label className="visit-label">
-          <span className="text-sm">Nombres</span>
+          <span className="text-sm">{t("forms.firstName")}</span>
           <input
             className={input}
             value={firstName}
@@ -166,7 +168,7 @@ export function BaptismForm({
           {errors.first_name && <span className="select-field-error">{errors.first_name}</span>}
         </label>
         <label className="visit-label">
-          <span className="text-sm">Apellidos</span>
+          <span className="text-sm">{t("forms.lastName")}</span>
           <input
             className={input}
             value={lastName}
@@ -184,7 +186,7 @@ export function BaptismForm({
 
       <div className="visit-row cols-3">
         <SelectField
-          label="Sexo"
+          label={t("forms.sex")}
           value={sex}
           options={SEXES.map((item) => ({ value: item, label: item }))}
           onChange={(value) => {
@@ -194,7 +196,7 @@ export function BaptismForm({
           error={errors.sex}
         />
         <label className="visit-label">
-          <span className="text-sm">Edad</span>
+          <span className="text-sm">{t("forms.age")}</span>
           <input
             className={input}
             value={age}
@@ -205,13 +207,13 @@ export function BaptismForm({
             inputMode="numeric"
             pattern="[0-9]*"
             maxLength={3}
-            placeholder="Años"
+            placeholder={t("forms.agePlaceholder")}
             aria-invalid={errors.age ? true : undefined}
           />
           {errors.age && <span className="select-field-error">{errors.age}</span>}
         </label>
         <SelectField
-          label="País"
+          label={t("forms.country")}
           value={country}
           options={countryOptions}
           loading={loadingCountries}
@@ -227,7 +229,7 @@ export function BaptismForm({
 
       <div className="visit-row cols-2">
         <div className="visit-label">
-          <span className="text-sm">Teléfono</span>
+          <span className="text-sm">{t("forms.phone")}</span>
           <div className="visit-phone">
             <SelectField
               label="Código"
@@ -257,7 +259,7 @@ export function BaptismForm({
               }}
               inputMode="tel"
               autoComplete="tel-national"
-              placeholder="Número"
+              placeholder={t("forms.phonePlaceholder")}
               aria-label="Número de teléfono"
               aria-invalid={errors.phone ? true : undefined}
             />
@@ -266,7 +268,7 @@ export function BaptismForm({
         </div>
         <label className="visit-label">
           <span className="text-sm">
-            Correo electrónico <span className="select-field-optional">(opcional)</span>
+            {t("forms.email")} <span className="select-field-optional">{t("forms.optional")}</span>
           </span>
           <input
             className={input}
@@ -284,11 +286,11 @@ export function BaptismForm({
         </label>
       </div>
 
-      {eventOptions.length > 0 && <SelectField label="Fecha del bautismo" value={eventId} options={eventOptions} onChange={setEventId} />}
+      {eventOptions.length > 0 && <SelectField label={t("baptism.date")} value={eventId} options={eventOptions} onChange={setEventId} />}
 
       <label className="visit-label">
         <span className="text-sm">
-          Cuéntanos tu decisión <span className="select-field-optional">(opcional)</span>
+          {t("baptism.story")} <span className="select-field-optional">{t("forms.optional")}</span>
         </span>
         <textarea
           className={`${input} resize-none`}
@@ -300,7 +302,7 @@ export function BaptismForm({
       </label>
 
       <button type="submit" disabled={pending} className="visit-submit">
-        {pending ? "Enviando…" : cta}
+        {pending ? t("forms.sending") : cta}
       </button>
     </form>
   );
