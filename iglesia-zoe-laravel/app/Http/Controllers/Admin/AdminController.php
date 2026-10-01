@@ -28,9 +28,11 @@ use App\Models\SiteSetting;
 use App\Models\Theme;
 use App\Models\User;
 use App\Models\VisitPlan;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -44,28 +46,39 @@ class AdminController extends Controller
         $now = WeekCalendar::current();
         $scope = CellScope::for($user);
         $cards = [];
+        $reports = $can('reports.submit') || $can('reports.weekly') || $can('reports.all');
+        $cellIds = $reports ? $scope->viewCellIds() : null;
+        $networks = $can('servers.create') ? $scope->manageNetworkIds() : null;
+        $monthRange = [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()];
+        $mine = fn () => Expense::query()->where('user_id', $user->id)->whereBetween('spent_on', $monthRange);
 
-        if ($can('reports.submit') || $can('reports.weekly') || $can('reports.all')) {
-            $cellIds = $scope->viewCellIds();
-            $sent = Report::query()->where('year', $now['year'])->where('week', $now['week'])
-                ->when($cellIds !== null, fn ($query) => $query->whereIn('cell_id', $cellIds ?: [CellScope::NONE]))
-                ->count();
-            $total = $cellIds === null ? Cell::query()->where('active', true)->count() : count($cellIds);
-            $cards[] = ['label' => 'Informes de esta semana', 'value' => "$sent / $total", 'href' => $can('reports.all') ? '/admin/informes' : '/portal/seguimiento', 'note' => "Semana {$now['week']} · {$now['year']}", 'accent' => 'bg-blush'];
+        $counts = $this->countAll(array_filter([
+            'sent' => $reports ? Report::query()->where('year', $now['year'])->where('week', $now['week'])
+                ->when($cellIds !== null, fn ($query) => $query->whereIn('cell_id', $cellIds ?: [CellScope::NONE])) : null,
+            'activeCells' => $reports && $cellIds === null ? Cell::query()->where('active', true) : null,
+            'users' => $user->isSuperadmin() ? User::query() : null,
+            'myExpenses' => ! $user->isSuperadmin() && $can('expenses.manage') ? $mine() : null,
+            'cells' => $can('servers.create') ? Cell::query()->where('active', true)->when($networks !== null, fn ($query) => $query->whereIn('network_id', $networks)) : null,
+            'themes' => $can('themes.manage') || $can('content.manage') ? Theme::query()->where('active', true) : null,
+            'prayers' => $can('content.manage') ? PrayerRequest::query() : null,
+            'visits' => $can('content.manage') ? VisitPlan::query() : null,
+            'baptisms' => $can('content.manage') ? BaptismRegistration::query() : null,
+        ]));
+
+        if ($reports) {
+            $total = $cellIds === null ? $counts['activeCells'] : count($cellIds);
+            $cards[] = ['label' => 'Informes de esta semana', 'value' => "{$counts['sent']} / $total", 'href' => $can('reports.all') ? '/admin/informes' : '/portal/seguimiento', 'note' => "Semana {$now['week']} · {$now['year']}", 'accent' => 'bg-blush'];
         }
         if ($user->isSuperadmin()) {
             $month = Finance::summary(Period::currentMonth());
             $cards[] = ['label' => 'Ingresos del mes', 'value' => Finance::money($month['income']), 'href' => '/admin/finanzas', 'note' => 'Ofrendas y diezmos', 'accent' => 'bg-mist'];
             $cards[] = ['label' => 'Gastos del mes', 'value' => Finance::money($month['expenses']), 'href' => '/admin/finanzas', 'note' => 'Compras con boleta', 'accent' => 'bg-amber'];
-            $cards[] = ['label' => 'Equipo', 'value' => (string) User::query()->count(), 'href' => '/admin/equipo', 'note' => 'Cuentas activas del panel', 'accent' => 'bg-sky'];
+            $cards[] = ['label' => 'Equipo', 'value' => (string) $counts['users'], 'href' => '/admin/equipo', 'note' => 'Cuentas activas del panel', 'accent' => 'bg-sky'];
         } elseif ($can('expenses.manage')) {
-            $mine = Expense::query()->where('user_id', $user->id)->whereBetween('spent_on', [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()]);
-            $cards[] = ['label' => 'Mis gastos del mes', 'value' => Finance::money((float) $mine->sum('amount')), 'href' => '/admin/gastos', 'note' => $mine->count().' compras registradas', 'accent' => 'bg-amber'];
+            $cards[] = ['label' => 'Mis gastos del mes', 'value' => Finance::money((float) $mine()->sum('amount')), 'href' => '/admin/gastos', 'note' => $counts['myExpenses'].' compras registradas', 'accent' => 'bg-amber'];
         }
         if ($can('servers.create')) {
-            $networks = $scope->manageNetworkIds();
-            $cells = Cell::query()->where('active', true)->when($networks !== null, fn ($query) => $query->whereIn('network_id', $networks))->count();
-            $cards[] = ['label' => 'Células', 'value' => (string) $cells, 'href' => '/admin/servidores', 'note' => $networks !== null && $scope->network ? "Red {$scope->network->code}" : 'Todas las redes', 'accent' => 'bg-sage'];
+            $cards[] = ['label' => 'Células', 'value' => (string) $counts['cells'], 'href' => '/admin/servidores', 'note' => $networks !== null && $scope->network ? "Red {$scope->network->code}" : 'Todas las redes', 'accent' => 'bg-sage'];
         }
         if ($can('notices.manage')) {
             $notice = LoadPublicSite::weeklyNotice();
@@ -74,16 +87,15 @@ class AdminController extends Controller
         }
         if ($can('themes.manage') || $can('content.manage')) {
             $latest = Theme::query()->where('active', true)->orderByDesc('theme_date')->first();
-            $cards[] = ['label' => 'Temas de célula', 'value' => (string) Theme::query()->where('active', true)->count(), 'href' => '/admin/temas', 'note' => $latest ? 'Último: '.$latest->title : 'Aún no hay temas', 'accent' => 'bg-blush'];
+            $cards[] = ['label' => 'Temas de célula', 'value' => (string) $counts['themes'], 'href' => '/admin/temas', 'note' => $latest ? 'Último: '.$latest->title : 'Aún no hay temas', 'accent' => 'bg-blush'];
         }
         if ($can('content.manage')) {
-            $cards[] = ['label' => 'Bandeja', 'value' => (string) (PrayerRequest::query()->count() + VisitPlan::query()->count()), 'href' => '/admin/bandeja', 'note' => 'Oraciones y visitas', 'accent' => 'bg-dusk'];
-            $cards[] = ['label' => 'Bautismos', 'value' => (string) BaptismRegistration::query()->count(), 'href' => '/admin/bautismos', 'note' => 'Registros recibidos', 'accent' => 'bg-clay'];
+            $cards[] = ['label' => 'Bandeja', 'value' => (string) ($counts['prayers'] + $counts['visits']), 'href' => '/admin/bandeja', 'note' => 'Oraciones y visitas', 'accent' => 'bg-dusk'];
+            $cards[] = ['label' => 'Bautismos', 'value' => (string) $counts['baptisms'], 'href' => '/admin/bautismos', 'note' => 'Registros recibidos', 'accent' => 'bg-clay'];
         }
 
         $recent = [];
         if ($can('reports.all') || $can('reports.weekly')) {
-            $cellIds = $scope->viewCellIds();
             $recent = Report::query()->with(['cell', 'photos'])
                 ->when($cellIds !== null, fn ($query) => $query->whereIn('cell_id', $cellIds ?: [CellScope::NONE]))
                 ->latest('updated_at')->limit(5)->get()
@@ -103,6 +115,24 @@ class AdminController extends Controller
             'recent' => $recent,
             'name' => $user->name,
         ]);
+    }
+
+    /**
+     * @param  array<string, Builder>  $queries
+     * @return array<string, int>
+     */
+    private function countAll(array $queries): array
+    {
+        if ($queries === []) {
+            return [];
+        }
+        $select = DB::query();
+        foreach ($queries as $name => $query) {
+            $select->selectSub($query->toBase()->selectRaw('count(*)'), $name);
+        }
+        $row = (array) $select->first();
+
+        return array_map(fn ($value) => (int) $value, $row);
     }
 
     public function contenido(): Response
