@@ -1,11 +1,14 @@
 <?php
 
+use App\Models\SiteSetting;
+use Illuminate\Contracts\Console\Kernel;
+
 require __DIR__.'/../vendor/autoload.php';
 
 $app = require __DIR__.'/../bootstrap/app.php';
-$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$app->make(Kernel::class)->bootstrap();
 
-$setting = App\Models\SiteSetting::query()->firstOrNew(['key' => 'site']);
+$setting = SiteSetting::query()->firstOrNew(['key' => 'site']);
 $value = is_array($setting->value) ? $setting->value : config('zoe.settings');
 $value['bankSoles'] = '3052651989073';
 $value['bankSolesCci'] = '00230500265198907310';
