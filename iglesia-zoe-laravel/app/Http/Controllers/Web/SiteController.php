@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers\Web;
 
-use App\Http\Controllers\Controller;
 use App\Domain\Geo\GeoDirectory;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Actions\ResolveSiteSkin;
+use App\Http\Controllers\Controller;
 use App\Models\BaptismEvent;
 use App\Models\BaptismRegistration;
 use App\Models\PrayerRequest;
