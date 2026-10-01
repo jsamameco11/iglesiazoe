@@ -456,6 +456,29 @@ class AdminController extends Controller
         ]);
     }
 
+    private function visitPlans(): array
+    {
+        $countries = array_column(GeoDirectory::countries(), 'name', 'code');
+
+        return VisitPlan::query()->latest()->limit(50)->get()
+            ->map(fn ($row) => [
+                'id' => $row->id,
+                'full_name' => $row->full_name,
+                'phone' => $row->phone,
+                'email' => $row->email,
+                'sex' => $row->sex,
+                'age' => $row->age,
+                'marital_status' => $row->marital_status,
+                'country_code' => $row->country_code,
+                'country' => $row->country_code ? ($countries[$row->country_code] ?? $row->country_code) : null,
+                'place' => implode(', ', array_filter([$row->district, $row->city, $row->region])) ?: null,
+                'service' => $row->service,
+                'visit_date' => optional($row->visit_date)->toDateString(),
+                'notes' => $row->notes,
+                'created_at' => optional($row->created_at)->toDateString(),
+            ])->all();
+    }
+
     private function baptismRegistrations(): array
     {
         $countries = array_column(GeoDirectory::countries(), 'name', 'code');
@@ -664,10 +687,7 @@ class AdminController extends Controller
     {
         return Inertia::render('Admin/Bandeja', [
             'prayers' => PrayerRequest::query()->latest()->limit(50)->get(),
-            'visits' => VisitPlan::query()->latest()->limit(50)->get()->map(fn ($row) => [
-                ...$row->toArray(),
-                'visit_date' => optional($row->visit_date)->toDateString(),
-            ]),
+            'visits' => $this->visitPlans(),
         ]);
     }
 
