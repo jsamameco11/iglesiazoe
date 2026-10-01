@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { SkinSwitch } from "@/components/site/skin-switch";
 import type { Ministry } from "@/lib/types";
 
 const primary = [
@@ -22,23 +23,25 @@ function HeaderBar({
   lightCta,
   ghost,
   onOpenMenu,
+  visitCta,
 }: {
   ministries: Ministry[];
   home: string;
-  other?: { href: string; label: string };
+  other?: { href: string; label: string; invert?: boolean };
   onHero: boolean;
   lightCta: boolean;
   ghost?: boolean;
   onOpenMenu?: () => void;
+  visitCta: string;
 }) {
   const [ministriesOpen, setMinistriesOpen] = useState(false);
 
   return (
     <div className="flex h-[72px] items-center justify-between gap-6 px-5 md:px-10">
-      <Link href={home} className="text-[1.05rem] font-semibold tracking-[-0.03em]" tabIndex={ghost ? -1 : undefined}>
+      <Link href={home} className="text-[1.05rem] font-semibold tracking-[-0.03em] text-current" tabIndex={ghost ? -1 : undefined}>
         Iglesia Zoe
       </Link>
-      <nav className={`hidden items-center gap-7 text-[13.5px] font-medium tracking-[-0.01em] lg:flex ${onHero ? "" : "text-[#8a8884]"}`}>
+      <nav className="hidden items-center gap-7 text-[13.5px] font-medium tracking-[-0.01em] text-current lg:flex">
         <Link href="/conocenos" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>Conócenos</Link>
         <div
           className="relative"
@@ -79,16 +82,14 @@ function HeaderBar({
       </nav>
       <div className="hidden items-center gap-5 lg:flex">
         {other && (
-          <Link href={other.href} className="text-[11px] font-medium uppercase tracking-[0.18em] opacity-55" tabIndex={ghost ? -1 : undefined}>
-            {other.label}
-          </Link>
+          <SkinSwitch href={other.href} label={other.label} invert={other.invert} ghost={ghost} />
         )}
         <Link
           href="/visita"
           tabIndex={ghost ? -1 : undefined}
           className={`rounded-full px-4 py-2 text-[13px] font-semibold ${lightCta ? "bg-white text-ink" : "bg-ink text-white"}`}
         >
-          Planifica tu visita
+          {visitCta}
         </Link>
       </div>
       <button
@@ -98,8 +99,8 @@ function HeaderBar({
         aria-label="Abrir menú"
       >
         <span className="flex flex-col gap-1.5">
-          <span className={`block h-px w-5 ${onHero ? "bg-white" : "bg-ink"}`} />
-          <span className={`block h-px w-5 ${onHero ? "bg-white" : "bg-ink"}`} />
+          <span className="block h-px w-5 bg-current" />
+          <span className="block h-px w-5 bg-current" />
         </span>
       </button>
     </div>
@@ -111,11 +112,13 @@ export function Header({
   home = "/",
   other,
   overMedia,
+  visitCta = "Planifica tu visita",
 }: {
   ministries: Ministry[];
   home?: string;
-  other?: { href: string; label: string };
+  other?: { href: string; label: string; invert?: boolean };
   overMedia?: boolean | "split";
+  visitCta?: string;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -156,24 +159,25 @@ export function Header({
     other,
     onHero,
     onOpenMenu: () => setOpen(true),
+    visitCta,
   };
 
   return (
     <header className="fixed inset-x-0 top-0 z-50">
-      {!onHero && scrolled && (
-        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-16 bg-paper" />
+      {!onHero && (
+        <div className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[72px] bg-paper/92 backdrop-blur-sm" />
       )}
 
       {split && onHero ? (
         <>
-          <div className="text-white lg:hidden">
+          <div className="text-white lg:hidden" style={{ color: "#fff" }}>
             <HeaderBar {...bar} lightCta />
           </div>
           <div className="hidden lg:block">
-            <div className="pointer-events-none absolute inset-x-0 top-0 text-white" style={{ clipPath: "inset(0 47.5% 0 0)" }} aria-hidden>
+            <div className="pointer-events-none absolute inset-x-0 top-0 text-white" style={{ clipPath: "inset(0 50% 0 0)", color: "#fff" }} aria-hidden>
               <HeaderBar {...bar} lightCta={false} ghost />
             </div>
-            <div className="pointer-events-none absolute inset-x-0 top-0 text-ink" style={{ clipPath: "inset(0 0 0 52.5%)" }} aria-hidden>
+            <div className="pointer-events-none absolute inset-x-0 top-0" style={{ clipPath: "inset(0 0 0 50%)", color: "#111" }} aria-hidden>
               <HeaderBar {...bar} lightCta={false} ghost />
             </div>
             <div className="relative text-transparent">
@@ -182,7 +186,7 @@ export function Header({
           </div>
         </>
       ) : (
-        <div className={onHero ? "text-white" : "text-ink"}>
+        <div style={{ color: onHero ? "#fff" : "#111" }}>
           <HeaderBar {...bar} lightCta={onHero} />
         </div>
       )}
@@ -232,14 +236,12 @@ export function Header({
                   onClick={() => setOpen(false)}
                   className="mt-8 inline-flex rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white"
                 >
-                  Planifica tu visita
+                  {visitCta}
                 </Link>
                 <div className="mt-8 flex flex-col gap-2 text-sm">
                   <Link href="/ingresar" onClick={() => setOpen(false)} className="font-medium">Grupos celulares →</Link>
                   {other && (
-                    <Link href={other.href} onClick={() => setOpen(false)} className="text-ink/55">
-                      {other.label}
-                    </Link>
+                    <SkinSwitch href={other.href} label={other.label} invert={other.invert} />
                   )}
                 </div>
               </aside>

@@ -28,7 +28,7 @@ export default async function MediaAdminPage() {
     name: ministry.name,
   }));
 
-  const slots: AdminMediaSlot[] = mediaCatalog(ministries).map((slot) => {
+  const slots: AdminMediaSlot[] = mediaCatalog(ministries, media.overrides).map((slot) => {
     const stored = media.overrides[slot.id];
     const followsHero = slot.id === "login" && !stored;
     const asset = followsHero ? media.hero : stored ?? fallbackForSlot(slot.id, ministries);
@@ -39,7 +39,7 @@ export default async function MediaAdminPage() {
     <div className="pb-16">
       <h1 className="display text-4xl">Medios</h1>
       <p className="mt-3 max-w-2xl leading-7 text-muted">
-        Cada sección del sitio tiene su propio espacio. Elige si publicas una imagen o un video, súbelo y se actualiza en la página correspondiente.
+        Sube, añade o edita cada foto. El encuadre que ves aquí es el mismo que se publica en la web. El carrusel del inicio necesita al menos 6 fotos para que la del centro cambie.
       </p>
       <div className="mt-10">
         <MediaManager slots={slots} />

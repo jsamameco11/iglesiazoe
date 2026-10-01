@@ -10,10 +10,17 @@ export default async function BaptismAdmin() {
   return (
     <div>
       <h1 className="display text-4xl">Bautismos</h1>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+        La fecha que publiques aquí es la que se ve en la web, junto a “Próxima fecha”. Los textos de esa página se editan en Contenido.
+      </p>
       <form action={saveBaptismEvent} className="mt-6 grid gap-3 rounded-[1.5rem] border border-line bg-card p-5 md:grid-cols-2">
-        <input type="date" name="event_date" className="rounded-xl border border-line px-3 py-2" />
-        <input name="location" placeholder="Lugar" className="rounded-xl border border-line px-3 py-2" />
-        <input name="notes" placeholder="Notas" className="rounded-xl border border-line px-3 py-2 md:col-span-2" />
+        <label className="text-sm">Fecha que se muestra en la web
+          <input type="date" name="event_date" className="mt-1 w-full rounded-xl border border-line px-3 py-2" />
+        </label>
+        <label className="text-sm">Lugar
+          <input name="location" placeholder="Iglesia Cristiana Zoe" className="mt-1 w-full rounded-xl border border-line px-3 py-2" />
+        </label>
+        <input name="notes" placeholder="Notas internas" className="rounded-xl border border-line px-3 py-2 md:col-span-2" />
         <label className="text-sm"><input type="checkbox" name="active" defaultChecked /> Activa</label>
         <button className="w-fit rounded-full bg-ink px-5 py-2 text-sm text-white">Publicar fecha</button>
       </form>

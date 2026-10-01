@@ -22,7 +22,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       <MediaView
         asset={media.login}
         fit="raw"
-        className="shot h-72 w-full object-cover lg:h-[72vh]"
+        className="shot h-72 w-full overflow-hidden rounded-[1.5rem] object-cover lg:h-[72vh]"
       />
     </div>
   );

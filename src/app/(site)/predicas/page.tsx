@@ -18,7 +18,7 @@ export default async function SermonsPage() {
     <article className="page-wrap">
       <Rise>
         <p className="kicker">Prédicas</p>
-        <LeadTitle lead="En vivo" accent="y mensajes" className="mt-4 text-5xl md:text-7xl" />
+        <LeadTitle text={settings.sermonsTitle} className="mt-4 text-5xl md:text-7xl" />
       </Rise>
       <Rise delay={100}>
       <div className="shot relative mt-12 aspect-video">
@@ -36,7 +36,7 @@ export default async function SermonsPage() {
             <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/60 via-black/15 to-black/25 p-8 md:p-14">
               <div>
                 <p className="text-[11px] uppercase tracking-[0.22em] text-white/80">Domingo</p>
-                <p className="display mt-3 max-w-xl text-4xl text-white">La transmisión se publica aquí cada servicio.</p>
+                <p className="display mt-3 max-w-xl text-4xl text-white">{settings.sermonsEmpty}</p>
               </div>
             </div>
           </div>

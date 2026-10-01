@@ -4,7 +4,22 @@ import { revalidatePath } from "next/cache";
 import { getCapabilities, isStaff, isSuperadmin } from "@/lib/access";
 import {
   classifyUpload,
+  clampFocus,
+  compactGalleryOverrides,
+  fallbackForSlot,
+  galleryFallback,
+  galleryIndex,
+  gallerySlotId,
+  GALLERY_MAX,
+  GALLERY_MIN,
   isAllowedSlot,
+  isGallerySlot,
+  listGalleryIndexes,
+  normalizeFeather,
+  normalizeFit,
+  normalizeRadius,
+  normalizeRatio,
+  normalizeZoom,
   readOverrides,
   storagePathFromPublicUrl,
   uploadTooLarge,
@@ -55,10 +70,43 @@ export async function saveMediaAsset(formData: FormData) {
     return { ok: true };
   }
 
+  if (intent === "remove-gallery") {
+    if (!isGallerySlot(id) || galleryIndex(id) <= GALLERY_MIN) {
+      return { error: "Las primeras 6 fotos del carrusel no se pueden quitar." };
+    }
+    const previous = overrides[id];
+    delete overrides[id];
+    compactGalleryOverrides(overrides);
+    const { error } = await supabase.from("site_settings").upsert({
+      key: "media",
+      value: { assets: overrides },
+      updated_at: new Date().toISOString(),
+    });
+    if (error) return { error: "No se pudo quitar la foto del carrusel." };
+    const retired = previous ? [storagePathFromPublicUrl(previous.src), storagePathFromPublicUrl(previous.poster)].filter((path): path is string => Boolean(path)) : [];
+    if (retired.length) await supabase.storage.from("medios").remove(retired);
+    revalidatePath("/", "layout");
+    revalidatePath("/admin/medios");
+    revalidatePath("/marea");
+    return { ok: true };
+  }
+
   const kind = String(formData.get("kind") || "") as MediaKind;
   if (kind !== "image" && kind !== "video") return { error: "Elige imagen o video." };
   const alt = String(formData.get("alt") || "").trim().slice(0, 160);
+  const ratio = normalizeRatio(
+    String(formData.get("ratio") || "natural"),
+    String(formData.get("ratioWidth") || ""),
+    String(formData.get("ratioHeight") || ""),
+  );
+  const fit = normalizeFit(String(formData.get("fit") || "fill"));
+  const posX = clampFocus(formData.get("posX"));
+  const posY = clampFocus(formData.get("posY"));
+  const zoom = normalizeZoom(formData.get("zoom"));
+  const radius = normalizeRadius(formData.get("radius"));
+  const feather = formData.get("featherOn") === "on" ? normalizeFeather(formData.get("feather") || 16) : 0;
   const previous = overrides[id];
+  const fallback = fallbackForSlot(id);
   const selected = formData.get("file");
   const selectedPoster = formData.get("poster");
   const file = selected instanceof File && selected.size > 0 ? selected : null;
@@ -72,7 +120,7 @@ export async function saveMediaAsset(formData: FormData) {
     if (uploadTooLarge(kind, file.size)) {
       return { error: kind === "video" ? "El video supera los 60 MB." : "La imagen supera los 12 MB." };
     }
-  } else if (!previous || previous.kind !== kind) {
+  } else if ((!previous || previous.kind !== kind) && (!fallback.src || fallback.kind !== kind)) {
     return { error: kind === "video" ? "Sube el video que quieres publicar." : "Sube la imagen que quieres publicar." };
   }
 
@@ -81,8 +129,8 @@ export async function saveMediaAsset(formData: FormData) {
     if (uploadTooLarge("image", posterFile.size)) return { error: "La portada supera los 12 MB." };
   }
 
-  let src = previous?.src || "";
-  let posterSrc = previous?.kind === kind ? previous.poster : "";
+  let src = previous?.src || fallback.src || "";
+  let posterSrc = previous?.kind === kind ? previous.poster : fallback.kind === kind ? fallback.poster : "";
   const uploadedPaths: string[] = [];
 
   if (file) {
@@ -112,7 +160,7 @@ export async function saveMediaAsset(formData: FormData) {
 
   if (kind === "image") posterSrc = "";
 
-  const next: MediaAsset = { kind, src, poster: posterSrc, alt };
+  const next: MediaAsset = { kind, src, poster: posterSrc, alt, ratio, fit, posX, posY, zoom, radius, feather };
   overrides[id] = next;
   const { error } = await supabase.from("site_settings").upsert({
     key: "media",
@@ -133,6 +181,30 @@ export async function saveMediaAsset(formData: FormData) {
   revalidatePath("/", "layout");
   revalidatePath("/admin/medios");
   revalidatePath("/ingresar");
+  revalidatePath("/marea");
+  return { ok: true };
+}
+
+export async function addGallerySlot() {
+  const gate = await requireMediaAdmin();
+  if (gate.error || !gate.session) return { error: gate.error || "No autorizado." };
+  const { supabase } = gate.session;
+
+  const { data: currentRow } = await supabase.from("site_settings").select("value").eq("key", "media").maybeSingle();
+  const overrides = readOverrides(currentRow?.value);
+  const next = listGalleryIndexes(overrides).length + 1;
+  if (next > GALLERY_MAX) return { error: `Puedes tener hasta ${GALLERY_MAX} fotos en el carrusel.` };
+
+  overrides[gallerySlotId(next)] = galleryFallback(next);
+  const { error } = await supabase.from("site_settings").upsert({
+    key: "media",
+    value: { assets: overrides },
+    updated_at: new Date().toISOString(),
+  });
+  if (error) return { error: "No se pudo añadir la foto al carrusel." };
+
+  revalidatePath("/", "layout");
+  revalidatePath("/admin/medios");
   revalidatePath("/marea");
   return { ok: true };
 }

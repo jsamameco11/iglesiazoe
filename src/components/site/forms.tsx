@@ -11,7 +11,15 @@ function Note({ state }: { state: { ok?: boolean; error?: string } | undefined }
 
 const field = "mt-2 w-full border-0 border-b border-ink/15 bg-transparent px-0 py-3 outline-none focus:border-ink";
 
-export function VisitForm() {
+export function VisitForm({
+  cta = "Quiero visitarlos",
+  sunday = "Domingo 10:00 a.m.",
+  wednesday = "Miércoles 8:00 p.m.",
+}: {
+  cta?: string;
+  sunday?: string;
+  wednesday?: string;
+}) {
   const [state, action, pending] = useActionState(submitVisit, undefined);
   return (
     <form action={action} className="grid gap-4">
@@ -23,8 +31,8 @@ export function VisitForm() {
         <label className="text-sm">Fecha que te gustaría venir<input name="visit_date" type="date" className={field} /></label>
         <label className="text-sm">Servicio
           <select name="service" className={field}>
-            <option>Domingo 10:00 a.m.</option>
-            <option>Miércoles 8:00 p.m.</option>
+            <option>{sunday}</option>
+            <option>{wednesday}</option>
           </select>
         </label>
       </div>
@@ -34,13 +42,21 @@ export function VisitForm() {
       </div>
       <label className="text-sm">¿Algo que debamos saber?<textarea name="notes" rows={3} className={field} /></label>
       <button disabled={pending} className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-white disabled:opacity-60">
-        {pending ? "Enviando…" : "Quiero visitarlos"}
+        {pending ? "Enviando…" : cta}
       </button>
     </form>
   );
 }
 
-export function BaptismForm({ events }: { events: { id: string; event_date: string | null; location: string | null }[] }) {
+export function BaptismForm({
+  events,
+  cta = "¡Quiero bautizarme!",
+  fallback = "Fecha por confirmar",
+}: {
+  events: { id: string; event_date: string | null; location: string | null }[];
+  cta?: string;
+  fallback?: string;
+}) {
   const [state, action, pending] = useActionState(submitBaptism, undefined);
   return (
     <form action={action} className="grid gap-4">
@@ -53,7 +69,7 @@ export function BaptismForm({ events }: { events: { id: string; event_date: stri
           <select name="event_id" className={field}>
             {events.map((event) => (
               <option key={event.id} value={event.id}>
-                {event.event_date ? new Date(event.event_date + "T12:00:00").toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" }) : "Fecha por confirmar"}
+                {event.event_date ? new Date(event.event_date + "T12:00:00").toLocaleDateString("es-PE", { day: "numeric", month: "long", year: "numeric" }) : fallback}
                 {event.location ? ` · ${event.location}` : ""}
               </option>
             ))}
@@ -62,7 +78,7 @@ export function BaptismForm({ events }: { events: { id: string; event_date: stri
       )}
       <label className="text-sm">Cuéntanos tu decisión<textarea name="notes" rows={3} className={field} /></label>
       <button disabled={pending} className="rounded-full bg-ink px-6 py-3 text-sm font-medium text-white disabled:opacity-60">
-        {pending ? "Enviando…" : "¡Quiero bautizarme!"}
+        {pending ? "Enviando…" : cta}
       </button>
     </form>
   );

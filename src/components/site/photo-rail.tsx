@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Rise } from "@/components/motion/rise";
 import { videoMime, type MediaAsset } from "@/lib/media";
 
@@ -30,14 +30,11 @@ function RailControl({
       type="button"
       onClick={onClick}
       aria-label={next ? "Ver la siguiente imagen" : "Ver la imagen anterior"}
-      className="group relative z-40 flex h-11 w-11 shrink-0 scale-90 items-center justify-center rounded-full bg-white text-[#8d8d8d] ring-1 ring-black/8 transition hover:text-[#1a1a1a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 sm:h-12 sm:w-12"
+      className={`group absolute top-1/2 z-40 flex h-10 w-10 shrink-0 -translate-y-1/2 items-center justify-center rounded-full bg-white text-[#8d8d8d] ring-1 ring-black/8 transition hover:text-[#1a1a1a] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/15 sm:h-11 sm:w-11 ${next ? "right-1 sm:right-2" : "left-1 sm:left-2"}`}
     >
-      <span
-        aria-hidden
-        className={`select-none text-[1.65rem] font-light leading-none transition group-hover:scale-110 ${next ? "translate-x-px" : "-translate-x-px"}`}
-      >
-        {next ? "›" : "‹"}
-      </span>
+      <svg viewBox="0 0 24 24" className="h-4 w-4 transition group-hover:scale-110" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        {next ? <path d="M9 5l7 7-7 7" /> : <path d="M15 5l-7 7 7 7" />}
+      </svg>
     </button>
   );
 }
@@ -54,14 +51,16 @@ function RailMedia({ item }: { item: MediaAsset }) {
 }
 
 export function PhotoRail({ title, text, items }: { title: string; text: string; items: MediaAsset[] }) {
-  const [active, setActive] = useState(start);
+  const photos = useMemo(() => items.filter((item) => item.src), [items]);
+  const initial = Math.min(start, Math.max(0, photos.length - 1));
+  const [active, setActive] = useState(initial);
   const [paused, setPaused] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [tick, setTick] = useState(0);
-  const prevOffsets = useRef(items.map((_, index) => shortestOffset(index, start, items.length)));
+  const prevOffsets = useRef(photos.map((_, index) => shortestOffset(index, initial, photos.length)));
 
-  const offsets = items.map((_, index) => shortestOffset(index, active, items.length));
-  const jumps = offsets.map((offset, index) => Math.abs(offset - prevOffsets.current[index]) > 2);
+  const offsets = photos.map((_, index) => shortestOffset(index, active, photos.length));
+  const jumps = offsets.map((offset, index) => Math.abs(offset - (prevOffsets.current[index] ?? offset)) > 2);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -72,30 +71,32 @@ export function PhotoRail({ title, text, items }: { title: string; text: string;
   }, []);
 
   useEffect(() => {
-    const nextOffsets = items.map((_, index) => shortestOffset(index, active, items.length));
-    const moved = nextOffsets.some((offset, index) => Math.abs(offset - prevOffsets.current[index]) > 2);
+    const nextOffsets = photos.map((_, index) => shortestOffset(index, active, photos.length));
+    const moved = nextOffsets.some((offset, index) => Math.abs(offset - (prevOffsets.current[index] ?? offset)) > 2);
     prevOffsets.current = nextOffsets;
     if (!moved) return;
     const id = window.requestAnimationFrame(() => setTick((value) => value + 1));
     return () => window.cancelAnimationFrame(id);
-  }, [active, items]);
+  }, [active, photos]);
 
   useEffect(() => {
     if (paused || reduceMotion) return;
     const id = window.setInterval(() => {
-      setActive((current) => wrap(current + 1, items.length));
+      setActive((current) => wrap(current + 1, photos.length));
     }, 3000);
     return () => window.clearInterval(id);
-  }, [paused, reduceMotion, active, items.length]);
+  }, [paused, reduceMotion, active, photos.length]);
 
   const go = (direction: number) => {
-    setActive((current) => wrap(current + direction, items.length));
+    setActive((current) => wrap(current + direction, photos.length));
   };
+
+  if (photos.length === 0) return null;
 
   return (
     <Rise>
       <section
-        className="flex min-h-[88svh] w-full flex-col justify-center px-4 py-20 sm:px-8 md:px-12"
+        className="flex w-full max-w-[100vw] flex-col justify-center overflow-hidden px-4 py-20 sm:px-8 md:px-12"
         aria-roledescription="carrusel"
         aria-label={title}
         onMouseEnter={() => setPaused(true)}
@@ -116,11 +117,11 @@ export function PhotoRail({ title, text, items }: { title: string; text: string;
           <p className="mx-auto mt-6 max-w-lg text-[15px] font-light leading-7 text-muted">{text}</p>
         </div>
 
-        <div className="mt-14 flex w-full items-center gap-3 sm:mt-16 sm:gap-5 md:gap-8">
+        <div className="relative mx-auto mt-14 w-full max-w-6xl overflow-hidden sm:mt-16">
           <RailControl direction="prev" onClick={() => go(-1)} />
-          <div className="photo-rail-stage min-w-0 flex-1" data-tick={tick}>
-            {items.map((photo, index) => {
-              const offset = offsets[index];
+          <div className="photo-rail-stage" data-tick={tick}>
+            {photos.map((photo, index) => {
+              const offset = Math.max(-3, Math.min(3, offsets[index]));
               const featured = offset === 0;
               return (
                 <button

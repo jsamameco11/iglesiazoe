@@ -15,7 +15,7 @@ export default async function ContactPage() {
       <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
         <Rise>
           <p className="kicker">Contacto y oración</p>
-          <LeadTitle lead="Estamos para" accent="acompañarte." className="mt-4 text-5xl md:text-7xl" />
+          <LeadTitle text={settings.contactTitle} className="mt-4 text-5xl md:text-7xl" />
           <div className="mt-8 space-y-1 text-lg font-light text-muted">
             <p>{settings.address}</p>
             <p>{settings.sunday}</p>
@@ -30,7 +30,7 @@ export default async function ContactPage() {
           </div>
         </Rise>
         <Rise delay={120}>
-          <PageBand asset={media.contact} ratio="aspect-[16/10] lg:aspect-[5/4]" />
+          <PageBand asset={media.contact} />
         </Rise>
       </div>
       <div className="mt-16 grid items-start gap-10 lg:grid-cols-2 lg:gap-16">
@@ -45,7 +45,7 @@ export default async function ContactPage() {
         </Rise>
         <Rise delay={100}>
           <div className="panel p-7 md:p-10">
-            <LeadTitle as="h2" lead="Petición de" accent="oración" className="text-4xl" />
+            <LeadTitle as="h2" text={settings.prayerTitle} className="text-4xl" />
             <div className="mt-8">
               <PrayerForm />
             </div>

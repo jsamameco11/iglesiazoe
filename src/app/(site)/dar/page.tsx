@@ -23,14 +23,12 @@ export default async function GivePage() {
       <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
         <Rise>
           <p className="kicker">Generosidad</p>
-          <LeadTitle lead="Generosidad que" accent="transforma vidas" className="mt-4 max-w-xl text-5xl md:text-7xl" />
-          <p className="ital mt-5 max-w-xl text-2xl text-muted">Sé parte de lo que Dios está haciendo en nuestra iglesia y comunidad.</p>
-          <p className="mt-6 max-w-xl text-lg font-light leading-8 text-muted">
-            Creemos que dar es un acto de adoración, gratitud y obediencia a Dios. Gracias a tu generosidad y fidelidad, podemos seguir llevando el mensaje de amor, sosteniendo la obra de la iglesia y ayudando a quienes más lo necesitan.
-          </p>
+          <LeadTitle text={settings.giveTitle} className="mt-4 max-w-xl text-5xl md:text-7xl" />
+          <p className="ital mt-5 max-w-xl text-2xl text-muted">{settings.giveLead}</p>
+          <p className="mt-6 max-w-xl text-lg font-light leading-8 text-muted">{settings.giveBody}</p>
         </Rise>
         <Rise delay={120}>
-          <PageBand asset={media.giving} ratio="aspect-[16/10] lg:aspect-[5/4]" />
+          <PageBand asset={media.giving} />
         </Rise>
       </div>
       <div className="mt-20 grid gap-6 md:grid-cols-3">
@@ -47,14 +45,14 @@ export default async function GivePage() {
         <Rise delay={100}>
           <div className="panel h-full p-8">
           <LeadTitle as="h2" lead="Yape /" accent="Plin" className="text-3xl" />
-          <p className="mt-4 text-sm leading-6 text-muted">Envía tu aporte al número de la iglesia o pregunta en recepción.</p>
+          <p className="mt-4 text-sm leading-6 text-muted">{settings.giveYapeText}</p>
           <p className="display mt-8 text-4xl">{settings.yape || "Número por confirmar"}</p>
           </div>
         </Rise>
         <Rise delay={180}>
           <div className="panel h-full p-8">
           <LeadTitle as="h2" accent="Tarjeta" className="text-3xl" />
-          <p className="mt-4 text-sm leading-6 text-muted">Aporta en línea con la pasarela de pagos de la iglesia.</p>
+          <p className="mt-4 text-sm leading-6 text-muted">{settings.giveCardText}</p>
           {settings.cardUrl ? (
             <a href={settings.cardUrl} className="mt-8 inline-block rounded-full bg-ink px-5 py-3 text-sm font-medium text-white" target="_blank" rel="noreferrer">
               Dar con tarjeta
