@@ -1,3 +1,4 @@
+import { PageHeader } from "@/Components/admin/ui";
 import { ThemeBrowser } from "@/Components/portal/theme-browser";
 import PortalLayout from "@/Layouts/PortalLayout";
 import type { Theme } from "@/lib/types";
@@ -5,9 +6,10 @@ import type { Theme } from "@/lib/types";
 export default function Temas({ themes }: { themes: Theme[] }) {
   return (
     <PortalLayout>
-      <h1 className="display text-4xl">Temas</h1>
-      <p className="mt-2 mb-6 text-muted">Material de célula publicado por el administrador.</p>
-      <ThemeBrowser themes={themes} />
+      <div className="space-y-6">
+        <PageHeader kicker="Células" title="Temas de célula" text="Material publicado para cada reunión. Ábrelo en línea o descárgalo para compartirlo." />
+        <ThemeBrowser themes={themes} />
+      </div>
     </PortalLayout>
   );
 }

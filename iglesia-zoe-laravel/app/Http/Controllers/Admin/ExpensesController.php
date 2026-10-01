@@ -3,12 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Finance\Finance;
+use App\Domain\Media\Support\MediaLibrary;
 use App\Http\Controllers\Controller;
 use App\Models\Expense;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -54,7 +55,8 @@ class ExpensesController extends Controller
             'amount.required' => 'Escribe el monto.',
             'spent_on.before_or_equal' => 'La fecha no puede ser futura.',
         ]);
-        $path = $request->file('receipt')->store('gastos/'.now()->format('Y/m'), 'local');
+        $receipt = $request->file('receipt');
+        $path = MediaLibrary::storePrivate($receipt, 'gastos/'.now()->format('Y/m'), $receipt->guessExtension() ?: $receipt->extension());
         Expense::query()->create([
             'user_id' => $request->user()->id,
             'spent_on' => $request->input('spent_on'),
@@ -74,21 +76,21 @@ class ExpensesController extends Controller
         if (! $expense || (! $request->user()->isSuperadmin() && $expense->user_id !== $request->user()->id)) {
             return response()->json(['error' => 'No puedes eliminar este gasto.'], 403);
         }
-        if ($expense->receipt_path) {
-            Storage::disk('local')->delete($expense->receipt_path);
-        }
+        MediaLibrary::deletePrivate($expense->receipt_path);
         $expense->delete();
 
         return response()->json(['ok' => true, 'reload' => true, 'message' => 'Gasto eliminado.']);
     }
 
-    public function receipt(Request $request, string $id): StreamedResponse
+    public function receipt(Request $request, string $id): RedirectResponse|StreamedResponse
     {
         $expense = Expense::query()->findOrFail($id);
         abort_unless($request->user()->isSuperadmin() || $expense->user_id === $request->user()->id, 403);
-        abort_unless($expense->receipt_path && Storage::disk('local')->exists($expense->receipt_path), 404);
+        abort_unless((bool) $expense->receipt_path, 404);
 
-        return Storage::disk('local')->response($expense->receipt_path);
+        $url = MediaLibrary::cloud() ? MediaLibrary::privateUrl($expense->receipt_path, 10) : null;
+
+        return $url ? redirect()->away($url) : MediaLibrary::privateDisk()->response($expense->receipt_path);
     }
 
     public static function row(Expense $expense): array

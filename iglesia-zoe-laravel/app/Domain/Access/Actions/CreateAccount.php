@@ -39,7 +39,7 @@ class CreateAccount
             'password' => $password,
             'role' => Role::Admin,
             'admin_types' => $types,
-            'permissions' => Permissions::clean($data['permissions'] ?? Permissions::forTypes($types)),
+            'permissions' => Permissions::resolve($types, $data['permissions'] ?? null),
             'network_id' => $data['network_id'] ?? null,
             'active' => true,
             'created_by' => $creator?->id,

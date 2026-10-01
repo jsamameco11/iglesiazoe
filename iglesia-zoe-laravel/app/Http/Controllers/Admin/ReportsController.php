@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Access\CellScope;
 use App\Domain\Access\Permissions;
+use App\Domain\Media\Support\MediaLibrary;
 use App\Domain\Reports\Support\Period;
 use App\Domain\Reports\Support\WeekCalendar;
 use App\Http\Controllers\Controller;
@@ -64,8 +65,8 @@ class ReportsController extends Controller
             ],
             'photos' => $report->photos->map(fn ($photo) => [
                 'id' => $photo->id,
-                'previewUrl' => asset('storage/'.$photo->file_path),
-                'downloadUrl' => asset('storage/'.$photo->file_path),
+                'previewUrl' => MediaLibrary::privateUrl($photo->file_path, 120),
+                'downloadUrl' => MediaLibrary::privateUrl($photo->file_path, 120, ($report->cell?->code ?: 'informe').'-semana-'.$report->week.'-'.basename($photo->file_path)),
                 'fileName' => basename($photo->file_path),
             ]),
         ]);

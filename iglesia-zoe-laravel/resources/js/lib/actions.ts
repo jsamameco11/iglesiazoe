@@ -168,18 +168,12 @@ export async function removeMember(id: string) {
   router.reload();
 }
 
-export async function uploadTheme(formData: FormData) {
-  const data = await postJson("/admin/temas", formData);
-  if (data?.error) throw new Error(data.error);
-  router.reload();
+export async function uploadTheme(formData: FormData): Promise<ActionResult> {
+  return postJson("/admin/temas", formData);
 }
 
-export async function deleteTheme(id: string) {
-  const formData = new FormData();
-  formData.set("id", id);
-  const data = await postJson("/admin/temas/ocultar", formData);
-  if (data?.error) throw new Error(data.error);
-  router.reload();
+export async function hideTheme(id: string): Promise<ActionResult> {
+  return send("/admin/temas/ocultar", { id });
 }
 
 export async function loadInforme(cellId: string, year: number, week: number) {
@@ -198,11 +192,4 @@ export async function addParticipant(cellId: string, fullName: string) {
 
 export async function saveReport(formData: FormData) {
   return postJson("/portal/informe", formData);
-}
-
-export async function themeDownloadUrl(themeId: string) {
-  const res = await fetch(`/portal/temas/archivo?id=${encodeURIComponent(themeId)}`, {
-    headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" },
-  });
-  return res.json();
 }

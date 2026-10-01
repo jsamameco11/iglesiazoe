@@ -11,6 +11,8 @@ const shortcuts: { href: string; label: string; text: string; needs: Permission[
   { href: "/admin/informes", label: "Reportes de servidores", text: "Filtra por semana, mes o año.", needs: ["reports.all"] },
   { href: "/admin/ofrendas", label: "Ofrendas por semana", text: "Lo recibido por cada célula.", needs: ["offerings.weekly"] },
   { href: "/admin/servidores", label: "Crear servidor", text: "Abre una célula o una célula hija.", needs: ["servers.create"] },
+  { href: "/admin/temas", label: "Publicar tema", text: "Sube el material de la semana.", needs: ["themes.manage", "content.manage"] },
+  { href: "/portal/temas", label: "Temas publicados", text: "Lo que ven los servidores.", needs: ["themes.manage"] },
   { href: "/admin/diseno", label: "Diseño de la página", text: "Colores, tipografías y tamaños.", needs: ["design.manage"] },
   { href: "/admin/medios", label: "Imágenes y videos", text: "Cambia el material visual.", needs: ["media.manage"] },
   { href: "/admin/contenido", label: "Textos de la web", text: "Títulos, horarios y secciones.", needs: ["content.manage"] },

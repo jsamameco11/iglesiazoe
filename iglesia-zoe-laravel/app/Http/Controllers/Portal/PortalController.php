@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Domain\Access\CellScope;
+use App\Domain\Media\Support\MediaLibrary;
 use App\Domain\Reports\Support\WeekCalendar;
 use App\Http\Controllers\Controller;
 use App\Models\Cell;
@@ -14,7 +15,6 @@ use App\Models\ReportPhoto;
 use App\Models\Theme;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -47,7 +47,7 @@ class PortalController extends Controller
 
         $photos = $report?->photos->map(fn ($photo) => [
             'id' => $photo->id,
-            'url' => asset('storage/'.$photo->file_path),
+            'url' => MediaLibrary::privateUrl($photo->file_path, 60),
         ])->all() ?? [];
 
         $payload = $report?->toArray();
@@ -66,8 +66,6 @@ class PortalController extends Controller
                     'title' => $theme->title,
                     'audience' => $theme->audience,
                     'theme_date' => optional($theme->theme_date)->toDateString(),
-                    'file_path' => $theme->file_path,
-                    'active' => $theme->active,
                 ]),
             'photos' => $photos,
         ]);
@@ -133,7 +131,7 @@ class PortalController extends Controller
                 if (! in_array($ext, self::PHOTO_TYPES, true)) {
                     continue;
                 }
-                $path = $file->storeAs('informes/'.$request->user()->id.'/'.$report->id, Str::random(40).'.'.$ext, 'public');
+                $path = MediaLibrary::storePrivate($file, 'informes/'.$report->year.'/'.$report->id, $ext);
                 ReportPhoto::query()->create(['report_id' => $report->id, 'file_path' => $path]);
             }
         }
@@ -255,28 +253,9 @@ class PortalController extends Controller
 
     public function themes(): Response
     {
-        $themes = Theme::query()->where('active', true)->orderByDesc('theme_date')->get()
-            ->map(fn ($theme) => [
-                'id' => $theme->id,
-                'title' => $theme->title,
-                'audience' => $theme->audience,
-                'theme_date' => optional($theme->theme_date)->toDateString(),
-                'file_path' => $theme->file_path,
-                'active' => true,
-            ]);
-
-        return Inertia::render('Portal/Temas', ['themes' => $themes]);
-    }
-
-    public function themeFile(Request $request): JsonResponse
-    {
-        $id = (string) $request->query('id');
-        $path = Str::isUuid($id) ? (string) Theme::query()->where('active', true)->whereKey($id)->value('file_path') : '';
-        if ($path === '' || ! Storage::disk('public')->exists($path)) {
-            return response()->json(['error' => 'No se pudo preparar la descarga.'], 404);
-        }
-
-        return response()->json(['url' => asset('storage/'.$path)]);
+        return Inertia::render('Portal/Temas', [
+            'themes' => Theme::query()->where('active', true)->orderByDesc('theme_date')->get()->map->card(),
+        ]);
     }
 
     private function cellsFor(Request $request)

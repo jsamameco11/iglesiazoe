@@ -1,6 +1,17 @@
 <?php
 
 return [
+    /*
+     * Administrators and the superadmin sign in only on these hosts; servers
+     * (célula, hijo, red) sign in on the church site.
+     */
+    'admin_hosts' => array_values(array_filter(array_map(
+        fn ($host) => strtolower(trim($host)),
+        explode(',', (string) env('ZOE_ADMIN_HOSTS', 'admi-iglesiazoe.miacademiapreu.com,admin.localhost')),
+    ))),
+    'site_url' => rtrim((string) env('ZOE_SITE_URL', 'https://iglesiacristianazoe.miacademiapreu.com'), '/'),
+    'admin_url' => rtrim((string) env('ZOE_ADMIN_URL', 'https://admi-iglesiazoe.miacademiapreu.com'), '/'),
+
     'admin_capabilities' => [
         'manageMembers' => false,
         'viewOfferings' => false,

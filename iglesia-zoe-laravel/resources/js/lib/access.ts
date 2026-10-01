@@ -7,6 +7,7 @@ export type Permission =
   | "offerings.weekly"
   | "servers.create"
   | "cells.manage"
+  | "themes.manage"
   | "design.manage"
   | "media.manage"
   | "content.manage"
@@ -14,7 +15,7 @@ export type Permission =
   | "notices.manage"
   | "expenses.manage";
 
-export type AdminType = "red" | "visuales" | "celula" | "atmosfera";
+export type AdminType = "red" | "visuales" | "celula" | "atmosfera" | "temas";
 
 export type PanelUser = {
   id: string;
@@ -29,7 +30,7 @@ export type PanelUser = {
 
 export type Catalog = {
   permissions: { key: Permission; group: string; title: string; text: string }[];
-  types: { key: AdminType; label: string; text: string; permissions: Permission[] }[];
+  types: { key: AdminType; label: string; text: string; permissions: Permission[]; exclusive?: boolean; server: boolean }[];
   defaults: Permission[];
 };
 

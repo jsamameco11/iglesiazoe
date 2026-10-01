@@ -30,10 +30,13 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::post('/predicas/eliminar', [AdminController::class, 'deleteSermon']);
         Route::get('/bautismos', [AdminController::class, 'bautismos']);
         Route::post('/bautismos', [AdminController::class, 'saveBaptism']);
+        Route::get('/bandeja', [AdminController::class, 'bandeja']);
+    });
+
+    Route::middleware($can('themes.manage', 'content.manage'))->group(function () {
         Route::get('/temas', [AdminController::class, 'temas']);
         Route::post('/temas', [AdminController::class, 'uploadTheme']);
         Route::post('/temas/ocultar', [AdminController::class, 'hideTheme']);
-        Route::get('/bandeja', [AdminController::class, 'bandeja']);
     });
     Route::post('/contenido', [AdminController::class, 'saveSettings'])->middleware($can('content.manage', 'generosity.manage'));
     Route::get('/generosidad', [AdminController::class, 'generosidad'])->middleware($can('generosity.manage'));

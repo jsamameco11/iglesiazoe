@@ -15,7 +15,8 @@ const groups: { title: string; items: Item[] }[] = [
       { href: "/portal/historial", label: "Historial", needs: ["reports.submit", "reports.all"] },
       { href: "/admin/servidores", label: "Servidores", needs: ["servers.create"] },
       { href: "/admin/celulas", label: "Células e integrantes", needs: ["cells.manage"] },
-      { href: "/portal/temas", label: "Temas de célula", needs: ["reports.submit"] },
+      { href: "/portal/temas", label: "Temas de célula", needs: ["reports.submit", "themes.manage"] },
+      { href: "/admin/temas", label: "Publicar temas", needs: ["themes.manage", "content.manage"] },
     ],
   },
   {
@@ -29,7 +30,6 @@ const groups: { title: string; items: Item[] }[] = [
       { href: "/admin/ministerios", label: "Ministerios", needs: ["content.manage"] },
       { href: "/admin/predicas", label: "Prédicas", needs: ["content.manage"] },
       { href: "/admin/bautismos", label: "Bautismos", needs: ["content.manage"] },
-      { href: "/admin/temas", label: "Publicar temas", needs: ["content.manage"] },
       { href: "/admin/generosidad", label: "Generosidad", needs: ["generosity.manage"] },
       { href: "/admin/bandeja", label: "Bandeja", needs: ["content.manage"] },
     ],
