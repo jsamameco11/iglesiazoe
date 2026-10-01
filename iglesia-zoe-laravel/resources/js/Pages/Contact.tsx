@@ -6,7 +6,8 @@ import { PrayerLight, VisitInvite } from "@/Components/site/prayer-scene";
 import { PrayerRequestForm } from "@/Components/site/prayer-request";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
-import { messengerUrl } from "@/lib/social";
+import { useCopy } from "@/lib/copy";
+import { useSocial } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
 import "../../css/oracion.css";
 
@@ -20,11 +21,13 @@ export default function Contact({
   skin: "aire" | "marea";
 }) {
   const media = resolveMedia(mediaOverrides);
+  const t = useCopy();
+  const social = useSocial();
   return (
     <SiteLayout>
       <article className="page-wrap pb-8">
         <Rise>
-          <PageIntro skin={skin} kicker="Oración" title={settings.contactTitle} media={<PageBand asset={media.contact} />}>
+          <PageIntro skin={skin} kicker={t("contact.kicker")} title={settings.contactTitle} media={<PageBand asset={media.contact} />}>
             <div className="mt-8 space-y-1 text-lg font-light text-muted">
               <p>{settings.address}</p>
               <p>{settings.sunday}</p>
@@ -39,10 +42,12 @@ export default function Contact({
               )}
             </div>
             <div className="mt-8 flex flex-wrap gap-5 text-sm font-medium">
-              <a href={messengerUrl} target="_blank" rel="noreferrer">Messenger</a>
-              {settings.facebook && <a href={settings.facebook} target="_blank" rel="noreferrer">Facebook</a>}
-              {settings.youtube && <a href={settings.youtube} target="_blank" rel="noreferrer">YouTube</a>}
-              <a href={settings.mapUrl} target="_blank" rel="noreferrer">Cómo llegar</a>
+              {social.messenger && <a href={social.messenger} target="_blank" rel="noreferrer">{t("contact.messenger")}</a>}
+              {social.whatsapp && <a href={social.whatsapp} target="_blank" rel="noreferrer">{t("contact.whatsapp")}</a>}
+              {social.links.map((item) => (
+                <a key={item.id} href={item.href} target="_blank" rel="noreferrer">{item.label}</a>
+              ))}
+              {settings.mapUrl && <a href={settings.mapUrl} target="_blank" rel="noreferrer">{t("contact.map")}</a>}
             </div>
           </PageIntro>
         </Rise>
@@ -53,10 +58,10 @@ export default function Contact({
           </Rise>
           <Rise delay={100} className="h-full" from="right">
             <div id="peticion" className="panel h-full p-7 md:p-10">
-              <p className="kicker">Escríbenos</p>
+              <p className="kicker">{t("contact.formKicker")}</p>
               <LeadTitle as="h2" text={settings.prayerTitle || "¿Cómo podemos orar por ti?"} className="mt-3 text-4xl md:text-5xl" />
               <p className="mt-4 max-w-md text-sm leading-6 text-muted">
-                Elige el motivo y cuéntanos tu petición. Oraremos por ti con cariño y discreción.
+                {t("contact.formText")}
               </p>
               <div className="mt-8">
                 <PrayerRequestForm />

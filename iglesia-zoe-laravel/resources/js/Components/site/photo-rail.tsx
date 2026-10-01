@@ -1,9 +1,12 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Rise } from "@/Components/motion/rise";
+import { LeadTitle } from "@/Components/site/lead-title";
 import { videoMime, type MediaAsset } from "@/lib/media";
 
 const start = 2;
+
+const DEFAULT_TITLE = "Somos una iglesia que está en movimiento";
 
 const slots = {
   wide: {
@@ -111,13 +114,17 @@ export function PhotoRail({
       {!bare ? (
         <Rise>
           <div className="mx-auto max-w-3xl px-4 text-center">
-            <h2 className="editorial lead text-[2.4rem] leading-[1.08] sm:text-5xl md:text-6xl lg:text-[4.4rem]">
-              Somos una iglesia
-              <br />
-              que <span className="ital ink">está en</span>
-              <br />
-              <span className="ital ink">movimiento</span>
-            </h2>
+            {title.trim() === DEFAULT_TITLE ? (
+              <h2 className="editorial lead text-[2.4rem] leading-[1.08] sm:text-5xl md:text-6xl lg:text-[4.4rem]">
+                Somos una iglesia
+                <br />
+                que <span className="ital ink">está en</span>
+                <br />
+                <span className="ital ink">movimiento</span>
+              </h2>
+            ) : (
+              <LeadTitle as="h2" text={title} className="text-[2.4rem] leading-[1.08] sm:text-5xl md:text-6xl lg:text-[4.4rem]" />
+            )}
             <p className="mx-auto mt-6 max-w-lg text-[15px] font-light leading-7 text-muted">{text}</p>
           </div>
         </Rise>

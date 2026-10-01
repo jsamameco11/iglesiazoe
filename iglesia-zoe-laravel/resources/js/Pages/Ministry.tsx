@@ -3,6 +3,7 @@ import { Rise } from "@/Components/motion/rise";
 import { MinistryCarousel } from "@/Components/site/ministry-carousel";
 import { PageIntro } from "@/Components/site/page-intro";
 import SiteLayout from "@/Layouts/SiteLayout";
+import { readCopy } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { Ministry, SiteSettings } from "@/lib/types";
 
@@ -22,7 +23,7 @@ export default function Ministry({
     <SiteLayout>
       <article className="page-wrap">
         <Rise>
-          <Link href="/ministerios" className="text-sm text-muted transition hover:text-ink">Ministerios</Link>
+          <Link href="/ministerios" className="text-sm text-muted transition hover:text-ink">{readCopy(settings, "ministries.back")}</Link>
         </Rise>
         <div className="mt-10">
           <Rise>

@@ -98,6 +98,23 @@ class ManageSiteMedia
         return ['ok' => true];
     }
 
+    public function renameMinistry(string $from, string $to): void
+    {
+        $overrides = $this->overrides();
+        $prefix = 'ministry:'.$from;
+        $renamed = [];
+        foreach ($overrides as $key => $asset) {
+            if ($key === $prefix || str_starts_with($key, $prefix.':')) {
+                $renamed['ministry:'.$to.substr($key, strlen($prefix))] = $asset;
+            } else {
+                $renamed[$key] = $asset;
+            }
+        }
+        if ($renamed !== $overrides) {
+            $this->persist($renamed);
+        }
+    }
+
     private function overrides(): array
     {
         $stored = SiteSetting::query()->where('key', 'media')->first()?->value;

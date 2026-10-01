@@ -19,8 +19,12 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
 
     Route::middleware($can('content.manage'))->group(function () {
         Route::get('/contenido', [AdminController::class, 'contenido']);
+        Route::get('/textos', [AdminController::class, 'textos']);
+        Route::post('/textos', [AdminController::class, 'saveTexts']);
         Route::get('/ministerios', [AdminController::class, 'ministerios']);
         Route::post('/ministerios', [AdminController::class, 'saveMinistry']);
+        Route::post('/ministerios/orden', [AdminController::class, 'moveMinistry']);
+        Route::post('/ministerios/eliminar', [AdminController::class, 'deleteMinistry']);
         Route::get('/predicas', [AdminController::class, 'predicas']);
         Route::post('/predicas', [AdminController::class, 'saveSermon']);
         Route::post('/predicas/eliminar', [AdminController::class, 'deleteSermon']);

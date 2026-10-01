@@ -88,10 +88,20 @@ export async function saveSettings(formData: FormData) {
   return data;
 }
 
-export async function saveMinistry(formData: FormData) {
-  const data = await postJson("/admin/ministerios", formData);
-  if (data?.error) throw new Error(data.error);
-  router.reload();
+export async function saveMinistry(formData: FormData): Promise<ActionResult> {
+  return postJson("/admin/ministerios", formData);
+}
+
+export async function moveMinistry(id: string, direction: "up" | "down") {
+  return send("/admin/ministerios/orden", { id, direction });
+}
+
+export async function deleteMinistry(id: string) {
+  return send("/admin/ministerios/eliminar", { id });
+}
+
+export async function saveTexts(formData: FormData): Promise<ActionResult> {
+  return postJson("/admin/textos", formData);
 }
 
 export async function saveSermon(formData: FormData) {

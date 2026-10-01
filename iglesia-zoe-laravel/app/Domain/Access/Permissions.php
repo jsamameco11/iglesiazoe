@@ -30,8 +30,8 @@ class Permissions
         ],
         'visuales' => [
             'label' => 'Visuales · Multimedia',
-            'text' => 'Todo lo estético de la página: imágenes, videos, textos, formas, colores, tipografías y las indicaciones de la semana.',
-            'permissions' => ['design.manage', 'media.manage', 'content.manage', 'notices.manage'],
+            'text' => 'Todo lo de la página web: imágenes, videos, textos, formas, colores, tipografías, datos de generosidad y las indicaciones de la semana.',
+            'permissions' => ['design.manage', 'media.manage', 'content.manage', 'generosity.manage', 'notices.manage'],
         ],
         'celula' => [
             'label' => 'Servidor de Célula',
@@ -45,7 +45,7 @@ class Permissions
         ],
     ];
 
-    public const DEFAULTS = ['servers.create', 'design.manage'];
+    public const DEFAULTS = ['servers.create'];
 
     public const SERVER_ACCOUNT = ['reports.submit', 'reports.weekly', 'servers.create'];
 

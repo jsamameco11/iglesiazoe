@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { messengerUrl } from "@/lib/social";
+import { useCopy } from "@/lib/copy";
+import { useSocial } from "@/lib/social";
 
-const LABEL = "Escríbenos";
 const CYCLE = 6000;
 const TYPE_STEP = 95;
 const ERASE_STEP = 45;
@@ -67,25 +67,29 @@ function usePastHero() {
 }
 
 export function MessengerFab() {
-  const typed = useTypewriter(LABEL);
+  const label = useCopy()("nav.fab");
+  const { messenger } = useSocial();
+  const typed = useTypewriter(label);
   const visible = usePastHero();
+
+  if (!messenger) return null;
 
   return (
     <a
-      href={messengerUrl}
+      href={messenger}
       target="_blank"
       rel="noreferrer"
       className="wa-fab"
       data-visible={visible ? "true" : "false"}
       tabIndex={visible ? undefined : -1}
       aria-hidden={visible ? undefined : true}
-      aria-label="Escríbenos por Messenger"
+      aria-label={`${label} por Messenger`}
     >
       <span className="wa-fab-bubble" aria-hidden="true">
-        <span className="wa-fab-ghost">{LABEL}</span>
+        <span className="wa-fab-ghost">{label}</span>
         <span className="wa-fab-typed">
           {typed}
-          {typed.length < LABEL.length && <span className="wa-fab-caret" />}
+          {typed.length < label.length && <span className="wa-fab-caret" />}
         </span>
       </span>
       <span className="wa-fab-icon">

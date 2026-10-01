@@ -53,7 +53,7 @@ export function HeroFilm({
   }, []);
 
   return (
-    <section ref={ref} className="hero-bleed relative h-[100svh] min-h-[560px] w-full overflow-hidden">
+    <section ref={ref} className="hero-bleed relative flex min-h-[max(100svh,560px)] w-full flex-col overflow-hidden">
       <div className="absolute inset-0" style={{ opacity: fade }}>
         <HeroMedia asset={asset} className="hero-bleed-media" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />

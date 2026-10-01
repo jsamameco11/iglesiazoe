@@ -11,6 +11,7 @@ use App\Domain\Media\Actions\ManageSiteMedia;
 use App\Domain\Reports\Support\Period;
 use App\Domain\Reports\Support\WeekCalendar;
 use App\Domain\Site\Actions\LoadPublicSite;
+use App\Domain\Site\Support\YouTube;
 use App\Http\Controllers\Controller;
 use App\Models\BaptismEvent;
 use App\Models\BaptismRegistration;
@@ -28,6 +29,7 @@ use App\Models\User;
 use App\Models\VisitPlan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -107,42 +109,156 @@ class AdminController extends Controller
         return Inertia::render('Admin/Generosidad', ['settings' => LoadPublicSite::settings()]);
     }
 
+    private const GIVING_KEYS = ['bankSoles', 'bankSolesCci', 'bankDollars', 'bankDollarsCci', 'bankHolder', 'yape', 'yapeHolder', 'yapeQr', 'cardUrl'];
+
+    private const COLOR_KEYS = ['headingColor', 'bodyColor', 'accentColor', 'paperColor', 'stoneColor', 'clayColor'];
+
+    private const URL_KEYS = ['facebook', 'youtube', 'instagram', 'tiktok', 'messengerUrl', 'liveUrl', 'mapUrl', 'cardUrl', 'yapeQr'];
+
+    private const VALUE_SLOTS = 6;
+
     public function saveSettings(Request $request): JsonResponse
     {
-        $current = json_decode((string) $request->input('current', '{}'), true) ?: [];
-        $values = [];
-        for ($i = 1; $i <= 4; $i++) {
-            $title = trim((string) $request->input("value_title_$i"));
-            if ($title !== '') {
-                $values[] = ['title' => $title, 'text' => trim((string) $request->input("value_text_$i"))];
+        $user = $request->user();
+        $canContent = Permissions::has($user, 'content.manage');
+        $canGiving = Permissions::has($user, 'generosity.manage');
+        $stored = $this->storedSite();
+
+        $editable = array_diff(array_keys(config('zoe.settings')), ['values', 'prayerTopics', 'copy']);
+        $input = [];
+        foreach ($editable as $key) {
+            if (! $request->has($key) || ! is_scalar($request->input($key) ?? '')) {
+                continue;
+            }
+            $giving = in_array($key, self::GIVING_KEYS, true);
+            if (($giving && ! $canGiving) || (! $giving && ! $canContent)) {
+                continue;
+            }
+            $input[$key] = trim((string) $request->input($key));
+        }
+
+        foreach (self::URL_KEYS as $key) {
+            $value = $input[$key] ?? '';
+            if ($value !== '' && ! preg_match('~^(https?://|/)~i', $value)) {
+                return response()->json(['error' => 'Revisa el enlace de «'.$key.'»: debe empezar con https://'], 422);
             }
         }
-        $next = array_replace($current, $request->except(['_token', 'current', 'value_title_1', 'value_text_1', 'value_title_2', 'value_text_2', 'value_title_3', 'value_text_3', 'value_title_4', 'value_text_4']));
-        if ($values) {
-            $next['values'] = $values;
+        if (($input['liveYoutubeId'] ?? '') !== '') {
+            $live = YouTube::id($input['liveYoutubeId']);
+            if (! $live) {
+                return response()->json(['error' => 'No reconocemos el enlace de YouTube en vivo. Pega el enlace del video o su ID.'], 422);
+            }
+            $input['liveYoutubeId'] = $live;
         }
-        $next['fontPair'] = in_array($request->input('fontPair'), ['mixed', 'grotesque', 'editorial'], true)
-            ? $request->input('fontPair')
-            : ($current['fontPair'] ?? 'mixed');
-        foreach (['headingColor', 'bodyColor', 'accentColor', 'paperColor', 'stoneColor', 'clayColor'] as $colorKey) {
-            $value = (string) ($next[$colorKey] ?? '');
-            if (! preg_match('/^#[0-9A-Fa-f]{6}$/', $value)) {
-                $next[$colorKey] = $current[$colorKey] ?? config("zoe.settings.$colorKey");
+        foreach (['serviceDayMain', 'serviceDayWeek'] as $key) {
+            if (isset($input[$key]) && ! preg_match('/^[0-6]$/', $input[$key])) {
+                unset($input[$key]);
             }
         }
+        if (isset($input['fontPair']) && ! in_array($input['fontPair'], ['mixed', 'grotesque', 'editorial'], true)) {
+            unset($input['fontPair']);
+        }
+        foreach (self::COLOR_KEYS as $key) {
+            if (isset($input[$key]) && ! preg_match('/^#[0-9A-Fa-f]{6}$/', $input[$key])) {
+                unset($input[$key]);
+            }
+        }
+
+        if ($canGiving && $request->hasFile('yapeQrFile')) {
+            $file = $request->file('yapeQrFile');
+            if (! $file->isValid() || ! in_array(strtolower($file->getClientOriginalExtension()), ['png', 'jpg', 'jpeg', 'webp'], true) || $file->getSize() > 4 * 1024 * 1024) {
+                return response()->json(['error' => 'El QR debe ser una imagen PNG, JPG o WEBP de hasta 4 MB.'], 422);
+            }
+            $path = $file->storeAs('generosidad', 'yape-qr-'.time().'.'.strtolower($file->getClientOriginalExtension()), 'public');
+            $input['yapeQr'] = '/storage/'.$path;
+        }
+
+        $next = array_replace($stored, $input);
+
+        if ($canContent && $request->has('value_title_1')) {
+            $values = [];
+            for ($i = 1; $i <= self::VALUE_SLOTS; $i++) {
+                $title = trim((string) $request->input("value_title_$i"));
+                if ($title !== '') {
+                    $values[] = ['title' => $title, 'text' => trim((string) $request->input("value_text_$i"))];
+                }
+            }
+            if ($values) {
+                $next['values'] = $values;
+            }
+        }
+
         SiteSetting::query()->updateOrCreate(['key' => 'site'], ['value' => $next, 'updated_at' => now()]);
-        $design = LoadPublicSite::design();
-        $design['palette'] = array_merge($design['palette'] ?? [], [
-            'ink' => strtolower($next['headingColor']),
-            'muted' => strtolower($next['bodyColor']),
-            'accent' => strtolower($next['accentColor']),
-            'paper' => strtolower($next['paperColor']),
-            'stone' => strtolower($next['stoneColor']),
-            'clay' => strtolower($next['clayColor']),
-        ]);
-        SiteSetting::query()->updateOrCreate(['key' => 'design'], ['value' => $design, 'updated_at' => now()]);
+
+        if (array_intersect(self::COLOR_KEYS, array_keys($input))) {
+            $settings = LoadPublicSite::settings();
+            $design = LoadPublicSite::design();
+            $design['palette'] = array_merge($design['palette'] ?? [], [
+                'ink' => strtolower($settings['headingColor']),
+                'muted' => strtolower($settings['bodyColor']),
+                'accent' => strtolower($settings['accentColor']),
+                'paper' => strtolower($settings['paperColor']),
+                'stone' => strtolower($settings['stoneColor']),
+                'clay' => strtolower($settings['clayColor']),
+            ]);
+            SiteSetting::query()->updateOrCreate(['key' => 'design'], ['value' => $design, 'updated_at' => now()]);
+        }
 
         return response()->json(['ok' => true, 'reload' => true]);
+    }
+
+    public function textos(): Response
+    {
+        return Inertia::render('Admin/Textos', ['settings' => LoadPublicSite::settings()]);
+    }
+
+    public function saveTexts(Request $request): JsonResponse
+    {
+        $stored = $this->storedSite();
+        $copy = is_array($stored['copy'] ?? null) ? $stored['copy'] : [];
+        $posted = $request->input('copy', []);
+
+        foreach (is_array($posted) ? $posted : [] as $key => $value) {
+            if (! is_string($key) || ! preg_match('/^[a-z]+\.[A-Za-z0-9]+$/', $key) || ! is_scalar($value ?? '')) {
+                continue;
+            }
+            $value = trim((string) $value);
+            if (mb_strlen($value) > 3000) {
+                return response()->json(['error' => 'Uno de los textos es demasiado largo (máximo 3000 caracteres).'], 422);
+            }
+            if ($value === '') {
+                unset($copy[$key]);
+            } else {
+                $copy[$key] = $value;
+            }
+        }
+        $stored['copy'] = $copy;
+
+        if ($request->has('prayerTopics')) {
+            $topics = collect(preg_split('/\R/', (string) $request->input('prayerTopics')))
+                ->map(fn ($topic) => mb_substr(trim($topic), 0, 60))
+                ->filter()
+                ->unique()
+                ->take(12)
+                ->values()
+                ->all();
+            if ($topics) {
+                $stored['prayerTopics'] = $topics;
+            } else {
+                unset($stored['prayerTopics']);
+            }
+        }
+
+        SiteSetting::query()->updateOrCreate(['key' => 'site'], ['value' => $stored, 'updated_at' => now()]);
+
+        return response()->json(['ok' => true, 'reload' => true]);
+    }
+
+    private function storedSite(): array
+    {
+        $stored = SiteSetting::query()->where('key', 'site')->first()?->value;
+
+        return is_array($stored) ? $stored : [];
     }
 
     public function medios(Request $request): Response
@@ -166,23 +282,86 @@ class AdminController extends Controller
 
     public function ministerios(): Response
     {
-        $ministries = Ministry::query()->orderBy('sort_order')->get();
-        if ($ministries->isEmpty()) {
-            $ministries = collect(config('zoe.ministries'));
+        if (! Ministry::query()->exists()) {
+            foreach (config('zoe.ministries') as $row) {
+                Ministry::query()->create($row);
+            }
+            LoadPublicSite::flush();
         }
 
-        return Inertia::render('Admin/Ministerios', ['ministries' => $ministries]);
+        return Inertia::render('Admin/Ministerios', ['ministries' => Ministry::query()->orderBy('sort_order')->get()]);
     }
 
-    public function saveMinistry(Request $request): JsonResponse
+    public function saveMinistry(Request $request, ManageSiteMedia $media): JsonResponse
     {
-        $payload = $request->only(['slug', 'name', 'age_range', 'summary', 'body', 'sort_order', 'accent']);
-        $payload['active'] = $request->boolean('active');
         $id = $request->input('id');
-        $id ? Ministry::query()->where('id', $id)->update($payload) : Ministry::query()->create($payload);
+        $existing = $id ? Ministry::query()->find($id) : null;
+        if ($id && ! $existing) {
+            return response()->json(['error' => 'Ese ministerio ya no existe. Recarga la página.'], 404);
+        }
+        $name = trim((string) $request->input('name'));
+        if ($name === '') {
+            return response()->json(['error' => 'Escribe el nombre del ministerio.'], 422);
+        }
+        $slug = Str::limit(Str::slug(trim((string) $request->input('slug')) ?: $name), 80, '');
+        if (! preg_match('/^[a-z0-9-]{1,80}$/', $slug)) {
+            return response()->json(['error' => 'La dirección web solo puede tener letras, números y guiones.'], 422);
+        }
+        $taken = Ministry::query()->where('slug', $slug)->when($existing, fn ($query) => $query->where('id', '!=', $existing->id))->exists();
+        if ($taken) {
+            return response()->json(['error' => 'Ya existe otro ministerio con la dirección «'.$slug.'».'], 422);
+        }
+        $accent = (string) $request->input('accent');
+        $payload = [
+            'slug' => $slug,
+            'name' => $name,
+            'age_range' => trim((string) $request->input('age_range')),
+            'summary' => trim((string) $request->input('summary')),
+            'body' => trim((string) $request->input('body')),
+            'accent' => preg_match('/^#[0-9A-Fa-f]{6}$/', $accent) ? strtolower($accent) : ($existing->accent ?? '#e8c3a4'),
+            'active' => $request->boolean('active'),
+        ];
+
+        if ($existing) {
+            if ($existing->slug !== $slug) {
+                $media->renameMinistry($existing->slug, $slug);
+            }
+            $existing->update($payload);
+        } else {
+            Ministry::query()->create([...$payload, 'sort_order' => (int) Ministry::query()->max('sort_order') + 1]);
+        }
         LoadPublicSite::flush();
 
         return response()->json(['ok' => true, 'reload' => true]);
+    }
+
+    public function moveMinistry(Request $request): JsonResponse
+    {
+        $ids = Ministry::query()->orderBy('sort_order')->pluck('id')->all();
+        $from = array_search($request->input('id'), $ids, true);
+        $to = $from === false ? false : $from + ($request->input('direction') === 'up' ? -1 : 1);
+        if ($from !== false && isset($ids[$to])) {
+            [$ids[$from], $ids[$to]] = [$ids[$to], $ids[$from]];
+            $this->renumberMinistries($ids);
+        }
+
+        return response()->json(['ok' => true, 'reload' => true]);
+    }
+
+    public function deleteMinistry(Request $request): JsonResponse
+    {
+        Ministry::query()->where('id', $request->input('id'))->delete();
+        $this->renumberMinistries(Ministry::query()->orderBy('sort_order')->pluck('id')->all());
+
+        return response()->json(['ok' => true, 'reload' => true]);
+    }
+
+    private function renumberMinistries(array $ids): void
+    {
+        foreach (array_values($ids) as $index => $id) {
+            Ministry::query()->where('id', $id)->update(['sort_order' => $index + 1]);
+        }
+        LoadPublicSite::flush();
     }
 
     public function predicas(): Response
@@ -197,13 +376,21 @@ class AdminController extends Controller
 
     public function saveSermon(Request $request): JsonResponse
     {
-        $payload = $request->only(['title', 'preacher', 'series', 'sermon_date', 'youtube_id']);
+        $payload = $request->only(['title', 'preacher', 'series', 'sermon_date']);
         $payload['is_live'] = $request->boolean('is_live');
         $payload['published'] = $request->boolean('published');
         if (! $payload['title']) {
             return response()->json(['error' => 'El título es obligatorio.'], 422);
         }
+        $video = trim((string) $request->input('youtube_id'));
+        $payload['youtube_id'] = YouTube::id($video);
+        if ($video !== '' && ! $payload['youtube_id']) {
+            return response()->json(['error' => 'No reconocemos ese enlace de YouTube. Pega el enlace del video (youtube.com o youtu.be) o su ID.'], 422);
+        }
         $id = $request->input('id');
+        if ($payload['is_live']) {
+            Sermon::query()->when($id, fn ($query) => $query->where('id', '!=', $id))->update(['is_live' => false]);
+        }
         $id ? Sermon::query()->where('id', $id)->update($payload) : Sermon::query()->create($payload);
 
         return response()->json(['ok' => true, 'reload' => true]);

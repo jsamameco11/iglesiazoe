@@ -10,21 +10,39 @@ class LoadPublicSite
 {
     private const KEYS = ['zoe.site.settings', 'zoe.site.ministries', 'zoe.site.media', 'zoe.site.design', 'zoe.site.notice'];
 
+    private const LIST_SETTINGS = ['values', 'prayerTopics'];
+
     public static function settings(): array
     {
         return Cache::rememberForever('zoe.site.settings', function () {
             $stored = SiteSetting::query()->where('key', 'site')->first()?->value;
+            $stored = is_array($stored) ? $stored : [];
+            $settings = array_replace_recursive(config('zoe.settings'), $stored);
+            foreach (self::LIST_SETTINGS as $key) {
+                if (isset($stored[$key]) && is_array($stored[$key]) && $stored[$key] !== []) {
+                    $settings[$key] = array_values($stored[$key]);
+                }
+            }
 
-            return array_replace_recursive(config('zoe.settings'), is_array($stored) ? $stored : []);
+            return $settings;
         });
+    }
+
+    public static function prayerTopics(): array
+    {
+        $topics = self::settings()['prayerTopics'] ?? [];
+
+        return is_array($topics) && $topics !== [] ? array_values($topics) : config('zoe.settings.prayerTopics');
     }
 
     public static function ministries(): array
     {
         return Cache::rememberForever('zoe.site.ministries', function () {
-            $rows = Ministry::query()->where('active', true)->orderBy('sort_order')->get();
+            if (! Ministry::query()->exists()) {
+                return config('zoe.ministries');
+            }
 
-            return $rows->isEmpty() ? config('zoe.ministries') : $rows->toArray();
+            return Ministry::query()->where('active', true)->orderBy('sort_order')->get()->toArray();
         });
     }
 

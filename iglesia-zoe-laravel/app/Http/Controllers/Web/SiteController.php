@@ -62,7 +62,10 @@ class SiteController extends Controller
 
     public function baptisms(Request $request): Response
     {
-        $events = BaptismEvent::query()->where('active', true)->orderBy('event_date')->get()
+        $today = now('America/Lima')->toDateString();
+        $events = BaptismEvent::query()->where('active', true)
+            ->where(fn ($query) => $query->whereNull('event_date')->orWhereDate('event_date', '>=', $today))
+            ->orderBy('event_date')->get()
             ->map(fn ($event) => [
                 'id' => $event->id,
                 'event_date' => optional($event->event_date)->toDateString(),
@@ -212,7 +215,7 @@ class SiteController extends Controller
             'full_name' => 'required|string|min:3|max:120',
             'phone' => 'nullable|string|max:30',
             'email' => 'nullable|email|max:160',
-            'topic' => ['nullable', Rule::in(PrayerRequest::TOPICS)],
+            'topic' => ['nullable', Rule::in(LoadPublicSite::prayerTopics())],
             'request' => 'required|string|min:8|max:2000',
         ], [
             'full_name.required' => 'Escribe tu nombre.',

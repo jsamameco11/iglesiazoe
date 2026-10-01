@@ -15,7 +15,7 @@ export function PageIntro({
 }) {
   if (skin === "marea") {
     return (
-      <header className="grid items-center gap-10 border-b border-ink/10 pb-14 lg:grid-cols-2 lg:gap-16">
+      <header className={`grid items-center gap-10 border-b border-ink/10 pb-14 lg:gap-16 ${media ? "lg:grid-cols-2" : ""}`}>
         <div>
           <p className="kicker">{kicker}</p>
           <LeadTitle text={title} className="mt-4 text-5xl md:text-7xl" />

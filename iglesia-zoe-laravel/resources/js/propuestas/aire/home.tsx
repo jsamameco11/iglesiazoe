@@ -4,6 +4,7 @@ import { HeroFilm } from "@/Components/site/hero-film";
 import { MediaView } from "@/Components/site/media-view";
 import { MinistryFeature } from "@/Components/site/ministry-feature";
 import { PhotoRail } from "@/Components/site/photo-rail";
+import { readCopy } from "@/lib/copy";
 import type { ResolvedMedia } from "@/lib/media";
 import type { Ministry, SiteSettings } from "@/lib/types";
 
@@ -20,7 +21,7 @@ export function AireHome({
     <>
       <HeroFilm asset={media.hero} sunday={settings.sunday} wednesday={settings.wednesday}>
         <p className="text-[11px] font-medium uppercase tracking-[0.32em] text-white">{settings.city}</p>
-        <h1 className="display mt-3 max-w-4xl text-[2.35rem] leading-[1.05] text-white sm:mt-4 sm:text-5xl md:text-6xl lg:text-7xl" style={{ color: "#fff" }}>{settings.heroTitle}</h1>
+        <h1 className="display mt-3 max-w-4xl text-[2.35rem] leading-[1.05] text-white sm:mt-4 sm:text-5xl md:text-[3.4rem] lg:text-6xl xl:text-7xl" style={{ color: "#fff" }}>{settings.heroTitle}</h1>
         <p className="mt-4 max-w-xl text-[15px] font-light leading-7 text-white/85 sm:mt-5 sm:text-lg sm:leading-8">{settings.heroSubtitle}</p>
         <div className="mt-6 flex flex-wrap gap-3 sm:mt-8">
           <Link href="/visita" className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-white sm:px-6 sm:py-3">{settings.visitCta}</Link>
@@ -34,19 +35,19 @@ export function AireHome({
         <section className="home-band">
           <div className="home-band-copy">
             <h2 className="editorial text-5xl italic leading-[1.05] text-white sm:text-6xl">
-              Nuestros horarios
+              {readCopy(settings, "home.scheduleTitleCasa")}
             </h2>
             <dl className="mt-8 space-y-4 text-white/85">
               <div>
-                <dt className="text-[11px] uppercase tracking-[0.22em] text-white/45">Domingo</dt>
+                <dt className="text-[11px] uppercase tracking-[0.22em] text-white/45">{readCopy(settings, "facts.sunday")}</dt>
                 <dd className="mt-1 text-lg">{settings.sunday}</dd>
               </div>
               <div>
-                <dt className="text-[11px] uppercase tracking-[0.22em] text-white/45">Entre semana</dt>
+                <dt className="text-[11px] uppercase tracking-[0.22em] text-white/45">{readCopy(settings, "facts.week")}</dt>
                 <dd className="mt-1 text-lg">{settings.wednesday}</dd>
               </div>
               <div>
-                <dt className="text-[11px] uppercase tracking-[0.22em] text-white/45">Sede</dt>
+                <dt className="text-[11px] uppercase tracking-[0.22em] text-white/45">{readCopy(settings, "facts.place")}</dt>
                 <dd className="mt-1 text-lg">{settings.address}</dd>
               </div>
             </dl>

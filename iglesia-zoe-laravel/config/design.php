@@ -31,6 +31,7 @@ return [
         'sermons' => 'Prédicas',
         'give' => 'Generosidad',
         'contact' => 'Contacto',
+        'acceso' => 'Acceso',
     ],
 
     'defaults' => [

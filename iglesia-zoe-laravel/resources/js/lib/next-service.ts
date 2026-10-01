@@ -64,12 +64,28 @@ function occurrence(now: Date, weekday: number, hour: number, minute: number, la
   };
 }
 
-export function nextService(sundayText: string, wednesdayText: string, now = new Date()): NextService {
-  const sunday = occurrence(now, 0, clockFromText(sundayText, 10).hour, clockFromText(sundayText, 10).minute, "Domingo");
-  const wednesday = occurrence(now, 3, clockFromText(wednesdayText, 20).hour, clockFromText(wednesdayText, 20).minute, "Miércoles");
-  if (sunday.live) return sunday;
-  if (wednesday.live) return wednesday;
-  return sunday.at <= wednesday.at ? sunday : wednesday;
+export const WEEKDAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+function weekday(value: string | undefined, fallback: number) {
+  const day = Number(value);
+  return Number.isInteger(day) && day >= 0 && day <= 6 && value !== "" ? day : fallback;
+}
+
+export function nextService(
+  mainText: string,
+  weekText: string,
+  now = new Date(),
+  days: { main?: string; week?: string } = {},
+): NextService {
+  const mainDay = weekday(days.main, 0);
+  const weekDay = weekday(days.week, 3);
+  const mainClock = clockFromText(mainText, 10);
+  const weekClock = clockFromText(weekText, 20);
+  const main = occurrence(now, mainDay, mainClock.hour, mainClock.minute, WEEKDAYS[mainDay]);
+  const week = occurrence(now, weekDay, weekClock.hour, weekClock.minute, WEEKDAYS[weekDay]);
+  if (main.live) return main;
+  if (week.live) return week;
+  return main.at <= week.at ? main : week;
 }
 
 export function formatCountdown(ms: number) {

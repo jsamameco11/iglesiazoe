@@ -5,7 +5,8 @@ import { MediaView } from "@/Components/site/media-view";
 import { PageIntro } from "@/Components/site/page-intro";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
-import { messengerUrl } from "@/lib/social";
+import { useCopy } from "@/lib/copy";
+import { useSocial } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
 import "../../css/oracion.css";
 
@@ -55,6 +56,8 @@ export default function Visit({
   skin: "aire" | "marea";
 }) {
   const media = resolveMedia(mediaOverrides);
+  const t = useCopy();
+  const social = useSocial();
   const phone = settings.phone?.trim() || "(074) 252525";
   const email = settings.email?.trim().toLowerCase() || "iglesiacristianazoe@gmail.com";
   const address = settings.address?.trim() || "Calle Bolívar 755, Chiclayo";
@@ -65,7 +68,7 @@ export default function Visit({
     <SiteLayout>
       <article className="page-wrap pb-8">
         <Rise>
-          <PageIntro skin={skin} kicker="Primera vez" title={settings.visitTitle} media={<MediaView asset={media.visit} />}>
+          <PageIntro skin={skin} kicker={t("visit.kicker")} title={settings.visitTitle} media={<MediaView asset={media.visit} />}>
             <p className="mt-6 max-w-md text-lg font-light leading-8 text-muted">{settings.visitText}</p>
           </PageIntro>
         </Rise>
@@ -73,10 +76,10 @@ export default function Visit({
         <div className="mt-14 grid items-stretch gap-6 lg:grid-cols-2 lg:gap-8">
           <Rise>
             <div className="panel h-full p-7 md:p-10">
-              <p className="kicker">Bienvenida</p>
-              <LeadTitle as="h2" text="Deja tus datos y te recibimos." className="mt-3 text-4xl md:text-5xl" />
+              <p className="kicker">{t("visit.formKicker")}</p>
+              <LeadTitle as="h2" text={t("visit.formTitle")} className="mt-3 text-4xl md:text-5xl" />
               <p className="mt-4 max-w-md text-sm leading-6 text-muted">
-                Un equipo de la casa estará atento para acompañarte en tu primera visita.
+                {t("visit.formText")}
               </p>
               <div className="mt-8">
                 <VisitForm cta={settings.visitCta} sunday={settings.sunday} wednesday={settings.wednesday} />
@@ -94,8 +97,8 @@ export default function Visit({
 
         <Rise>
           <div className="mt-20 text-center">
-            <p className="kicker">Visítanos</p>
-            <LeadTitle text="Nuestros datos de contacto" className="mt-4 text-4xl md:text-6xl" />
+            <p className="kicker">{t("visit.contactKicker")}</p>
+            <LeadTitle text={t("visit.contactTitle")} className="mt-4 text-4xl md:text-6xl" />
           </div>
         </Rise>
 
@@ -104,11 +107,12 @@ export default function Visit({
             <div className="swatch visit-card h-full" style={{ background: "var(--sage)" }}>
               <span className="visit-icon"><IconPhone /></span>
               <div className="visit-card-body">
-                <p className="headline text-[1.7rem] leading-none">Nuestros teléfonos</p>
-                <p className="editorial mt-3 text-2xl italic">Llámanos</p>
+                <p className="headline text-[1.7rem] leading-none">{t("visit.phoneTitle")}</p>
+                <p className="editorial mt-3 text-2xl italic">{t("visit.phoneCall")}</p>
                 {call ? <a href={call} className="mt-3 block text-[15px]">{phone}</a> : <p className="mt-3 text-[15px]">{phone}</p>}
-                <p className="editorial mt-5 text-2xl italic">Escríbenos</p>
-                <a href={messengerUrl} className="mt-2 block text-[15px]" target="_blank" rel="noreferrer">Messenger de la iglesia</a>
+                {(social.messenger || social.whatsapp) && <p className="editorial mt-5 text-2xl italic">{t("visit.phoneWrite")}</p>}
+                {social.whatsapp && <a href={social.whatsapp} className="mt-2 block text-[15px]" target="_blank" rel="noreferrer">{t("visit.whatsapp")}</a>}
+                {social.messenger && <a href={social.messenger} className="mt-2 block text-[15px]" target="_blank" rel="noreferrer">{t("visit.messenger")}</a>}
               </div>
             </div>
           </Rise>
@@ -116,8 +120,8 @@ export default function Visit({
             <a href={settings.mapUrl || mapSrc} target="_blank" rel="noreferrer" className="swatch visit-card h-full" style={{ background: "var(--dusk)" }}>
               <span className="visit-icon"><IconPin /></span>
               <div className="visit-card-body">
-                <p className="headline text-[1.7rem] leading-none">Nuestra dirección</p>
-                <p className="editorial mt-3 text-2xl italic">Visítanos</p>
+                <p className="headline text-[1.7rem] leading-none">{t("visit.addressTitle")}</p>
+                <p className="editorial mt-3 text-2xl italic">{t("visit.addressSub")}</p>
                 <p className="mt-3 text-[15px] leading-6">{address}</p>
                 <p className="mt-1 text-[15px] opacity-70">{settings.city}</p>
                 <p className="mt-4 text-sm opacity-70">{settings.sunday}</p>
@@ -128,10 +132,10 @@ export default function Visit({
             <a href={`mailto:${email}`} className="swatch visit-card h-full" style={{ background: "var(--clay)" }}>
               <span className="visit-icon"><IconMail /></span>
               <div className="visit-card-body">
-                <p className="headline text-[1.7rem] leading-none">Nuestro correo</p>
-                <p className="editorial mt-3 text-2xl italic">Contáctanos</p>
+                <p className="headline text-[1.7rem] leading-none">{t("visit.mailTitle")}</p>
+                <p className="editorial mt-3 text-2xl italic">{t("visit.mailSub")}</p>
                 <p className="mt-3 text-[15px] [overflow-wrap:anywhere]">{email}</p>
-                <p className="mt-4 text-sm opacity-70">Te respondemos lo antes posible.</p>
+                <p className="mt-4 text-sm opacity-70">{t("visit.mailNote")}</p>
               </div>
             </a>
           </Rise>

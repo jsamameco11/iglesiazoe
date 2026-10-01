@@ -1,12 +1,43 @@
+import { usePage } from "@inertiajs/react";
+import type { SiteSettings } from "@/lib/types";
+
 export type SocialNetwork = "instagram" | "facebook" | "youtube" | "tiktok";
 
-export const socialLinks: { id: SocialNetwork; label: string; href: string }[] = [
-  { id: "instagram", label: "Instagram", href: "https://www.instagram.com/iglesiacristianazoe/" },
-  { id: "facebook", label: "Facebook", href: "https://www.facebook.com/iglesiacristianazoe" },
-  { id: "youtube", label: "YouTube", href: "https://www.youtube.com/@iglesiacristianazoe6279" },
-  { id: "tiktok", label: "TikTok", href: "https://www.tiktok.com/@iglesiacristianazoe" },
+type SocialSettings = Partial<Pick<SiteSettings, "instagram" | "facebook" | "youtube" | "tiktok" | "messengerUrl" | "liveUrl" | "whatsapp">>;
+
+const networks: { id: SocialNetwork; label: string }[] = [
+  { id: "instagram", label: "Instagram" },
+  { id: "facebook", label: "Facebook" },
+  { id: "youtube", label: "YouTube" },
+  { id: "tiktok", label: "TikTok" },
 ];
 
-export const liveUrl = "https://www.youtube.com/@iglesiacristianazoe6279";
+export function socialLinksOf(settings: SocialSettings | undefined) {
+  return networks
+    .map((network) => ({ ...network, href: (settings?.[network.id] || "").trim() }))
+    .filter((network) => network.href);
+}
 
-export const messengerUrl = "https://m.me/iglesiacristianazoe";
+export function liveUrlOf(settings: SocialSettings | undefined) {
+  return (settings?.liveUrl || "").trim() || (settings?.youtube || "").trim() || "https://www.youtube.com/@iglesiacristianazoe6279";
+}
+
+export function messengerUrlOf(settings: SocialSettings | undefined) {
+  return (settings?.messengerUrl || "").trim();
+}
+
+export function whatsappUrlOf(settings: SocialSettings | undefined) {
+  const digits = (settings?.whatsapp || "").replace(/\D/g, "");
+  if (!digits) return "";
+  return `https://wa.me/${digits.length === 9 ? `51${digits}` : digits}`;
+}
+
+export function useSocial() {
+  const { settings } = usePage().props as unknown as { settings?: SiteSettings };
+  return {
+    links: socialLinksOf(settings),
+    live: liveUrlOf(settings),
+    messenger: messengerUrlOf(settings),
+    whatsapp: whatsappUrlOf(settings),
+  };
+}

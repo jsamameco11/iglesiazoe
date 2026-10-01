@@ -2,27 +2,32 @@
 import { Link, usePage } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import { AccessButton } from "@/Components/site/skin-switch";
+import { useCopy } from "@/lib/copy";
+import { useSocial } from "@/lib/social";
 import type { Ministry } from "@/lib/types";
 
-const liveUrl = "https://www.youtube.com/@iglesiacristianazoe6279";
-
-function LiveButton({ ghost }: { ghost?: boolean }) {
+function LiveButton({ ghost, className = "live-pill" }: { ghost?: boolean; className?: string }) {
+  const { live } = useSocial();
+  const t = useCopy();
   return (
-    <a href={liveUrl} target="_blank" rel="noreferrer" tabIndex={ghost ? -1 : undefined} className="live-pill">
+    <a href={live} target="_blank" rel="noreferrer" tabIndex={ghost ? -1 : undefined} className={className}>
       <span className="live-dot" aria-hidden />
-      En vivo
+      {t("nav.live")}
     </a>
   );
 }
 
-const primary = [
-  { href: "/conocenos", label: "Conócenos", note: "Historia y pastores" },
-  { href: "/ministerios", label: "Ministerios", note: "Cada generación" },
-  { href: "/bautismos", label: "Bautismo", note: "Tu nuevo comienzo" },
-  { href: "/predicas", label: "Prédicas", note: "Mensajes y series" },
-  { href: "/dar", label: "Dar", note: "Generosidad" },
-  { href: "/contacto", label: "Oración", note: "Estamos contigo" },
-];
+function usePrimaryLinks() {
+  const t = useCopy();
+  return [
+    { href: "/conocenos", label: t("nav.about"), note: t("nav.aboutNote") },
+    { href: "/ministerios", label: t("nav.ministries"), note: t("nav.ministriesNote") },
+    { href: "/bautismos", label: t("nav.baptism"), note: t("nav.baptismNote") },
+    { href: "/predicas", label: t("nav.sermons"), note: t("nav.sermonsNote") },
+    { href: "/dar", label: t("nav.give"), note: t("nav.giveNote") },
+    { href: "/contacto", label: t("nav.prayer"), note: t("nav.prayerNote") },
+  ];
+}
 
 function HeaderBar({
   ministries,
@@ -44,21 +49,22 @@ function HeaderBar({
   visitCta: string;
 }) {
   const [ministriesOpen, setMinistriesOpen] = useState(false);
+  const t = useCopy();
 
   return (
-    <div className="flex h-[72px] items-center justify-between gap-6 px-5 md:px-10">
-      <Link href={home} className="text-[1.35rem] font-semibold tracking-[-0.03em] text-current" tabIndex={ghost ? -1 : undefined}>
-        Iglesia Zoe
+    <div className="flex h-[72px] items-center justify-between gap-3 px-5 sm:gap-6 md:px-10">
+      <Link href={home} className="shrink-0 whitespace-nowrap text-[1.35rem] font-semibold tracking-[-0.03em] text-current" tabIndex={ghost ? -1 : undefined}>
+        {t("nav.brand")}
       </Link>
       <nav className="hidden items-center gap-7 text-[16.5px] font-medium tracking-[-0.01em] text-current lg:flex">
-        <Link href="/conocenos" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>Conócenos</Link>
+        <Link href="/conocenos" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>{t("nav.about")}</Link>
         <div
           className="relative"
           onMouseEnter={() => !ghost && setMinistriesOpen(true)}
           onMouseLeave={() => setMinistriesOpen(false)}
         >
           <Link href="/ministerios" className="inline-flex items-center gap-1.5 transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>
-            Ministerios
+            {t("nav.ministries")}
             <span className={`text-[9px] transition ${ministriesOpen ? "rotate-180" : ""}`}>▼</span>
           </Link>
           {!ghost && ministriesOpen && (
@@ -66,10 +72,10 @@ function HeaderBar({
               <div className="overflow-hidden rounded-[1.6rem] border border-black/5 bg-card shadow-[0_30px_80px_rgba(23,24,28,0.12)]">
                 <div className="flex items-end justify-between border-b border-black/5 px-6 py-5">
                   <div>
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-muted">Crecer</p>
-                    <p className="editorial mt-1 text-3xl italic">Un lugar para cada etapa</p>
+                    <p className="text-[11px] uppercase tracking-[0.22em] text-muted">{t("nav.dropKicker")}</p>
+                    <p className="editorial mt-1 text-3xl italic">{t("nav.dropTitle")}</p>
                   </div>
-                  <Link href="/ministerios" className="text-sm font-medium">Ver todos →</Link>
+                  <Link href="/ministerios" className="text-sm font-medium">{t("nav.dropAll")}</Link>
                 </div>
                 <div className="grid grid-cols-2 gap-px bg-black/5">
                   {ministries.map((ministry, index) => (
@@ -84,10 +90,10 @@ function HeaderBar({
             </div>
           )}
         </div>
-        <Link href="/bautismos" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>Bautismo</Link>
-        <Link href="/predicas" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>Prédicas</Link>
-        <Link href="/contacto" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>Oración</Link>
-        <Link href="/dar" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>Dar</Link>
+        <Link href="/bautismos" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>{t("nav.baptism")}</Link>
+        <Link href="/predicas" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>{t("nav.sermons")}</Link>
+        <Link href="/contacto" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>{t("nav.prayer")}</Link>
+        <Link href="/dar" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>{t("nav.give")}</Link>
       </nav>
       <div className="hidden items-center gap-5 lg:flex">
         <LiveButton ghost={ghost} />
@@ -100,7 +106,7 @@ function HeaderBar({
           {visitCta}
         </Link>
       </div>
-      <div className="flex items-center gap-3 lg:hidden">
+      <div className="flex items-center gap-2 sm:gap-3 lg:hidden">
         <LiveButton ghost={ghost} />
         <AccessButton ghost={ghost} invert={lightCta} />
         <button
@@ -129,12 +135,14 @@ export function Header({
   ministries: Ministry[];
   home?: string;
   other?: { href: string; label: string; invert?: boolean };
-  overMedia?: boolean | "split";
+  overMedia?: boolean | "split" | "page";
   visitCta?: string;
 }) {
   const pathname = usePage().url.split("?")[0];
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const primary = usePrimaryLinks();
+  const t = useCopy();
 
   useEffect(() => {
     const onScroll = () => {
@@ -157,7 +165,7 @@ export function Header({
     };
   }, [open]);
 
-  const onHome = pathname === home && !open;
+  const onHome = (pathname === home || overMedia === "page") && !open;
   const splitHero = overMedia === "split" && onHome && !scrolled;
   const onHero = Boolean(overMedia) && onHome && !scrolled;
 
@@ -195,7 +203,7 @@ export function Header({
         <div className="fixed inset-0 z-50 overflow-y-auto bg-paper text-ink">
           <div className="mx-auto flex min-h-full max-w-6xl flex-col px-5 py-5 md:px-10">
             <div className="flex items-center justify-between">
-              <p className="text-[1.35rem] font-semibold tracking-[-0.03em]">Iglesia Zoe</p>
+              <p className="text-[1.35rem] font-semibold tracking-[-0.03em]">{t("nav.brand")}</p>
               <button
                 onClick={() => setOpen(false)}
                 className="rounded-full border border-ink/15 px-4 py-2 text-sm font-medium"
@@ -220,16 +228,16 @@ export function Header({
                   </Link>
                 ))}
                 <Link href={home} onClick={() => setOpen(false)} className="mt-5 inline-block text-sm font-medium text-muted">
-                  Inicio
+                  {t("nav.home")}
                 </Link>
               </nav>
               <aside className="rounded-[1.8rem] bg-sage p-7 md:p-8">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-ink/50">Siguiente paso</p>
+                <p className="text-[11px] uppercase tracking-[0.22em] text-ink/50">{t("nav.menuKicker")}</p>
                 <p className="editorial mt-4 text-4xl italic leading-[1.05] md:text-5xl">
-                  Te esperamos en casa.
+                  {t("nav.menuTitle")}
                 </p>
                 <p className="mt-4 max-w-xs text-sm leading-6 text-ink/70">
-                  Cuéntanos que vienes y un equipo de bienvenida estará atento.
+                  {t("nav.menuText")}
                 </p>
                 <Link
                   href="/visita"
@@ -239,11 +247,8 @@ export function Header({
                   {visitCta}
                 </Link>
                 <div className="mt-8 flex flex-col gap-3 text-sm">
-                  <a href={liveUrl} target="_blank" rel="noreferrer" className="live-pill w-fit">
-                    <span className="live-dot" aria-hidden />
-                    En vivo
-                  </a>
-                  <Link href="/acceso" onClick={() => setOpen(false)} className="font-medium">Acceso al sistema →</Link>
+                  <LiveButton className="live-pill w-fit" />
+                  <Link href="/acceso" onClick={() => setOpen(false)} className="font-medium">{t("nav.access")} →</Link>
                 </div>
               </aside>
             </div>
