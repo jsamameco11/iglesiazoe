@@ -29,6 +29,7 @@ use App\Models\User;
 use App\Models\VisitPlan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -117,6 +118,8 @@ class AdminController extends Controller
 
     private const VALUE_SLOTS = 6;
 
+    private const THEME_FILE_TYPES = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'webp'];
+
     public function saveSettings(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -166,10 +169,11 @@ class AdminController extends Controller
 
         if ($canGiving && $request->hasFile('yapeQrFile')) {
             $file = $request->file('yapeQrFile');
-            if (! $file->isValid() || ! in_array(strtolower($file->getClientOriginalExtension()), ['png', 'jpg', 'jpeg', 'webp'], true) || $file->getSize() > 4 * 1024 * 1024) {
+            $ext = $file->isValid() ? strtolower((string) $file->guessExtension()) : '';
+            if (! in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true) || $file->getSize() > 4 * 1024 * 1024) {
                 return response()->json(['error' => 'El QR debe ser una imagen PNG, JPG o WEBP de hasta 4 MB.'], 422);
             }
-            $path = $file->storeAs('generosidad', 'yape-qr-'.time().'.'.strtolower($file->getClientOriginalExtension()), 'public');
+            $path = $file->storeAs('generosidad', 'yape-qr-'.time().'.'.$ext, 'public');
             $input['yapeQr'] = '/storage/'.$path;
         }
 
@@ -457,18 +461,25 @@ class AdminController extends Controller
     public function celulas(Request $request): Response
     {
         $allowed = CellScope::for($request->user())->manageNetworkIds();
+        $cells = Cell::query()->orderBy('code')->when($allowed !== null, fn ($query) => $query->whereIn('network_id', $allowed))->get();
 
         return Inertia::render('Admin/Celulas', [
             'networks' => Network::query()->orderBy('code')->when($allowed !== null, fn ($query) => $query->whereIn('id', $allowed))->get(['id', 'code', 'name']),
-            'cells' => Cell::query()->orderBy('code')->when($allowed !== null, fn ($query) => $query->whereIn('network_id', $allowed))->get(),
-            'members' => CellMember::query()->where('active', true)->orderBy('full_name')->get(),
+            'cells' => $cells,
+            'members' => CellMember::query()->where('active', true)
+                ->when($allowed !== null, fn ($query) => $query->whereIn('cell_id', $cells->pluck('id')->all() ?: [CellScope::NONE]))
+                ->orderBy('full_name')->get(),
             'canManageMembers' => true,
         ]);
     }
 
     public function saveCell(Request $request): JsonResponse
     {
-        Cell::query()->where('id', $request->input('id'))->update([
+        $cell = $this->managedCell($request, $request->input('id'));
+        if (! $cell) {
+            return $this->outsideNetwork();
+        }
+        $cell->update([
             'leader_name' => $request->input('leader_name'),
             'assistant_name' => $request->input('assistant_name'),
             'host_name' => $request->input('host_name'),
@@ -483,13 +494,15 @@ class AdminController extends Controller
 
     public function createRootCell(Request $request): JsonResponse
     {
-        $networkId = $request->input('network_id');
-        $code = strtoupper((string) $request->input('network_code'));
-        $next = (int) Cell::query()->where('network_id', $networkId)->whereNull('parent_id')->max('number') + 1;
+        $network = $this->managedNetwork($request);
+        if (! $network) {
+            return $this->outsideNetwork();
+        }
+        $next = (int) Cell::query()->where('network_id', $network->id)->whereNull('parent_id')->max('number') + 1;
         Cell::query()->create([
-            'network_id' => $networkId,
+            'network_id' => $network->id,
             'number' => $next,
-            'code' => CellCodes::root($code, $next),
+            'code' => CellCodes::root(strtoupper($network->code), $next),
             'active' => true,
         ]);
 
@@ -498,13 +511,15 @@ class AdminController extends Controller
 
     public function ensureSix(Request $request): JsonResponse
     {
-        $networkId = $request->input('network_id');
-        $code = strtoupper((string) $request->input('network_code'));
-        $existing = Cell::query()->where('network_id', $networkId)->whereNull('parent_id')->pluck('code');
+        $network = $this->managedNetwork($request);
+        if (! $network) {
+            return $this->outsideNetwork();
+        }
+        $existing = Cell::query()->where('network_id', $network->id)->whereNull('parent_id')->pluck('code');
         for ($number = 1; $number <= 6; $number++) {
-            $cellCode = CellCodes::root($code, $number);
+            $cellCode = CellCodes::root(strtoupper($network->code), $number);
             if (! $existing->contains($cellCode)) {
-                Cell::query()->create(['network_id' => $networkId, 'number' => $number, 'code' => $cellCode, 'active' => true]);
+                Cell::query()->create(['network_id' => $network->id, 'number' => $number, 'code' => $cellCode, 'active' => true]);
             }
         }
 
@@ -513,13 +528,16 @@ class AdminController extends Controller
 
     public function createDaughter(Request $request): JsonResponse
     {
-        $parentId = $request->input('parent_id');
-        $next = (int) Cell::query()->where('parent_id', $parentId)->max('number') + 1;
+        $parent = $this->managedCell($request, $request->input('parent_id'));
+        if (! $parent) {
+            return $this->outsideNetwork();
+        }
+        $next = (int) Cell::query()->where('parent_id', $parent->id)->max('number') + 1;
         Cell::query()->create([
-            'network_id' => $request->input('network_id'),
-            'parent_id' => $parentId,
+            'network_id' => $parent->network_id,
+            'parent_id' => $parent->id,
             'number' => $next,
-            'code' => CellCodes::daughter((string) $request->input('parent_code'), $next),
+            'code' => CellCodes::daughter($parent->code, $next),
             'active' => true,
         ]);
 
@@ -528,9 +546,17 @@ class AdminController extends Controller
 
     public function addMember(Request $request): JsonResponse
     {
+        $cell = $this->managedCell($request, $request->input('cell_id'));
+        if (! $cell) {
+            return $this->outsideNetwork();
+        }
+        $name = trim((string) $request->input('full_name'));
+        if ($name === '') {
+            return response()->json(['error' => 'Escribe el nombre del integrante.'], 422);
+        }
         CellMember::query()->create([
-            'cell_id' => $request->input('cell_id'),
-            'full_name' => $request->input('full_name'),
+            'cell_id' => $cell->id,
+            'full_name' => $name,
             'phone' => $request->input('phone'),
             'active' => true,
         ]);
@@ -540,7 +566,12 @@ class AdminController extends Controller
 
     public function removeMember(Request $request): JsonResponse
     {
-        CellMember::query()->where('id', $request->input('id'))->update(['active' => false]);
+        $id = (string) $request->input('id');
+        $member = Str::isUuid($id) ? CellMember::query()->find($id) : null;
+        if (! $member || ! $this->managedCell($request, $member->cell_id)) {
+            return $this->outsideNetwork();
+        }
+        $member->update(['active' => false]);
 
         return response()->json(['ok' => true, 'reload' => true]);
     }
@@ -563,7 +594,12 @@ class AdminController extends Controller
     {
         $path = null;
         if ($request->hasFile('file')) {
-            $path = $request->file('file')->store('temas', 'public');
+            $file = $request->file('file');
+            $ext = $this->themeExtension($file);
+            if (! $ext) {
+                return response()->json(['error' => 'El archivo debe ser PDF, Word, PowerPoint o una imagen.'], 422);
+            }
+            $path = $file->storeAs('temas', Str::random(40).'.'.$ext, 'public');
         }
         Theme::query()->create([
             'title' => $request->input('title'),
@@ -592,5 +628,45 @@ class AdminController extends Controller
                 'visit_date' => optional($row->visit_date)->toDateString(),
             ]),
         ]);
+    }
+
+    private function managedNetwork(Request $request): ?Network
+    {
+        $id = (string) $request->input('network_id');
+        $network = Str::isUuid($id) ? Network::query()->find($id) : null;
+
+        return $network && $this->managesNetwork($request, $network->id) ? $network : null;
+    }
+
+    private function managedCell(Request $request, mixed $id): ?Cell
+    {
+        $cell = is_string($id) && Str::isUuid($id) ? Cell::query()->find($id) : null;
+
+        return $cell && $this->managesNetwork($request, $cell->network_id) ? $cell : null;
+    }
+
+    private function managesNetwork(Request $request, ?string $networkId): bool
+    {
+        $allowed = CellScope::for($request->user())->manageNetworkIds();
+
+        return $allowed === null || in_array($networkId, $allowed, true);
+    }
+
+    private function outsideNetwork(): JsonResponse
+    {
+        return response()->json(['error' => 'Esa célula no pertenece a tu red.'], 403);
+    }
+
+    private function themeExtension(UploadedFile $file): ?string
+    {
+        if (! $file->isValid()) {
+            return null;
+        }
+        $guessed = strtolower((string) $file->guessExtension());
+        $client = strtolower($file->getClientOriginalExtension());
+        $office = in_array($guessed, ['', 'zip', 'bin'], true) && in_array($client, ['doc', 'docx', 'ppt', 'pptx'], true);
+        $ext = $office ? $client : $guessed;
+
+        return in_array($ext, self::THEME_FILE_TYPES, true) ? $ext : null;
     }
 }

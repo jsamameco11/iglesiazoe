@@ -21,6 +21,8 @@ use Inertia\Response;
 
 class PortalController extends Controller
 {
+    private const PHOTO_TYPES = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'];
+
     public function informe(Request $request): Response
     {
         $current = WeekCalendar::current();
@@ -127,10 +129,11 @@ class PortalController extends Controller
                 ]);
             }
             foreach ($request->file('photos', []) as $file) {
-                if (! $file) {
+                $ext = $file?->isValid() ? strtolower((string) $file->guessExtension()) : '';
+                if (! in_array($ext, self::PHOTO_TYPES, true)) {
                     continue;
                 }
-                $path = $file->store('informes/'.$request->user()->id.'/'.$report->id, 'public');
+                $path = $file->storeAs('informes/'.$request->user()->id.'/'.$report->id, Str::random(40).'.'.$ext, 'public');
                 ReportPhoto::query()->create(['report_id' => $report->id, 'file_path' => $path]);
             }
         }
@@ -267,7 +270,8 @@ class PortalController extends Controller
 
     public function themeFile(Request $request): JsonResponse
     {
-        $path = (string) $request->query('path');
+        $id = (string) $request->query('id');
+        $path = Str::isUuid($id) ? (string) Theme::query()->where('active', true)->whereKey($id)->value('file_path') : '';
         if ($path === '' || ! Storage::disk('public')->exists($path)) {
             return response()->json(['error' => 'No se pudo preparar la descarga.'], 404);
         }

@@ -39,8 +39,8 @@ export function CellsManager({
         </label>
         {network && (
           <>
-            <button disabled={pending} onClick={() => run(() => ensureSixCells(network.id, network.code))} className="rounded-full bg-accent px-4 py-2 text-sm text-white">Asegurar 6 células</button>
-            <button disabled={pending} onClick={() => run(() => createRootCell(network.id, network.code))} className="rounded-full border border-line px-4 py-2 text-sm">Agregar célula</button>
+            <button disabled={pending} onClick={() => run(() => ensureSixCells(network.id))} className="rounded-full bg-accent px-4 py-2 text-sm text-white">Asegurar 6 células</button>
+            <button disabled={pending} onClick={() => run(() => createRootCell(network.id))} className="rounded-full border border-line px-4 py-2 text-sm">Agregar célula</button>
           </>
         )}
       </div>
@@ -64,7 +64,7 @@ export function CellsManager({
               <button className="w-fit rounded-full bg-accent px-4 py-2 text-sm text-white">Guardar célula</button>
             </form>
             {!cell.parent_id && network && (
-              <button className="mt-3 text-sm text-orange-deep" onClick={() => run(() => createDaughter(cell.id, cell.code, network.id))}>Crear célula hija</button>
+              <button className="mt-3 text-sm text-orange-deep" onClick={() => run(() => createDaughter(cell.id))}>Crear célula hija</button>
             )}
             <div className="mt-4">
               <p className="text-sm font-medium">Integrantes</p>
