@@ -30,7 +30,13 @@ export default function Contact({
               <p>{settings.sunday}</p>
               <p>{settings.wednesday}</p>
               {settings.phone && <p>{settings.phone}</p>}
-              {settings.email && <p>{settings.email}</p>}
+              {settings.email && (
+                <p>
+                  <a href={`mailto:${settings.email.trim().toLowerCase()}`} className="[overflow-wrap:anywhere] transition hover:text-ink">
+                    {settings.email.trim().toLowerCase()}
+                  </a>
+                </p>
+              )}
             </div>
             <div className="mt-8 flex flex-wrap gap-5 text-sm font-medium">
               <a href={messengerUrl} target="_blank" rel="noreferrer">Messenger</a>

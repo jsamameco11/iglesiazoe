@@ -24,40 +24,6 @@ class GeoDirectory
             ->all());
     }
 
-    public static function regions(string $country): array
-    {
-        $country = strtoupper($country);
-
-        return Cache::remember("geo:regions:{$country}", self::TTL, fn () => DB::table('geo_regions')
-            ->where('country_code', $country)
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn ($row) => ['id' => $row->id, 'name' => $row->name])
-            ->all());
-    }
-
-    public static function cities(int $region): array
-    {
-        return Cache::remember("geo:cities:{$region}", self::TTL, fn () => DB::table('geo_cities')
-            ->where('region_id', $region)
-            ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn ($row) => [
-                'id' => $row->id,
-                'name' => $row->name,
-            ])
-            ->all());
-    }
-
-    public static function districts(int $city): array
-    {
-        return Cache::remember("geo:districts:{$city}", self::TTL, fn () => DB::table('geo_districts')
-            ->where('city_id', $city)
-            ->orderBy('name')
-            ->pluck('name')
-            ->all());
-    }
-
     public static function dialCodes(): array
     {
         return array_values(array_unique(array_column(self::countries(), 'dial')));

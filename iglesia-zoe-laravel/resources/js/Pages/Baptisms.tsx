@@ -1,8 +1,8 @@
 import { BaptismForm } from "@/Components/site/baptism-form";
 import { Rise } from "@/Components/motion/rise";
+import { BaptismReel } from "@/Components/site/baptism-reel";
 import { LeadTitle } from "@/Components/site/lead-title";
 import { PageIntro } from "@/Components/site/page-intro";
-import { PhotoRail } from "@/Components/site/photo-rail";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { SiteSettings } from "@/lib/types";
@@ -59,17 +59,15 @@ export default function Baptisms({
           </Rise>
         </div>
 
-        <section className="baptism-reel" aria-label="Galería de bautismos">
+        <section className="baptism-band" aria-label="Galería de bautismos">
           <Rise>
-            <div className="baptism-reel-head">
-              <p className="kicker">Galería</p>
+            <div className="baptism-band-head">
+              <p className="baptism-band-kicker">Galería</p>
               <LeadTitle as="h2" text="Vidas que dieron el paso" className="mt-4 text-4xl md:text-6xl" />
             </div>
           </Rise>
-          <div className="baptism-reel-stage">
-            <PhotoRail title="Bautismos en Iglesia Cristiana Zoe" items={media.baptismGallery} bare interval={3500} className="baptism-reel-rail" />
-            <p className="baptism-reel-caption">Cada bautismo es una historia de fe que comienza de nuevo.</p>
-          </div>
+          <BaptismReel title="Bautismos en Iglesia Cristiana Zoe" items={media.baptismGallery} interval={3000} />
+          <p className="baptism-band-caption">Cada bautismo es una historia de fe que comienza de nuevo.</p>
         </section>
       </article>
     </SiteLayout>

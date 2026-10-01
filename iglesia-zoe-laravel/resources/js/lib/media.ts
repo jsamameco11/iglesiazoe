@@ -187,7 +187,7 @@ export function compactGalleryOverrides(overrides: Record<string, MediaAsset>) {
   return extras.length;
 }
 
-export const BAPTISM_PHOTOS = 6;
+export const BAPTISM_PHOTOS = 8;
 
 const baptismPool = [
   "/images/banner8.jpg",
@@ -207,9 +207,37 @@ function baptismDefaults(): Record<string, MediaAsset> {
   for (let photo = 2; photo <= BAPTISM_PHOTOS; photo += 1) {
     result[baptismSlotId(photo)] = {
       kind: "image",
-      src: baptismPool[(photo - 1) % baptismPool.length],
+      src: baptismPool[photo - 1] ?? "",
       poster: "",
       alt: `Bautismo en Iglesia Cristiana Zoe · foto ${photo}`,
+    };
+  }
+  return result;
+}
+
+export const ABOUT_PHOTOS = 8;
+
+const aboutPool = [
+  "/images/familia1.jpg",
+  "/images/banner4.jpg",
+  "/images/pastores.jpg",
+  "/images/banner8.jpg",
+  "/images/man1.jpg",
+  "/images/man2.jpg",
+];
+
+export function aboutSlotId(photo: number) {
+  return `about-${photo}`;
+}
+
+function aboutDefaults(): Record<string, MediaAsset> {
+  const result: Record<string, MediaAsset> = {};
+  for (let photo = 1; photo <= ABOUT_PHOTOS; photo += 1) {
+    result[aboutSlotId(photo)] = {
+      kind: "image",
+      src: aboutPool[(photo - 1) % aboutPool.length],
+      poster: "",
+      alt: `Iglesia Cristiana Zoe · foto ${photo}`,
     };
   }
   return result;
@@ -275,6 +303,7 @@ const fixedDefaults: Record<string, MediaAsset> = {
     alt: "Bautismo en Iglesia Cristiana Zoe",
   },
   ...baptismDefaults(),
+  ...aboutDefaults(),
   giving: {
     kind: "image",
     src: "/images/banner4.jpg",
@@ -340,6 +369,12 @@ const fixedCatalog: MediaSlotMeta[] = [
     label: "Pastores",
     hint: "Retrato que acompaña la presentación de los pastores.",
   },
+  ...Array.from({ length: ABOUT_PHOTOS }, (_, index) => ({
+    id: aboutSlotId(index + 1),
+    group: "Conócenos",
+    label: `Carrusel · Foto ${index + 1}`,
+    hint: "Se ve en la cinta de fotos de Conócenos, sobre la franja. Es independiente del carrusel del inicio.",
+  })),
   {
     id: "visit",
     group: "Planifica tu visita",
@@ -356,7 +391,7 @@ const fixedCatalog: MediaSlotMeta[] = [
     id: baptismSlotId(index + 1),
     group: "Bautismos",
     label: `Carrusel · Foto ${index + 1}`,
-    hint: "Se ve en el carrusel de la página de bautismo, sobre la franja. Cambia cada 3,5 segundos.",
+    hint: "Galería «Vidas que dieron el paso» de la página de bautismo. Todas se muestran del mismo tamaño (vertical 4:5); usa el encuadre para centrar a la persona.",
   })),
   {
     id: "giving",
@@ -508,6 +543,7 @@ export type ResolvedMedia = {
   mareaCulto: MediaAsset;
   mareaCiudad: MediaAsset;
   aboutPastors: MediaAsset;
+  aboutGallery: MediaAsset[];
   visit: MediaAsset;
   sermons: MediaAsset;
   baptism: MediaAsset;
@@ -531,6 +567,10 @@ export function resolveMedia(overrides: Record<string, MediaAsset>): ResolvedMed
     mareaCulto: resolve(overrides, "marea-culto", fixedDefaults["marea-culto"]),
     mareaCiudad: resolve(overrides, "marea-ciudad", fixedDefaults["marea-ciudad"]),
     aboutPastors: resolve(overrides, "about-pastors", fixedDefaults["about-pastors"]),
+    aboutGallery: Array.from({ length: ABOUT_PHOTOS }, (_, index) => {
+      const id = aboutSlotId(index + 1);
+      return resolve(overrides, id, fixedDefaults[id]);
+    }),
     visit: resolve(overrides, "visit", fixedDefaults.visit),
     sermons: resolve(overrides, "sermons", fixedDefaults.sermons),
     baptism: resolve(overrides, "baptism", fixedDefaults.baptism),

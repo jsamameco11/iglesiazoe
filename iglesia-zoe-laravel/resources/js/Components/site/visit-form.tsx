@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { SelectField, type SelectOption } from "@/Components/ui/select-field";
 import { submitVisit } from "@/lib/actions";
-import { flagUrl, geo, type GeoCountry, type GeoPlace } from "@/lib/geo";
+import { citiesOf, cityName, districtsOf, flagUrl, geo, type GeoCountry, type GeoTree } from "@/lib/geo";
 
 const SEXES = ["Masculino", "Femenino"];
 const MARITAL = ["Soltero(a)", "Casado(a)", "Conviviente", "Divorciado(a)", "Separado(a)", "Viudo(a)"];
@@ -30,10 +30,8 @@ export function VisitForm({
 }) {
   const form = useRef<HTMLFormElement>(null);
   const [countries, setCountries] = useState<GeoCountry[]>([]);
-  const [regions, setRegions] = useState<GeoPlace[]>([]);
-  const [cities, setCities] = useState<GeoPlace[]>([]);
-  const [districts, setDistricts] = useState<string[]>([]);
-  const [loading, setLoading] = useState({ countries: true, regions: false, cities: false, districts: false });
+  const [tree, setTree] = useState<GeoTree>([]);
+  const [loading, setLoading] = useState({ countries: true, tree: false });
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -46,8 +44,8 @@ export function VisitForm({
   const dial = dialKey.split(":")[1] ?? "";
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
-  const [regionId, setRegionId] = useState("");
-  const [cityId, setCityId] = useState("");
+  const [region, setRegion] = useState("");
+  const [city, setCity] = useState("");
   const [district, setDistrict] = useState("");
   const [service, setService] = useState(sunday);
 
@@ -69,49 +67,22 @@ export function VisitForm({
   }, []);
 
   useEffect(() => {
-    setRegions([]);
-    setRegionId("");
+    setTree([]);
+    setRegion("");
+    setCity("");
+    setDistrict("");
     if (!country) return;
-    setLoading((state) => ({ ...state, regions: true }));
+    setLoading((state) => ({ ...state, tree: true }));
     let alive = true;
     geo
-      .regions(country)
-      .then((rows) => alive && setRegions(rows))
-      .finally(() => alive && setLoading((state) => ({ ...state, regions: false })));
+      .tree(country)
+      .then((rows) => alive && setTree(rows))
+      .catch(() => alive && setStatus({ error: "No pudimos cargar la lista de lugares. Recarga la página." }))
+      .finally(() => alive && setLoading((state) => ({ ...state, tree: false })));
     return () => {
       alive = false;
     };
   }, [country]);
-
-  useEffect(() => {
-    setCities([]);
-    setCityId("");
-    if (!regionId || !hasCity) return;
-    setLoading((state) => ({ ...state, cities: true }));
-    let alive = true;
-    geo
-      .cities(Number(regionId))
-      .then((rows) => alive && setCities(rows))
-      .finally(() => alive && setLoading((state) => ({ ...state, cities: false })));
-    return () => {
-      alive = false;
-    };
-  }, [regionId, hasCity]);
-
-  useEffect(() => {
-    setDistricts([]);
-    setDistrict("");
-    if (!cityId || !hasDistrict) return;
-    setLoading((state) => ({ ...state, districts: true }));
-    let alive = true;
-    geo
-      .districts(Number(cityId))
-      .then((rows) => alive && setDistricts(rows))
-      .finally(() => alive && setLoading((state) => ({ ...state, districts: false })));
-    return () => {
-      alive = false;
-    };
-  }, [cityId, hasDistrict]);
 
   useEffect(() => {
     if (!dialTouched && countryMeta) setDialKey(`${countryMeta.code}:${countryMeta.dial}`);
@@ -131,9 +102,13 @@ export function VisitForm({
       })),
     [countries],
   );
-  const regionOptions = useMemo(() => regions.map((item) => ({ value: String(item.id), label: item.name })), [regions]);
-  const cityOptions = useMemo(() => cities.map((item) => ({ value: String(item.id), label: item.name })), [cities]);
-  const districtOptions = useMemo(() => districts.map((name) => ({ value: name, label: name })), [districts]);
+  const cities = useMemo(() => (region && hasCity ? citiesOf(tree, region) : []), [tree, region, hasCity]);
+  const regionOptions = useMemo(() => tree.map(([name]) => ({ value: name, label: name })), [tree]);
+  const cityOptions = useMemo(() => cities.map((item) => ({ value: cityName(item), label: cityName(item) })), [cities]);
+  const districtOptions = useMemo(
+    () => (city && hasDistrict ? districtsOf(cities, city) : []).map((name) => ({ value: name, label: name })),
+    [cities, city, hasDistrict],
+  );
   const serviceOptions = useMemo(() => [sunday, wednesday].filter(Boolean).map((item) => ({ value: item, label: item })), [sunday, wednesday]);
 
   const clearError = (key: keyof Errors) => setErrors((current) => (current[key] ? { ...current, [key]: undefined } : current));
@@ -149,7 +124,7 @@ export function VisitForm({
     if (!country) next.country = "Elige tu país.";
     if (phone.length < 6) next.phone = "Escribe un teléfono válido.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) next.email = "Escribe un correo válido.";
-    if (!regionId) next.region = `Elige tu ${labels[0].toLowerCase()}.`;
+    if (!region) next.region = `Elige tu ${labels[0].toLowerCase()}.`;
     return next;
   };
 
@@ -161,7 +136,9 @@ export function VisitForm({
     setMarital("");
     setPhone("");
     setEmail("");
-    setRegionId("");
+    setRegion("");
+    setCity("");
+    setDistrict("");
     setService(sunday);
   };
 
@@ -185,8 +162,8 @@ export function VisitForm({
     data.set("phone_code", dial);
     data.set("phone", phone);
     data.set("email", email.trim());
-    data.set("region", regions.find((item) => String(item.id) === regionId)?.name ?? "");
-    data.set("city", cities.find((item) => String(item.id) === cityId)?.name ?? "");
+    data.set("region", region);
+    data.set("city", city);
     data.set("district", district);
     data.set("service", service);
 
@@ -353,13 +330,15 @@ export function VisitForm({
       <div className={`visit-row ${hasCity ? "cols-2" : ""}`}>
         <SelectField
           label={labels[0]}
-          value={regionId}
+          value={region}
           options={regionOptions}
-          loading={loading.regions}
+          loading={loading.tree}
           disabled={!country}
           placeholder={country ? "Selecciona" : "Elige primero el país"}
           onChange={(value) => {
-            setRegionId(value);
+            setRegion(value);
+            setCity("");
+            setDistrict("");
             clearError("region");
           }}
           error={errors.region}
@@ -368,12 +347,14 @@ export function VisitForm({
         {hasCity && (
           <SelectField
             label={labels[1]}
-            value={cityId}
+            value={city}
             options={cityOptions}
-            loading={loading.cities}
-            disabled={!regionId}
-            placeholder={regionId ? "Selecciona" : `Elige primero ${labels[0].toLowerCase()}`}
-            onChange={setCityId}
+            disabled={!region}
+            placeholder={region ? "Selecciona" : `Elige primero ${labels[0].toLowerCase()}`}
+            onChange={(value) => {
+              setCity(value);
+              setDistrict("");
+            }}
             optional
             searchable
           />
@@ -386,9 +367,8 @@ export function VisitForm({
             label={labels[2]}
             value={district}
             options={districtOptions}
-            loading={loading.districts}
-            disabled={!cityId}
-            placeholder={cityId ? "Selecciona" : `Elige primero ${labels[1].toLowerCase()}`}
+            disabled={!city}
+            placeholder={city ? "Selecciona" : `Elige primero ${labels[1].toLowerCase()}`}
             onChange={setDistrict}
             optional
             searchable

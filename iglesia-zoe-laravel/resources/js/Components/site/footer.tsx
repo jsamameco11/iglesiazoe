@@ -41,6 +41,11 @@ export function Footer({
           <a href={messengerUrl} className="mt-3 block" target="_blank" rel="noreferrer">
             Escríbenos por Messenger
           </a>
+          {settings.email && (
+            <a href={`mailto:${settings.email.trim().toLowerCase()}`} className="block text-muted [overflow-wrap:anywhere]">
+              {settings.email.trim().toLowerCase()}
+            </a>
+          )}
           {settings.facebook && (
             <a href={settings.facebook} className="block text-muted" target="_blank" rel="noreferrer">
               Facebook
