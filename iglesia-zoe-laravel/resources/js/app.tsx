@@ -2,17 +2,14 @@ import { createInertiaApp } from "@inertiajs/react";
 import type { ComponentType } from "react";
 import { createRoot, hydrateRoot } from "react-dom/client";
 
-const pages = import.meta.glob("./Pages/**/*.tsx", { eager: true }) as Record<
-  string,
-  { default: ComponentType }
->;
+const pages = import.meta.glob<{ default: ComponentType }>("./Pages/**/*.tsx");
 
 createInertiaApp({
   title: (title) => (title ? `${title} · Iglesia Cristiana Zoe` : "Iglesia Cristiana Zoe"),
   resolve: (name) => {
     const page = pages[`./Pages/${name}.tsx`];
     if (!page) throw new Error(`Missing Inertia page: ${name}`);
-    return page;
+    return page().then((module) => module.default);
   },
   setup({ el, App, props }) {
     const skin = (props.initialPage.props as { skin?: string }).skin || "aire";

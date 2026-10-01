@@ -8,6 +8,7 @@ use App\Domain\Cells\Support\CellCodes;
 use App\Domain\Finance\Finance;
 use App\Domain\Geo\GeoDirectory;
 use App\Domain\Media\Actions\ManageSiteMedia;
+use App\Domain\Media\Support\MediaLibrary;
 use App\Domain\Reports\Support\Period;
 use App\Domain\Reports\Support\WeekCalendar;
 use App\Domain\Site\Actions\LoadPublicSite;
@@ -70,6 +71,10 @@ class AdminController extends Controller
             $notice = LoadPublicSite::weeklyNotice();
             $count = count($notice['points']);
             $cards[] = ['label' => 'Indicaciones de la semana', 'value' => $count.' '.($count === 1 ? 'punto' : 'puntos'), 'href' => '/admin/indicaciones', 'note' => $notice['enabled'] ? 'Visibles al ingresar a /acceso' : 'Ocultas por ahora', 'accent' => 'bg-mist'];
+        }
+        if ($can('themes.manage') || $can('content.manage')) {
+            $latest = Theme::query()->where('active', true)->orderByDesc('theme_date')->first();
+            $cards[] = ['label' => 'Temas de célula', 'value' => (string) Theme::query()->where('active', true)->count(), 'href' => '/admin/temas', 'note' => $latest ? 'Último: '.$latest->title : 'Aún no hay temas', 'accent' => 'bg-blush'];
         }
         if ($can('content.manage')) {
             $cards[] = ['label' => 'Bandeja', 'value' => (string) (PrayerRequest::query()->count() + VisitPlan::query()->count()), 'href' => '/admin/bandeja', 'note' => 'Oraciones y visitas', 'accent' => 'bg-dusk'];
@@ -173,8 +178,8 @@ class AdminController extends Controller
             if (! in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true) || $file->getSize() > 4 * 1024 * 1024) {
                 return response()->json(['error' => 'El QR debe ser una imagen PNG, JPG o WEBP de hasta 4 MB.'], 422);
             }
-            $path = $file->storeAs('generosidad', 'yape-qr-'.time().'.'.$ext, 'public');
-            $input['yapeQr'] = '/storage/'.$path;
+            $input['yapeQr'] = MediaLibrary::storePublic($file, 'generosidad', $ext);
+            MediaLibrary::deletePublic($stored['yapeQr'] ?? null);
         }
 
         $next = array_replace($stored, $input);
@@ -579,44 +584,50 @@ class AdminController extends Controller
     public function temas(): Response
     {
         return Inertia::render('Admin/Temas', [
-            'themes' => Theme::query()->where('active', true)->orderByDesc('theme_date')->get()->map(fn ($theme) => [
-                'id' => $theme->id,
-                'title' => $theme->title,
-                'audience' => $theme->audience,
-                'theme_date' => optional($theme->theme_date)->toDateString(),
-                'file_path' => $theme->file_path,
-                'active' => true,
-            ]),
+            'themes' => Theme::query()->where('active', true)->orderByDesc('theme_date')->get()->map->card(),
+            'accept' => '.'.implode(',.', self::THEME_FILE_TYPES),
         ]);
     }
 
     public function uploadTheme(Request $request): JsonResponse
     {
-        $path = null;
-        if ($request->hasFile('file')) {
-            $file = $request->file('file');
-            $ext = $this->themeExtension($file);
-            if (! $ext) {
-                return response()->json(['error' => 'El archivo debe ser PDF, Word, PowerPoint o una imagen.'], 422);
-            }
-            $path = $file->storeAs('temas', Str::random(40).'.'.$ext, 'public');
+        $title = trim((string) $request->input('title'));
+        $date = (string) $request->input('theme_date');
+        if (mb_strlen($title) < 3 || mb_strlen($title) > 160) {
+            return response()->json(['error' => 'Escribe el título del tema (de 3 a 160 caracteres).'], 422);
+        }
+        if (! preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || ! strtotime($date)) {
+            return response()->json(['error' => 'Elige la fecha del tema.'], 422);
+        }
+        $file = $request->file('file');
+        if (! $file) {
+            return response()->json(['error' => 'Adjunta el archivo del tema.'], 422);
+        }
+        $ext = $this->themeExtension($file);
+        if (! $ext || $file->getSize() > 25 * 1024 * 1024) {
+            return response()->json(['error' => 'El archivo debe ser PDF, Word, PowerPoint o una imagen de hasta 25 MB.'], 422);
         }
         Theme::query()->create([
-            'title' => $request->input('title'),
-            'audience' => $request->input('audience', 'Iglesia'),
-            'theme_date' => $request->input('theme_date'),
-            'file_path' => $path,
+            'title' => $title,
+            'audience' => trim((string) $request->input('audience')) ?: 'Iglesia',
+            'theme_date' => $date,
+            'file_path' => MediaLibrary::storePrivate($file, 'temas/'.substr($date, 0, 4), $ext),
             'active' => true,
         ]);
 
-        return response()->json(['ok' => true, 'reload' => true]);
+        return response()->json(['ok' => true, 'reload' => true, 'message' => "Tema «{$title}» publicado."]);
     }
 
     public function hideTheme(Request $request): JsonResponse
     {
-        Theme::query()->where('id', $request->input('id'))->update(['active' => false]);
+        $id = (string) $request->input('id');
+        $theme = Str::isUuid($id) ? Theme::query()->find($id) : null;
+        if (! $theme) {
+            return response()->json(['error' => 'Ese tema ya no existe.'], 404);
+        }
+        $theme->update(['active' => false]);
 
-        return response()->json(['ok' => true, 'reload' => true]);
+        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Tema ocultado.']);
     }
 
     public function bandeja(): Response

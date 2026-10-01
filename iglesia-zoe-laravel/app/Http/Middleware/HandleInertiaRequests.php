@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Domain\Access\Permissions;
+use App\Domain\Auth\Support\Entrance;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Actions\ResolveSiteSkin;
 use Illuminate\Http\Request;
@@ -38,6 +39,10 @@ class HandleInertiaRequests extends Middleware
                     'permissions' => Permissions::of($user),
                 ] : null,
                 'profile' => $user?->profilePayload(),
+            ],
+            'entrance' => [
+                'admin' => Entrance::isAdminHost($request),
+                'siteUrl' => Entrance::siteUrl(),
             ],
             'flash' => [
                 'denied' => (bool) $request->session()->get('denied'),

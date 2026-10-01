@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Auth;
 
 use App\Domain\Access\Permissions;
 use App\Domain\Auth\Actions\AuthenticateLeader;
+use App\Domain\Auth\Support\Entrance;
 use App\Domain\Reports\Support\WeekCalendar;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -31,12 +33,22 @@ class AccesoController extends Controller
             return redirect()->to($this->destination($request, $user));
         }
 
+        if (Entrance::isAdminHost($request) && ! $preview) {
+            return Inertia::render('AccesoAdmin', [
+                'next' => $request->query('next'),
+                'audience' => $request->query('como') === 'superadmin' ? 'superadmin' : 'admin',
+                'siteUrl' => Entrance::siteUrl('/acceso'),
+                'siteLabel' => Entrance::siteLabel(),
+            ]);
+        }
+
         $notice = LoadPublicSite::weeklyNotice();
         $visible = $notice['points'] && ($notice['enabled'] || $preview);
 
         return Inertia::render('Acceso', [
             'next' => $request->query('next'),
             'skin' => 'aire',
+            'adminUrl' => Entrance::adminUrl('/acceso'),
             'notice' => $visible ? [
                 ...Arr::except($notice, ['updated_by']),
                 'period' => $notice['period'] ?: WeekCalendar::currentLabel(),
@@ -50,6 +62,7 @@ class AccesoController extends Controller
         $request->validate([
             'username' => 'required|string',
             'password' => 'required|string',
+            'audience' => 'nullable|in:admin,superadmin',
         ]);
 
         $key = 'acceso:'.Str::lower($request->string('username')->trim()->toString()).'|'.$request->ip();
@@ -72,7 +85,10 @@ class AccesoController extends Controller
             ]);
         }
 
+        $this->ensureDoor($request, $user);
+
         RateLimiter::clear($key);
+        Auth::login($user, true);
         $request->session()->regenerate();
 
         return redirect()->to($this->destination($request, $user));
@@ -87,10 +103,43 @@ class AccesoController extends Controller
         return redirect()->route('login');
     }
 
-    private function destination(Request $request, $user): string
+    /** Each account signs in only through its own door, and on the admin site only with its own option. */
+    private function ensureDoor(Request $request, User $user): void
+    {
+        if (! Entrance::isAdminHost($request)) {
+            if (! Permissions::isServer($user)) {
+                throw ValidationException::withMessages([
+                    'username' => 'Esta es una cuenta de administración. Ingresa desde '.Entrance::adminLabel().'.',
+                ]);
+            }
+
+            return;
+        }
+
+        if (! Permissions::isAdministrator($user)) {
+            throw ValidationException::withMessages([
+                'username' => 'Las cuentas de servidor ingresan desde la web de la iglesia: '.Entrance::siteLabel().'/acceso.',
+            ]);
+        }
+
+        $superadmin = Permissions::isSuperadmin($user);
+        $chosen = $request->input('audience', 'admin');
+        if ($chosen === 'superadmin' && ! $superadmin) {
+            throw ValidationException::withMessages([
+                'username' => 'Esta cuenta no es de superadministrador. Elige la opción «Administrador».',
+            ]);
+        }
+        if ($chosen === 'admin' && $superadmin) {
+            throw ValidationException::withMessages([
+                'username' => 'Esta es la cuenta del superadministrador. Elige la opción «Superadministrador».',
+            ]);
+        }
+    }
+
+    private function destination(Request $request, User $user): string
     {
         $next = (string) $request->input('next', $request->query('next', ''));
-        if ($next !== '' && str_starts_with($next, '/') && ! str_starts_with($next, '//')) {
+        if ($next !== '' && str_starts_with($next, '/') && ! str_starts_with($next, '//') && ! str_starts_with($next, '/\\') && ! str_starts_with($next, '/acceso')) {
             return $next;
         }
 

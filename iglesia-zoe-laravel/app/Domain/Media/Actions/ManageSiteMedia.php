@@ -2,10 +2,10 @@
 
 namespace App\Domain\Media\Actions;
 
+use App\Domain\Media\Support\MediaLibrary;
 use App\Models\SiteSetting;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class ManageSiteMedia
@@ -22,6 +22,8 @@ class ManageSiteMedia
         $overrides = $this->overrides();
 
         if ($intent === 'restore') {
+            MediaLibrary::deletePublic($overrides[$id]['src'] ?? null);
+            MediaLibrary::deletePublic($overrides[$id]['poster'] ?? null);
             unset($overrides[$id]);
             $this->persist($overrides);
 
@@ -33,6 +35,7 @@ class ManageSiteMedia
             if ($index <= 6) {
                 return ['error' => 'Las primeras 6 fotos del carrusel no se pueden quitar.'];
             }
+            MediaLibrary::deletePublic($overrides[$id]['src'] ?? null);
             unset($overrides[$id]);
             $overrides = $this->compactGallery($overrides);
             $this->persist($overrides);
@@ -69,6 +72,13 @@ class ManageSiteMedia
         }
         if ($src === '') {
             return ['error' => $kind === 'video' ? 'Sube el video que quieres publicar.' : 'Sube la imagen que quieres publicar.'];
+        }
+
+        foreach (['src', 'poster'] as $field) {
+            $old = $previous[$field] ?? '';
+            if ($old !== '' && $old !== ($field === 'src' ? $src : $posterSrc)) {
+                MediaLibrary::deletePublic($old);
+            }
         }
 
         $overrides[$id] = [
@@ -151,11 +161,7 @@ class ManageSiteMedia
 
     private function store(UploadedFile $file, string $id, string $kind): string
     {
-        $ext = $this->extension($file, $kind);
-        $path = 'medios/site/'.str_replace(':', '/', $id).'/'.time().'.'.$ext;
-        Storage::disk('public')->putFileAs(dirname($path), $file, basename($path));
-
-        return '/storage/'.$path;
+        return MediaLibrary::storePublic($file, 'medios/site/'.str_replace(':', '/', $id), $this->extension($file, $kind));
     }
 
     private function galleryIndex(string $id): int

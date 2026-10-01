@@ -134,6 +134,7 @@ export type Theme = {
   title: string;
   audience: string;
   theme_date: string;
-  file_path: string | null;
-  active: boolean;
+  file_type: string | null;
+  file_url: string | null;
+  download_url: string | null;
 };

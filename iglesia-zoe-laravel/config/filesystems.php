@@ -1,5 +1,23 @@
 <?php
 
+$wasabi = [
+    'driver' => 's3',
+    'key' => env('WASABI_ACCESS_KEY'),
+    'secret' => env('WASABI_SECRET_KEY'),
+    'region' => env('WASABI_REGION', 'us-central-1'),
+    'bucket' => env('WASABI_BUCKET'),
+    'endpoint' => rtrim((string) env('WASABI_ENDPOINT', 'https://s3.us-central-1.wasabisys.com'), '/'),
+    'use_path_style_endpoint' => true,
+    // Only for machines whose HTTPS is inspected by local software; servers keep the system CA store.
+    'http' => ['verify' => env('WASABI_CA_BUNDLE') ? base_path(env('WASABI_CA_BUNDLE')) : true],
+    'throw' => true,
+    'report' => true,
+];
+
+// Keeps local or staging uploads apart from production inside the same bucket (e.g. WASABI_PREFIX=dev).
+$wasabiPrefix = trim((string) env('WASABI_PREFIX', ''), '/');
+$wasabiPrefix = $wasabiPrefix === '' ? '' : $wasabiPrefix.'/';
+
 return [
 
     /*
@@ -47,20 +65,26 @@ return [
             'report' => false,
         ],
 
-        's3' => [
-            'driver' => 's3',
-            'key' => env('AWS_ACCESS_KEY_ID'),
-            'secret' => env('AWS_SECRET_ACCESS_KEY'),
-            'region' => env('AWS_DEFAULT_REGION'),
-            'bucket' => env('AWS_BUCKET'),
-            'url' => env('AWS_URL'),
-            'endpoint' => env('AWS_ENDPOINT'),
-            'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
-            'throw' => false,
-            'report' => false,
+        // Site photos, videos and theme files, readable by anyone with the link.
+        'wasabi' => [
+            ...$wasabi,
+            'url' => $wasabi['endpoint'].'/'.$wasabi['bucket'],
+            'root' => $wasabiPrefix.'public',
+            'visibility' => 'public',
+        ],
+
+        // Receipts, report photos and theme files: only reachable through short-lived signed links.
+        'wasabi-private' => [
+            ...$wasabi,
+            'root' => $wasabiPrefix.'private',
+            'visibility' => 'private',
         ],
 
     ],
+
+    // Where uploads go: Wasabi when it is configured, the local disks otherwise.
+    'media' => env('WASABI_BUCKET') ? 'wasabi' : 'public',
+    'vault' => env('WASABI_BUCKET') ? 'wasabi-private' : 'local',
 
     /*
     |--------------------------------------------------------------------------

@@ -3,11 +3,11 @@
 namespace App\Domain\Auth\Actions;
 
 use App\Models\User;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class AuthenticateLeader
 {
+    /** Checks the credentials without opening a session. */
     public function attempt(string $username, string $password): ?User
     {
         $login = trim($username);
@@ -25,8 +25,6 @@ class AuthenticateLeader
         if (! $user || $user->active === false || ! Hash::check($password, $user->password)) {
             return null;
         }
-
-        Auth::login($user, true);
 
         return $user;
     }

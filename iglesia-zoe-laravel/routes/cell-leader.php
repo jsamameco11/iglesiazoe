@@ -15,8 +15,5 @@ Route::middleware(['auth', EnsureRole::class.':leader'])->prefix('portal')->grou
     });
     Route::get('/historial', [PortalController::class, 'historial'])->middleware(EnsurePermission::class.':reports.submit,reports.all');
     Route::get('/seguimiento', [PortalController::class, 'seguimiento'])->middleware(EnsurePermission::class.':reports.weekly,reports.all');
-    Route::middleware(EnsurePermission::class.':reports.submit,content.manage')->group(function () {
-        Route::get('/temas', [PortalController::class, 'themes']);
-        Route::get('/temas/archivo', [PortalController::class, 'themeFile']);
-    });
+    Route::get('/temas', [PortalController::class, 'themes'])->middleware(EnsurePermission::class.':reports.submit,content.manage,themes.manage');
 });

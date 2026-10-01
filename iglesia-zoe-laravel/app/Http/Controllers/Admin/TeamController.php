@@ -68,7 +68,7 @@ class TeamController extends Controller
         $user->update([
             'name' => trim((string) $request->input('name')) ?: $user->name,
             'admin_types' => $types,
-            'permissions' => Permissions::clean((array) $request->input('permissions', [])),
+            'permissions' => Permissions::resolve($types, (array) $request->input('permissions', [])),
             'network_id' => $this->networkId($request),
             'active' => $request->boolean('active'),
         ]);

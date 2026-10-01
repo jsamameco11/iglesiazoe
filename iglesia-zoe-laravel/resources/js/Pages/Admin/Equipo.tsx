@@ -25,6 +25,7 @@ const typeTone: Record<AdminType, string> = {
   visuales: "bg-blush text-[#8a4a33]",
   celula: "bg-mist text-[#3d6248]",
   atmosfera: "bg-amber/60 text-[#7a5418]",
+  temas: "bg-orange/15 text-orange-deep",
 };
 
 export default function Equipo({ catalog, networks, cells, meId, accounts }: Props) {
@@ -196,7 +197,14 @@ function AccountCard({ account, catalog, networks, isMe }: { account: Account; c
   );
 }
 
+function exclusiveType(catalog: Catalog, types: AdminType[]) {
+  return types.length === 1 ? catalog.types.find((item) => item.key === types[0] && item.exclusive) : undefined;
+}
+
 function withTypes(catalog: Catalog, previousTypes: AdminType[], current: Permission[], nextTypes: AdminType[]) {
+  const exclusive = exclusiveType(catalog, nextTypes);
+  if (exclusive) return [...exclusive.permissions];
+  if (exclusiveType(catalog, previousTypes)) current = [...catalog.defaults];
   const fromTypes = (types: AdminType[]) => new Set(types.flatMap((type) => catalog.types.find((item) => item.key === type)?.permissions ?? []));
   const before = fromTypes(previousTypes);
   const after = fromTypes(nextTypes);
@@ -216,20 +224,26 @@ function AccessEditor({
   onChange: (types: AdminType[], permissions: Permission[]) => void;
 }) {
   const groups = [...new Set(catalog.permissions.map((item) => item.group))];
+  const exclusive = exclusiveType(catalog, types);
 
   function toggleType(type: AdminType) {
-    const next = types.includes(type) ? types.filter((item) => item !== type) : [...types, type];
+    const isExclusive = catalog.types.some((item) => item.key === type && item.exclusive);
+    let next: AdminType[];
+    if (types.includes(type)) next = types.filter((item) => item !== type);
+    else if (isExclusive) next = [type];
+    else next = [...types.filter((item) => !catalog.types.some((entry) => entry.key === item && entry.exclusive)), type];
     onChange(next, withTypes(catalog, types, permissions, next));
   }
 
   function togglePermission(permission: Permission) {
+    if (exclusive) return;
     onChange(types, permissions.includes(permission) ? permissions.filter((item) => item !== permission) : [...permissions, permission]);
   }
 
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-xs font-semibold text-muted">Tipo de administrador · puedes marcar varios</p>
+        <p className="text-xs font-semibold text-muted">Tipo de cuenta · puedes combinar varios (excepto los de acceso único)</p>
         <div className="mt-2 grid gap-2 sm:grid-cols-2">
           {catalog.types.map((type) => {
             const on = types.includes(type.key);
@@ -245,14 +259,19 @@ function AccessEditor({
                   <span className={`grid h-5 w-5 place-items-center rounded-full border text-[11px] ${on ? "border-white bg-white text-ink" : "border-line"}`}>{on ? "✓" : ""}</span>
                 </span>
                 <span className={`mt-1 block text-[11.5px] leading-4 ${on ? "text-white/70" : "text-muted"}`}>{type.text}</span>
+                <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${on ? "bg-white/15 text-white" : "bg-paper text-muted"}`}>
+                  {type.server ? "Ingresa por la web de la iglesia" : "Ingresa por el panel admi"}
+                </span>
               </button>
             );
           })}
         </div>
       </div>
       <div className="rounded-2xl border border-line bg-white p-4">
-        <p className="text-xs font-semibold text-muted">Funciones exactas · ajusta lo que necesites</p>
-        <div className="mt-3 grid gap-4 md:grid-cols-3">
+        <p className="text-xs font-semibold text-muted">
+          {exclusive ? `${exclusive.label} es un acceso único: solo tendrá esta función.` : "Funciones exactas · ajusta lo que necesites"}
+        </p>
+        <div className={`mt-3 grid gap-4 md:grid-cols-3 ${exclusive ? "pointer-events-none opacity-60" : ""}`}>
           {groups.map((group) => (
             <div key={group}>
               <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-orange-deep">{group}</p>

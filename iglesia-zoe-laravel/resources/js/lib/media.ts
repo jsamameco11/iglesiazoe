@@ -612,15 +612,3 @@ export function classifyUpload(file: File): MediaKind | null {
 export function uploadTooLarge(kind: MediaKind, size: number) {
   return size > (kind === "video" ? VIDEO_LIMIT : IMAGE_LIMIT);
 }
-
-export function storagePathFromPublicUrl(src: string) {
-  const laravel = "/storage/medios/";
-  const laravelIndex = src.indexOf(laravel);
-  if (laravelIndex !== -1) {
-    return decodeURIComponent(src.slice(laravelIndex + laravel.length).split("?")[0]);
-  }
-  const marker = "/storage/v1/object/public/medios/";
-  const index = src.indexOf(marker);
-  if (index === -1) return null;
-  return decodeURIComponent(src.slice(index + marker.length).split("?")[0]);
-}

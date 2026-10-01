@@ -5,15 +5,20 @@ set -euo pipefail
 
 APP=/opt/iglesia-zoe-app
 ARCHIVE=${1:-/root/zoe-release.tgz}
-PARTS=(app config routes bootstrap/app.php database/migrations database/seeders resources/views public/build)
+PARTS=(app config routes bootstrap/app.php database/migrations database/seeders resources/views public/build composer.json composer.lock)
 
 cd "$APP"
 STAMP=$(date +%Y%m%d-%H%M%S)
 tar -czf "/root/zoe-code-before-$STAMP.tgz" "${PARTS[@]}"
-cp -p database/database.sqlite "/root/zoe-before-release-$STAMP.sqlite"
-echo "respaldo de codigo y base: $STAMP"
+[ -f database/database.sqlite ] && cp -p database/database.sqlite "/root/zoe-before-release-$STAMP.sqlite"
+echo "respaldo de codigo: $STAMP"
 
+LOCK_BEFORE=$(sha1sum composer.lock | cut -d' ' -f1)
 tar -xzf "$ARCHIVE" --no-same-owner -C "$APP"
+if [ "$LOCK_BEFORE" != "$(sha1sum composer.lock | cut -d' ' -f1)" ]; then
+  echo "dependencias de PHP cambiaron: composer install"
+  COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+fi
 php artisan config:clear >/dev/null
 php artisan migrate --force
 php artisan config:cache >/dev/null

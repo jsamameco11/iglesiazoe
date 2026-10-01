@@ -2,7 +2,7 @@
 # Usage, from iglesia-zoe-laravel/:  powershell -ExecutionPolicy Bypass -File deploy\release.ps1
 param(
   [string]$Server = "root@161.132.51.100",
-  [string[]]$Sites = @("https://iglesiacristianazoe.miacademiapreu.com", "https://iglesiacristianazoe2.miacademiapreu.com"),
+  [string[]]$Sites = @("https://iglesiacristianazoe.miacademiapreu.com", "https://iglesiacristianazoe2.miacademiapreu.com", "https://admi-iglesiazoe.miacademiapreu.com"),
   [switch]$SkipBuild
 )
 $ErrorActionPreference = "Stop"
@@ -16,7 +16,7 @@ if (-not $SkipBuild) {
 
 $package = Join-Path $env:TEMP "zoe-release.tgz"
 if (Test-Path $package) { Remove-Item $package }
-tar -czf $package app config routes bootstrap/app.php database/migrations database/seeders resources/views public/build
+tar -czf $package app config routes bootstrap/app.php database/migrations database/seeders resources/views public/build composer.json composer.lock
 if ($LASTEXITCODE -ne 0) { throw "tar failed" }
 Write-Host ("Package: {0:N1} MB" -f ((Get-Item $package).Length / 1MB))
 
