@@ -3,7 +3,7 @@ import { Rise } from "@/Components/motion/rise";
 import { WriteOnce } from "@/Components/motion/write-once";
 import { LeadTitle } from "@/Components/site/lead-title";
 import { PageBand } from "@/Components/site/media-view";
-import { PhotoRail } from "@/Components/site/photo-rail";
+import { PhotoRibbon } from "@/Components/site/photo-ribbon";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { SiteSettings } from "@/lib/types";
@@ -36,7 +36,12 @@ export default function About({
           </Rise>
         </div>
 
-        <PhotoRail title="La casa" items={media.gallery} bare />
+        <section className="band-section about-band" aria-label="Fotos de la iglesia">
+          <div className="band-stage">
+            <PhotoRibbon items={media.aboutGallery} label="Fotos de Iglesia Cristiana Zoe" />
+            <p className="band-caption">Una familia que crece unida, sirviendo a Dios en Chiclayo.</p>
+          </div>
+        </section>
 
         <div className="page-wrap about-rest">
         <section className="about-pastors">

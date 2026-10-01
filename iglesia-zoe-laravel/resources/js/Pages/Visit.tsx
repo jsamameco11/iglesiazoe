@@ -56,7 +56,7 @@ export default function Visit({
 }) {
   const media = resolveMedia(mediaOverrides);
   const phone = settings.phone?.trim() || "(074) 252525";
-  const email = settings.email?.trim() || "informes@iglesiacristianazoe.pe";
+  const email = settings.email?.trim().toLowerCase() || "iglesiacristianazoe@gmail.com";
   const address = settings.address?.trim() || "Calle Bolívar 755, Chiclayo";
   const call = telHref(phone);
   const mapSrc = `https://maps.google.com/maps?q=${encodeURIComponent(address)}&z=16&output=embed`;
@@ -130,7 +130,8 @@ export default function Visit({
               <div className="visit-card-body">
                 <p className="headline text-[1.7rem] leading-none">Nuestro correo</p>
                 <p className="editorial mt-3 text-2xl italic">Contáctanos</p>
-                <p className="mt-3 text-[15px]">{email}</p>
+                <p className="mt-3 text-[15px] [overflow-wrap:anywhere]">{email}</p>
+                <p className="mt-4 text-sm opacity-70">Te respondemos lo antes posible.</p>
               </div>
             </a>
           </Rise>

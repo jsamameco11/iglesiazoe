@@ -92,14 +92,20 @@ if ! grep -q '^APP_KEY=base64:' "${STAGING}/.env"; then
 fi
 
 php artisan migrate --force
-# Any error reading the users table must skip the seed: seeding resets content and passwords.
-USERS=$(php -r 'try { echo (int) (new PDO("sqlite:".$argv[1]))->query("select count(*) from users")->fetchColumn(); } catch (Throwable $e) { echo -1; }' "${STAGING}/database/database.sqlite")
+# Counts go through Laravel so they hit the configured database (Supabase in production).
+# Any error must skip the seed: seeding resets site content, passwords and permissions.
+count_rows() {
+  php artisan tinker --execute="try { echo 'ROWS=' . (int) DB::table('$1')->count(); } catch (Throwable \$e) { echo 'ROWS=-1'; }" 2>/dev/null | grep -o 'ROWS=-\?[0-9]*' | tail -1 | cut -d= -f2 || true
+}
+USERS=$(count_rows users)
+USERS=${USERS:--1}
 if [[ "${USERS}" == "0" ]]; then
   php artisan db:seed --force
 else
   echo "==> Users already exist (${USERS}); skipping seed so passwords stay"
 fi
-GEO=$(php -r 'try { echo (int) (new PDO("sqlite:".$argv[1]))->query("select count(*) from geo_countries")->fetchColumn(); } catch (Throwable $e) { echo -1; }' "${STAGING}/database/database.sqlite")
+GEO=$(count_rows geo_countries)
+GEO=${GEO:--1}
 if [[ "${GEO}" == "0" ]]; then
   echo "==> Loading countries and regions"
   php artisan db:seed --class=GeoSeeder --force

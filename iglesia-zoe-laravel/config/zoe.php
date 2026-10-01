@@ -45,7 +45,7 @@ return [
         'cardUrl' => '',
         'phone' => '(074) 252525',
         'whatsapp' => '',
-        'email' => 'informes@iglesiacristianazoe.pe',
+        'email' => 'iglesiacristianazoe@gmail.com',
         'headingColor' => '#2A2623',
         'bodyColor' => '#6F6A64',
         'accentColor' => '#C45C26',

@@ -1,5 +1,6 @@
 export type GeoCountry = { code: string; name: string; dial: string; flag: string; labels: string[] };
-export type GeoPlace = { id: number; name: string };
+export type GeoCity = string | [name: string, districts: string[]];
+export type GeoTree = [region: string, cities: GeoCity[]][];
 
 const memo = new Map<string, Promise<unknown>>();
 
@@ -16,11 +17,22 @@ function load<T>(url: string): Promise<T> {
 }
 
 export const geo = {
-  countries: () => load<GeoCountry[]>("/geo/paises"),
-  regions: (country: string) => load<GeoPlace[]>(`/geo/regiones/${encodeURIComponent(country)}`),
-  cities: (region: number) => load<GeoPlace[]>(`/geo/ciudades/${region}`),
-  districts: (city: number) => load<string[]>(`/geo/distritos/${city}`),
+  countries: () => load<GeoCountry[]>("/geo-data/paises.json"),
+  tree: (country: string) => load<GeoTree>(`/geo-data/${encodeURIComponent(country.toUpperCase())}.json`),
 };
+
+export function citiesOf(tree: GeoTree, region: string): GeoCity[] {
+  return tree.find(([name]) => name === region)?.[1] ?? [];
+}
+
+export function cityName(city: GeoCity) {
+  return typeof city === "string" ? city : city[0];
+}
+
+export function districtsOf(cities: GeoCity[], city: string): string[] {
+  const match = cities.find((item) => typeof item !== "string" && item[0] === city);
+  return match && typeof match !== "string" ? match[1] : [];
+}
 
 export function flagUrl(code: string) {
   return `https://flagcdn.com/w40/${code.toLowerCase()}.png`;

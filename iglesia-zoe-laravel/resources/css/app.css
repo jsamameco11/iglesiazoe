@@ -1363,6 +1363,7 @@ body {
 
 .about-page { overflow: hidden; }
 .about-hero-wrap {
+  padding-top: 6.75rem;
   padding-bottom: 1.5rem;
 }
 .about-rest {
@@ -1973,43 +1974,38 @@ body {
   .baptism-form-card { padding: 2.5rem 2.6rem; }
 }
 
-.baptism-reel {
+.band-section {
   padding: 5.5rem 0 0;
 }
-.baptism-reel-head {
+.band-head {
   padding: 0 1.5rem;
   text-align: center;
 }
-.baptism-reel-stage {
+.band-stage {
+  --band-top: 30%;
   position: relative;
   isolation: isolate;
   margin-top: 2.75rem;
   padding-bottom: 3.25rem;
 }
-.baptism-reel-stage::before {
+.band-stage::before {
   content: "";
   position: absolute;
-  inset: 30% 0 0;
+  inset: var(--band-top) 0 0;
   z-index: -1;
   background:
     radial-gradient(55% 140% at 50% 115%, color-mix(in srgb, var(--accent) 26%, transparent) 0%, transparent 70%),
     linear-gradient(180deg, color-mix(in srgb, var(--ink) 92%, var(--accent)) 0%, var(--ink) 100%);
 }
-.baptism-reel-stage::after {
+.band-stage::after {
   content: "";
   position: absolute;
-  inset: 30% 0 auto;
+  inset: var(--band-top) 0 auto;
   z-index: -1;
   height: 1px;
   background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--paper) 28%, transparent), transparent);
 }
-.baptism-reel-rail {
-  margin: 0;
-}
-.baptism-reel-rail .photo-rail-card {
-  box-shadow: 0 28px 48px -26px rgba(0, 0, 0, 0.65);
-}
-.baptism-reel-caption {
+.band-caption {
   margin: 1.75rem auto 0;
   max-width: 42rem;
   padding: 0 1.5rem;
@@ -2021,9 +2017,89 @@ body {
   color: color-mix(in srgb, var(--paper) 82%, transparent);
 }
 @media (min-width: 768px) {
-  .baptism-reel { padding-top: 7rem; }
-  .baptism-reel-stage { margin-top: 3.25rem; padding-bottom: 4rem; }
-  .baptism-reel-caption { font-size: 1.6rem; }
+  .band-section { padding-top: 7rem; }
+  .band-stage { margin-top: 3.25rem; padding-bottom: 4rem; }
+  .band-caption { font-size: 1.6rem; }
+}
+
+.about-band {
+  padding-top: 1.5rem;
+}
+.about-band .band-stage {
+  --band-top: 0;
+  margin-top: 0;
+  padding-top: 2.5rem;
+}
+@media (min-width: 768px) {
+  .about-band { padding-top: 2rem; }
+  .about-band .band-stage { padding-top: 3.25rem; }
+}
+
+.photo-ribbon {
+  --ribbon-gap: 1.1rem;
+  --ribbon-card: clamp(15.5rem, 72vw, 22rem);
+  overflow: hidden;
+  padding: 0.5rem 0 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 5%, #000 95%, transparent 100%);
+}
+.photo-ribbon-track {
+  display: flex;
+  width: max-content;
+  gap: var(--ribbon-gap);
+  animation: ribbon-scroll var(--ribbon-duration, 48s) linear infinite;
+}
+.photo-ribbon:hover .photo-ribbon-track {
+  animation-play-state: paused;
+}
+@keyframes ribbon-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(-50% - var(--ribbon-gap) / 2)); }
+}
+.photo-ribbon-card {
+  flex: 0 0 auto;
+  width: var(--ribbon-card);
+  aspect-ratio: 5 / 4;
+  margin: 0;
+  padding: 5px;
+  border-radius: 1.5rem;
+  background: var(--paper);
+  box-shadow: 0 28px 48px -26px rgba(0, 0, 0, 0.65);
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.photo-ribbon-card:hover {
+  transform: translateY(-6px);
+}
+.photo-ribbon-media {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: calc(1.5rem - 5px);
+  background: var(--dusk);
+}
+.photo-ribbon-media img,
+.photo-ribbon-media video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: scale 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.photo-ribbon-card:hover .photo-ribbon-media img,
+.photo-ribbon-card:hover .photo-ribbon-media video {
+  scale: 1.04;
+}
+@media (min-width: 768px) {
+  .photo-ribbon {
+    --ribbon-gap: 1.5rem;
+    --ribbon-card: clamp(22rem, 36vw, 31rem);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .photo-ribbon-track {
+    animation-duration: calc(var(--ribbon-duration, 48s) * 2);
+  }
 }
 
 .select-field {
@@ -2186,4 +2262,167 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .select-field-panel { animation: none; }
+}
+
+/* Galería de bautismos: franja completa con fotos del mismo tamaño */
+.baptism-band {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin-top: 4.5rem;
+  padding: 4.5rem 0 4rem;
+  background:
+    radial-gradient(60% 55% at 50% 0%, color-mix(in srgb, var(--paper) 70%, transparent), transparent 75%),
+    radial-gradient(55% 70% at 100% 100%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 70%),
+    radial-gradient(45% 60% at 0% 90%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--blush) 0%, var(--clay) 100%);
+}
+.baptism-band::before,
+.baptism-band::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--accent) 30%, transparent), transparent);
+}
+.baptism-band::before { top: 0; }
+.baptism-band::after { bottom: 0; }
+.baptism-band-head {
+  padding: 0 1.5rem;
+  text-align: center;
+}
+.baptism-band-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.28em;
+  color: var(--accent);
+}
+.baptism-band-kicker::before,
+.baptism-band-kicker::after {
+  content: "";
+  width: 1.75rem;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.6;
+}
+.baptism-band-caption {
+  margin: 2.25rem auto 0;
+  max-width: 42rem;
+  padding: 0 1.5rem;
+  text-align: center;
+  font-family: var(--font-heading);
+  font-size: 1.35rem;
+  font-style: italic;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--ink) 78%, transparent);
+}
+@media (min-width: 768px) {
+  .baptism-band { margin-top: 6rem; padding: 6rem 0 5rem; }
+  .baptism-band-caption { font-size: 1.6rem; }
+}
+
+.baptism-reel {
+  --reel-card: min(70vw, 18rem);
+  --reel-gap: 0.75rem;
+  margin-top: 2.75rem;
+}
+@media (min-width: 640px) {
+  .baptism-reel { --reel-card: 17.5rem; --reel-gap: 1rem; }
+}
+@media (min-width: 1024px) {
+  .baptism-reel { --reel-card: 19.5rem; --reel-gap: 1.25rem; margin-top: 3.5rem; }
+}
+.baptism-reel-viewport {
+  overflow: hidden;
+  padding: 1rem 0 2.25rem;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 9%, #000 91%, transparent 100%);
+}
+.baptism-reel-track {
+  display: flex;
+  gap: var(--reel-gap);
+  margin: 0 0 0 calc(50% - var(--reel-card) / 2);
+  padding: 0;
+  list-style: none;
+  transform: translateX(calc(var(--reel-pos, 0) * -1 * (var(--reel-card) + var(--reel-gap))));
+  transition: transform var(--reel-slide, 800ms) cubic-bezier(0.65, 0, 0.35, 1);
+  will-change: transform;
+}
+.baptism-reel-track[data-instant="true"],
+.baptism-reel-track[data-instant="true"] .baptism-reel-card { transition: none; }
+.baptism-reel-card {
+  position: relative;
+  flex: 0 0 var(--reel-card);
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, var(--ink) 8%, transparent);
+  box-shadow: 0 30px 50px -30px rgba(64, 32, 16, 0.55);
+  opacity: 0.7;
+  transform: scale(0.9);
+  transition:
+    transform var(--reel-slide, 800ms) cubic-bezier(0.65, 0, 0.35, 1),
+    opacity var(--reel-slide, 800ms) ease;
+}
+.baptism-reel-card[data-active="true"] {
+  opacity: 1;
+  transform: none;
+}
+.baptism-reel-card img,
+.baptism-reel-card video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.baptism-reel-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+  margin-top: 0.25rem;
+}
+.baptism-reel-arrow {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 16%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--card) 70%, transparent);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+.baptism-reel-arrow svg { width: 1.15rem; height: 1.15rem; }
+.baptism-reel-arrow:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.baptism-reel-arrow:focus-visible,
+.baptism-reel-dot:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.baptism-reel-dots {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+.baptism-reel-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  background: color-mix(in srgb, var(--ink) 22%, transparent);
+  cursor: pointer;
+  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.4s ease;
+}
+.baptism-reel-dot[data-on="true"] {
+  width: 1.6rem;
+  background: var(--accent);
 }
