@@ -87,6 +87,7 @@ export const copyGroups = [
       { key: "home.resourcesKicker", label: "Recursos · etiqueta", value: "Prédicas y recursos" },
       { key: "home.resourcesMore", label: "Recursos · enlace", value: "Ver todas las prédicas" },
       { key: "home.resourcesEmpty", label: "Recursos · si no hay prédicas", value: "Muy pronto publicaremos aquí los mensajes más recientes.", area: true },
+      { key: "home.radioMore", label: "Radio · enlace", value: "Ver la programación", hint: "El resto de textos de esta sección se cambian en la sección Radio." },
       { key: "home.visitKicker", label: "Visita · etiqueta", value: "Planifica tu visita" },
       { key: "facts.sunday", label: "Etiqueta del horario principal", value: "Domingo", hint: "También se usa en Conócenos." },
       { key: "facts.week", label: "Etiqueta del horario entre semana", value: "Entre semana", hint: "También se usa en Conócenos." },

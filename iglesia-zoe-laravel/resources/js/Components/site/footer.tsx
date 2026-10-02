@@ -32,6 +32,7 @@ export function Footer({
           <Link href="/galeria" className="block text-muted">{t("nav.gallery")}</Link>
           <Link href="/devocionales" className="block text-muted">{t("nav.devotionals")}</Link>
           <Link href="/recursos" className="block text-muted">{t("nav.teachings")}</Link>
+          <Link href="/radio" className="block text-muted">{t("nav.radio")}</Link>
         </div>
         <div className="text-sm leading-7 md:col-span-3">
           <p className="kicker">{t("footer.colNext")}</p>

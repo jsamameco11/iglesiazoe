@@ -774,6 +774,19 @@ body {
   background: #ef4444;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
 }
+.radio-pill {
+  align-items: center;
+  gap: 0.45rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  padding: 0.45rem 0.85rem;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: border-color 0.25s ease;
+}
+.radio-pill:hover { border-color: currentColor; }
 .nav-drop {
   transform-origin: top center;
   animation: nav-drop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);

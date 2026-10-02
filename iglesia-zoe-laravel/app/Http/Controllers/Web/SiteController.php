@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Domain\Geo\GeoDirectory;
 use App\Domain\Inbox\PushNotifier;
+use App\Domain\Radio\Station;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Actions\ResolveSiteSkin;
 use App\Http\Controllers\Controller;
@@ -435,6 +436,7 @@ class SiteController extends Controller
             ...$this->shared($request, $forceMarea),
             'sermons' => $this->publishedSermons(3),
             'events' => ChurchEvent::upcoming()->limit(6)->get()->map->card(),
+            'radio' => Station::state(),
         ]);
     }
 

@@ -19,6 +19,16 @@ function LiveButton({ ghost, className = "live-pill" }: { ghost?: boolean; class
   );
 }
 
+function RadioPill({ ghost }: { ghost?: boolean }) {
+  const t = useCopy();
+  return (
+    <Link href="/radio" tabIndex={ghost ? -1 : undefined} className="radio-pill hidden sm:inline-flex">
+      <span className="nav-radio-dot" aria-hidden />
+      {t("nav.radio")}
+    </Link>
+  );
+}
+
 function useServeAreas() {
   return (usePage().props as unknown as { serveAreas?: ServeArea[] }).serveAreas ?? [];
 }
@@ -236,6 +246,7 @@ function HeaderBar({
         </Link>
       </div>
       <div className="flex items-center gap-2 sm:gap-3 xl:hidden">
+        <RadioPill ghost={ghost} />
         <LiveButton ghost={ghost} />
         <AccessButton ghost={ghost} invert={lightCta} />
         <button
