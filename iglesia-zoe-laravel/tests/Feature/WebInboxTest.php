@@ -107,15 +107,15 @@ class WebInboxTest extends TestCase
                     ->where('rows.0.network.label', 'RED I')
                     ->where('rows.1.network.label', 'RED H')
                     ->where('rows.1.service', 'Domingos 10:00 a.m.')
-                    ->has('tabs', 3));
+                    ->has('tabs', 4));
         }
     }
 
-    public function test_superadmin_sees_the_three_tabs(): void
+    public function test_superadmin_sees_every_tab(): void
     {
         $super = $this->user('super', Role::Superadmin, [], []);
 
-        foreach (['visitas', 'bautismos', 'oraciones'] as $kind) {
+        foreach (['visitas', 'bautismos', 'oraciones', 'servidores'] as $kind) {
             $this->actingAs($super)->get(self::ADMIN.'/admin/formularios/'.$kind)->assertOk();
         }
     }

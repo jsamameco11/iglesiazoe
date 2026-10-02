@@ -7,15 +7,16 @@ use App\Domain\Geo\GeoDirectory;
 use App\Models\BaptismEvent;
 use App\Models\BaptismRegistration;
 use App\Models\PrayerRequest;
+use App\Models\ServeRegistration;
 use App\Models\User;
 use App\Models\VisitPlan;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * The three web forms (planifica tu visita, bautismo, petición de oración) as
- * panel tabs: who may see each one, what is new for each account and the
- * details of every person who wrote.
+ * The web forms (planifica tu visita, bautismo, petición de oración, regístrate
+ * para servir) as panel tabs: who may see each one, what is new for each
+ * account and the details of every person who wrote.
  */
 final class Inbox
 {
@@ -23,6 +24,7 @@ final class Inbox
         'visitas' => ['permission' => 'inbox.visits', 'title' => 'Visitas planificadas', 'model' => VisitPlan::class],
         'bautismos' => ['permission' => 'inbox.baptisms', 'title' => 'Inscripciones de bautismo', 'model' => BaptismRegistration::class],
         'oraciones' => ['permission' => 'inbox.prayers', 'title' => 'Peticiones de oración', 'model' => PrayerRequest::class],
+        'servidores' => ['permission' => 'inbox.serve', 'title' => 'Quieren servir', 'model' => ServeRegistration::class],
     ];
 
     public const LIMIT = 300;
@@ -118,6 +120,12 @@ final class Inbox
                     'topic' => $row->topic,
                     'request' => $row->request,
                 ],
+                'servidores' => [
+                    ...$base,
+                    'area' => $row->area_name,
+                    'team' => $row->team,
+                    'notes' => $row->notes,
+                ],
             };
         })->all();
     }
@@ -136,6 +144,7 @@ final class Inbox
             'visitas' => ['title' => "Nueva visita planificada · {$route['label']}", 'body' => $who.($row->service ? " · {$row->service}" : '')],
             'bautismos' => ['title' => "Nueva inscripción de bautismo · {$route['label']}", 'body' => $who],
             'oraciones' => ['title' => "Nueva petición de oración · {$route['label']}", 'body' => $who.($row->topic ? " · {$row->topic}" : '')],
+            'servidores' => ['title' => "Quiere servir en {$row->area_name} · {$route['label']}", 'body' => $who.($row->team ? " · {$row->team}" : '')],
         };
     }
 }

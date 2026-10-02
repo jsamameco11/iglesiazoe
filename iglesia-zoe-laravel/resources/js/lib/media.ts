@@ -33,6 +33,12 @@ export type ResolvedMedia = {
   baptismGallery: MediaAsset[];
   giving: MediaAsset;
   contact: MediaAsset;
+  baptismVideo: MediaAsset;
+  events: MediaAsset;
+  teachings: MediaAsset;
+  serveCover: MediaAsset;
+  routeCover: MediaAsset;
+  route: (slot: number) => MediaAsset;
   ministry: (slug: string, name: string) => MediaAsset;
   ministryGallery: (slug: string, name: string) => MediaAsset[];
 };
@@ -139,9 +145,9 @@ export function videoMime(src: string) {
 
 const BAPTISM_PHOTOS = 8;
 const ABOUT_PHOTOS = 8;
-const MINISTRY_PHOTOS = 4;
-
-const photoPool = ["/images/banner4.jpg", "/images/banner8.jpg", "/images/familia1.jpg"];
+export const MINISTRY_PHOTOS = 6;
+const MINISTRY_DEFAULT_PHOTOS = 4;
+export const ROUTE_SLOTS = 6;
 
 function image(src: string, alt: string, extra: Partial<MediaAsset> = {}): MediaAsset {
   return { kind: "image", src, poster: "", alt, ...extra };
@@ -161,6 +167,7 @@ function ministrySlotId(slug: string, photo = 1) {
 
 const baptismPool = ["/images/banner8.jpg", "/images/familia1.jpg", "/images/banner4.jpg", "/images/man1.jpg", "/images/pastores.jpg", "/images/man2.jpg"];
 const aboutPool = ["/images/banner4.jpg", "/images/familia1.jpg", "/images/banner8.jpg"];
+const routePool = ["/images/familia1.jpg", "/images/banner4.jpg", "/images/man2.jpg", "/images/banner8.jpg", "/images/man1.jpg", "/images/pastores.jpg"];
 
 const fixedDefaults: Record<string, MediaAsset> = {
   hero: { kind: "video", src: "/videos/siguientepaso.mp4", poster: "/images/banner8.jpg", alt: "Iglesia Cristiana Zoe" },
@@ -170,6 +177,12 @@ const fixedDefaults: Record<string, MediaAsset> = {
   sermons: image("/images/banner4.jpg", "Culto de Iglesia Cristiana Zoe"),
   giving: image("/images/banner4.jpg", "Generosidad en Iglesia Cristiana Zoe"),
   contact: image("/images/familia1.jpg", "Comunidad de Iglesia Cristiana Zoe"),
+  "baptism-video": { kind: "video", src: "", poster: "", alt: "¿Qué es el bautismo?" },
+  events: image("/images/banner8.jpg", "Encuentro de Iglesia Cristiana Zoe"),
+  teachings: image("/images/banner4.jpg", "Enseñanza en Iglesia Cristiana Zoe"),
+  "serve-cover": image("/images/banner4.jpg", "Equipo de servicio de Iglesia Cristiana Zoe"),
+  "route-cover": image("/images/familia1.jpg", "Grupo celular de Iglesia Cristiana Zoe"),
+  ...Object.fromEntries(Array.from({ length: ROUTE_SLOTS }, (_, index) => [`route-${index + 1}`, image(routePool[index] ?? "", `Ruta del servidor · nivel ${index + 1}`)])),
   ...Object.fromEntries(
     Array.from({ length: BAPTISM_PHOTOS }, (_, index) => [
       baptismSlotId(index + 1),
@@ -199,22 +212,39 @@ const fixedCatalog: MediaSlotMeta[] = [
     label: `Carrusel · Foto ${index + 1}`,
     hint: "Galería «Vidas que dieron el paso» de la página de bautismo. Todas se muestran del mismo tamaño (vertical 4:5); usa el encuadre para centrar a la persona.",
   })),
+  {
+    id: "baptism-video",
+    group: "Bautismos",
+    label: "Video «¿Qué es el bautismo?»",
+    hint: "Sube aquí el video del pastor (MP4, menos de 5 minutos). Si prefieres YouTube, pega el enlace en Textos principales → Bautismos; YouTube tiene prioridad.",
+  },
   { id: "giving", group: "Generosidad", label: "Dar", hint: "Imagen o video de la página de generosidad." },
   { id: "contact", group: "Contacto y oración", label: "Acompañamiento", hint: "Imagen o video de la página de contacto." },
+  { id: "events", group: "Eventos", label: "Portada", hint: "Se muestra en Eventos cuando el próximo evento no tiene imagen." },
+  { id: "teachings", group: "Recursos", label: "Portada", hint: "Imagen de la página de enseñanzas descargables." },
+  { id: "serve-cover", group: "Involúcrate", label: "Portada", hint: "Foto grande de la página Involúcrate. Ideal: un equipo sirviendo. La foto de cada área se cambia en Involúcrate · áreas." },
+  { id: "route-cover", group: "Ruta del servidor", label: "Portada", hint: "Foto grande de la página Ruta del servidor." },
+  ...Array.from({ length: ROUTE_SLOTS }, (_, index) => ({
+    id: `route-${index + 1}`,
+    group: "Ruta del servidor",
+    label: `Nivel ${index + 1}`,
+    hint: `Foto del nivel ${index + 1} de la ruta (en el mismo orden de la pestaña Encabezados y Ruta).`,
+  })),
 ];
 
+const ministryPool = ["/images/banner8.jpg", "/images/banner4.jpg", "/images/familia1.jpg", "/images/pastores.jpg"];
 const ministryPhotos = new Set(["zoe-kids", "zoe-teens", "zoe-youth", "redes-de-discipulado"]);
 
-function ministryPrimarySrc(slug: string) {
-  if (ministryPhotos.has(slug)) return `/images/ministerio-${slug}.jpg`;
+function ministryDefaultSrc(slug: string, photo: number) {
+  if (photo > MINISTRY_DEFAULT_PHOTOS) return "";
+  if (photo === 1 && ministryPhotos.has(slug)) return `/images/ministerio-${slug}.jpg`;
   let hash = 0;
-  for (const char of slug) hash = (hash + char.charCodeAt(0)) % photoPool.length;
-  return photoPool[hash];
+  for (const char of slug) hash = (hash + char.charCodeAt(0)) % ministryPool.length;
+  return ministryPool[(hash + photo - 1) % ministryPool.length];
 }
 
 function ministryFallback(slug: string, name: string, photo = 1): MediaAsset {
-  const src = photo <= 1 ? ministryPrimarySrc(slug) : "";
-  return image(src, photo <= 1 ? name : `${name} · foto ${photo}`, { ratio: "4/5", fit: "fill", posX: 50, posY: 50, zoom: 100 });
+  return image(ministryDefaultSrc(slug, photo), photo <= 1 ? name : `${name} · foto ${photo}`, { ratio: "4/5", fit: "fill", posX: 50, posY: 50, zoom: 100 });
 }
 
 export function mediaCatalog(ministries: { slug: string; name: string }[]): MediaSlotMeta[] {
@@ -225,8 +255,10 @@ export function mediaCatalog(ministries: { slug: string; name: string }[]): Medi
       label: `${ministry.name} · Foto ${index + 1}`,
       hint:
         index === 0
-          ? `Foto principal de ${ministry.name}: se ve en el inicio, en el listado y abre el carrusel de su página.`
-          : `Foto ${index + 1} del carrusel de la página de ${ministry.name}. Cambia cada 5 segundos.`,
+          ? `Foto principal de ${ministry.name}: se ve en el inicio, en el listado y abre la galería de su página.`
+          : index < MINISTRY_DEFAULT_PHOTOS
+            ? `Foto ${index + 1} de la galería de ${ministry.name}. Las fotos cambian solas cada 5 segundos y se ven en miniatura debajo de la principal.`
+            : `Foto ${index + 1} (opcional) de la galería de ${ministry.name}. Solo aparece si la subes.`,
     })),
   );
   const visitIndex = fixedCatalog.findIndex((slot) => slot.id === "visit");
@@ -267,6 +299,12 @@ export function resolveMedia(overrides: Record<string, MediaAsset>): ResolvedMed
     baptismGallery: Array.from({ length: BAPTISM_PHOTOS }, (_, index) => fixed(baptismSlotId(index + 1))),
     giving: fixed("giving"),
     contact: fixed("contact"),
+    baptismVideo: fixed("baptism-video"),
+    events: fixed("events"),
+    teachings: fixed("teachings"),
+    serveCover: fixed("serve-cover"),
+    routeCover: fixed("route-cover"),
+    route: (slot) => (fixedDefaults[`route-${slot}`] ? fixed(`route-${slot}`) : image("", "")),
     ministry: (slug, name) => resolve(overrides, ministrySlotId(slug), ministryFallback(slug, name)),
     ministryGallery: (slug, name) =>
       Array.from({ length: MINISTRY_PHOTOS }, (_, index) =>
@@ -277,7 +315,7 @@ export function resolveMedia(overrides: Record<string, MediaAsset>): ResolvedMed
 
 export function fallbackForSlot(id: string, ministries: { slug: string; name: string }[] = []): MediaAsset {
   if (fixedDefaults[id]) return fixedDefaults[id];
-  const photo = Number(/^ministry:[a-z0-9-]+:([2-4])$/.exec(id)?.[1] ?? 1);
+  const photo = Number(/^ministry:[a-z0-9-]+:([2-9])$/.exec(id)?.[1] ?? 1);
   const ministry = ministries.find((item) => ministrySlotId(item.slug, photo) === id);
   return ministry ? ministryFallback(ministry.slug, ministry.name, photo) : image("", "");
 }

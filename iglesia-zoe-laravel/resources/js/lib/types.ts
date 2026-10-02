@@ -77,8 +77,69 @@ export type SiteSettings = {
   giveBody: string;
   giveYapeText: string;
   giveCardText: string;
+  giveAbroadText: string;
+  bankSwift: string;
+  baptismVideo: string;
+  baptismVideoTitle: string;
+  baptismVideoText: string;
+  eventsTitle: string;
+  eventsText: string;
+  teachingsTitle: string;
+  teachingsText: string;
+  serveTitle: string;
+  serveText: string;
+  serveRailTitle: string;
+  serveRailText: string;
+  routeTitle: string;
+  routeText: string;
+  routeLevels: SectionItem[];
   sermonsTitle: string;
   sermonsEmpty: string;
+};
+
+export type SectionItem = { slot?: number; title: string; text: string };
+
+export type ServeArea = {
+  id: string;
+  slug: string;
+  name: string;
+  tagline: string | null;
+  summary: string | null;
+  body: string | null;
+  teams: string[];
+  image: string | null;
+  cta_label: string | null;
+  cta_url: string | null;
+  active: boolean;
+};
+
+export type ChurchEvent = {
+  id: string;
+  title: string;
+  starts_on: string;
+  ends_on: string | null;
+  time_label: string | null;
+  location: string | null;
+  summary: string | null;
+  body: string | null;
+  image: string | null;
+  cta_label: string | null;
+  cta_url: string | null;
+  active: boolean;
+};
+
+export type TeachingKind = "predica" | "gc";
+
+export type Teaching = {
+  id: string;
+  title: string;
+  kind: TeachingKind;
+  teaching_date: string;
+  summary: string | null;
+  file_url: string | null;
+  file_type: string | null;
+  youtube_id: string | null;
+  active: boolean;
 };
 
 export type SermonSummary = {

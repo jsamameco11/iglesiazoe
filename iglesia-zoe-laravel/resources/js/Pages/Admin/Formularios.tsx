@@ -33,6 +33,8 @@ type Row = {
   notes?: string | null;
   topic?: string | null;
   request?: string;
+  area?: string;
+  team?: string | null;
 };
 
 type Props = {
@@ -49,6 +51,7 @@ const INTRO: Record<InboxKind, string> = {
   visitas: "Cada persona que planificó su visita desde la web, con la red que le corresponde según su edad y estado civil.",
   bautismos: "Cada persona que se inscribió para bautizarse, con la red que le corresponde según su edad y estado civil.",
   oraciones: "Cada petición de oración recibida, con la red que le corresponde. Es confidencial: trátala con cuidado y discreción.",
+  servidores: "Cada persona que se registró desde Involúcrate para servir, con el área y el equipo que eligió y la red que le corresponde. Escríbele pronto para conectarla con su líder.",
 };
 
 const RESTO_TONE = "linear-gradient(135deg, #3F6FD8, #7A55C7 50%, #178C99)";
@@ -153,6 +156,12 @@ function Card({ row, kind, isNew, onNetwork }: { row: Row; kind: InboxKind; isNe
           </Detail>
         )}
         {kind === "oraciones" && <Detail label="Motivo">{row.topic}</Detail>}
+        {kind === "servidores" && (
+          <>
+            <Detail label="Área">{row.area}</Detail>
+            <Detail label="Equipo">{row.team || "Por definir"}</Detail>
+          </>
+        )}
         <Detail label="Teléfono">{row.phone}</Detail>
         <Detail label="Correo">{row.email}</Detail>
       </dl>
@@ -160,6 +169,12 @@ function Card({ row, kind, isNew, onNetwork }: { row: Row; kind: InboxKind; isNe
       {kind === "bautismos" && row.notes && (
         <div className="mt-4 rounded-2xl bg-paper px-4 py-3">
           <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted">Su decisión</p>
+          <p className="mt-1 whitespace-pre-line text-sm leading-6">{row.notes}</p>
+        </div>
+      )}
+      {kind === "servidores" && row.notes && (
+        <div className="mt-4 rounded-2xl bg-paper px-4 py-3">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-muted">Su mensaje</p>
           <p className="mt-1 whitespace-pre-line text-sm leading-6">{row.notes}</p>
         </div>
       )}
@@ -194,7 +209,7 @@ export default function Formularios({ kind, title, tabs, rows, limit, seenBefore
     return rows.filter((row) => {
       if (route !== "all" && row.network.key !== route) return false;
       if (!text) return true;
-      return [row.full_name, row.phone, row.email, row.topic, row.service].filter(Boolean).join(" ").toLowerCase().includes(text);
+      return [row.full_name, row.phone, row.email, row.topic, row.service, row.area, row.team].filter(Boolean).join(" ").toLowerCase().includes(text);
     });
   }, [rows, route, query]);
 

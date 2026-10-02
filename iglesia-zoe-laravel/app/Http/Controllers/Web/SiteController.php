@@ -9,8 +9,11 @@ use App\Domain\Site\Actions\ResolveSiteSkin;
 use App\Http\Controllers\Controller;
 use App\Models\BaptismEvent;
 use App\Models\BaptismRegistration;
+use App\Models\ChurchEvent;
 use App\Models\PrayerRequest;
 use App\Models\Sermon;
+use App\Models\ServeRegistration;
+use App\Models\Teaching;
 use App\Models\VisitPlan;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -87,6 +90,108 @@ class SiteController extends Controller
             ...$this->shared($request),
             'sermons' => $this->publishedSermons(),
         ]);
+    }
+
+    public function teachings(Request $request): Response
+    {
+        return Inertia::render('Teachings', [
+            ...$this->shared($request),
+            'teachings' => Teaching::query()->where('active', true)->orderByDesc('teaching_date')->limit(120)->get()->map->card(),
+        ]);
+    }
+
+    public function events(Request $request): Response
+    {
+        return Inertia::render('Events', [
+            ...$this->shared($request),
+            'events' => ChurchEvent::upcoming()->limit(24)->get()->map->card(),
+        ]);
+    }
+
+    public function serve(Request $request): Response
+    {
+        return $this->page('Serve', $request);
+    }
+
+    public function serveArea(Request $request, string $slug): Response
+    {
+        $area = collect(LoadPublicSite::serveAreas())->firstWhere('slug', $slug);
+        abort_unless($area, 404);
+
+        return Inertia::render('ServeArea', [
+            ...$this->shared($request),
+            'area' => $area,
+        ]);
+    }
+
+    public function storeServe(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'serve_area_id' => 'required|string',
+            'team' => 'nullable|string|max:80',
+            'first_name' => 'required|string|min:2|max:60',
+            'last_name' => 'required|string|min:2|max:80',
+            'age' => 'required|integer|min:8|max:100',
+            'marital_status' => ['required', Rule::in(self::MARITAL_STATUSES)],
+            'phone' => ['required', 'string', 'max:30', 'regex:/^\+?[0-9\s-]{6,20}$/'],
+            'email' => 'nullable|email|max:160',
+            'notes' => 'nullable|string|max:800',
+        ], [
+            'required' => 'Completa el campo :attribute.',
+            'in' => 'Elige una opción válida en :attribute.',
+            'integer' => 'Escribe tu edad en números.',
+            'age.min' => 'Para servir debes tener al menos 8 años.',
+            'age.max' => 'Revisa tu edad.',
+            'email' => 'Escribe un correo válido.',
+            'phone.regex' => 'Escribe un teléfono válido.',
+            'min' => 'Revisa el campo :attribute.',
+            'max' => 'El campo :attribute es demasiado largo.',
+        ], [
+            'serve_area_id' => 'área',
+            'team' => 'equipo',
+            'first_name' => 'nombres',
+            'last_name' => 'apellidos',
+            'age' => 'edad',
+            'marital_status' => 'estado civil',
+            'phone' => 'teléfono',
+            'email' => 'correo',
+            'notes' => 'mensaje',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()->first()], 422);
+        }
+
+        $data = $validator->validated();
+        $area = collect(LoadPublicSite::serveAreas())->firstWhere('id', $data['serve_area_id']);
+        if (! $area) {
+            return response()->json(['error' => 'Elige un área de servicio de la lista.'], 422);
+        }
+        $team = trim((string) ($data['team'] ?? '')) ?: null;
+        if ($team && ! in_array($team, $area['teams'], true)) {
+            return response()->json(['error' => 'Elige un equipo de la lista.'], 422);
+        }
+
+        $registration = ServeRegistration::query()->create([
+            'serve_area_id' => $area['id'],
+            'area_name' => $area['name'],
+            'team' => $team,
+            'first_name' => trim($data['first_name']),
+            'last_name' => trim($data['last_name']),
+            'full_name' => trim(trim($data['first_name']).' '.trim($data['last_name'])),
+            'age' => (int) $data['age'],
+            'marital_status' => $data['marital_status'],
+            'phone' => preg_replace('/\s+/', ' ', trim($data['phone'])),
+            'email' => isset($data['email']) ? strtolower(trim($data['email'])) : null,
+            'notes' => trim((string) ($data['notes'] ?? '')) ?: null,
+        ]);
+        defer(fn () => PushNotifier::announce('servidores', $registration));
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function serverRoute(Request $request): Response
+    {
+        return $this->page('ServerRoute', $request);
     }
 
     public function give(Request $request): Response
@@ -291,6 +396,7 @@ class SiteController extends Controller
         return Inertia::render('Home', [
             ...$this->shared($request, $forceMarea),
             'sermons' => $this->publishedSermons(3),
+            'events' => ChurchEvent::upcoming()->limit(6)->get()->map->card(),
         ]);
     }
 
@@ -315,6 +421,7 @@ class SiteController extends Controller
         return [
             'settings' => LoadPublicSite::settings(),
             'ministries' => LoadPublicSite::ministries(),
+            'serveAreas' => LoadPublicSite::serveAreas(),
             'mediaOverrides' => LoadPublicSite::mediaOverrides(),
             'skin' => ResolveSiteSkin::fromRequest($request, $forceMarea),
         ];

@@ -3,6 +3,7 @@ import { Rise } from "@/Components/motion/rise";
 import { BaptismReel } from "@/Components/site/baptism-reel";
 import { LeadTitle } from "@/Components/site/lead-title";
 import { PageIntro } from "@/Components/site/page-intro";
+import { VideoFeature } from "@/Components/site/video-feature";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
@@ -26,6 +27,7 @@ export default function Baptisms({
     : settings.baptismDateFallback;
 
   const t = (key: CopyKey) => readCopy(settings, key);
+  const hasVideo = Boolean(settings.baptismVideo) || (media.baptismVideo.kind === "video" && Boolean(media.baptismVideo.src));
 
   const formCard = (
     <div className="panel baptism-form-card">
@@ -61,6 +63,21 @@ export default function Baptisms({
             </PageIntro>
           </Rise>
         </div>
+
+        {hasVideo ? (
+          <section className="px-6 pb-4 pt-20 md:px-16 md:pt-28">
+            <div className="section-wrap grid items-center gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:gap-16">
+              <Rise>
+                <p className="kicker">{t("baptism.videoKicker")}</p>
+                <LeadTitle as="h2" text={settings.baptismVideoTitle} className="mt-4 text-4xl leading-[1.05] md:text-5xl" />
+                <p className="mt-5 max-w-md text-base font-light leading-7">{settings.baptismVideoText}</p>
+              </Rise>
+              <Rise from="right">
+                <VideoFeature youtube={settings.baptismVideo} asset={media.baptismVideo} title={settings.baptismVideoTitle} />
+              </Rise>
+            </div>
+          </section>
+        ) : null}
 
         <section className="baptism-band" aria-label="Galería de bautismos">
           <span className="baptism-band-cross" aria-hidden="true" />

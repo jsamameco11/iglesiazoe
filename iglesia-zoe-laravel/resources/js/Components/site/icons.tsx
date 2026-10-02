@@ -43,6 +43,41 @@ export function IconClock(props: IconProps) {
   );
 }
 
+export function IconBank(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3.5 9.5 12 4.5l8.5 5M5 19.5h14M6 10v7M10 10v7M14 10v7M18 10v7" />
+    </Icon>
+  );
+}
+
+export function IconPhoneQr(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="6.5" y="3" width="11" height="18" rx="2.4" />
+      <path strokeLinecap="round" d="M9.5 7.5h2v2h-2zM12.5 11.5h2v2h-2zM9.5 12.5v1M14.5 8.5v1M11 18h2" />
+    </Icon>
+  );
+}
+
+export function IconGlobe(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="8.5" />
+      <path strokeLinecap="round" d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5S9.6 5.8 12 3.5Z" />
+    </Icon>
+  );
+}
+
+export function IconCard(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="6" width="18" height="12.5" rx="2.2" />
+      <path strokeLinecap="round" d="M3 10h18M7 15h3" />
+    </Icon>
+  );
+}
+
 export function IconPlay(props: IconProps) {
   return (
     <Icon {...props}>

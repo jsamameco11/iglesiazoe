@@ -27,14 +27,19 @@ export function Footer({
           <p className="kicker">{t("footer.colKnow")}</p>
           <Link href="/conocenos" className="mt-3 block">{t("nav.about")}</Link>
           <Link href="/ministerios" className="block text-muted">{t("nav.ministries")}</Link>
+          <Link href="/eventos" className="block text-muted">{t("nav.events")}</Link>
           <Link href="/predicas" className="block text-muted">{t("nav.sermons")}</Link>
+          <Link href="/recursos" className="block text-muted">{t("nav.teachings")}</Link>
         </div>
         <div className="text-sm leading-7 md:col-span-3">
           <p className="kicker">{t("footer.colNext")}</p>
           <Link href="/visita" className="mt-3 block">{settings.visitCta}</Link>
           <Link href="/bautismos" className="block text-muted">{t("nav.baptism")}</Link>
-          <Link href="/acceso" className="block text-muted">{t("nav.access")}</Link>
+          <Link href="/involucrate" className="block text-muted">{t("nav.areas")}</Link>
+          <Link href="/involucrate#registro" className="block text-muted">{t("nav.register")}</Link>
+          <Link href="/ruta-del-servidor" className="block text-muted">{t("nav.route")}</Link>
           <Link href="/dar" className="block text-muted">{t("footer.give")}</Link>
+          <Link href="/acceso" className="block text-muted">{t("nav.access")}</Link>
         </div>
         <div className="text-sm leading-7 md:col-span-3">
           <p className="kicker">{t("footer.colVisit")}</p>

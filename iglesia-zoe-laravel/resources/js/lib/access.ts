@@ -16,7 +16,8 @@ export type Permission =
   | "expenses.manage"
   | "inbox.visits"
   | "inbox.baptisms"
-  | "inbox.prayers";
+  | "inbox.prayers"
+  | "inbox.serve";
 
 export type AdminType = "red" | "visuales" | "celula" | "atmosfera" | "temas";
 

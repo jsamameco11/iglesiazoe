@@ -4,7 +4,9 @@ import { SkinScroll } from "@/Components/site/skin-scroll";
 import { MessengerFab } from "@/Components/site/messenger-fab";
 import { useSitePalette } from "@/Components/site/palette-scope";
 import { usePage } from "@inertiajs/react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import { useAutoReveal } from "@/Components/motion/auto-reveal";
+import "../../css/sections.css";
 import type { Ministry, SiteSettings } from "@/lib/types";
 import type { Design } from "@/lib/design";
 
@@ -24,6 +26,8 @@ export default function SiteLayout({
 }) {
   const { settings, ministries, skin, design } = usePage<{ props: Shared }>().props as unknown as Shared;
   const { style, attrs } = useSitePalette();
+  const revealRoot = useRef<HTMLDivElement>(null);
+  useAutoReveal(revealRoot);
   const isMarea = skin === "marea";
   const other = isMarea
     ? { href: "https://iglesiacristianazoe.miacademiapreu.com", label: "Ver opción Casa", invert: true }
@@ -58,8 +62,10 @@ export default function SiteLayout({
         overMedia={overMedia}
         visitCta={settings.visitCta}
       />
-      <main>{children}</main>
-      <Footer settings={settings} other={other} />
+      <div ref={revealRoot}>
+        <main>{children}</main>
+        <Footer settings={settings} other={other} />
+      </div>
       <MessengerFab />
     </div>
   );

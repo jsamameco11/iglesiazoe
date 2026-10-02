@@ -15,6 +15,12 @@ Route::post('/visita/aviso', [SiteController::class, 'storeQuickVisit'])->middle
 Route::get('/bautismos', [SiteController::class, 'baptisms'])->name('baptisms');
 Route::post('/bautismos', [SiteController::class, 'storeBaptism'])->middleware('throttle:web-forms');
 Route::get('/predicas', [SiteController::class, 'sermons'])->name('sermons');
+Route::get('/recursos', [SiteController::class, 'teachings'])->name('teachings');
+Route::get('/eventos', [SiteController::class, 'events'])->name('events');
+Route::get('/involucrate', [SiteController::class, 'serve'])->name('serve');
+Route::post('/involucrate', [SiteController::class, 'storeServe'])->middleware('throttle:web-forms');
+Route::get('/involucrate/{slug}', [SiteController::class, 'serveArea'])->where('slug', '[a-z0-9-]+')->name('serve-area');
+Route::get('/ruta-del-servidor', [SiteController::class, 'serverRoute'])->name('server-route');
 Route::get('/dar', [SiteController::class, 'give'])->name('give');
 Route::get('/contacto', [SiteController::class, 'contact'])->name('contact');
 Route::post('/contacto', [SiteController::class, 'storePrayer'])->middleware('throttle:web-forms');

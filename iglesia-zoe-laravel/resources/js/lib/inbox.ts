@@ -2,7 +2,7 @@ import { router, usePage } from "@inertiajs/react";
 import { useEffect, useSyncExternalStore } from "react";
 import { send, type ActionResult } from "@/lib/actions";
 
-export type InboxKind = "visitas" | "bautismos" | "oraciones";
+export type InboxKind = "visitas" | "bautismos" | "oraciones" | "servidores";
 
 export type InboxShared = {
   unread: Partial<Record<InboxKind, number>>;
@@ -50,7 +50,7 @@ export function useInboxPulse(enabled: boolean) {
         const response = await fetch("/admin/formularios/novedades", { headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" } });
         if (!response.ok || !alive) return;
         const data = (await response.json()) as { unread: Partial<Record<InboxKind, number>> };
-        const open = window.location.pathname.match(/^\/admin\/formularios\/(visitas|bautismos|oraciones)$/)?.[1] as InboxKind | undefined;
+        const open = window.location.pathname.match(/^\/admin\/formularios\/(visitas|bautismos|oraciones|servidores)$/)?.[1] as InboxKind | undefined;
         if (open && (data.unread[open] ?? 0) > 0) {
           router.reload({ only: ["rows", "seenBefore", "inbox"] });
           return;

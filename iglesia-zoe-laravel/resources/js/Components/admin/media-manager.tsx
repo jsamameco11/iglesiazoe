@@ -78,7 +78,7 @@ function MediaSlotCard({ slot }: { slot: AdminMediaSlot }) {
   const previewRatio = parseRatio(ratio === "custom" ? `${ratioWidth}/${ratioHeight}` : ratio);
 
   return (
-    <form action={action} className="grid gap-5 rounded-[1.6rem] border border-line bg-card p-4 md:grid-cols-[minmax(0,340px)_1fr] md:p-5">
+    <form id={`medio-${slot.id}`} action={action} className="grid scroll-mt-24 gap-5 rounded-[1.6rem] border border-line bg-card p-4 md:grid-cols-[minmax(0,340px)_1fr] md:p-5">
       <input type="hidden" name="id" value={slot.id} />
       <input type="hidden" name="posX" value={posX} />
       <input type="hidden" name="posY" value={posY} />

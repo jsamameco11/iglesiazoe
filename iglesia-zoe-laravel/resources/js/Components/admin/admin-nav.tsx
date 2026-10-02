@@ -12,6 +12,7 @@ const groups: { title: string; items: Item[] }[] = [
       { href: "/admin/formularios/visitas", label: "Visitas planificadas", needs: ["inbox.visits"], inbox: "visitas" },
       { href: "/admin/formularios/bautismos", label: "Bautismo", needs: ["inbox.baptisms"], inbox: "bautismos" },
       { href: "/admin/formularios/oraciones", label: "Petición de oración", needs: ["inbox.prayers"], inbox: "oraciones" },
+      { href: "/admin/formularios/servidores", label: "Quieren servir", needs: ["inbox.serve"], inbox: "servidores" },
     ],
   },
   {
@@ -38,6 +39,10 @@ const groups: { title: string; items: Item[] }[] = [
       { href: "/admin/textos", label: "Textos por página", needs: ["content.manage"] },
       { href: "/admin/ministerios", label: "Ministerios", needs: ["content.manage"] },
       { href: "/admin/predicas", label: "Prédicas", needs: ["content.manage"] },
+      { href: "/admin/involucrate", label: "Involúcrate · áreas", needs: ["content.manage"] },
+      { href: "/admin/eventos", label: "Eventos", needs: ["content.manage"] },
+      { href: "/admin/recursos", label: "Recursos y enseñanzas", needs: ["content.manage"] },
+      { href: "/admin/secciones", label: "Encabezados y Ruta", needs: ["content.manage"] },
       { href: "/admin/bautismos", label: "Bautismos", needs: ["content.manage"] },
       { href: "/admin/generosidad", label: "Generosidad", needs: ["generosity.manage"] },
     ],

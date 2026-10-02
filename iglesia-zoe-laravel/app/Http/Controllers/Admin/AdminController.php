@@ -87,7 +87,7 @@ class AdminController extends Controller
             $latest = Theme::query()->where('active', true)->orderByDesc('theme_date')->first();
             $cards[] = ['label' => 'Temas de célula', 'value' => (string) $counts['themes'], 'href' => '/admin/temas', 'note' => $latest ? 'Último: '.$latest->title : 'Aún no hay temas', 'accent' => 'bg-blush'];
         }
-        $inboxAccents = ['visitas' => 'bg-dusk', 'bautismos' => 'bg-clay', 'oraciones' => 'bg-sky'];
+        $inboxAccents = ['visitas' => 'bg-dusk', 'bautismos' => 'bg-clay', 'oraciones' => 'bg-sky', 'servidores' => 'bg-sage'];
         foreach ($unread as $kind => $count) {
             $cards[] = [
                 'label' => Inbox::KINDS[$kind]['title'],
@@ -149,7 +149,10 @@ class AdminController extends Controller
         return Inertia::render('Admin/Generosidad', ['settings' => LoadPublicSite::settings()]);
     }
 
-    private const GIVING_KEYS = ['bankSoles', 'bankSolesCci', 'bankDollars', 'bankDollarsCci', 'bankHolder', 'yape', 'yapeHolder', 'yapeQr', 'cardUrl'];
+    private const GIVING_KEYS = ['bankSoles', 'bankSolesCci', 'bankDollars', 'bankDollarsCci', 'bankHolder', 'bankSwift', 'yape', 'yapeHolder', 'yapeQr', 'cardUrl'];
+
+    /** Editable lists posted as numbered fields, e.g. route_title_1 / route_text_1. Each item keeps its slot so its photo stays with it. */
+    private const LIST_FIELDS = ['routeLevels' => ['route', 6]];
 
     private const COLOR_KEYS = ['headingColor', 'bodyColor', 'accentColor', 'paperColor', 'stoneColor', 'clayColor'];
 
@@ -166,7 +169,7 @@ class AdminController extends Controller
         $canGiving = Permissions::has($user, 'generosity.manage');
         $stored = $this->storedSite();
 
-        $editable = array_diff(array_keys(config('zoe.settings')), ['values', 'prayerTopics', 'copy']);
+        $editable = array_diff(array_keys(config('zoe.settings')), [...LoadPublicSite::LIST_SETTINGS, 'copy']);
         $input = [];
         foreach ($editable as $key) {
             if (! $request->has($key) || ! is_scalar($request->input($key) ?? '')) {
@@ -191,6 +194,13 @@ class AdminController extends Controller
                 return response()->json(['error' => 'No reconocemos el enlace de YouTube en vivo. Pega el enlace del video o su ID.'], 422);
             }
             $input['liveYoutubeId'] = $live;
+        }
+        if (($input['baptismVideo'] ?? '') !== '') {
+            $video = YouTube::id($input['baptismVideo']);
+            if (! $video) {
+                return response()->json(['error' => 'No reconocemos el enlace de YouTube del video de bautismo. Pega el enlace del video o su ID.'], 422);
+            }
+            $input['baptismVideo'] = $video;
         }
         foreach (['serviceDayMain', 'serviceDayWeek'] as $key) {
             if (isset($input[$key]) && ! preg_match('/^[0-6]$/', $input[$key])) {
@@ -228,6 +238,22 @@ class AdminController extends Controller
             }
             if ($values) {
                 $next['values'] = $values;
+            }
+        }
+
+        foreach (self::LIST_FIELDS as $key => [$prefix, $slots]) {
+            if (! $canContent || ! $request->has("{$prefix}_title_1")) {
+                continue;
+            }
+            $items = [];
+            for ($i = 1; $i <= $slots; $i++) {
+                $title = mb_substr(trim((string) $request->input("{$prefix}_title_$i")), 0, 80);
+                if ($title !== '') {
+                    $items[] = ['slot' => $i, 'title' => $title, 'text' => mb_substr(trim((string) $request->input("{$prefix}_text_$i")), 0, 400)];
+                }
+            }
+            if ($items) {
+                $next[$key] = $items;
             }
         }
 
