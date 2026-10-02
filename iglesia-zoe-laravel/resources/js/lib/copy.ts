@@ -238,7 +238,6 @@ export const copyGroups = [
       { key: "acceso.password", label: "Campo clave", value: "Clave" },
       { key: "acceso.button", label: "Botón", value: "Ingresar" },
       { key: "acceso.back", label: "Enlace para volver", value: "Volver al inicio" },
-      { key: "acceso.adminLink", label: "Enlace al panel de administración", value: "¿Eres administrador? Ingresa al panel" },
       {
         key: "acceso.lines",
         label: "Frases de la ilustración",
