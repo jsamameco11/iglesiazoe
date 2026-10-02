@@ -130,30 +130,6 @@ export async function saveCell(formData: FormData) {
   router.reload();
 }
 
-export async function createRootCell(networkId: string) {
-  const formData = new FormData();
-  formData.set("network_id", networkId);
-  const data = await postJson("/admin/celulas/raiz", formData);
-  if (data?.ok) router.reload();
-  return data;
-}
-
-export async function ensureSixCells(networkId: string) {
-  const formData = new FormData();
-  formData.set("network_id", networkId);
-  const data = await postJson("/admin/celulas/completar", formData);
-  if (data?.ok) router.reload();
-  return data;
-}
-
-export async function createDaughter(parentId: string) {
-  const formData = new FormData();
-  formData.set("parent_id", parentId);
-  const data = await postJson("/admin/celulas/hija", formData);
-  if (data?.ok) router.reload();
-  return data;
-}
-
 export async function addMember(formData: FormData) {
   const data = await postJson("/admin/celulas/integrante", formData);
   if (data?.error) throw new Error(data.error);

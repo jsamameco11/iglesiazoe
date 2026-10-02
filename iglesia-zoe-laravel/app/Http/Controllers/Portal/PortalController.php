@@ -215,8 +215,11 @@ class PortalController extends Controller
             ? $networks->firstWhere('code', $request->query('red', $scope->network?->code ?? 'A')) ?? $networks->first()
             : ($scope->network ?? $networks->firstWhere('id', Cell::query()->whereIn('id', $scope->own ?: [CellScope::NONE])->value('network_id')));
 
+        $visible = $staff ? null : $scope->viewCellIds();
         $cells = $network
-            ? Cell::query()->where('network_id', $network->id)->where('active', true)->orderBy('code')->get()
+            ? Cell::query()->where('network_id', $network->id)->where('active', true)
+                ->when($visible !== null, fn ($query) => $query->whereIn('id', $visible ?: [CellScope::NONE]))
+                ->orderBy('code')->get()
             : collect();
         $reports = Report::query()->with('attendance')->where('year', $year)->where('week', $week)->whereIn('cell_id', $cells->pluck('id'))->get()->keyBy('cell_id');
         $ordered = $this->orderCells($cells);

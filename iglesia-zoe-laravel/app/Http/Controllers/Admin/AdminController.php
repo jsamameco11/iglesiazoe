@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Access\CellScope;
 use App\Domain\Access\Permissions;
-use App\Domain\Cells\Support\CellCodes;
 use App\Domain\Finance\Finance;
 use App\Domain\Geo\GeoDirectory;
 use App\Domain\Media\Actions\ManageSiteMedia;
@@ -17,10 +16,8 @@ use App\Http\Controllers\Controller;
 use App\Models\BaptismEvent;
 use App\Models\BaptismRegistration;
 use App\Models\Cell;
-use App\Models\CellMember;
 use App\Models\Expense;
 use App\Models\Ministry;
-use App\Models\Network;
 use App\Models\PrayerRequest;
 use App\Models\Report;
 use App\Models\Sermon;
@@ -48,7 +45,7 @@ class AdminController extends Controller
         $cards = [];
         $reports = $can('reports.submit') || $can('reports.weekly') || $can('reports.all');
         $cellIds = $reports ? $scope->viewCellIds() : null;
-        $networks = $can('servers.create') ? $scope->manageNetworkIds() : null;
+        $tree = $can('servers.create') ? $scope->treeCellIds() : null;
         $monthRange = [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()];
         $mine = fn () => Expense::query()->where('user_id', $user->id)->whereBetween('spent_on', $monthRange);
 
@@ -58,7 +55,7 @@ class AdminController extends Controller
             'activeCells' => $reports && $cellIds === null ? Cell::query()->where('active', true) : null,
             'users' => $user->isSuperadmin() ? User::query() : null,
             'myExpenses' => ! $user->isSuperadmin() && $can('expenses.manage') ? $mine() : null,
-            'cells' => $can('servers.create') ? Cell::query()->where('active', true)->when($networks !== null, fn ($query) => $query->whereIn('network_id', $networks)) : null,
+            'cells' => $can('servers.create') ? Cell::query()->where('active', true)->when($tree !== null, fn ($query) => $query->whereIn('id', $tree ?: [CellScope::NONE])) : null,
             'themes' => $can('themes.manage') || $can('content.manage') ? Theme::query()->where('active', true) : null,
             'prayers' => $can('content.manage') ? PrayerRequest::query() : null,
             'visits' => $can('content.manage') ? VisitPlan::query() : null,
@@ -72,13 +69,18 @@ class AdminController extends Controller
         if ($user->isSuperadmin()) {
             $month = Finance::summary(Period::currentMonth());
             $cards[] = ['label' => 'Ingresos del mes', 'value' => Finance::money($month['income']), 'href' => '/admin/finanzas', 'note' => 'Ofrendas y diezmos', 'accent' => 'bg-mist'];
-            $cards[] = ['label' => 'Gastos del mes', 'value' => Finance::money($month['expenses']), 'href' => '/admin/finanzas', 'note' => 'Compras con boleta', 'accent' => 'bg-amber'];
+            $cards[] = ['label' => 'Gastos del mes', 'value' => Finance::money($month['expenses']), 'href' => '/admin/finanzas', 'note' => 'Compras con boleta o factura', 'accent' => 'bg-amber'];
             $cards[] = ['label' => 'Equipo', 'value' => (string) $counts['users'], 'href' => '/admin/equipo', 'note' => 'Cuentas activas del panel', 'accent' => 'bg-sky'];
         } elseif ($can('expenses.manage')) {
             $cards[] = ['label' => 'Mis gastos del mes', 'value' => Finance::money((float) $mine()->sum('amount')), 'href' => '/admin/gastos', 'note' => $counts['myExpenses'].' compras registradas', 'accent' => 'bg-amber'];
         }
         if ($can('servers.create')) {
-            $cards[] = ['label' => 'Células', 'value' => (string) $counts['cells'], 'href' => '/admin/servidores', 'note' => $networks !== null && $scope->network ? "Red {$scope->network->code}" : 'Todas las redes', 'accent' => 'bg-sage'];
+            $note = match (true) {
+                $tree === null => 'Todas las redes',
+                $scope->leadsNetwork() && $scope->network !== null => "Red {$scope->network->code}",
+                default => 'Tu servidor y sus servidores hijo',
+            };
+            $cards[] = ['label' => 'Servidores', 'value' => (string) $counts['cells'], 'href' => '/admin/servidores', 'note' => $note, 'accent' => 'bg-sage'];
         }
         if ($can('notices.manage')) {
             $notice = LoadPublicSite::weeklyNotice();
@@ -516,124 +518,6 @@ class AdminController extends Controller
         return response()->json(['ok' => true, 'reload' => true]);
     }
 
-    public function celulas(Request $request): Response
-    {
-        $allowed = CellScope::for($request->user())->manageNetworkIds();
-        $cells = Cell::query()->orderBy('code')->when($allowed !== null, fn ($query) => $query->whereIn('network_id', $allowed))->get();
-
-        return Inertia::render('Admin/Celulas', [
-            'networks' => Network::query()->orderBy('code')->when($allowed !== null, fn ($query) => $query->whereIn('id', $allowed))->get(['id', 'code', 'name']),
-            'cells' => $cells,
-            'members' => CellMember::query()->where('active', true)
-                ->when($allowed !== null, fn ($query) => $query->whereIn('cell_id', $cells->pluck('id')->all() ?: [CellScope::NONE]))
-                ->orderBy('full_name')->get(),
-            'canManageMembers' => true,
-        ]);
-    }
-
-    public function saveCell(Request $request): JsonResponse
-    {
-        $cell = $this->managedCell($request, $request->input('id'));
-        if (! $cell) {
-            return $this->outsideNetwork();
-        }
-        $cell->update([
-            'leader_name' => $request->input('leader_name'),
-            'assistant_name' => $request->input('assistant_name'),
-            'host_name' => $request->input('host_name'),
-            'address' => $request->input('address'),
-            'meeting_day' => $request->input('meeting_day'),
-            'meeting_time' => $request->input('meeting_time'),
-            'active' => $request->boolean('active'),
-        ]);
-
-        return response()->json(['ok' => true, 'reload' => true]);
-    }
-
-    public function createRootCell(Request $request): JsonResponse
-    {
-        $network = $this->managedNetwork($request);
-        if (! $network) {
-            return $this->outsideNetwork();
-        }
-        $next = (int) Cell::query()->where('network_id', $network->id)->whereNull('parent_id')->max('number') + 1;
-        Cell::query()->create([
-            'network_id' => $network->id,
-            'number' => $next,
-            'code' => CellCodes::root(strtoupper($network->code), $next),
-            'active' => true,
-        ]);
-
-        return response()->json(['ok' => true, 'reload' => true]);
-    }
-
-    public function ensureSix(Request $request): JsonResponse
-    {
-        $network = $this->managedNetwork($request);
-        if (! $network) {
-            return $this->outsideNetwork();
-        }
-        $existing = Cell::query()->where('network_id', $network->id)->whereNull('parent_id')->pluck('code');
-        for ($number = 1; $number <= 6; $number++) {
-            $cellCode = CellCodes::root(strtoupper($network->code), $number);
-            if (! $existing->contains($cellCode)) {
-                Cell::query()->create(['network_id' => $network->id, 'number' => $number, 'code' => $cellCode, 'active' => true]);
-            }
-        }
-
-        return response()->json(['ok' => true, 'reload' => true]);
-    }
-
-    public function createDaughter(Request $request): JsonResponse
-    {
-        $parent = $this->managedCell($request, $request->input('parent_id'));
-        if (! $parent) {
-            return $this->outsideNetwork();
-        }
-        $next = (int) Cell::query()->where('parent_id', $parent->id)->max('number') + 1;
-        Cell::query()->create([
-            'network_id' => $parent->network_id,
-            'parent_id' => $parent->id,
-            'number' => $next,
-            'code' => CellCodes::daughter($parent->code, $next),
-            'active' => true,
-        ]);
-
-        return response()->json(['ok' => true, 'reload' => true]);
-    }
-
-    public function addMember(Request $request): JsonResponse
-    {
-        $cell = $this->managedCell($request, $request->input('cell_id'));
-        if (! $cell) {
-            return $this->outsideNetwork();
-        }
-        $name = trim((string) $request->input('full_name'));
-        if ($name === '') {
-            return response()->json(['error' => 'Escribe el nombre del integrante.'], 422);
-        }
-        CellMember::query()->create([
-            'cell_id' => $cell->id,
-            'full_name' => $name,
-            'phone' => $request->input('phone'),
-            'active' => true,
-        ]);
-
-        return response()->json(['ok' => true, 'reload' => true]);
-    }
-
-    public function removeMember(Request $request): JsonResponse
-    {
-        $id = (string) $request->input('id');
-        $member = Str::isUuid($id) ? CellMember::query()->find($id) : null;
-        if (! $member || ! $this->managedCell($request, $member->cell_id)) {
-            return $this->outsideNetwork();
-        }
-        $member->update(['active' => false]);
-
-        return response()->json(['ok' => true, 'reload' => true]);
-    }
-
     public function temas(): Response
     {
         return Inertia::render('Admin/Temas', [
@@ -689,33 +573,6 @@ class AdminController extends Controller
             'prayers' => PrayerRequest::query()->latest()->limit(50)->get(),
             'visits' => $this->visitPlans(),
         ]);
-    }
-
-    private function managedNetwork(Request $request): ?Network
-    {
-        $id = (string) $request->input('network_id');
-        $network = Str::isUuid($id) ? Network::query()->find($id) : null;
-
-        return $network && $this->managesNetwork($request, $network->id) ? $network : null;
-    }
-
-    private function managedCell(Request $request, mixed $id): ?Cell
-    {
-        $cell = is_string($id) && Str::isUuid($id) ? Cell::query()->find($id) : null;
-
-        return $cell && $this->managesNetwork($request, $cell->network_id) ? $cell : null;
-    }
-
-    private function managesNetwork(Request $request, ?string $networkId): bool
-    {
-        $allowed = CellScope::for($request->user())->manageNetworkIds();
-
-        return $allowed === null || in_array($networkId, $allowed, true);
-    }
-
-    private function outsideNetwork(): JsonResponse
-    {
-        return response()->json(['error' => 'Esa célula no pertenece a tu red.'], 403);
     }
 
     private function themeExtension(UploadedFile $file): ?string

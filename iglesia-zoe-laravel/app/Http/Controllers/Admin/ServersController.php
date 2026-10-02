@@ -2,17 +2,19 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Domain\Access\Actions\CreateAccount;
 use App\Domain\Access\CellScope;
-use App\Domain\Access\Permissions;
-use App\Domain\Cells\Support\CellCodes;
+use App\Domain\Servers\Actions\CreateServerAccount;
+use App\Domain\Servers\Actions\OpenServer;
+use App\Domain\Servers\ServerLevel;
+use App\Domain\Servers\Support\ServerTree;
 use App\Http\Controllers\Controller;
 use App\Models\Cell;
 use App\Models\Network;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -20,110 +22,103 @@ class ServersController extends Controller
 {
     public function index(Request $request): Response
     {
-        $allowed = CellScope::for($request->user())->manageNetworkIds();
-        $networks = Network::query()->orderBy('code')
-            ->when($allowed !== null, fn ($query) => $query->whereIn('id', $allowed))
-            ->get(['id', 'code', 'name']);
-        $cells = Cell::query()->whereIn('network_id', $networks->pluck('id'))->orderBy('code')->get();
-        $accounts = DB::table('user_cells')
-            ->join('users', 'users.id', '=', 'user_cells.user_id')
-            ->whereIn('user_cells.cell_id', $cells->pluck('id')->all() ?: [CellScope::NONE])
-            ->get(['user_cells.cell_id', 'users.username', 'users.name'])
-            ->groupBy('cell_id');
+        return Inertia::render('Admin/Servidores', ServerTree::for($request->user()));
+    }
 
-        return Inertia::render('Admin/Servidores', [
-            'networks' => $networks,
-            'cells' => $cells->map(fn (Cell $cell) => [
-                'id' => $cell->id,
-                'network_id' => $cell->network_id,
-                'parent_id' => $cell->parent_id,
-                'code' => $cell->code,
-                'number' => $cell->number,
-                'leader_name' => $cell->leader_name,
-                'meeting_day' => $cell->meeting_day,
-                'meeting_time' => $cell->meeting_time,
-                'active' => $cell->active,
-                'accounts' => collect($accounts->get($cell->id, []))->map(fn ($row) => ['username' => $row->username, 'name' => $row->name])->values(),
-            ]),
+    public function storeNetworkServer(Request $request, CreateServerAccount $accounts): JsonResponse
+    {
+        $network = $this->find(Network::class, $request->input('network_id'));
+        if (! $network) {
+            return response()->json(['error' => 'Elige la red.'], 422);
+        }
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'username' => ['required', 'string'],
+            'password' => ['required', 'string'],
+        ], [
+            'name.required' => 'Escribe el nombre del Servidor de Red.',
+            'name.max' => 'El nombre es demasiado largo.',
+            'username.required' => 'Escribe el usuario o DNI.',
+            'password.required' => 'Escribe la clave.',
+        ]);
+        $user = $accounts->forNetwork($network, $data, $request->user());
+
+        return $this->done("{$user->name} es Servidor de Red de la Red {$network->code} (usuario {$user->username}).");
+    }
+
+    public function storeServer(Request $request, OpenServer $open): JsonResponse
+    {
+        $network = $this->find(Network::class, $request->input('network_id'));
+        if (! $network || ! CellScope::for($request->user())->canOpenServerIn($network->id)) {
+            return response()->json(['error' => 'Solo el Servidor de Red de esta red puede abrir servidores.'], 403);
+        }
+        [$cell, $account] = $open->handle($network, null, $this->serverData($request), $request->user());
+
+        return $this->done($this->created($cell, $account));
+    }
+
+    public function storeChild(Request $request, OpenServer $open): JsonResponse
+    {
+        $parent = $this->find(Cell::class, $request->input('parent_id'));
+        if (! $parent || ! CellScope::for($request->user())->canAddChildTo($parent)) {
+            return response()->json(['error' => 'Solo puedes añadir servidores hijo a un servidor a tu cargo.'], 403);
+        }
+        [$cell, $account] = $open->handle($parent->network, $parent, $this->serverData($request), $request->user());
+
+        return $this->done($this->created($cell, $account));
+    }
+
+    public function storeAccount(Request $request, CreateServerAccount $accounts): JsonResponse
+    {
+        $cell = $this->find(Cell::class, $request->input('cell_id'));
+        if (! $cell || ! CellScope::for($request->user())->oversees($cell)) {
+            return response()->json(['error' => 'Ese servidor no está a tu cargo.'], 403);
+        }
+        if ($cell->users()->exists()) {
+            return response()->json(['error' => "{$cell->code} ya tiene cuenta."], 422);
+        }
+        $user = $accounts->forCell($cell, $request->only('username', 'password'), $request->user());
+
+        return $this->done("Cuenta {$user->username} creada para {$cell->code}.");
+    }
+
+    private function serverData(Request $request): array
+    {
+        return $request->validate([
+            'leader_name' => ['required', 'string', 'max:120'],
+            'meeting_day' => ['nullable', Rule::in(Cell::MEETING_DAYS)],
+            'meeting_time' => ['nullable', 'date_format:H:i'],
+            'username' => ['nullable', 'string', 'required_with:password'],
+            'password' => ['nullable', 'string'],
+        ], [
+            'leader_name.required' => 'Escribe el nombre del servidor.',
+            'leader_name.max' => 'El nombre es demasiado largo.',
+            'meeting_day.in' => 'Elige un día de la lista.',
+            'meeting_time.date_format' => 'La hora no es válida.',
+            'username.required_with' => 'Escribe el usuario o DNI de la cuenta.',
         ]);
     }
 
-    public function storeRoot(Request $request, CreateAccount $create): JsonResponse
+    private function created(Cell $cell, ?User $account): string
     {
-        $network = Network::query()->find($this->uuid($request->input('network_id')));
-        if (! $network || ! $this->canUseNetwork($request->user(), $network->id)) {
-            return response()->json(['error' => 'No puedes abrir células en esa red.'], 403);
-        }
+        $label = ServerLevel::ofCell($cell)->label();
 
-        return DB::transaction(function () use ($request, $create, $network) {
-            $number = (int) Cell::query()->where('network_id', $network->id)->whereNull('parent_id')->max('number') + 1;
-            $cell = Cell::query()->create([
-                'network_id' => $network->id,
-                'number' => $number,
-                'code' => CellCodes::root($network->code, $number),
-                'leader_name' => trim((string) $request->input('leader_name')) ?: null,
-                'meeting_day' => $request->input('meeting_day') ?: null,
-                'meeting_time' => $request->input('meeting_time') ?: null,
-                'active' => true,
-            ]);
-            $username = $this->attachAccount($request, $create, $cell);
-
-            return response()->json(['ok' => true, 'reload' => true, 'message' => "Servidor {$cell->code} creado".($username ? " con la cuenta $username." : '.')]);
-        });
+        return "$label {$cell->code} creado".($account ? " con la cuenta {$account->username}." : '.');
     }
 
-    public function storeChild(Request $request, CreateAccount $create): JsonResponse
+    private function done(string $message): JsonResponse
     {
-        $parent = Cell::query()->find($this->uuid($request->input('parent_id')));
-        if (! $parent || ! $this->canUseNetwork($request->user(), $parent->network_id)) {
-            return response()->json(['error' => 'No puedes crear hijos de esa célula.'], 403);
-        }
-
-        return DB::transaction(function () use ($request, $create, $parent) {
-            $number = (int) Cell::query()->where('parent_id', $parent->id)->max('number') + 1;
-            $cell = Cell::query()->create([
-                'network_id' => $parent->network_id,
-                'parent_id' => $parent->id,
-                'number' => $number,
-                'code' => CellCodes::daughter($parent->code, $number),
-                'leader_name' => trim((string) $request->input('leader_name')) ?: null,
-                'meeting_day' => $request->input('meeting_day') ?: null,
-                'meeting_time' => $request->input('meeting_time') ?: null,
-                'active' => true,
-            ]);
-            $username = $this->attachAccount($request, $create, $cell);
-
-            return response()->json(['ok' => true, 'reload' => true, 'message' => "Servidor hijo {$cell->code} creado".($username ? " con la cuenta $username." : '.')]);
-        });
+        return response()->json(['ok' => true, 'reload' => true, 'message' => $message]);
     }
 
-    private function attachAccount(Request $request, CreateAccount $create, Cell $cell): ?string
+    /**
+     * @template T of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  class-string<T>  $model
+     * @return T|null
+     */
+    private function find(string $model, mixed $id): mixed
     {
-        if (! $request->filled('username')) {
-            return null;
-        }
-        $user = $create->handle([
-            'name' => $request->input('leader_name') ?: $request->input('username'),
-            'username' => $request->input('username'),
-            'password' => $request->input('password'),
-            'types' => ['celula'],
-            'permissions' => Permissions::SERVER_ACCOUNT,
-            'network_id' => $cell->network_id,
-        ], $request->user());
-        $user->cells()->syncWithoutDetaching([$cell->id]);
-
-        return $user->username;
-    }
-
-    private function canUseNetwork(User $user, string $networkId): bool
-    {
-        $allowed = CellScope::for($user)->manageNetworkIds();
-
-        return $allowed === null || in_array($networkId, $allowed, true);
-    }
-
-    private function uuid(mixed $value): ?string
-    {
-        return is_string($value) && preg_match('/^[0-9a-f-]{36}$/i', $value) ? $value : null;
+        return is_string($id) && Str::isUuid($id) ? $model::query()->find($id) : null;
     }
 }
