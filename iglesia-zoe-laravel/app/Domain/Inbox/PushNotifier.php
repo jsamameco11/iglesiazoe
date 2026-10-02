@@ -2,7 +2,6 @@
 
 namespace App\Domain\Inbox;
 
-use App\Domain\Access\Permissions;
 use App\Models\PushSubscription;
 use App\Models\SiteSetting;
 use App\Models\User;
@@ -16,7 +15,8 @@ use Throwable;
 
 /**
  * Sends a phone notification (Web Push: Chrome on Android goes through Google's
- * push service) to every account that can see the tab of a new web form.
+ * push service) to every account that receives a new web form (for «Quiero
+ * servir», only the accounts that cover its área).
  */
 final class PushNotifier
 {
@@ -30,7 +30,7 @@ final class PushNotifier
     public static function announce(string $kind, Model $row): void
     {
         try {
-            $subscriptions = self::recipients(Inbox::KINDS[$kind]['permission']);
+            $subscriptions = self::recipients($kind, $row);
             $keys = self::keys();
             if ($subscriptions->isEmpty() || ! $keys) {
                 return;
@@ -75,7 +75,7 @@ final class PushNotifier
     }
 
     /** @return Collection<int, PushSubscription> */
-    private static function recipients(string $permission): Collection
+    public static function recipients(string $kind, Model $row): Collection
     {
         return User::query()
             ->where(fn ($query) => $query->where('active', true)->orWhereNull('active'))
@@ -83,7 +83,7 @@ final class PushNotifier
             ->whereHas('pushSubscriptions')
             ->with('pushSubscriptions')
             ->get()
-            ->filter(fn (User $user) => Permissions::has($user, $permission))
+            ->filter(fn (User $user) => Inbox::reaches($user, $kind, $row))
             ->flatMap(fn (User $user) => $user->pushSubscriptions)
             ->values();
     }

@@ -23,7 +23,7 @@ export type Permission =
   | "inbox.prayers"
   | "inbox.serve";
 
-export type AdminType = "red" | "visuales" | "celula" | "atmosfera" | "temas" | "estudios";
+export type AdminType = "red" | "visuales" | "celula" | "atmosfera" | "voluntarios" | "temas" | "estudios";
 
 export type PanelUser = {
   id: string;

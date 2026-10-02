@@ -18,7 +18,7 @@ export default function Involucrate({ areas }: { areas: AdminArea[] }) {
       <h1 className="display text-4xl">Involúcrate · áreas de servicio</h1>
       <p className="mt-2 max-w-2xl text-muted">
         Cada área tiene su foto, su página propia y sus equipos (por ejemplo Visuales: Multimedia, Cámara, Redes, Transmisión, Luces y Switcher). Todas aparecen en el carrusel «Somos una iglesia que está en movimiento» del inicio, con su botón debajo de la foto. Las que reciben voluntarios aparecen además en el menú Involúcrate y en el formulario «Regístrate para servir». Las personas que se registran llegan a{" "}
-        <Link href="/admin/formularios/servidores" className="underline underline-offset-4">Formularios → Quieren servir</Link>.
+        <Link href="/admin/formularios/servidores" className="underline underline-offset-4">Formularios → Quiero servir</Link>.
       </p>
       <div className="mt-6 flex flex-wrap items-center gap-3">
         {creating ? null : (

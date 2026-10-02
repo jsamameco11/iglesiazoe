@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Access\Actions\CreateAccount;
 use App\Domain\Access\Permissions;
+use App\Domain\Inbox\Inbox;
 use App\Domain\Shared\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Models\Cell;
 use App\Models\Network;
+use App\Models\ServeArea;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -26,6 +28,7 @@ class TeamController extends Controller
             'networks' => $networks,
             'cells' => Cell::query()->where('active', true)->orderBy('code')->pluck('code'),
             'meId' => (string) $request->user()->id,
+            'serveAreas' => ServeArea::query()->orderBy('sort_order')->get(['id', 'name', 'active'])->map(fn (ServeArea $area) => ['id' => $area->id, 'name' => $area->name, 'active' => $area->active]),
             'accounts' => $users->map(fn (User $user) => [
                 'id' => (string) $user->id,
                 'name' => $user->name,
@@ -35,6 +38,7 @@ class TeamController extends Controller
                 'permissions' => Permissions::of($user),
                 'network_code' => $user->network?->code,
                 'cells' => $user->cells->pluck('code')->sort()->values(),
+                'serve_areas' => Inbox::serveAreasOf($user) ?? [],
                 'active' => $user->active !== false,
                 'label' => Permissions::label($user),
                 'created_at' => optional($user->created_at)->toDateString(),
@@ -52,6 +56,7 @@ class TeamController extends Controller
             'permissions' => (array) $request->input('permissions', []),
             'network_id' => $this->networkId($request),
         ], $request->user());
+        $user->update(['serve_areas' => $this->serveAreas($request, $user->permissions ?? [])]);
         $this->syncCells($user, (string) $request->input('cells'));
 
         return response()->json(['ok' => true, 'reload' => true, 'message' => "Cuenta {$user->username} creada."]);
@@ -66,10 +71,12 @@ class TeamController extends Controller
             return response()->json(['ok' => true, 'reload' => true, 'message' => 'Datos guardados.']);
         }
         $types = Permissions::cleanTypes((array) $request->input('types', []));
+        $permissions = Permissions::resolve($types, (array) $request->input('permissions', []));
         $user->update([
             'name' => trim((string) $request->input('name')) ?: $user->name,
             'admin_types' => $types,
-            'permissions' => Permissions::resolve($types, (array) $request->input('permissions', [])),
+            'permissions' => $permissions,
+            'serve_areas' => $this->serveAreas($request, $permissions),
             'network_id' => $this->networkId($request),
             'active' => $request->boolean('active'),
         ]);
@@ -104,6 +111,18 @@ class TeamController extends Controller
         $user->delete();
 
         return response()->json(['ok' => true, 'reload' => true, 'message' => 'Cuenta eliminada.']);
+    }
+
+    /** Only kept with the «Quiero servir» function; an empty list means every área. */
+    private function serveAreas(Request $request, array $permissions): ?array
+    {
+        $chosen = array_filter((array) $request->input('serve_areas', []), 'is_string');
+        if (! in_array('inbox.serve', $permissions, true) || ! $chosen) {
+            return null;
+        }
+        $areas = ServeArea::query()->whereIn('id', $chosen)->pluck('id')->map(fn ($id) => (string) $id)->values()->all();
+
+        return $areas ?: null;
     }
 
     private function networkId(Request $request): ?string

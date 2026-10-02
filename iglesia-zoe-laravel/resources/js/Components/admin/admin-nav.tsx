@@ -12,7 +12,7 @@ const groups: { title: string; items: Item[] }[] = [
       { href: "/admin/formularios/visitas", label: "Visitas planificadas", needs: ["inbox.visits"], inbox: "visitas" },
       { href: "/admin/formularios/bautismos", label: "Bautismo", needs: ["inbox.baptisms"], inbox: "bautismos" },
       { href: "/admin/formularios/oraciones", label: "Petición de oración", needs: ["inbox.prayers"], inbox: "oraciones" },
-      { href: "/admin/formularios/servidores", label: "Quieren servir", needs: ["inbox.serve"], inbox: "servidores" },
+      { href: "/admin/formularios/servidores", label: "Quiero servir", needs: ["inbox.serve"], inbox: "servidores" },
     ],
   },
   {

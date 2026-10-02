@@ -11,6 +11,7 @@ use App\Models\ServeRegistration;
 use App\Models\User;
 use App\Models\VisitPlan;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -24,7 +25,7 @@ final class Inbox
         'visitas' => ['permission' => 'inbox.visits', 'title' => 'Visitas planificadas', 'model' => VisitPlan::class],
         'bautismos' => ['permission' => 'inbox.baptisms', 'title' => 'Inscripciones de bautismo', 'model' => BaptismRegistration::class],
         'oraciones' => ['permission' => 'inbox.prayers', 'title' => 'Peticiones de oración', 'model' => PrayerRequest::class],
-        'servidores' => ['permission' => 'inbox.serve', 'title' => 'Quieren servir', 'model' => ServeRegistration::class],
+        'servidores' => ['permission' => 'inbox.serve', 'title' => 'Quiero servir', 'model' => ServeRegistration::class],
     ];
 
     public const LIMIT = 300;
@@ -40,13 +41,46 @@ final class Inbox
         return array_keys(array_filter(self::KINDS, fn ($kind) => Permissions::has($user, $kind['permission'])));
     }
 
+    /**
+     * Áreas whose «Quiero servir» sign-ups reach this account; null means every área.
+     *
+     * @return list<string>|null
+     */
+    public static function serveAreasOf(?User $user): ?array
+    {
+        if (! $user || Permissions::isSuperadmin($user)) {
+            return null;
+        }
+        $areas = array_values(array_filter(is_array($user->serve_areas) ? $user->serve_areas : [], 'is_string'));
+
+        return $areas ?: null;
+    }
+
+    /** Whether a submission belongs to what this account receives. */
+    public static function reaches(User $user, string $kind, Model $row): bool
+    {
+        if (! Permissions::has($user, self::KINDS[$kind]['permission'])) {
+            return false;
+        }
+        $areas = $kind === 'servidores' ? self::serveAreasOf($user) : null;
+
+        return $areas === null || in_array((string) $row->serve_area_id, $areas, true);
+    }
+
+    public static function query(string $kind, User $user): Builder
+    {
+        $areas = $kind === 'servidores' ? self::serveAreasOf($user) : null;
+
+        return self::KINDS[$kind]['model']::query()->when($areas !== null, fn (Builder $query) => $query->whereIn('serve_area_id', $areas));
+    }
+
     /** @return array<string, int> */
     public static function unread(User $user): array
     {
         $counts = [];
         foreach (self::kindsFor($user) as $kind) {
             $seen = self::seenAt($user, $kind);
-            $counts[$kind] = self::KINDS[$kind]['model']::query()
+            $counts[$kind] = self::query($kind, $user)
                 ->when($seen, fn ($query) => $query->where('created_at', '>', $seen))
                 ->count();
         }
@@ -71,9 +105,9 @@ final class Inbox
     }
 
     /** @return list<array<string, mixed>> */
-    public static function rows(string $kind): array
+    public static function rows(string $kind, User $user): array
     {
-        $rows = self::KINDS[$kind]['model']::query()->latest()->limit(self::LIMIT)->get();
+        $rows = self::query($kind, $user)->latest()->limit(self::LIMIT)->get();
         $countries = array_column(GeoDirectory::countries(), 'name', 'code');
         $placeLabels = array_column(GeoDirectory::countries(), 'labels', 'code');
         $events = $kind === 'bautismos'
@@ -123,9 +157,13 @@ final class Inbox
                 ],
                 'servidores' => [
                     ...$base,
+                    'area_id' => $row->serve_area_id,
                     'area' => $row->area_name,
                     'team' => $row->team,
                     'notes' => $row->notes,
+                    'status' => $row->status ?: 'pendiente',
+                    'status_at' => $row->status_at?->toIso8601String(),
+                    'status_by' => $row->status_by,
                 ],
             };
         })->all();

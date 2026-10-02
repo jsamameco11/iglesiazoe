@@ -67,6 +67,7 @@ class AccessMatrixTest extends TestCase
             'Servidor Atmósfera' => ['atmosfera', self::ADMIN],
             'Visuales' => ['visuales', self::ADMIN],
             'Maestro de la Ruta' => ['estudios', self::ADMIN],
+            'Coordinador de servidores' => ['voluntarios', self::ADMIN],
             'Temas de célula' => ['temas', self::ADMIN],
             'SUPERADMI' => ['superadmin', self::ADMIN],
         ];
