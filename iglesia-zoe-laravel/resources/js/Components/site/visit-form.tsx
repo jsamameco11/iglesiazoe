@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
 import { SelectField, type SelectOption } from "@/Components/ui/select-field";
 import { submitVisit } from "@/lib/actions";
 import { useCopy } from "@/lib/copy";
@@ -6,9 +6,9 @@ import { citiesOf, cityName, districtsOf, flagUrl, geo, type GeoCountry, type Ge
 
 const SEXES = ["Masculino", "Femenino"];
 const MARITAL = ["Soltero(a)", "Casado(a)", "Conviviente", "Divorciado(a)", "Separado(a)", "Viudo(a)"];
-const DEFAULT_COUNTRY = "PE";
+const DEFAULT_DIAL = "PE:51";
 
-type Errors = Partial<Record<"first_name" | "last_name" | "sex" | "age" | "marital_status" | "country" | "phone" | "email" | "region", string>>;
+type Errors = Partial<Record<"first_name" | "last_name" | "phone" | "email" | "sex" | "age" | "marital_status" | "service", string>>;
 
 const input = "visit-input";
 
@@ -30,6 +30,7 @@ export function VisitForm({
   wednesday?: string;
 }) {
   const t = useCopy();
+  const id = useId();
   const form = useRef<HTMLFormElement>(null);
   const [countries, setCountries] = useState<GeoCountry[]>([]);
   const [tree, setTree] = useState<GeoTree>([]);
@@ -37,19 +38,19 @@ export function VisitForm({
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [sex, setSex] = useState("");
-  const [age, setAge] = useState("");
-  const [marital, setMarital] = useState("");
-  const [country, setCountry] = useState(DEFAULT_COUNTRY);
-  const [dialKey, setDialKey] = useState(`${DEFAULT_COUNTRY}:51`);
+  const [dialKey, setDialKey] = useState(DEFAULT_DIAL);
   const [dialTouched, setDialTouched] = useState(false);
   const dial = dialKey.split(":")[1] ?? "";
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [sex, setSex] = useState("");
+  const [age, setAge] = useState("");
+  const [marital, setMarital] = useState("");
+  const [service, setService] = useState("");
+  const [country, setCountry] = useState("");
   const [region, setRegion] = useState("");
   const [city, setCity] = useState("");
   const [district, setDistrict] = useState("");
-  const [service, setService] = useState(sunday);
 
   const [errors, setErrors] = useState<Errors>({});
   const [status, setStatus] = useState<{ ok?: boolean; error?: string }>({});
@@ -59,6 +60,7 @@ export function VisitForm({
   const labels = countryMeta?.labels ?? ["Estado o departamento", "Provincia o ciudad", "Distrito"];
   const hasCity = labels.length > 1;
   const hasDistrict = labels.length > 2;
+  const services = useMemo(() => [sunday, wednesday].filter(Boolean), [sunday, wednesday]);
 
   useEffect(() => {
     geo
@@ -91,7 +93,7 @@ export function VisitForm({
   }, [countryMeta, dialTouched]);
 
   const countryOptions = useMemo<SelectOption[]>(
-    () => countries.map((item) => ({ value: item.code, label: item.name, prefix: <Flag code={item.code} /> })),
+    () => [{ value: "", label: "Prefiero no indicarlo" }, ...countries.map((item) => ({ value: item.code, label: item.name, prefix: <Flag code={item.code} /> }))],
     [countries],
   );
   const dialOptions = useMemo<SelectOption[]>(
@@ -111,7 +113,6 @@ export function VisitForm({
     () => (city && hasDistrict ? districtsOf(cities, city) : []).map((name) => ({ value: name, label: name })),
     [cities, city, hasDistrict],
   );
-  const serviceOptions = useMemo(() => [sunday, wednesday].filter(Boolean).map((item) => ({ value: item, label: item })), [sunday, wednesday]);
 
   const clearError = (key: keyof Errors) => setErrors((current) => (current[key] ? { ...current, [key]: undefined } : current));
 
@@ -119,29 +120,28 @@ export function VisitForm({
     const next: Errors = {};
     if (firstName.trim().length < 2) next.first_name = "Escribe tus nombres.";
     if (lastName.trim().length < 2) next.last_name = "Escribe tus apellidos.";
+    if (phone.length < 6) next.phone = "Escribe tu número de celular.";
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) next.email = "Escribe un correo válido o déjalo vacío.";
     if (!sex) next.sex = "Elige una opción.";
     const ageNumber = Number(age);
     if (!age || ageNumber < 1 || ageNumber > 120) next.age = "Edad entre 1 y 120.";
     if (!marital) next.marital_status = "Elige una opción.";
-    if (!country) next.country = "Elige tu país.";
-    if (phone.length < 6) next.phone = "Escribe un teléfono válido.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) next.email = "Escribe un correo válido.";
-    if (!region) next.region = `Elige tu ${labels[0].toLowerCase()}.`;
+    if (!service) next.service = "Elige el servicio al que asistirás.";
     return next;
   };
 
   const reset = () => {
     setFirstName("");
     setLastName("");
+    setPhone("");
+    setEmail("");
     setSex("");
     setAge("");
     setMarital("");
-    setPhone("");
-    setEmail("");
-    setRegion("");
-    setCity("");
-    setDistrict("");
-    setService(sunday);
+    setService("");
+    setCountry("");
+    setDialKey(DEFAULT_DIAL);
+    setDialTouched(false);
   };
 
   const onSubmit = async (event: FormEvent) => {
@@ -157,17 +157,17 @@ export function VisitForm({
     const data = new FormData();
     data.set("first_name", firstName.trim());
     data.set("last_name", lastName.trim());
-    data.set("sex", sex);
-    data.set("age", age);
-    data.set("marital_status", marital);
-    data.set("country_code", country);
     data.set("phone_code", dial);
     data.set("phone", phone);
     data.set("email", email.trim());
+    data.set("sex", sex);
+    data.set("age", age);
+    data.set("marital_status", marital);
+    data.set("service", service);
+    data.set("country_code", country);
     data.set("region", region);
     data.set("city", city);
     data.set("district", district);
-    data.set("service", service);
 
     setPending(true);
     const result = await submitVisit(undefined, data);
@@ -182,8 +182,16 @@ export function VisitForm({
 
   return (
     <form ref={form} onSubmit={onSubmit} noValidate className="visit-form">
-      {status.ok && <p className="visit-note is-ok">{t("visit.thanks")}</p>}
-      {status.error && <p className="visit-note is-error">{status.error}</p>}
+      {status.ok && (
+        <p className="visit-note is-ok" role="status">
+          {t("visit.thanks")}
+        </p>
+      )}
+      {status.error && (
+        <p className="visit-note is-error" role="alert">
+          {status.error}
+        </p>
+      )}
 
       <div className="visit-row cols-2">
         <label className="visit-label">
@@ -215,6 +223,65 @@ export function VisitForm({
             aria-invalid={errors.last_name ? true : undefined}
           />
           {errors.last_name && <span className="select-field-error">{errors.last_name}</span>}
+        </label>
+      </div>
+
+      <div className="visit-row cols-2">
+        <div className="visit-label">
+          <span className="text-sm">{t("visit.mobile")}</span>
+          <div className="visit-phone">
+            <SelectField
+              label="Código"
+              value={dialKey}
+              options={dialOptions}
+              loading={loading.countries}
+              onChange={(value) => {
+                setDialKey(value);
+                setDialTouched(true);
+              }}
+              renderValue={(option) => (
+                <>
+                  {option.prefix}
+                  {option.label}
+                </>
+              )}
+              searchable
+              compact
+              className="visit-dial"
+            />
+            <input
+              className={input}
+              value={phone}
+              onChange={(event) => {
+                setPhone(digits(event.target.value, 15));
+                clearError("phone");
+              }}
+              inputMode="tel"
+              autoComplete="tel-national"
+              placeholder={t("forms.phonePlaceholder")}
+              aria-label="Número de celular"
+              aria-invalid={errors.phone ? true : undefined}
+            />
+          </div>
+          {errors.phone && <span className="select-field-error">{errors.phone}</span>}
+        </div>
+        <label className="visit-label">
+          <span className="text-sm">
+            {t("forms.email")} <span className="select-field-optional">{t("forms.optional")}</span>
+          </span>
+          <input
+            className={input}
+            type="email"
+            value={email}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              clearError("email");
+            }}
+            autoComplete="email"
+            maxLength={160}
+            aria-invalid={errors.email ? true : undefined}
+          />
+          {errors.email && <span className="select-field-error">{errors.email}</span>}
         </label>
       </div>
 
@@ -258,126 +325,93 @@ export function VisitForm({
         />
       </div>
 
-      <div className="visit-row cols-2">
-        <SelectField
-          label={t("forms.country")}
-          value={country}
-          options={countryOptions}
-          loading={loading.countries}
-          onChange={(value) => {
-            setCountry(value);
-            setDialTouched(false);
-            clearError("country");
-          }}
-          error={errors.country}
-          searchable
-        />
-        <div className="visit-label">
-          <span className="text-sm">{t("forms.phone")}</span>
-          <div className="visit-phone">
-            <SelectField
-              label="Código"
-              value={dialKey}
-              options={dialOptions}
-              loading={loading.countries}
-              onChange={(value) => {
-                setDialKey(value);
-                setDialTouched(true);
-              }}
-              renderValue={(option) => (
-                <>
-                  {option.prefix}
-                  {option.label}
-                </>
-              )}
-              searchable
-              compact
-              className="visit-dial"
-            />
-            <input
-              className={input}
-              value={phone}
-              onChange={(event) => {
-                setPhone(digits(event.target.value, 15));
-                clearError("phone");
-              }}
-              inputMode="tel"
-              autoComplete="tel-national"
-              placeholder={t("forms.phonePlaceholder")}
-              aria-label="Número de teléfono"
-              aria-invalid={errors.phone ? true : undefined}
-            />
-          </div>
-          {errors.phone && <span className="select-field-error">{errors.phone}</span>}
+      <fieldset className="visit-label">
+        <legend className="text-sm">{t("visit.service")}</legend>
+        <div className="visit-services" role="radiogroup" aria-invalid={errors.service ? true : undefined}>
+          {services.map((item, index) => (
+            <label key={item} className={`visit-service ${service === item ? "is-on" : ""}`}>
+              <input
+                type="radio"
+                name={`${id}-service`}
+                value={item}
+                checked={service === item}
+                onChange={() => {
+                  setService(item);
+                  clearError("service");
+                }}
+                aria-invalid={errors.service && index === 0 ? true : undefined}
+              />
+              <span className="visit-service-dot" aria-hidden="true" />
+              <span>{item}</span>
+            </label>
+          ))}
         </div>
-      </div>
+        {errors.service && <span className="select-field-error">{errors.service}</span>}
+      </fieldset>
 
-      <label className="visit-label">
-        <span className="text-sm">{t("forms.email")}</span>
-        <input
-          className={input}
-          type="email"
-          value={email}
-          onChange={(event) => {
-            setEmail(event.target.value);
-            clearError("email");
-          }}
-          autoComplete="email"
-          maxLength={160}
-          aria-invalid={errors.email ? true : undefined}
-        />
-        {errors.email && <span className="select-field-error">{errors.email}</span>}
-      </label>
-
-      <div className={`visit-row ${hasCity ? "cols-2" : ""}`}>
-        <SelectField
-          label={labels[0]}
-          value={region}
-          options={regionOptions}
-          loading={loading.tree}
-          disabled={!country}
-          placeholder={country ? "Selecciona" : "Elige primero el país"}
-          onChange={(value) => {
-            setRegion(value);
-            setCity("");
-            setDistrict("");
-            clearError("region");
-          }}
-          error={errors.region}
-          searchable
-        />
-        {hasCity && (
+      <fieldset className="visit-origin">
+        <legend className="visit-origin-title">
+          {t("visit.origin")} <span className="select-field-optional">{t("forms.optional")}</span>
+        </legend>
+        <p className="visit-origin-hint">{t("visit.originHint")}</p>
+        <div className="visit-row cols-2">
           <SelectField
-            label={labels[1]}
-            value={city}
-            options={cityOptions}
-            disabled={!region}
-            placeholder={region ? "Selecciona" : `Elige primero ${labels[0].toLowerCase()}`}
+            label={t("forms.country")}
+            value={country}
+            options={countryOptions}
+            loading={loading.countries}
             onChange={(value) => {
-              setCity(value);
-              setDistrict("");
+              setCountry(value);
+              setDialTouched(false);
             }}
-            optional
             searchable
           />
+          {country && (
+            <SelectField
+              label={labels[0]}
+              value={region}
+              options={regionOptions}
+              loading={loading.tree}
+              onChange={(value) => {
+                setRegion(value);
+                setCity("");
+                setDistrict("");
+              }}
+              optional
+              searchable
+            />
+          )}
+        </div>
+        {country && region && (hasCity || hasDistrict) && (
+          <div className="visit-row cols-2">
+            {hasCity && (
+              <SelectField
+                label={labels[1]}
+                value={city}
+                options={cityOptions}
+                onChange={(value) => {
+                  setCity(value);
+                  setDistrict("");
+                }}
+                optional
+                searchable
+              />
+            )}
+            {hasDistrict && (
+              <SelectField
+                label={labels[2]}
+                value={district}
+                options={districtOptions}
+                disabled={!city}
+                placeholder={city ? "Selecciona" : `Elige primero ${labels[1].toLowerCase()}`}
+                onChange={setDistrict}
+                optional
+                searchable
+              />
+            )}
+          </div>
         )}
-      </div>
-
-      <div className="visit-row cols-2">
-        {hasDistrict && (
-          <SelectField
-            label={labels[2]}
-            value={district}
-            options={districtOptions}
-            disabled={!city}
-            placeholder={city ? "Selecciona" : `Elige primero ${labels[1].toLowerCase()}`}
-            onChange={setDistrict}
-            optional
-            searchable
-          />
-        )}
-        <SelectField label={t("visit.service")} value={service} options={serviceOptions} onChange={setService} />
-      </div>
+      </fieldset>
 
       <button type="submit" disabled={pending} className="visit-submit">
         {pending ? t("forms.sending") : cta}

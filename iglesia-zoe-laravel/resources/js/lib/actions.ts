@@ -49,10 +49,6 @@ export async function submitVisit(_state: { ok?: boolean; error?: string } | und
   return postJson("/visita", formData);
 }
 
-export async function submitQuickVisit(_state: { ok?: boolean; error?: string } | undefined, formData: FormData) {
-  return postJson("/visita/aviso", formData);
-}
-
 export async function submitBaptism(_state: { ok?: boolean; error?: string } | undefined, formData: FormData) {
   return postJson("/bautismos", formData);
 }

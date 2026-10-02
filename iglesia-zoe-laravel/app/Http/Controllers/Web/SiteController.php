@@ -232,11 +232,6 @@ class SiteController extends Controller
         return response()->json(['ok' => true]);
     }
 
-    public function serverRoute(Request $request): Response
-    {
-        return $this->page('ServerRoute', $request);
-    }
-
     public function give(Request $request): Response
     {
         return $this->page('Give', $request);
@@ -247,31 +242,44 @@ class SiteController extends Controller
         return $this->page('Contact', $request);
     }
 
+    /** Planifica tu visita (home and /visita): the profile is required, the place where the person lives is optional. */
     public function storeVisit(Request $request): JsonResponse
     {
+        $services = $this->visitServices();
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string|min:2|max:60',
             'last_name' => 'required|string|min:2|max:80',
             'phone_code' => ['required', Rule::in(GeoDirectory::dialCodes())],
             'phone' => ['required', 'regex:/^[0-9]{6,15}$/'],
-            'email' => 'required|email|max:160',
+            'email' => 'nullable|email|max:160',
             'sex' => ['required', Rule::in(self::SEXES)],
             'age' => 'required|integer|min:1|max:120',
             'marital_status' => ['required', Rule::in(self::MARITAL_STATUSES)],
-            'country_code' => 'required|string|size:2|exists:geo_countries,code',
-            'region' => 'required|string|max:160',
+            'service' => ['required', Rule::in(array_keys($services))],
+            'country_code' => 'nullable|string|size:2|exists:geo_countries,code',
+            'region' => 'nullable|string|max:160',
             'city' => 'nullable|string|max:160',
             'district' => 'nullable|string|max:160',
-            'service' => 'nullable|string|max:80',
-        ], [], [
+        ], [
+            'required' => 'Completa el campo :attribute.',
+            'in' => 'Elige una opción válida en :attribute.',
+            'exists' => 'Elige una opción válida en :attribute.',
+            'size' => 'Elige una opción válida en :attribute.',
+            'integer' => 'Escribe un número válido en :attribute.',
+            'email' => 'Escribe un correo válido.',
+            'phone.regex' => 'Escribe un celular válido (solo números).',
+            'min' => 'Revisa el campo :attribute.',
+            'max' => 'Revisa el campo :attribute.',
+        ], [
             'first_name' => 'nombres',
             'last_name' => 'apellidos',
             'phone_code' => 'código de país',
-            'phone' => 'teléfono',
+            'phone' => 'celular',
             'email' => 'correo',
             'sex' => 'sexo',
             'age' => 'edad',
             'marital_status' => 'estado civil',
+            'service' => 'servicio al que asistirás',
             'country_code' => 'país',
             'region' => 'estado o departamento',
         ]);
@@ -281,58 +289,45 @@ class SiteController extends Controller
         }
 
         $data = $validator->validated();
-        $place = GeoDirectory::resolve($data['country_code'], $data['region'], $data['city'] ?? null, $data['district'] ?? null);
-        if (! $place) {
-            return response()->json(['error' => 'Revisa la ubicación seleccionada.'], 422);
+        $country = isset($data['country_code']) ? strtoupper($data['country_code']) : null;
+        $place = ['region' => null, 'city' => null, 'district' => null];
+        if ($country && ! empty($data['region'])) {
+            $place = GeoDirectory::resolve($country, $data['region'], $data['city'] ?? null, $data['district'] ?? null);
+            if (! $place) {
+                return response()->json(['error' => 'Revisa la ubicación seleccionada.'], 422);
+            }
         }
 
         $visit = VisitPlan::query()->create([
             ...$data,
             ...$place,
-            'country_code' => strtoupper($data['country_code']),
-            'full_name' => trim($data['first_name'].' '.$data['last_name']),
+            'country_code' => $country,
+            'email' => isset($data['email']) ? strtolower(trim($data['email'])) : null,
+            'full_name' => trim(trim($data['first_name']).' '.trim($data['last_name'])),
             'phone' => '+'.$data['phone_code'].' '.$data['phone'],
+            'visit_date' => $this->nextServiceDate($services[$data['service']]),
         ]);
         defer(fn () => PushNotifier::announce('visitas', $visit));
 
         return response()->json(['ok' => true]);
     }
 
-    public function storeQuickVisit(Request $request): JsonResponse
+    /** @return array<string, string> service label => weekday it happens */
+    private function visitServices(): array
     {
-        $validator = Validator::make($request->all(), [
-            'full_name' => 'required|string|min:3|max:120',
-            'contact' => 'required|string|max:160',
-        ], [
-            'full_name.required' => 'Escribe tu nombre.',
-            'full_name.min' => 'Escribe tu nombre completo.',
-            'contact.required' => 'Déjanos tu correo o tu teléfono.',
-        ]);
-        if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
-        }
+        $settings = LoadPublicSite::settings();
 
-        $contact = trim((string) $request->input('contact'));
-        $digits = preg_replace('/\D/', '', $contact);
-        $isEmail = filter_var($contact, FILTER_VALIDATE_EMAIL) !== false;
-        if (! $isEmail && (strlen($digits) < 6 || strlen($digits) > 15)) {
-            return response()->json(['error' => 'Escribe un correo o un teléfono válido.'], 422);
-        }
+        return array_filter([
+            trim((string) ($settings['sunday'] ?? '')) => 'Sunday',
+            trim((string) ($settings['wednesday'] ?? '')) => 'Wednesday',
+        ], fn ($day, $label) => $label !== '', ARRAY_FILTER_USE_BOTH);
+    }
 
-        $name = trim((string) $request->input('full_name'));
-        $sunday = now('America/Lima')->isSunday() ? now('America/Lima') : now('America/Lima')->next('Sunday');
-        $visit = VisitPlan::query()->create([
-            'full_name' => $name,
-            'first_name' => strtok($name, ' ') ?: $name,
-            'phone' => $isEmail ? '' : (strlen($digits) === 9 ? '+51 '.$digits : '+'.$digits),
-            'email' => $isEmail ? strtolower($contact) : null,
-            'visit_date' => $sunday->toDateString(),
-            'service' => LoadPublicSite::settings()['sunday'] ?? 'Domingo',
-            'notes' => 'Aviso rápido desde el inicio.',
-        ]);
-        defer(fn () => PushNotifier::announce('visitas', $visit));
+    private function nextServiceDate(string $weekday): string
+    {
+        $today = now('America/Lima');
 
-        return response()->json(['ok' => true]);
+        return ($today->format('l') === $weekday ? $today : $today->next($weekday))->toDateString();
     }
 
     public function storeBaptism(Request $request): JsonResponse

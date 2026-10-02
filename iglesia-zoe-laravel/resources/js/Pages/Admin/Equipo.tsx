@@ -26,6 +26,7 @@ const typeTone: Record<AdminType, string> = {
   celula: "bg-mist text-[#3d6248]",
   atmosfera: "bg-amber/60 text-[#7a5418]",
   temas: "bg-orange/15 text-orange-deep",
+  estudios: "bg-sky text-[#28516b]",
 };
 
 export default function Equipo({ catalog, networks, cells, meId, accounts }: Props) {

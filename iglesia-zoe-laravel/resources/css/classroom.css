@@ -1,0 +1,439 @@
+.aula {
+  --aula-radius: 1.6rem;
+  overflow-x: hidden;
+}
+.aula-wrap {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+@media (min-width: 768px) {
+  .aula-wrap { padding-left: 2rem; padding-right: 2rem; }
+}
+
+.aula-top {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 7%, transparent);
+}
+.aula-icon-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  background: #fff;
+  transition: border-color 0.2s ease;
+}
+.aula-icon-btn:hover { border-color: color-mix(in srgb, var(--ink) 25%, transparent); }
+.aula-badge {
+  position: absolute;
+  top: -0.2rem;
+  right: -0.2rem;
+  min-width: 1.2rem;
+  height: 1.2rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.2rem;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--paper);
+  animation: aula-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.aula-pop {
+  position: absolute;
+  top: calc(100% + 0.6rem);
+  z-index: 50;
+  overflow: hidden;
+  border-radius: 1.2rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 7%, transparent);
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(23, 24, 28, 0.16);
+  animation: aula-drop 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.aula-in {
+  animation: aula-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--d, 0) * 110ms + 60ms);
+}
+
+.aula-kicker {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.aula-hero {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--aula-radius);
+  background:
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 60%),
+    var(--ink);
+  color: #fff;
+  padding: 1.6rem;
+}
+@media (min-width: 768px) { .aula-hero { padding: 2.2rem; } }
+.aula-hero .aula-kicker { color: rgba(255, 255, 255, 0.6); }
+.aula-title {
+  margin-top: 0.6rem;
+  font-family: var(--font-heading, inherit);
+  font-size: clamp(2.2rem, 5vw, 3.4rem);
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+.aula-bar,
+.aula-score {
+  height: 0.45rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+.aula-bar i,
+.aula-score i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transform-origin: left center;
+  animation: aula-grow 1.2s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both;
+}
+.aula-fact {
+  border-radius: 1.1rem;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.85rem 1rem;
+}
+.aula-fact dt {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.aula-fact dd {
+  margin-top: 0.3rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.aula-ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  flex-shrink: 0;
+}
+.aula-ring svg { transform: rotate(-90deg); }
+.aula-ring circle { fill: none; stroke-width: 6; }
+.aula-ring-track { stroke: rgba(255, 255, 255, 0.14); }
+.aula-ring-value {
+  stroke: var(--accent);
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.4s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: aula-ring 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
+.aula-ring span {
+  position: absolute;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.aula-card,
+.aula-verse {
+  border-radius: var(--aula-radius);
+  border: 1px solid color-mix(in srgb, var(--ink) 7%, transparent);
+  background: #fff;
+  padding: 1.5rem;
+  box-shadow: 0 18px 50px -38px rgba(42, 39, 36, 0.35);
+}
+@media (min-width: 768px) {
+  .aula-card, .aula-verse { padding: 1.8rem; }
+}
+.aula-score { background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.aula-score i { animation-delay: calc(var(--n, 0) * 90ms + 0.45s); }
+.aula-score i[data-low] { background: #c0392b; }
+
+.aula-verse {
+  display: flex;
+  flex-direction: column;
+  background:
+    radial-gradient(90% 70% at 0% 100%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
+    #fff;
+}
+.aula-verse-text {
+  margin-top: 1rem;
+  font-family: var(--font-heading, inherit);
+  font-size: clamp(1.35rem, 2.6vw, 1.75rem);
+  line-height: 1.32;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+.aula-verse-text span {
+  display: inline;
+  animation: aula-word 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--w, 0) * 38ms + 80ms);
+}
+.aula-verse-ref {
+  margin-top: 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  animation: aula-rise 0.6s ease 0.5s both;
+}
+.aula-chip,
+.aula-amen {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  background: #fff;
+  padding: 0.5rem 0.95rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, transform 0.15s ease;
+}
+.aula-chip:hover,
+.aula-amen:hover { border-color: color-mix(in srgb, var(--ink) 28%, transparent); }
+.aula-chip:active,
+.aula-amen:active { transform: scale(0.96); }
+.aula-amen[data-on] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.aula-amen-heart {
+  display: inline-block;
+  color: var(--accent);
+}
+.aula-amen[data-on] .aula-amen-heart {
+  color: #fff;
+  animation: aula-heart 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.aula-route {
+  display: grid;
+  gap: 0;
+}
+.aula-route li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.2rem minmax(0, 1fr);
+  gap: 0.9rem;
+  padding-bottom: 1.1rem;
+}
+.aula-route li:last-child { padding-bottom: 0; }
+.aula-route li:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: calc(1.1rem - 1px);
+  top: 2.3rem;
+  bottom: 0.15rem;
+  width: 2px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ink) 9%, transparent);
+}
+.aula-route li[data-state="done"]::before { background: var(--accent); }
+.aula-route-node {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--ink) 12%, transparent);
+  background: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+.aula-route li[data-state="done"] .aula-route-node {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.aula-route li[data-state="current"] .aula-route-node {
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
+  animation: aula-pulse 2.2s ease-out infinite;
+}
+.aula-route li[data-state="next"] { opacity: 0.62; }
+
+.aula-notice {
+  border-radius: 1.4rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 7%, transparent);
+  border-left: 4px solid #3b7ea8;
+  background: #fff;
+  padding: 1.15rem 1.25rem;
+}
+.aula-notice[data-tone="importante"] { border-left-color: var(--accent); }
+.aula-notice[data-tone="celebracion"] { border-left-color: #3d8a5a; }
+.aula-tone {
+  border-radius: 999px;
+  background: #e5f0f7;
+  padding: 0.2rem 0.6rem;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #28516b;
+}
+[data-tone="importante"] .aula-tone { background: color-mix(in srgb, var(--accent) 14%, #fff); color: var(--accent); }
+[data-tone="celebracion"] .aula-tone { background: #e6f3ea; color: #2f6b45; }
+
+.aula-reading {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  border-radius: 1.4rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 7%, transparent);
+  background: #fff;
+  padding: 1.1rem;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+}
+.aula-reading:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px -28px rgba(42, 39, 36, 0.45);
+}
+.aula-pdf {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 3.1rem;
+  flex-shrink: 0;
+  border-radius: 0.6rem;
+  background: color-mix(in srgb, var(--accent) 13%, #fff);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.aula-toasts {
+  position: fixed;
+  top: 4.6rem;
+  right: 1rem;
+  left: 1rem;
+  z-index: 60;
+  display: grid;
+  gap: 0.6rem;
+  pointer-events: none;
+}
+@media (min-width: 640px) {
+  .aula-toasts { left: auto; width: 23rem; }
+}
+.aula-toast {
+  pointer-events: auto;
+  border-radius: 1.2rem;
+  border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
+  border-left: 4px solid #3b7ea8;
+  background: #fff;
+  padding: 0.95rem 0.9rem 0.95rem 1rem;
+  box-shadow: 0 24px 60px rgba(23, 24, 28, 0.2);
+  animation: aula-toast 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 160ms);
+}
+.aula-toast[data-tone="importante"] { border-left-color: var(--accent); }
+.aula-toast[data-tone="celebracion"] { border-left-color: #3d8a5a; }
+.aula-toast-icon {
+  display: grid;
+  place-items: center;
+  width: 2.2rem;
+  height: 2.2rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, #fff);
+  color: var(--accent);
+  animation: aula-ring-bell 1.2s ease 0.6s 2;
+  transform-origin: 50% 10%;
+}
+
+.aula-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+.aula-modal-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 16, 14, 0.55);
+  backdrop-filter: blur(3px);
+  animation: aula-fade 0.25s ease both;
+}
+.aula-viewer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(980px, 100%);
+  height: min(88vh, 1000px);
+  overflow: hidden;
+  border-radius: 1.4rem;
+  background: #fff;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.35);
+  animation: aula-zoom 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.aula-dialog {
+  position: relative;
+  width: min(26rem, 100%);
+  border-radius: 1.4rem;
+  background: #fff;
+  padding: 1.5rem;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.3);
+  animation: aula-zoom 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes aula-rise { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+@keyframes aula-word { from { opacity: 0; filter: blur(4px); } to { opacity: 1; filter: none; } }
+@keyframes aula-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes aula-ring { from { stroke-dashoffset: 188.5; } }
+@keyframes aula-pop { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes aula-drop { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes aula-toast { from { opacity: 0; transform: translateX(24px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes aula-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes aula-zoom { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes aula-heart { 0% { transform: scale(1); } 40% { transform: scale(1.6); } 100% { transform: scale(1); } }
+@keyframes aula-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); }
+  70% { box-shadow: 0 0 0 10px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+@keyframes aula-ring-bell {
+  0%, 100% { transform: rotate(0); }
+  15% { transform: rotate(14deg); }
+  30% { transform: rotate(-12deg); }
+  45% { transform: rotate(8deg); }
+  60% { transform: rotate(-5deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aula-in,
+  .aula-verse-text span,
+  .aula-verse-ref,
+  .aula-bar i,
+  .aula-score i,
+  .aula-ring-value,
+  .aula-toast,
+  .aula-toast-icon,
+  .aula-route li[data-state="current"] .aula-route-node {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+  }
+}

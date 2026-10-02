@@ -3,12 +3,15 @@
 namespace Tests\Feature;
 
 use App\Domain\Access\Permissions;
+use App\Domain\Inbox\Inbox;
 use App\Domain\Inbox\NetworkRoute;
 use App\Domain\Shared\Enums\Role;
 use App\Models\BaptismRegistration;
 use App\Models\PrayerRequest;
 use App\Models\PushSubscription;
 use App\Models\User;
+use App\Models\VisitPlan;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia;
@@ -107,8 +110,31 @@ class WebInboxTest extends TestCase
                     ->where('rows.0.network.label', 'RED I')
                     ->where('rows.1.network.label', 'RED H')
                     ->where('rows.1.service', 'Domingos 10:00 a.m.')
+                    ->where('rows.1.region', 'Lambayeque')
+                    ->where('rows.1.visit_date', fn (string $date) => CarbonImmutable::parse($date)->isSunday())
                     ->has('tabs', 4));
         }
+    }
+
+    public function test_the_notification_names_the_service_and_the_place_only_when_given(): void
+    {
+        $this->visit('Rosa', 15, 'Soltero(a)');
+        $this->postJson(self::SITE.'/visita', [
+            'first_name' => 'Luis',
+            'last_name' => 'Ramos',
+            'phone_code' => '51',
+            'phone' => '912345678',
+            'sex' => 'Masculino',
+            'age' => 33,
+            'marital_status' => 'Casado(a)',
+            'service' => 'Miércoles 8:00 p.m.',
+        ])->assertOk();
+
+        [$withPlace, $withoutPlace] = VisitPlan::query()->orderBy('created_at')->get()->all();
+
+        $this->assertSame('Nueva visita planificada · RED H', Inbox::headline('visitas', $withPlace)['title']);
+        $this->assertSame('Rosa Díaz, 15 años · Domingos 10:00 a.m. · Lambayeque', Inbox::headline('visitas', $withPlace)['body']);
+        $this->assertSame('Luis Ramos, 33 años · Miércoles 8:00 p.m.', Inbox::headline('visitas', $withoutPlace)['body']);
     }
 
     public function test_superadmin_sees_every_tab(): void

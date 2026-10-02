@@ -95,18 +95,24 @@ class AccesoController extends Controller
 
     public function destroy(Request $request): RedirectResponse
     {
+        $student = Permissions::isStudent($request->user());
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login');
+        return $student ? redirect('/estudios/acceso') : redirect()->route('login');
     }
 
     /** Each account signs in only through its own door, and on the admin site only with its own option. */
     private function ensureDoor(Request $request, User $user): void
     {
+        if (Permissions::isStudent($user) && Entrance::isAdminHost($request)) {
+            throw ValidationException::withMessages([
+                'username' => 'Las cuentas de estudiante ingresan desde la web de la iglesia: '.Entrance::siteLabel().'/estudios/acceso.',
+            ]);
+        }
         if (! Entrance::isAdminHost($request)) {
-            if (! Permissions::isServer($user)) {
+            if (! Permissions::isServer($user) && ! Permissions::isStudent($user)) {
                 throw ValidationException::withMessages([
                     'username' => 'Esta es una cuenta de administración. Ingresa desde '.Entrance::adminLabel().'.',
                 ]);

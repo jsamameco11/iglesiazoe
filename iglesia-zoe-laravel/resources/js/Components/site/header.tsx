@@ -28,8 +28,11 @@ function useNavLinks() {
   const serve: NavLink[] = [
     { href: "/involucrate", label: t("nav.serve"), note: t("nav.areasNote") },
     { href: "/involucrate#registro", label: t("nav.register"), note: t("nav.registerNote") },
-    { href: "/ruta-del-servidor", label: t("nav.route"), note: t("nav.routeNote") },
     { href: "/bautismos", label: t("nav.baptism"), note: t("nav.baptismNote") },
+  ];
+  const studies: NavLink[] = [
+    { href: "/ruta-del-servidor", label: t("nav.route"), note: t("nav.routeNote") },
+    { href: "/estudios/acceso", label: t("nav.studentAccess"), note: t("nav.studentAccessNote") },
   ];
   const resources: NavLink[] = [
     { href: "/galeria", label: t("nav.gallery"), note: t("nav.galleryNote") },
@@ -41,12 +44,13 @@ function useNavLinks() {
     { href: "/conocenos", label: t("nav.about"), note: t("nav.aboutNote") },
     { href: "/ministerios", label: t("nav.ministries"), note: t("nav.ministriesNote") },
     ...serve,
+    ...studies,
     { href: "/eventos", label: t("nav.events"), note: t("nav.eventsNote") },
     ...resources,
     { href: "/contacto", label: t("nav.prayer"), note: t("nav.prayerNote") },
     { href: "/dar", label: t("nav.give"), note: t("nav.giveNote") },
   ];
-  return { serve, resources, mobile };
+  return { serve, studies, resources, mobile };
 }
 
 type MegaItem = { href: string; title: string; note: string | null };
@@ -176,7 +180,7 @@ function HeaderBar({
 }) {
   const t = useCopy();
   const areas = useServeAreas().filter((area) => area.accepts_volunteers);
-  const { serve, resources } = useNavLinks();
+  const { serve, studies, resources } = useNavLinks();
   const here = (prefix: string) => pathname === prefix || pathname.startsWith(prefix + "/");
   const current = (prefix: string) => (here(prefix) ? "nav-current" : "");
   const ghostTab = ghost ? -1 : undefined;
@@ -213,6 +217,7 @@ function HeaderBar({
         ) : (
           <NavDrop label={t("nav.serve")} href="/involucrate" links={serve} ghost={ghost} active={serve.some((link) => here(link.href))} />
         )}
+        <NavDrop label={t("nav.studies")} href="/ruta-del-servidor" links={studies} ghost={ghost} active={studies.some((link) => here(link.href))} />
         <Link href="/eventos" className={`transition hover:opacity-60 ${current("/eventos")}`} tabIndex={ghostTab}>{t("nav.events")}</Link>
         <NavDrop label={t("nav.resources")} href="/galeria" links={resources} ghost={ghost} active={resources.some((link) => here(link.href))} />
         <Link href="/contacto" className={`transition hover:opacity-60 ${current("/contacto")}`} tabIndex={ghostTab}>{t("nav.prayer")}</Link>

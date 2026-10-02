@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Access\Actions\CreateAccount;
 use App\Domain\Access\Permissions;
+use App\Domain\Shared\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Models\Cell;
 use App\Models\Network;
@@ -18,7 +19,7 @@ class TeamController extends Controller
     public function index(Request $request): Response
     {
         $networks = Network::query()->orderBy('code')->get(['id', 'code', 'name']);
-        $users = User::query()->with(['network', 'cells'])->orderByRaw("case when role = 'superadmin' then 0 else 1 end")->orderBy('name')->get();
+        $users = User::query()->with(['network', 'cells'])->where('role', '!=', Role::Student->value)->orderByRaw("case when role = 'superadmin' then 0 else 1 end")->orderBy('name')->get();
 
         return Inertia::render('Admin/Equipo', [
             'catalog' => Permissions::catalogPayload(),

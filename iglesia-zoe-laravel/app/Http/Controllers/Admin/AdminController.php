@@ -10,6 +10,7 @@ use App\Domain\Media\Actions\ManageSiteMedia;
 use App\Domain\Media\Support\MediaLibrary;
 use App\Domain\Reports\Support\Period;
 use App\Domain\Reports\Support\WeekCalendar;
+use App\Domain\Shared\Enums\Role;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Support\YouTube;
 use App\Http\Controllers\Controller;
@@ -21,6 +22,7 @@ use App\Models\Ministry;
 use App\Models\Report;
 use App\Models\Sermon;
 use App\Models\SiteSetting;
+use App\Models\StudyStudent;
 use App\Models\Theme;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -51,7 +53,7 @@ class AdminController extends Controller
             'sent' => $reports ? Report::query()->where('year', $now['year'])->where('week', $now['week'])
                 ->when($cellIds !== null, fn ($query) => $query->whereIn('cell_id', $cellIds ?: [CellScope::NONE])) : null,
             'activeCells' => $reports && $cellIds === null ? Cell::query()->where('active', true) : null,
-            'users' => $user->isSuperadmin() ? User::query() : null,
+            'users' => $user->isSuperadmin() ? User::query()->where('role', '!=', Role::Student->value) : null,
             'myExpenses' => ! $user->isSuperadmin() && $can('expenses.manage') ? $mine() : null,
             'cells' => $can('servers.create') ? Cell::query()->where('active', true)->when($tree !== null, fn ($query) => $query->whereIn('id', $tree ?: [CellScope::NONE])) : null,
             'themes' => $can('themes.manage') || $can('content.manage') ? Theme::query()->where('active', true) : null,
@@ -86,6 +88,10 @@ class AdminController extends Controller
         if ($can('themes.manage') || $can('content.manage')) {
             $latest = Theme::query()->where('active', true)->orderByDesc('theme_date')->first();
             $cards[] = ['label' => 'Temas de célula', 'value' => (string) $counts['themes'], 'href' => '/admin/temas', 'note' => $latest ? 'Último: '.$latest->title : 'Aún no hay temas', 'accent' => 'bg-blush'];
+        }
+        if ($can('studies.grades') || $can('studies.board')) {
+            $students = StudyStudent::query()->where('status', 'cursando')->count();
+            $cards[] = ['label' => 'Ruta del Servidor', 'value' => $students.' '.($students === 1 ? 'estudiante' : 'estudiantes'), 'href' => $can('studies.grades') ? '/admin/estudios' : '/admin/estudios/avisos', 'note' => 'Cursando un nivel ahora', 'accent' => 'bg-sky'];
         }
         $inboxAccents = ['visitas' => 'bg-dusk', 'bautismos' => 'bg-clay', 'oraciones' => 'bg-sky', 'servidores' => 'bg-sage'];
         foreach ($unread as $kind => $count) {

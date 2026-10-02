@@ -8,6 +8,7 @@ enum Role: string
     case Admin = 'admin';
     case RedLeader = 'red_leader';
     case CellLeader = 'cell_leader';
+    case Student = 'student';
 
     public function isSuperadmin(): bool
     {

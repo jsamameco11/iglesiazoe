@@ -20,6 +20,10 @@ class Permissions
         'content.manage' => ['group' => 'Página web', 'title' => 'Textos y secciones', 'text' => 'Edita textos, ministerios, prédicas, fechas de bautismo y temas.'],
         'generosity.manage' => ['group' => 'Página web', 'title' => 'Datos de generosidad', 'text' => 'Edita cuentas y medios de pago visibles en la web.'],
         'notices.manage' => ['group' => 'Página web', 'title' => 'Indicaciones de la semana', 'text' => 'Publica el aviso emergente que ven los servidores al entrar a /acceso: título, vigencia y todos los puntos de la semana.'],
+        'events.manage' => ['group' => 'Página web', 'title' => 'Eventos', 'text' => 'Publica, edita y oculta los eventos de la iglesia con fecha, hora, lugar e imagen.'],
+        'devotionals.manage' => ['group' => 'Página web', 'title' => 'Devocionales', 'text' => 'Escribe y programa los devocionales que la iglesia lee en /devocionales.'],
+        'studies.grades' => ['group' => 'Estudios · Ruta del Servidor', 'title' => 'Estudiantes, niveles y notas', 'text' => 'Crea las cuentas de los estudiantes, los ubica en su nivel, define fechas y horario de cada nivel y registra sus notas.'],
+        'studies.board' => ['group' => 'Estudios · Ruta del Servidor', 'title' => 'Avisos, versículos y lecturas', 'text' => 'Publica los avisos que aparecen en el aula, los versículos y textos de ánimo y las lecturas en PDF.'],
         'expenses.manage' => ['group' => 'Atmósfera', 'title' => 'Gastos y compras', 'text' => 'Registra compras con foto de la boleta o factura, detalle y monto.'],
         'inbox.visits' => ['group' => 'Formularios de la web', 'title' => 'Visitas planificadas', 'text' => 'Ve a cada persona que planifica su visita, con la red que le corresponde, y recibe una notificación al instante.'],
         'inbox.baptisms' => ['group' => 'Formularios de la web', 'title' => 'Inscripciones de bautismo', 'text' => 'Ve a cada persona que se inscribe para bautizarse, con la red que le corresponde, y recibe una notificación al instante.'],
@@ -29,6 +33,8 @@ class Permissions
 
     public const INBOX = ['inbox.visits', 'inbox.baptisms', 'inbox.prayers', 'inbox.serve'];
 
+    public const STUDIES = ['studies.grades', 'studies.board'];
+
     public const TYPES = [
         'red' => [
             'label' => 'Servidor de Red',
@@ -37,8 +43,8 @@ class Permissions
         ],
         'visuales' => [
             'label' => 'Visuales · Multimedia',
-            'text' => 'Todo lo de la página web: imágenes, videos, textos, formas, colores, tipografías, datos de generosidad, las indicaciones de la semana y los formularios de la web.',
-            'permissions' => ['design.manage', 'media.manage', 'content.manage', 'generosity.manage', 'notices.manage', ...self::INBOX],
+            'text' => 'Todo lo de la página web: imágenes, videos, textos, formas, colores, tipografías, eventos, devocionales, datos de generosidad, las indicaciones de la semana, los formularios de la web y el aula de la Ruta del Servidor.',
+            'permissions' => ['design.manage', 'media.manage', 'content.manage', 'generosity.manage', 'notices.manage', 'events.manage', 'devotionals.manage', ...self::STUDIES, ...self::INBOX],
         ],
         'celula' => [
             'label' => 'Servidor de Célula',
@@ -47,8 +53,14 @@ class Permissions
         ],
         'atmosfera' => [
             'label' => 'Servidor Atmósfera',
-            'text' => 'Registra los gastos y compras de la iglesia con su boleta o factura y recibe los formularios de la web.',
-            'permissions' => ['expenses.manage', ...self::INBOX],
+            'text' => 'Registra los gastos y compras de la iglesia, publica los eventos, lleva las notas y el aula de la Ruta del Servidor y recibe los formularios de la web.',
+            'permissions' => ['expenses.manage', 'events.manage', ...self::STUDIES, ...self::INBOX],
+        ],
+        'estudios' => [
+            'label' => 'Maestro · Ruta del Servidor',
+            'text' => 'Solo el aula de la Ruta del Servidor: estudiantes, niveles, notas, avisos, versículos y lecturas en PDF.',
+            'permissions' => self::STUDIES,
+            'exclusive' => true,
         ],
         'temas' => [
             'label' => 'Temas de célula',
@@ -119,6 +131,9 @@ class Permissions
         if (self::isSuperadmin($user)) {
             return self::keys();
         }
+        if (self::isStudent($user)) {
+            return [];
+        }
 
         return self::clean(is_array($user->permissions) ? $user->permissions : []);
     }
@@ -148,10 +163,16 @@ class Permissions
         return self::roleOf($user) === Role::Superadmin;
     }
 
+    /** Students of La Ruta del Servidor sign in from the church site and only see their classroom. */
+    public static function isStudent(?User $user): bool
+    {
+        return $user !== null && self::roleOf($user) === Role::Student;
+    }
+
     /** Servers (célula, hijo, red) sign in from the church site. */
     public static function isServer(?User $user): bool
     {
-        if (! $user || self::isSuperadmin($user)) {
+        if (! $user || self::isSuperadmin($user) || self::isStudent($user)) {
             return false;
         }
         if (in_array(self::roleOf($user), [Role::RedLeader, Role::CellLeader], true)) {
@@ -173,7 +194,7 @@ class Permissions
         if (self::isSuperadmin($user)) {
             return true;
         }
-        if (in_array(self::roleOf($user), [Role::RedLeader, Role::CellLeader], true)) {
+        if (in_array(self::roleOf($user), [Role::RedLeader, Role::CellLeader, Role::Student], true)) {
             return false;
         }
         $types = self::cleanTypes(is_array($user->admin_types) ? $user->admin_types : []);
@@ -192,6 +213,9 @@ class Permissions
     {
         if (self::isSuperadmin($user)) {
             return 'SUPERADMI';
+        }
+        if (self::isStudent($user)) {
+            return 'ESTUDIANTE';
         }
         $types = self::cleanTypes(is_array($user?->admin_types) ? $user->admin_types : []);
         if (! $types) {

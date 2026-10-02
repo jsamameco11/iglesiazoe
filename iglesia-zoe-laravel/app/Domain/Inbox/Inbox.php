@@ -105,6 +105,7 @@ final class Inbox
                     'city' => $row->city,
                     'district' => $row->district,
                     'service' => $row->service,
+                    'visit_date' => $row->visit_date?->toDateString(),
                 ],
                 'bautismos' => [
                     ...$base,
@@ -141,10 +142,27 @@ final class Inbox
         $who = trim($row->full_name.($row->age ? ", {$row->age} años" : ''));
 
         return match ($kind) {
-            'visitas' => ['title' => "Nueva visita planificada · {$route['label']}", 'body' => $who.($row->service ? " · {$row->service}" : '')],
+            'visitas' => [
+                'title' => "Nueva visita planificada · {$route['label']}",
+                'body' => implode(' · ', array_filter([$who, $row->service, self::place($row)])),
+            ],
             'bautismos' => ['title' => "Nueva inscripción de bautismo · {$route['label']}", 'body' => $who],
             'oraciones' => ['title' => "Nueva petición de oración · {$route['label']}", 'body' => $who.($row->topic ? " · {$row->topic}" : '')],
             'servidores' => ['title' => "Quiere servir en {$row->area_name} · {$route['label']}", 'body' => $who.($row->team ? " · {$row->team}" : '')],
         };
+    }
+
+    /** "Chiclayo, Lambayeque" for Peru, "Bogotá, Colombia" abroad; null when the person did not say. */
+    private static function place(Model $row): ?string
+    {
+        if (! $row->country_code) {
+            return null;
+        }
+        $local = $row->district ?: ($row->city ?: $row->region);
+        $country = strtoupper($row->country_code) === 'PE'
+            ? ($local && $row->region && $local !== $row->region ? $row->region : null)
+            : (array_column(GeoDirectory::countries(), 'name', 'code')[$row->country_code] ?? $row->country_code);
+
+        return implode(', ', array_filter([$local, $country])) ?: null;
     }
 }

@@ -12,25 +12,25 @@ export function photoFallback(event: SyntheticEvent<HTMLImageElement>) {
   if (!img.src.endsWith(SERVE_FALLBACK)) img.src = SERVE_FALLBACK;
 }
 
-/** Centres and widths in % of the stage; neighbours keep a clear gap so the five visible photos never overlap. */
+/** Centres and widths in % of the stage: the two photos beside the featured one tuck a few % under its frame. */
 const slots = {
   wide: {
-    [-3]: { x: "-12%", w: "17%", o: 0, z: 0 },
-    [-2]: { x: "8.8%", w: "17%", o: 1, z: 2 },
-    [-1]: { x: "27.4%", w: "17%", o: 1, z: 3 },
-    [0]: { x: "50%", w: "25%", o: 1, z: 6 },
-    [1]: { x: "72.6%", w: "17%", o: 1, z: 3 },
-    [2]: { x: "91.2%", w: "17%", o: 1, z: 2 },
-    [3]: { x: "112%", w: "17%", o: 0, z: 0 },
+    [-3]: { x: "-10%", w: "17%", o: 0, z: 0 },
+    [-2]: { x: "10%", w: "17%", o: 1, z: 2 },
+    [-1]: { x: "29%", w: "19%", o: 1, z: 3 },
+    [0]: { x: "50%", w: "31%", o: 1, z: 6 },
+    [1]: { x: "71%", w: "19%", o: 1, z: 3 },
+    [2]: { x: "90%", w: "17%", o: 1, z: 2 },
+    [3]: { x: "110%", w: "17%", o: 0, z: 0 },
   },
   narrow: {
-    [-3]: { x: "-46%", w: "30%", o: 0, z: 0 },
-    [-2]: { x: "-26%", w: "30%", o: 0, z: 1 },
-    [-1]: { x: "8%", w: "30%", o: 1, z: 3 },
-    [0]: { x: "50%", w: "50%", o: 1, z: 6 },
-    [1]: { x: "92%", w: "30%", o: 1, z: 3 },
-    [2]: { x: "126%", w: "30%", o: 0, z: 1 },
-    [3]: { x: "146%", w: "30%", o: 0, z: 0 },
+    [-3]: { x: "-50%", w: "32%", o: 0, z: 0 },
+    [-2]: { x: "-30%", w: "32%", o: 0, z: 1 },
+    [-1]: { x: "13%", w: "32%", o: 1, z: 3 },
+    [0]: { x: "50%", w: "56%", o: 1, z: 6 },
+    [1]: { x: "87%", w: "32%", o: 1, z: 3 },
+    [2]: { x: "130%", w: "32%", o: 0, z: 1 },
+    [3]: { x: "150%", w: "32%", o: 0, z: 0 },
   },
 } as const;
 
@@ -58,7 +58,7 @@ function RailTitle({ text }: { text: string }) {
 }
 
 /** «Somos una iglesia que está en movimiento»: one photo per área de servicio, the active one raised with its button below. */
-export function ServeRail({ title, text, areas, interval = 5000 }: { title: string; text?: string; areas: ServeArea[]; interval?: number }) {
+export function ServeRail({ title, text, areas, interval = 3500 }: { title: string; text?: string; areas: ServeArea[]; interval?: number }) {
   const t = useCopy();
   const [active, setActive] = useState(0);
   const [wide, setWide] = useState(true);
@@ -90,11 +90,11 @@ export function ServeRail({ title, text, areas, interval = 5000 }: { title: stri
   }, []);
 
   useEffect(() => {
-    if (count < 2 || paused || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const id = window.setTimeout(() => {
+    if (count < 2 || paused) return;
+    const id = window.setInterval(() => {
       if (document.visibilityState === "visible") go(1);
     }, interval);
-    return () => window.clearTimeout(id);
+    return () => window.clearInterval(id);
   }, [active, paused, count, interval]);
 
   if (!current) return null;
@@ -117,9 +117,7 @@ export function ServeRail({ title, text, areas, interval = 5000 }: { title: stri
       className="serve-rail"
       aria-roledescription="carrusel"
       aria-label={title.replace(/\*/g, "")}
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onFocus={() => setPaused(true)}
+      onFocus={(event) => event.target.matches(":focus-visible") && setPaused(true)}
       onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && setPaused(false)}
     >
       <Rise>
