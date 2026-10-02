@@ -212,6 +212,44 @@
 .radio-tag[data-kind="programa"] { background: #e3ecff; color: #2a4fa8; }
 .radio-tag[data-kind="efecto"] { background: #efe4ff; color: #6a3fb4; }
 
+/* ---------- Radio · portada ---------- */
+.home-radio {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 2rem;
+  background: #0f1012;
+  color: #fff;
+  padding: 2.5rem 1.5rem;
+}
+@media (min-width: 768px) {
+  .home-radio { padding: 3.5rem; }
+}
+@media (min-width: 1024px) {
+  .home-radio { padding: 4.5rem; }
+}
+.home-radio::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(40rem 22rem at 90% 0%, color-mix(in srgb, var(--accent) 34%, transparent), transparent 70%),
+    linear-gradient(160deg, rgba(15, 16, 18, 0.5), #0f1012 85%);
+}
+.home-radio-grid {
+  display: grid;
+  gap: 2.5rem;
+  align-items: center;
+}
+@media (min-width: 1024px) {
+  .home-radio-grid { grid-template-columns: 1fr minmax(0, 28rem); gap: 4rem; }
+}
+.home-radio .radio-play {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
 /* ---------- Radio · consola del panel ---------- */
 .studio {
   border-radius: 1.8rem;

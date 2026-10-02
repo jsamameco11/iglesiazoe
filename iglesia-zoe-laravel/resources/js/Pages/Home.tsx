@@ -3,11 +3,13 @@ import { EssenceSection } from "@/Components/site/home/essence";
 import { EventsSection } from "@/Components/site/home/events";
 import { GenerationsSection } from "@/Components/site/home/generations";
 import { HomeHero } from "@/Components/site/home/hero";
+import { RadioSection } from "@/Components/site/home/radio";
 import { ResourcesSection } from "@/Components/site/home/resources";
 import { VisitSection } from "@/Components/site/home/visit";
 import { ServeRail } from "@/Components/site/serve-rail";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
+import type { RadioState } from "@/lib/radio";
 import type { ChurchEvent, Ministry, SermonSummary, ServeArea, SiteSettings } from "@/lib/types";
 
 export default function Home({
@@ -16,6 +18,7 @@ export default function Home({
   serveAreas,
   sermons,
   events,
+  radio,
   mediaOverrides,
   skin,
 }: {
@@ -24,6 +27,7 @@ export default function Home({
   serveAreas: ServeArea[];
   sermons: SermonSummary[];
   events: ChurchEvent[];
+  radio: RadioState;
   mediaOverrides: Record<string, MediaAsset>;
   skin: "aire" | "marea";
 }) {
@@ -37,6 +41,7 @@ export default function Home({
       <GenerationsSection settings={settings} ministries={ministries} media={media} />
       <ServeRail title={settings.serveRailTitle} text={settings.serveRailText} areas={serveAreas} />
       <EventsSection settings={settings} events={events} fallback={media.events} />
+      <RadioSection settings={settings} radio={radio} asset={media.radio} />
       <ResourcesSection settings={settings} sermons={sermons} />
       <VisitSection settings={settings} />
     </SiteLayout>
