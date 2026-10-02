@@ -87,7 +87,7 @@ export default function Devotionals({
             </Rise>
             <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {shown.map((item) => (
-                <DevotionalCard key={item.id} item={item} t={t} />
+                <DevotionalCard key={item.id} item={item} cover={media.devotionals.src} t={t} />
               ))}
             </div>
           </section>

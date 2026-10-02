@@ -95,7 +95,7 @@ function DevotionalForm({ devotional, today, site, onDone }: { devotional?: Devo
           {image ? (
             <img src={image} alt="" className="h-full w-full object-cover" />
           ) : (
-            <span className="px-4 text-center text-xs text-muted">Sin imagen. El devocional se mostrará con su versículo destacado.</span>
+            <span className="px-4 text-center text-xs text-muted">Sin imagen propia. Se mostrará la portada de Devocionales (Imágenes y videos).</span>
           )}
         </div>
         <label className="mt-3 block text-sm">

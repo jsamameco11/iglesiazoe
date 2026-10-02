@@ -762,6 +762,18 @@ body {
   text-underline-offset: 7px;
   text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
 }
+.nav-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.nav-radio-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.18);
+}
 .nav-drop {
   transform-origin: top center;
   animation: nav-drop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);

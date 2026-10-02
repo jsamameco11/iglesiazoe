@@ -17,7 +17,7 @@ class EnsureEntrance
 {
     private const PUBLIC_PAGES = [
         'home', 'marea', 'about', 'ministries', 'ministry', 'visit', 'baptisms', 'sermons', 'teachings', 'galleries', 'gallery',
-        'devotionals', 'devotional', 'events', 'serve', 'serve-area', 'give', 'contact', 'server-route', 'studies.login', 'studies.classroom',
+        'devotionals', 'devotional', 'events', 'serve', 'serve-area', 'give', 'contact', 'server-route', 'radio', 'studies.login', 'studies.classroom',
     ];
 
     public function handle(Request $request, Closure $next): Response

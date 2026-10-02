@@ -1,0 +1,416 @@
+import { router } from "@inertiajs/react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { KindTag, RadioHeader, readDuration } from "@/Components/radio/admin-ui";
+import { Notice, Stat, button, ghost, input, useAction } from "@/Components/admin/ui";
+import AdminLayout from "@/Layouts/AdminLayout";
+import { send, type ActionResult } from "@/lib/actions";
+import { duration, longDuration, type RadioTrack } from "@/lib/radio";
+import "../../../../css/radio.css";
+
+type Kind = RadioTrack["kind"];
+
+type Props = { tracks: RadioTrack[]; kinds: Record<Kind, string>; maxMb: number };
+
+type Upload = {
+  key: string;
+  file: File;
+  title: string;
+  artist: string;
+  kind: Kind;
+  rotation: boolean;
+  duration: number | null;
+  progress: number;
+  status: "ready" | "reading" | "uploading" | "done" | "error";
+  error?: string;
+};
+
+const ACCEPT = ".mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.webm,.flac,audio/*";
+
+function csrf() {
+  return document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
+}
+
+function upload(data: FormData, onProgress: (value: number) => void) {
+  return new Promise<ActionResult>((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/admin/radio/biblioteca");
+    xhr.setRequestHeader("X-CSRF-TOKEN", csrf());
+    xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.upload.onprogress = (event) => event.lengthComputable && onProgress(event.loaded / event.total);
+    xhr.onload = () => {
+      let body: ActionResult = {};
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        /* non-JSON error page */
+      }
+      if (xhr.status === 413) resolve({ error: "El archivo es demasiado grande para el servidor." });
+      else if (xhr.status >= 400 && !body.error) resolve({ error: body.message ? String(body.message) : "No se pudo subir el audio." });
+      else resolve(body);
+    };
+    xhr.onerror = () => resolve({ error: "Se cortó la conexión mientras subía el audio." });
+    xhr.send(data);
+  });
+}
+
+function cleanTitle(name: string) {
+  return name
+    .replace(/\.[^.]+$/, "")
+    .replace(/[_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 160);
+}
+
+function guessArtist(title: string): [string, string] {
+  const parts = title.split(/\s+-\s+/);
+  return parts.length === 2 ? [parts[1].trim(), parts[0].trim()] : [title, ""];
+}
+
+export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
+  const [tab, setTab] = useState<Kind | "">("");
+  const [query, setQuery] = useState("");
+  const [queue, setQueue] = useState<Upload[]>([]);
+  const [uploadKind, setUploadKind] = useState<Kind>("musica");
+  const [running, setRunning] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [playing, setPlaying] = useState<string | null>(null);
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const picker = useRef<HTMLInputElement>(null);
+
+  useEffect(() => () => audio.current?.pause(), []);
+
+  const music = tracks.filter((track) => track.kind === "musica");
+  const rotation = music.filter((track) => track.rotation && track.active);
+  const shown = tracks.filter((track) => (!tab || track.kind === tab) && `${track.title} ${track.artist ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const kindList = Object.keys(kinds) as Kind[];
+
+  function patch(key: string, values: Partial<Upload>) {
+    setQueue((list) => list.map((item) => (item.key === key ? { ...item, ...values } : item)));
+  }
+
+  function addFiles(files: FileList | null) {
+    if (!files?.length) return;
+    const fresh: Upload[] = Array.from(files).map((file, index) => {
+      const [title, artist] = guessArtist(cleanTitle(file.name));
+      const tooBig = file.size > maxMb * 1024 * 1024;
+      return {
+        key: `${Date.now()}-${index}-${file.name}`,
+        file,
+        title,
+        artist: uploadKind === "musica" ? artist : "",
+        kind: uploadKind,
+        rotation: uploadKind === "musica",
+        duration: null,
+        progress: 0,
+        status: tooBig ? "error" : "reading",
+        error: tooBig ? `Pesa más de ${maxMb} MB. Expórtalo en MP3 (128–192 kbps).` : undefined,
+      };
+    });
+    setQueue((list) => [...list, ...fresh]);
+    fresh
+      .filter((item) => item.status === "reading")
+      .forEach(async (item) => {
+        const seconds = await readDuration(item.file);
+        patch(item.key, seconds ? { duration: seconds, status: "ready" } : { status: "error", error: "No pudimos leer este audio. Prueba con MP3 o M4A." });
+      });
+  }
+
+  async function uploadAll() {
+    setRunning(true);
+    let uploaded = 0;
+    for (const item of queue) {
+      if (item.status !== "ready" || !item.duration) continue;
+      patch(item.key, { status: "uploading", progress: 0 });
+      const data = new FormData();
+      data.set("title", item.title.trim() || cleanTitle(item.file.name));
+      data.set("artist", item.artist);
+      data.set("kind", item.kind);
+      data.set("duration", String(item.duration));
+      if (item.rotation) data.set("rotation", "1");
+      data.set("audio", item.file);
+      const result = await upload(data, (progress) => patch(item.key, { progress }));
+      if (result.error) patch(item.key, { status: "error", error: result.error });
+      else {
+        patch(item.key, { status: "done", progress: 1 });
+        uploaded++;
+      }
+    }
+    setRunning(false);
+    if (uploaded) {
+      router.reload({ only: ["tracks"] });
+      setQueue((list) => list.filter((item) => item.status !== "done"));
+    }
+  }
+
+  function togglePlay(track: RadioTrack) {
+    audio.current ??= new Audio();
+    if (playing === track.id) {
+      audio.current.pause();
+      setPlaying(null);
+      return;
+    }
+    audio.current.src = track.src;
+    audio.current.onended = () => setPlaying(null);
+    void audio.current.play();
+    setPlaying(track.id);
+  }
+
+  const ready = queue.filter((item) => item.status === "ready").length;
+
+  return (
+    <AdminLayout>
+      <RadioHeader
+        title="Biblioteca de audio"
+        text="Todo lo que suena en la radio vive aquí: canciones, anuncios grabados, efectos y cortinas, y programas pregrabados. Las canciones marcadas «en rotación» llenan los espacios libres de la programación."
+      />
+
+      <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Stat label="Audios en la biblioteca" value={tracks.length} />
+        <Stat label="Canciones en rotación" value={rotation.length} note={longDuration(rotation.reduce((sum, track) => sum + track.duration, 0))} tone="bg-[#f4efe6]" />
+        <Stat label="Anuncios y efectos" value={tracks.filter((track) => track.kind === "anuncio" || track.kind === "efecto").length} note="Aparecen como botones en la consola" />
+        <Stat label="Programas grabados" value={tracks.filter((track) => track.kind === "programa").length} />
+      </div>
+
+      <section
+        className="mt-6 rounded-[1.6rem] border-2 border-dashed border-line bg-card p-5 transition md:p-6"
+        onDragOver={(event) => event.preventDefault()}
+        onDrop={(event) => {
+          event.preventDefault();
+          addFiles(event.dataTransfer.files);
+        }}
+      >
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold tracking-[-0.025em]">Subir audios</h2>
+            <p className="mt-1 text-[13px] leading-5 text-muted">Arrastra aquí varios archivos o elígelos. MP3, M4A, AAC, OGG, OPUS, WAV o FLAC · hasta {maxMb} MB cada uno.</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <select value={uploadKind} onChange={(event) => setUploadKind(event.target.value as Kind)} className={`${input} !mt-0 !w-auto`}>
+              {kindList.map((kind) => (
+                <option key={kind} value={kind}>Subir como: {kinds[kind]}</option>
+              ))}
+            </select>
+            <button type="button" onClick={() => picker.current?.click()} className={button}>Elegir archivos</button>
+            <input
+              ref={picker}
+              type="file"
+              accept={ACCEPT}
+              multiple
+              hidden
+              onChange={(event) => {
+                addFiles(event.target.files);
+                event.target.value = "";
+              }}
+            />
+          </div>
+        </div>
+
+        {queue.length ? (
+          <div className="mt-5 space-y-2">
+            {queue.map((item) => (
+              <div key={item.key} className="grid gap-2 rounded-2xl border border-line bg-white p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_10rem_auto_auto] md:items-center">
+                <input value={item.title} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { title: event.target.value })} className={`${input} !mt-0`} placeholder="Título" maxLength={160} />
+                <input value={item.artist} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { artist: event.target.value })} className={`${input} !mt-0`} placeholder="Artista (opcional)" maxLength={120} />
+                <select value={item.kind} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { kind: event.target.value as Kind, rotation: event.target.value === "musica" })} className={`${input} !mt-0`}>
+                  {kindList.map((kind) => (
+                    <option key={kind} value={kind}>{kinds[kind]}</option>
+                  ))}
+                </select>
+                <label className={`flex items-center gap-2 text-xs ${item.kind === "musica" ? "" : "invisible"}`}>
+                  <input type="checkbox" checked={item.rotation} onChange={(event) => patch(item.key, { rotation: event.target.checked })} /> En rotación
+                </label>
+                <div className="flex items-center justify-end gap-3 text-xs">
+                  <span className="font-mono tabular-nums text-muted">{item.duration ? duration(item.duration) : "--:--"}</span>
+                  {item.status === "uploading" || item.status === "done" ? (
+                    <span className="w-20 overflow-hidden rounded-full bg-paper">
+                      <span className="block h-1.5 rounded-full bg-accent transition-[width]" style={{ width: `${Math.round(item.progress * 100)}%` }} />
+                    </span>
+                  ) : (
+                    <button type="button" disabled={running} onClick={() => setQueue((list) => list.filter((entry) => entry.key !== item.key))} className="px-1 text-base text-muted hover:text-red-700" aria-label="Quitar">
+                      ×
+                    </button>
+                  )}
+                </div>
+                {item.status === "error" ? <p className="text-xs font-medium text-red-700 md:col-span-5">{item.file.name}: {item.error}</p> : null}
+                {item.status === "reading" ? <p className="text-xs text-muted md:col-span-5">Leyendo la duración…</p> : null}
+              </div>
+            ))}
+            <div className="flex flex-wrap items-center gap-3 pt-2">
+              <button type="button" disabled={running || ready === 0} onClick={uploadAll} className={button}>
+                {running ? "Subiendo…" : `Subir ${ready} audio${ready === 1 ? "" : "s"}`}
+              </button>
+              <button type="button" disabled={running} onClick={() => setQueue([])} className={ghost}>Limpiar lista</button>
+            </div>
+          </div>
+        ) : null}
+      </section>
+
+      <section className="mt-6 rounded-[1.6rem] border border-line bg-card p-4 md:p-6">
+        <div className="flex flex-wrap items-center gap-2">
+          {(["", ...kindList] as const).map((kind) => (
+            <button
+              key={kind || "all"}
+              type="button"
+              onClick={() => setTab(kind)}
+              className={`rounded-full px-4 py-2 text-xs font-semibold transition ${tab === kind ? "bg-ink text-white" : "bg-paper text-muted hover:text-ink"}`}
+            >
+              {kind ? kinds[kind] : "Todo"} · {kind ? tracks.filter((track) => track.kind === kind).length : tracks.length}
+            </button>
+          ))}
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por título o artista…" className={`${input} !mt-0 ml-auto !w-full sm:!w-64`} />
+        </div>
+
+        {shown.length === 0 ? (
+          <p className="mt-5 rounded-[1.4rem] border border-dashed border-line px-5 py-10 text-center text-sm text-muted">
+            {tracks.length === 0 ? "Aún no hay audios. Sube tus primeras canciones, anuncios y efectos arriba." : "No hay audios con ese filtro."}
+          </p>
+        ) : (
+          <ul className="mt-4 divide-y divide-line">
+            {shown.map((track) => (
+              <TrackRow
+                key={track.id}
+                track={track}
+                kinds={kinds}
+                maxMb={maxMb}
+                playing={playing === track.id}
+                editing={editing === track.id}
+                onPlay={() => togglePlay(track)}
+                onEdit={() => setEditing(editing === track.id ? null : track.id)}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+    </AdminLayout>
+  );
+}
+
+function TrackRow({
+  track,
+  kinds,
+  maxMb,
+  playing,
+  editing,
+  onPlay,
+  onEdit,
+}: {
+  track: RadioTrack;
+  kinds: Record<Kind, string>;
+  maxMb: number;
+  playing: boolean;
+  editing: boolean;
+  onPlay: () => void;
+  onEdit: () => void;
+}) {
+  const { result, setResult, pending, run } = useAction();
+  const [kind, setKind] = useState<Kind>(track.kind);
+  const [file, setFile] = useState<File | null>(null);
+
+  async function save(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    data.set("id", track.id);
+    data.set("active", data.get("active") ? "1" : "0");
+    data.delete("audio");
+    if (file) {
+      if (file.size > maxMb * 1024 * 1024) {
+        setResult({ error: `El audio pesa más de ${maxMb} MB.` });
+        return;
+      }
+      const seconds = await readDuration(file);
+      if (!seconds) {
+        setResult({ error: "No pudimos leer este audio. Prueba con MP3 o M4A." });
+        return;
+      }
+      data.set("audio", file);
+      data.set("duration", String(seconds));
+    }
+    run(
+      () => upload(data, () => undefined).then((response) => {
+        if (response.reload) router.reload({ only: ["tracks"] });
+        return response;
+      }),
+      onEdit,
+    );
+  }
+
+  function remove() {
+    const extra = track.upcoming ? ` También se quitará de ${track.upcoming} bloque(s) programados.` : "";
+    if (!window.confirm(`¿Eliminar «${track.title}» de la biblioteca?${extra}`)) return;
+    run(() => send("/admin/radio/biblioteca/eliminar", { id: track.id }));
+  }
+
+  return (
+    <li className="py-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={onPlay}
+          className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm transition ${playing ? "bg-ink text-white" : "bg-paper text-ink hover:bg-ink hover:text-white"}`}
+          aria-label={playing ? "Detener" : "Escuchar"}
+        >
+          {playing ? "■" : "▶"}
+        </button>
+        <div className="min-w-0 flex-1">
+          <p className={`truncate text-[15px] font-semibold ${track.active ? "" : "text-muted line-through"}`}>{track.title}</p>
+          <p className="truncate text-[12.5px] text-muted">
+            {track.artist ? `${track.artist} · ` : ""}
+            {duration(track.duration)}
+            {track.upcoming ? ` · en ${track.upcoming} bloque(s) programado(s)` : ""}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <KindTag kind={track.kind} label={kinds[track.kind]} />
+          {track.kind === "musica" && track.rotation && track.active ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">En rotación</span> : null}
+          {!track.active ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">Desactivado</span> : null}
+          <button type="button" onClick={onEdit} className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted transition hover:bg-paper hover:text-ink">{editing ? "Cerrar" : "Editar"}</button>
+          <button type="button" disabled={pending} onClick={remove} className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50">Eliminar</button>
+        </div>
+      </div>
+      {editing ? (
+        <form onSubmit={save} className="mt-3 grid gap-3 rounded-2xl border border-line bg-white p-4 md:grid-cols-2">
+          <label className="text-xs font-semibold text-muted">
+            Título
+            <input name="title" defaultValue={track.title} required maxLength={160} className={input} />
+          </label>
+          <label className="text-xs font-semibold text-muted">
+            Artista
+            <input name="artist" defaultValue={track.artist ?? ""} maxLength={120} className={input} />
+          </label>
+          <label className="text-xs font-semibold text-muted">
+            Tipo
+            <select name="kind" value={kind} onChange={(event) => setKind(event.target.value as Kind)} className={input}>
+              {(Object.keys(kinds) as Kind[]).map((value) => (
+                <option key={value} value={value}>{kinds[value]}</option>
+              ))}
+            </select>
+          </label>
+          <label className="text-xs font-semibold text-muted">
+            Reemplazar archivo (opcional)
+            <input type="file" name="audio" accept={ACCEPT} onChange={(event) => setFile(event.target.files?.[0] ?? null)} className={`${input} file:mr-3 file:rounded-full file:border-0 file:bg-paper file:px-3 file:py-1 file:text-xs file:font-semibold`} />
+          </label>
+          <div className="flex flex-wrap gap-5 md:col-span-2">
+            {kind === "musica" ? (
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="rotation" value="1" defaultChecked={track.rotation} /> En rotación (música continua)
+              </label>
+            ) : null}
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="active" value="1" defaultChecked={track.active} /> Activo
+            </label>
+          </div>
+          <div className="md:col-span-2">
+            <Notice result={result} onClose={() => setResult(null)} />
+            <button disabled={pending} className={`${button} mt-2`}>{pending ? "Guardando…" : "Guardar cambios"}</button>
+          </div>
+        </form>
+      ) : result?.error ? (
+        <div className="mt-2">
+          <Notice result={result} onClose={() => setResult(null)} />
+        </div>
+      ) : null}
+    </li>
+  );
+}

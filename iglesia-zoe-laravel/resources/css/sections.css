@@ -401,41 +401,31 @@
   overflow: hidden;
   touch-action: pan-y;
 }
-@property --rail-frame {
-  syntax: "<length>";
-  inherits: true;
-  initial-value: 0px;
-}
-/* Every card sits on the same baseline; the featured one drops by its frame so its paper border wraps the photos tucked behind it. */
+/* Every card sits on the same baseline, side by side with an even gap: no frame, no shadow. */
 .serve-rail-card {
-  --rail-frame: 0px;
-  --rail-ring: 5px;
   --rail-radius: 1.1rem;
   position: absolute;
-  bottom: calc(7% + var(--rail-ring) - var(--rail-frame));
+  bottom: 7%;
   overflow: hidden;
   border: 0;
-  padding: var(--rail-frame);
-  border-radius: calc(var(--rail-radius) + var(--rail-frame));
-  background: var(--paper);
+  padding: 0;
+  border-radius: var(--rail-radius);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
   aspect-ratio: 9 / 8;
   transform: translateX(-50%);
   filter: brightness(0.9) saturate(0.92);
   cursor: pointer;
+  isolation: isolate;
   transition:
     left 0.95s cubic-bezier(0.22, 1, 0.36, 1),
     width 0.95s cubic-bezier(0.22, 1, 0.36, 1),
-    bottom 0.95s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.55s ease,
-    filter 0.6s ease,
-    box-shadow 0.6s ease,
-    --rail-frame 0.6s ease;
+    filter 0.6s ease;
 }
 .serve-rail-card img {
   display: block;
   width: 100%;
   height: 100%;
-  clip-path: inset(0 round var(--rail-radius));
   object-fit: cover;
   object-position: center;
   pointer-events: none;
@@ -445,11 +435,7 @@
   filter: brightness(0.97) saturate(1);
 }
 .serve-rail-card[data-offset="0"] {
-  --rail-frame: var(--rail-ring);
   filter: none;
-  box-shadow:
-    0 1px 0 color-mix(in srgb, var(--ink) 6%, transparent),
-    0 18px 34px -22px rgba(20, 24, 40, 0.5);
 }
 .serve-rail-card[data-offset="0"] img {
   animation: rail-breathe 7s ease-in-out infinite alternate;
@@ -461,20 +447,13 @@
   outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
-/* The clip shrinks as the image scales so the zoom never covers the frame. */
 @keyframes rail-breathe {
-  from {
-    transform: scale(1);
-    clip-path: inset(0 round var(--rail-radius));
-  }
-  to {
-    transform: scale(1.05);
-    clip-path: inset(2.381% round calc(var(--rail-radius) / 1.05));
-  }
+  from { transform: scale(1); }
+  to { transform: scale(1.05); }
 }
 @media (min-width: 768px) {
   .serve-rail-stage { aspect-ratio: 3.3 / 1; }
-  .serve-rail-card { --rail-ring: 8px; --rail-radius: 1.4rem; }
+  .serve-rail-card { --rail-radius: 1.4rem; }
 }
 .serve-rail-caption {
   display: flex;
@@ -1528,6 +1507,23 @@
   background: var(--card);
   padding: 1.6rem;
 }
+.devo-card-photo {
+  display: block;
+  overflow: hidden;
+  margin: -1.6rem -1.6rem 1.4rem;
+  aspect-ratio: 16 / 10;
+  border-radius: 1.5rem 1.5rem 0 0;
+  background: var(--sage);
+}
+.devo-card-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+.devo-card:hover .devo-card-photo img {
+  transform: scale(1.04);
+}
 .devo-card-meta {
   display: block;
   font-size: 0.75rem;
@@ -1677,6 +1673,7 @@
   .gallery-card-photo img,
   .gallery-tile img,
   .devo-feature-photo img,
+  .devo-card-photo img,
   .serve-also,
   .resource-link {
     transition: none;

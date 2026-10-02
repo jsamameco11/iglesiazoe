@@ -47,6 +47,7 @@ function useNavLinks() {
     ...studies,
     { href: "/eventos", label: t("nav.events"), note: t("nav.eventsNote") },
     ...resources,
+    { href: "/radio", label: t("nav.radio"), note: t("nav.radioNote") },
     { href: "/contacto", label: t("nav.prayer"), note: t("nav.prayerNote") },
     { href: "/dar", label: t("nav.give"), note: t("nav.giveNote") },
   ];
@@ -190,7 +191,7 @@ function HeaderBar({
       <Link href={home} className="shrink-0 whitespace-nowrap text-[1.3rem] font-semibold tracking-[-0.03em] text-current" tabIndex={ghostTab}>
         {t("nav.brand")}
       </Link>
-      <nav className="hidden items-center gap-6 text-[15px] font-medium tracking-[-0.01em] text-current xl:flex">
+      <nav className="hidden items-center gap-[1.15rem] text-[15px] font-medium tracking-[-0.01em] text-current xl:flex 2xl:gap-6">
         <Link href="/conocenos" className={`transition hover:opacity-60 ${current("/conocenos")}`} tabIndex={ghostTab}>{t("nav.about")}</Link>
         <MegaDrop
           label={t("nav.ministries")}
@@ -220,6 +221,10 @@ function HeaderBar({
         <NavDrop label={t("nav.studies")} href="/ruta-del-servidor" links={studies} ghost={ghost} active={studies.some((link) => here(link.href))} />
         <Link href="/eventos" className={`transition hover:opacity-60 ${current("/eventos")}`} tabIndex={ghostTab}>{t("nav.events")}</Link>
         <NavDrop label={t("nav.resources")} href="/galeria" links={resources} ghost={ghost} active={resources.some((link) => here(link.href))} />
+        <Link href="/radio" className={`nav-radio transition hover:opacity-60 ${current("/radio")}`} tabIndex={ghostTab}>
+          <span className="nav-radio-dot" aria-hidden />
+          {t("nav.radio")}
+        </Link>
         <Link href="/contacto" className={`transition hover:opacity-60 ${current("/contacto")}`} tabIndex={ghostTab}>{t("nav.prayer")}</Link>
         <Link href="/dar" className={`transition hover:opacity-60 ${current("/dar")}`} tabIndex={ghostTab}>{t("nav.give")}</Link>
       </nav>

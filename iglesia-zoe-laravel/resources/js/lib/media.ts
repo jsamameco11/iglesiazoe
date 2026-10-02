@@ -38,6 +38,7 @@ export type ResolvedMedia = {
   teachings: MediaAsset;
   gallery: MediaAsset;
   devotionals: MediaAsset;
+  radio: MediaAsset;
   serveCover: MediaAsset;
   routeCover: MediaAsset;
   route: (slot: number) => MediaAsset;
@@ -184,6 +185,7 @@ const fixedDefaults: Record<string, MediaAsset> = {
   teachings: image("/images/banner4.jpg", "Enseñanza en Iglesia Cristiana Zoe"),
   gallery: image("/images/banner8.jpg", "Culto de Iglesia Cristiana Zoe"),
   devotionals: image("/images/vida-en-casas.jpg", "Hermanas de Zoe compartiendo la Palabra"),
+  radio: image("/images/banner8.jpg", "Radio Zoe en vivo"),
   "serve-cover": image("/images/banner4.jpg", "Equipo de servicio de Iglesia Cristiana Zoe"),
   "route-cover": image("/images/familia1.jpg", "Grupo celular de Iglesia Cristiana Zoe"),
   ...Object.fromEntries(Array.from({ length: ROUTE_SLOTS }, (_, index) => [`route-${index + 1}`, image(routePool[index] ?? "", `Ruta del servidor · nivel ${index + 1}`)])),
@@ -228,6 +230,7 @@ const fixedCatalog: MediaSlotMeta[] = [
   { id: "teachings", group: "Recursos", label: "Portada", hint: "Imagen de la página de enseñanzas descargables." },
   { id: "gallery", group: "Recursos", label: "Galería de cultos · portada", hint: "Foto grande de la página Galería de cultos. Las fotos de cada culto se suben en la pestaña Galería de cultos." },
   { id: "devotionals", group: "Recursos", label: "Devocionales · portada", hint: "Imagen de la página de devocionales y de los devocionales que no tienen imagen propia." },
+  { id: "radio", group: "Radio", label: "Fondo de la radio", hint: "Se ve difuminada detrás del reproductor de /radio. Usa una foto horizontal de adoración o de cabina." },
   { id: "serve-cover", group: "Involúcrate", label: "Portada", hint: "Foto grande de la página Involúcrate. Ideal: un equipo sirviendo. La foto de cada área se cambia en Involúcrate · áreas." },
   { id: "route-cover", group: "Ruta del servidor", label: "Portada", hint: "Foto grande de la página Ruta del servidor." },
   ...Array.from({ length: ROUTE_SLOTS }, (_, index) => ({
@@ -310,6 +313,7 @@ export function resolveMedia(overrides: Record<string, MediaAsset>): ResolvedMed
     teachings: fixed("teachings"),
     gallery: fixed("gallery"),
     devotionals: fixed("devotionals"),
+    radio: fixed("radio"),
     serveCover: fixed("serve-cover"),
     routeCover: fixed("route-cover"),
     route: (slot) => (fixedDefaults[`route-${slot}`] ? fixed(`route-${slot}`) : image("", "")),

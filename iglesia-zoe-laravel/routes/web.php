@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AccesoController;
+use App\Http\Controllers\Web\RadioController;
 use App\Http\Controllers\Web\SiteController;
 use App\Http\Controllers\Web\StudiesController;
 use App\Http\Middleware\EnsureRole;
@@ -32,6 +33,13 @@ Route::post('/estudios/acceso', [StudiesController::class, 'authenticate']);
 Route::middleware(EnsureRole::class.':student')->group(function () {
     Route::get('/estudios/mi-ruta', [StudiesController::class, 'classroom'])->name('studies.classroom');
     Route::post('/estudios/clave', [StudiesController::class, 'password']);
+});
+Route::get('/radio', [RadioController::class, 'page'])->name('radio');
+Route::middleware('throttle:radio')->prefix('radio')->group(function () {
+    Route::get('/estado', [RadioController::class, 'state']);
+    Route::post('/voz', [RadioController::class, 'voice']);
+    Route::post('/voz/respuesta', [RadioController::class, 'answer']);
+    Route::post('/salir', [RadioController::class, 'leave']);
 });
 Route::get('/dar', [SiteController::class, 'give'])->name('give');
 Route::get('/contacto', [SiteController::class, 'contact'])->name('contact');

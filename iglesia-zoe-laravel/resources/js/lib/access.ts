@@ -15,6 +15,7 @@ export type Permission =
   | "notices.manage"
   | "events.manage"
   | "devotionals.manage"
+  | "radio.manage"
   | "studies.grades"
   | "studies.board"
   | "expenses.manage"

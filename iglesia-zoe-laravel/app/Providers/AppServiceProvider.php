@@ -24,5 +24,6 @@ class AppServiceProvider extends ServiceProvider
     {
         RateLimiter::for('web-forms', fn (Request $request) => Limit::perMinute(6)->by($request->ip())
             ->response(fn () => response()->json(['error' => 'Recibimos varios envíos seguidos. Espera un minuto e inténtalo otra vez.'], 429)));
+        RateLimiter::for('radio', fn (Request $request) => Limit::perMinute(150)->by($request->ip().'|'.$request->input('oyente', $request->query('oyente'))));
     }
 }
