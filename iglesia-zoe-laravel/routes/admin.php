@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\CellsController;
 use App\Http\Controllers\Admin\DesignController;
 use App\Http\Controllers\Admin\ExpensesController;
 use App\Http\Controllers\Admin\FinanceController;
@@ -58,20 +59,19 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::post('/diseno/restaurar', [DesignController::class, 'reset']);
     });
 
-    Route::middleware($can('cells.manage'))->group(function () {
-        Route::get('/celulas', [AdminController::class, 'celulas']);
-        Route::post('/celulas', [AdminController::class, 'saveCell']);
-        Route::post('/celulas/raiz', [AdminController::class, 'createRootCell']);
-        Route::post('/celulas/completar', [AdminController::class, 'ensureSix']);
-        Route::post('/celulas/hija', [AdminController::class, 'createDaughter']);
-        Route::post('/celulas/integrante', [AdminController::class, 'addMember']);
-        Route::post('/celulas/integrante/quitar', [AdminController::class, 'removeMember']);
-    });
-
     Route::middleware($can('servers.create'))->group(function () {
         Route::get('/servidores', [ServersController::class, 'index']);
-        Route::post('/servidores', [ServersController::class, 'storeRoot']);
+        Route::post('/servidores', [ServersController::class, 'storeServer']);
         Route::post('/servidores/hijo', [ServersController::class, 'storeChild']);
+        Route::post('/servidores/cuenta', [ServersController::class, 'storeAccount']);
+        Route::post('/servidores/red', [ServersController::class, 'storeNetworkServer'])->middleware(EnsureRole::class.':superadmin');
+    });
+
+    Route::middleware($can('cells.manage'))->group(function () {
+        Route::get('/celulas', [CellsController::class, 'index']);
+        Route::post('/celulas', [CellsController::class, 'update']);
+        Route::post('/celulas/integrante', [CellsController::class, 'addMember']);
+        Route::post('/celulas/integrante/quitar', [CellsController::class, 'removeMember']);
     });
 
     Route::get('/informes', [ReportsController::class, 'index'])->middleware($can('reports.all'));

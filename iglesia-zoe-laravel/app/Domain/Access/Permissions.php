@@ -12,7 +12,7 @@ class Permissions
         'reports.weekly' => ['group' => 'Células', 'title' => 'Reporte semanal', 'text' => 'Ve el seguimiento de la semana de su red.'],
         'reports.all' => ['group' => 'Células', 'title' => 'Reportes de todos los servidores', 'text' => 'Ve los informes de todas las células y filtra por semana, mes o año.'],
         'offerings.weekly' => ['group' => 'Células', 'title' => 'Ofrendas por semana', 'text' => 'Ve la ofrenda de cada célula semana por semana, sin el tablero de ingresos.'],
-        'servers.create' => ['group' => 'Células', 'title' => 'Crear servidores y servidores hijo', 'text' => 'Abre nuevas células o células hijas y crea la cuenta de su servidor.'],
+        'servers.create' => ['group' => 'Células', 'title' => 'Crear servidores y servidores hijo', 'text' => 'El Servidor de Red abre servidores en su red; cada servidor añade sus propios servidores hijo y les crea su cuenta.'],
         'cells.manage' => ['group' => 'Células', 'title' => 'Células e integrantes', 'text' => 'Edita datos de cada célula y su lista de integrantes.'],
         'themes.manage' => ['group' => 'Células', 'title' => 'Temas de célula', 'text' => 'Publica el tema semanal (PDF, Word, PowerPoint o imagen), le pone fecha y público, y lo oculta cuando ya no se usa.'],
         'design.manage' => ['group' => 'Página web', 'title' => 'Diseño de la página', 'text' => 'Paleta de colores, tipografías, colores y tamaños de texto, y formas, página por página.'],
@@ -20,7 +20,7 @@ class Permissions
         'content.manage' => ['group' => 'Página web', 'title' => 'Textos y secciones', 'text' => 'Edita textos, ministerios, prédicas, bautismos, temas y la bandeja.'],
         'generosity.manage' => ['group' => 'Página web', 'title' => 'Datos de generosidad', 'text' => 'Edita cuentas y medios de pago visibles en la web.'],
         'notices.manage' => ['group' => 'Página web', 'title' => 'Indicaciones de la semana', 'text' => 'Publica el aviso emergente que ven los servidores al entrar a /acceso: título, vigencia y todos los puntos de la semana.'],
-        'expenses.manage' => ['group' => 'Atmósfera', 'title' => 'Gastos y compras', 'text' => 'Registra compras con foto de la boleta, detalle y monto.'],
+        'expenses.manage' => ['group' => 'Atmósfera', 'title' => 'Gastos y compras', 'text' => 'Registra compras con foto de la boleta o factura, detalle y monto.'],
     ];
 
     public const TYPES = [
@@ -41,7 +41,7 @@ class Permissions
         ],
         'atmosfera' => [
             'label' => 'Servidor Atmósfera',
-            'text' => 'Registra los gastos y compras de la iglesia con su boleta.',
+            'text' => 'Registra los gastos y compras de la iglesia con su boleta o factura.',
             'permissions' => ['expenses.manage'],
         ],
         'temas' => [
@@ -54,7 +54,11 @@ class Permissions
 
     public const DEFAULTS = ['servers.create'];
 
+    /** Account of a servidor: files its reports and adds its own servidores hijo. */
     public const SERVER_ACCOUNT = ['reports.submit', 'reports.weekly', 'servers.create'];
+
+    /** Account of a servidor hijo: files its reports only. */
+    public const CHILD_SERVER_ACCOUNT = ['reports.submit', 'reports.weekly'];
 
     /** Account types that sign in from the church site; every other type uses the admin site. */
     public const SERVER_TYPES = ['red', 'celula'];
@@ -134,6 +138,7 @@ class Permissions
         if (! $user) {
             return false;
         }
+
         return self::roleOf($user) === Role::Superadmin;
     }
 

@@ -1,3 +1,5 @@
+import { WEEKDAYS } from "./next-service";
+
 const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Set", "Oct", "Nov", "Dic"];
 
 export type WeekOption = {
@@ -58,8 +60,7 @@ export function currentWeek(date = new Date()) {
 }
 
 export function meetingDateInWeek(year: number, week: number, meetingDay: string | null) {
-  const days = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
-  const index = meetingDay ? days.findIndex((day) => day.toLowerCase() === meetingDay.toLowerCase()) : 0;
+  const index = meetingDay ? WEEKDAYS.findIndex((day) => day.toLowerCase() === meetingDay.toLowerCase()) : 0;
   const { start } = weekRange(year, week);
   const date = new Date(start);
   if (index > 0) date.setDate(start.getDate() + index);

@@ -1,0 +1,185 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Domain\Access\Permissions;
+use App\Domain\Shared\Enums\Role;
+use App\Models\Cell;
+use App\Models\Network;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia;
+use Tests\TestCase;
+
+class ServerHierarchyTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private const ADMIN = 'http://admin.localhost';
+
+    private const SITE = 'http://localhost';
+
+    private Network $networkA;
+
+    private Network $networkB;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->networkA = Network::query()->create(['code' => 'A', 'name' => 'Red A']);
+        $this->networkB = Network::query()->create(['code' => 'B', 'name' => 'Red B']);
+    }
+
+    public function test_superadmin_assigns_the_servidor_de_red_of_a_network(): void
+    {
+        $this->actingAs($this->superadmin())
+            ->postJson(self::ADMIN.'/admin/servidores/red', ['network_id' => $this->networkA->id, 'name' => 'Carlos Red', 'username' => 'carlos.red', 'password' => 'secreto1'])
+            ->assertOk();
+
+        $leader = User::query()->where('username', 'carlos.red')->firstOrFail();
+        $this->assertSame(['red'], $leader->admin_types);
+        $this->assertSame($this->networkA->id, $leader->network_id);
+        $this->assertTrue(Permissions::has($leader, 'servers.create'));
+    }
+
+    public function test_only_the_superadmin_assigns_a_servidor_de_red(): void
+    {
+        $this->actingAs($this->networkLeader($this->networkA))
+            ->postJson(self::SITE.'/admin/servidores/red', ['network_id' => $this->networkA->id, 'name' => 'Otro', 'username' => 'otro.red', 'password' => 'secreto1'])
+            ->assertForbidden();
+    }
+
+    public function test_servidor_de_red_opens_servidores_only_in_its_network(): void
+    {
+        $leader = $this->networkLeader($this->networkA);
+
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores', ['network_id' => $this->networkA->id, 'leader_name' => 'Juan Pérez', 'meeting_day' => 'Miércoles', 'meeting_time' => '19:30', 'username' => 'juan', 'password' => 'secreto1'])
+            ->assertOk();
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores', ['network_id' => $this->networkB->id, 'leader_name' => 'Ana'])
+            ->assertForbidden();
+
+        $cell = Cell::query()->where('code', '01A')->firstOrFail();
+        $account = User::query()->where('username', 'juan')->firstOrFail();
+        $this->assertNull($cell->parent_id);
+        $this->assertSame('Juan Pérez', $cell->leader_name);
+        $this->assertTrue($account->cells->contains($cell));
+        $this->assertSame(Permissions::clean(Permissions::SERVER_ACCOUNT), $account->permissions);
+    }
+
+    public function test_servidor_adds_servidores_hijo_only_under_its_own_cell(): void
+    {
+        $own = $this->cell($this->networkA, 1);
+        $other = $this->cell($this->networkA, 2);
+        $servidor = $this->cellServer($own, Permissions::SERVER_ACCOUNT);
+
+        $this->actingAs($servidor)
+            ->postJson(self::SITE.'/admin/servidores/hijo', ['parent_id' => $own->id, 'leader_name' => 'Hijo Uno', 'username' => 'hijo.uno', 'password' => 'secreto1'])
+            ->assertOk();
+        $this->actingAs($servidor)
+            ->postJson(self::SITE.'/admin/servidores/hijo', ['parent_id' => $other->id, 'leader_name' => 'Intruso'])
+            ->assertForbidden();
+        $this->actingAs($servidor)
+            ->postJson(self::SITE.'/admin/servidores', ['network_id' => $this->networkA->id, 'leader_name' => 'Nuevo'])
+            ->assertForbidden();
+
+        $child = Cell::query()->where('code', '0101A')->firstOrFail();
+        $this->assertSame($own->id, $child->parent_id);
+        $this->assertSame(Permissions::clean(Permissions::CHILD_SERVER_ACCOUNT), User::query()->where('username', 'hijo.uno')->firstOrFail()->permissions);
+    }
+
+    public function test_servidores_hijo_cannot_have_servidores_hijo(): void
+    {
+        $root = $this->cell($this->networkA, 1);
+        $child = $this->cell($this->networkA, 1, $root);
+
+        $this->actingAs($this->networkLeader($this->networkA))
+            ->postJson(self::SITE.'/admin/servidores/hijo', ['parent_id' => $child->id, 'leader_name' => 'Nieto'])
+            ->assertForbidden();
+        $this->actingAs($this->cellServer($child, Permissions::CHILD_SERVER_ACCOUNT))
+            ->get(self::SITE.'/admin/servidores')
+            ->assertRedirect();
+    }
+
+    public function test_servidor_sees_only_its_cell_and_its_servidores_hijo(): void
+    {
+        $own = $this->cell($this->networkA, 1);
+        $this->cell($this->networkA, 1, $own);
+        $this->cell($this->networkA, 2);
+        $this->networkLeader($this->networkA);
+
+        $this->actingAs($this->cellServer($own, Permissions::SERVER_ACCOUNT))
+            ->get(self::SITE.'/admin/servidores')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Admin/Servidores')
+                ->has('networks', 1)
+                ->where('networks.0.can_open', false)
+                ->has('networks.0.leaders', 1)
+                ->has('networks.0.servers', 1)
+                ->where('networks.0.servers.0.code', '01A')
+                ->where('networks.0.servers.0.can_add_child', true)
+                ->where('networks.0.servers.0.next_child_code', '0201A')
+                ->where('networks.0.servers.0.children.0.code', '0101A'));
+    }
+
+    public function test_servidor_de_red_gives_an_account_to_a_servidor_without_one(): void
+    {
+        $cell = $this->cell($this->networkA, 1);
+
+        $this->actingAs($this->networkLeader($this->networkA))
+            ->postJson(self::SITE.'/admin/servidores/cuenta', ['cell_id' => $cell->id, 'username' => 'tardio', 'password' => 'secreto1'])
+            ->assertOk();
+        $this->actingAs($this->networkLeader($this->networkA, 'red.dos'))
+            ->postJson(self::SITE.'/admin/servidores/cuenta', ['cell_id' => $cell->id, 'username' => 'repetido', 'password' => 'secreto1'])
+            ->assertUnprocessable();
+
+        $this->assertTrue(User::query()->where('username', 'tardio')->firstOrFail()->cells->contains($cell));
+    }
+
+    private function superadmin(): User
+    {
+        return $this->user('super', Role::Superadmin, [], []);
+    }
+
+    private function networkLeader(Network $network, string $username = 'red.lider'): User
+    {
+        return $this->user($username, Role::Admin, ['red'], Permissions::forTypes(['red']), $network);
+    }
+
+    private function cellServer(Cell $cell, array $permissions): User
+    {
+        $user = $this->user('servidor.'.$cell->code, Role::Admin, ['celula'], Permissions::clean($permissions), $cell->network);
+        $user->cells()->attach($cell->id);
+
+        return $user;
+    }
+
+    private function user(string $username, Role $role, array $types, array $permissions, ?Network $network = null): User
+    {
+        return User::query()->create([
+            'name' => ucfirst($username),
+            'username' => $username,
+            'email' => $username.'@lideres.iglesiacristianazoe.pe',
+            'password' => 'secreto1',
+            'role' => $role,
+            'admin_types' => $types,
+            'permissions' => $permissions,
+            'network_id' => $network?->id,
+            'active' => true,
+        ]);
+    }
+
+    private function cell(Network $network, int $number, ?Cell $parent = null): Cell
+    {
+        return Cell::query()->create([
+            'network_id' => $network->id,
+            'parent_id' => $parent?->id,
+            'number' => $number,
+            'code' => str_pad((string) $number, 2, '0', STR_PAD_LEFT).($parent?->code ?? $network->code),
+            'leader_name' => 'Servidor '.$number,
+            'active' => true,
+        ]);
+    }
+}
