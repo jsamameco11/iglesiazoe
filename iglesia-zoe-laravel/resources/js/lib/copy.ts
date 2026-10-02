@@ -261,7 +261,7 @@ export const copyGroups = [
       { key: "panel.admin", label: "Opción · Administrador", value: "Administrador" },
       { key: "panel.adminNote", label: "Opción · nota de Administrador", value: "Visuales, temas, atmósfera y más" },
       { key: "panel.super", label: "Opción · Superadministrador", value: "Superadministrador" },
-      { key: "panel.superNote", label: "Opción · nota de Superadministrador", value: "Acceso total, equipo y finanzas" },
+      { key: "panel.superNote", label: "Opción · nota de Superadministrador", value: "Acceso total y equipo" },
       { key: "panel.user", label: "Campo usuario", value: "Usuario" },
       { key: "panel.password", label: "Campo clave", value: "Clave" },
       { key: "panel.button", label: "Botón", value: "Ingresar al panel" },
