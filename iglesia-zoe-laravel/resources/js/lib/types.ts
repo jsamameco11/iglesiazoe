@@ -35,13 +35,6 @@ export type SiteSettings = {
   phone: string;
   whatsapp: string;
   email: string;
-  headingColor: string;
-  bodyColor: string;
-  accentColor: string;
-  paperColor: string;
-  stoneColor: string;
-  clayColor: string;
-  fontPair: "mixed" | "grotesque" | "editorial";
   visitCta: string;
   baptismCta: string;
   essenceTitle: string;

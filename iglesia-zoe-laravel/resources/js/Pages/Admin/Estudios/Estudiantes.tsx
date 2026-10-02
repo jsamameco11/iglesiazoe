@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { Field, LevelSelect, Pill, RecordForm, STUDY_KICKER, EmptyState, useSiteUrl } from "@/Components/admin/study-ui";
+import { Field, LevelSelect, Pill, RecordForm, STUDY_KICKER, EmptyState } from "@/Components/admin/study-ui";
 import { PageHeader, Stat, button, ghost, input } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
 import type { LevelOption } from "@/lib/studies";
+import { useSiteUrl } from "@/lib/access";
 
 type Student = {
   id: string;

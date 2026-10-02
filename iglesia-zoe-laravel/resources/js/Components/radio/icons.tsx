@@ -46,6 +46,16 @@ export function HeadphonesIcon({ className = "h-5 w-5" }: Props) {
   );
 }
 
+/** Music lowered under a voice or an announcement. */
+export function DuckIcon({ className = "h-4 w-4" }: Props) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} {...base}>
+      <path d="M3 9.5h3L10 6v12l-4-3.5H3z" />
+      <path d="M14 10l3.5 3.5L21 10M17.5 13.5V5" />
+    </svg>
+  );
+}
+
 export function UsersIcon({ className = "h-4 w-4" }: Props) {
   return (
     <svg viewBox="0 0 24 24" className={className} {...base}>

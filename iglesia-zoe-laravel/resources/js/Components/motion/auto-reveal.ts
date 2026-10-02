@@ -66,10 +66,10 @@ function frames(el: Element, kind: Kind, nested: boolean, canMove: boolean): Key
  * fades and rises into place the first time it scrolls into view, including the
  * ones already on screen when the page opens.
  */
-export function useAutoReveal(root: RefObject<HTMLElement | null>) {
+export function useAutoReveal(root: RefObject<HTMLElement | null>, { off = false, speed = 1 }: { off?: boolean; speed?: number } = {}) {
   useLayoutEffect(() => {
     const host = root.current;
-    if (!host || typeof IntersectionObserver === "undefined" || typeof Element.prototype.animate !== "function") return;
+    if (off || !host || typeof IntersectionObserver === "undefined" || typeof Element.prototype.animate !== "function") return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const scrollers = new WeakMap<Element, boolean>();
@@ -126,8 +126,8 @@ export function useAutoReveal(root: RefObject<HTMLElement | null>) {
       const extra = Number(el.getAttribute("data-reveal-delay")) || 0;
       try {
         el.animate(frames(el, kind, info.nested, canMove), {
-          duration: kind === "media" ? 1100 : kind === "heading" ? 900 : 760,
-          delay: 40 + Math.min(order, 14) * 65 + extra,
+          duration: (kind === "media" ? 1100 : kind === "heading" ? 900 : 760) / speed,
+          delay: (40 + Math.min(order, 14) * 65 + extra) / speed,
           easing: EASE,
           fill: "backwards",
         });
@@ -155,5 +155,5 @@ export function useAutoReveal(root: RefObject<HTMLElement | null>) {
       observer.disconnect();
       for (const item of items) item.el.removeAttribute(WAIT);
     };
-  }, [root]);
+  }, [root, off, speed]);
 }

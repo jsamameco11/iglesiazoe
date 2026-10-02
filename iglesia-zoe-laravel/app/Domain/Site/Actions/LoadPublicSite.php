@@ -2,6 +2,7 @@
 
 namespace App\Domain\Site\Actions;
 
+use App\Domain\Site\Design\NormalizeDesign;
 use App\Models\Ministry;
 use App\Models\ServeArea;
 use App\Models\SiteSetting;
@@ -83,75 +84,8 @@ class LoadPublicSite
         return Cache::rememberForever('zoe.site.design', function () {
             $stored = SiteSetting::query()->where('key', 'design')->first()?->value;
 
-            return self::normalizeDesign(is_array($stored) ? $stored : []);
+            return NormalizeDesign::run(is_array($stored) ? $stored : []);
         });
-    }
-
-    public static function normalizeDesign(array $input): array
-    {
-        $defaults = config('design.defaults');
-        $fonts = array_column(config('design.fonts'), 'name');
-        $pages = array_keys(config('design.pages'));
-        $color = fn ($value) => is_string($value) && preg_match('/^#[0-9a-fA-F]{6}$/', $value) ? strtolower($value) : '';
-        $font = fn ($value, $fallback = '') => in_array($value, $fonts, true) ? $value : $fallback;
-        $scale = fn ($value, $fallback = 1) => is_numeric($value) ? round(max(0.75, min(1.4, (float) $value)), 2) : $fallback;
-
-        $palette = [];
-        foreach (array_keys($defaults['palette']) as $key) {
-            $value = $color($input['palette'][$key] ?? '');
-            $palette[$key] = $value !== '' ? $value : $defaults['palette'][$key];
-        }
-
-        $pageRules = [];
-        foreach ($pages as $page) {
-            $rule = $input['pages'][$page] ?? [];
-            if (! is_array($rule)) {
-                continue;
-            }
-            $clean = array_filter([
-                'heading' => $font($rule['heading'] ?? ''),
-                'text' => $font($rule['text'] ?? ''),
-                'titleColor' => $color($rule['titleColor'] ?? ''),
-                'textColor' => $color($rule['textColor'] ?? ''),
-                'title' => isset($rule['title']) && $rule['title'] !== '' ? $scale($rule['title']) : null,
-                'subtitle' => isset($rule['subtitle']) && $rule['subtitle'] !== '' ? $scale($rule['subtitle']) : null,
-                'text_size' => isset($rule['text_size']) && $rule['text_size'] !== '' ? $scale($rule['text_size']) : null,
-            ], fn ($value) => $value !== '' && $value !== null);
-            if ($clean) {
-                $pageRules[$page] = $clean;
-            }
-        }
-
-        return [
-            'palette' => $palette,
-            'fonts' => [
-                'heading' => $font($input['fonts']['heading'] ?? '', $defaults['fonts']['heading']),
-                'text' => $font($input['fonts']['text'] ?? '', $defaults['fonts']['text']),
-            ],
-            'sizes' => [
-                'title' => $scale($input['sizes']['title'] ?? 1),
-                'subtitle' => $scale($input['sizes']['subtitle'] ?? 1),
-                'text' => $scale($input['sizes']['text'] ?? 1),
-            ],
-            'shape' => in_array($input['shape'] ?? '', ['round', 'soft', 'square'], true) ? $input['shape'] : $defaults['shape'],
-            'pages' => $pageRules,
-        ];
-    }
-
-    public static function fontHref(array $design): string
-    {
-        $used = [$design['fonts']['heading'], $design['fonts']['text']];
-        foreach ($design['pages'] as $rule) {
-            $used[] = $rule['heading'] ?? null;
-            $used[] = $rule['text'] ?? null;
-        }
-        $slugs = collect(config('design.fonts'))
-            ->whereIn('name', array_filter(array_unique($used)))
-            ->reject(fn ($font) => in_array($font['slug'], ['inter', 'cormorant-garamond'], true))
-            ->map(fn ($font) => $font['slug'].':400,400i,500,600,700')
-            ->values();
-
-        return $slugs->isEmpty() ? '' : 'https://fonts.bunny.net/css?family='.$slugs->implode('|').'&display=swap';
     }
 
     public static function flush(): void

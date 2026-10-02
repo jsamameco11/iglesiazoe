@@ -1,9 +1,10 @@
-import { router, usePage } from "@inertiajs/react";
+import { router } from "@inertiajs/react";
 import { useActionState, useRef, useState } from "react";
 import { deleteGallery, removeGalleryPhoto, saveGallery, setGalleryCover, uploadGalleryPhoto, type ActionResult } from "@/lib/actions";
 import AdminLayout from "@/Layouts/AdminLayout";
 import type { GalleryKind, ServiceGalleryFull } from "@/lib/types";
 import { formatSermonDate } from "@/lib/youtube";
+import { useSiteUrl } from "@/lib/access";
 
 const field = "mt-1 w-full rounded-xl border border-line bg-white px-3 py-2";
 
@@ -38,8 +39,7 @@ async function shrink(file: File): Promise<{ blob: Blob; name: string }> {
 export default function Galeria({ galleries, today, maxPhotos }: { galleries: ServiceGalleryFull[]; today: string; maxPhotos: number }) {
   const [creating, setCreating] = useState(false);
   const [openId, setOpenId] = useState<string | null>(galleries[0]?.id ?? null);
-  const { entrance } = usePage().props as unknown as { entrance?: { siteUrl?: string } };
-  const site = (entrance?.siteUrl || "").replace(/\/$/, "");
+  const site = useSiteUrl();
   const total = galleries.reduce((sum, gallery) => sum + gallery.count, 0);
 
   return (

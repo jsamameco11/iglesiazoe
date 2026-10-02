@@ -9,6 +9,7 @@ import { readCopy, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { Devotional, SiteSettings } from "@/lib/types";
 import { formatSermonDate } from "@/lib/youtube";
+import { section } from "@/lib/design";
 
 function normalize(value: string) {
   return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
@@ -44,7 +45,7 @@ export default function Devotionals({
         </Rise>
 
         {latest ? (
-          <Rise className="mt-20">
+          <Rise {...section("latest", "Devocional destacado")} className="mt-20">
             <Link href={`/devocionales/${latest.slug}`} className="devo-feature group">
               <span className="devo-feature-photo">
                 <img src={latest.image || media.devotionals.src} alt="" />
@@ -66,13 +67,13 @@ export default function Devotionals({
             </Link>
           </Rise>
         ) : (
-          <Rise className="panel mt-16 p-8 md:p-10">
+          <Rise {...section("empty", "Sin devocionales")} className="panel mt-16 p-8 md:p-10">
             <p className="editorial text-2xl italic leading-snug md:text-3xl">{t("devotionals.empty")}</p>
           </Rise>
         )}
 
         {archive.length ? (
-          <section className="mt-24">
+          <section {...section("archive", "Archivo")} className="mt-24">
             <Rise className="flex flex-wrap items-end justify-between gap-4">
               <h2 className="editorial text-3xl md:text-4xl">{t("devotionals.archive")}</h2>
               {archive.length > 6 ? (

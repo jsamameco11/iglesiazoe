@@ -1,7 +1,7 @@
 import { Link } from "@inertiajs/react";
 import { useId } from "react";
 
-export function Sunburst({ className = "" }: { className?: string }) {
+function Sunburst({ className = "" }: { className?: string }) {
   const mask = `sun-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   return (
     <svg viewBox="0 0 32 32" className={className} aria-hidden>

@@ -98,7 +98,7 @@ export function PrayerRequestForm() {
   if (sentTo) {
     return (
       <div className="prayer-sent" role="status">
-        <span className="prayer-sent-glow" aria-hidden="true" />
+        <span className="prayer-sent-glow" data-art="prayer" aria-hidden="true" />
         <span className="prayer-sent-icon"><HandsIcon /></span>
         <p className="editorial mt-6 text-[2.1rem] leading-tight">{t("prayer.thanksHello").replace("{nombre}", sentTo)}</p>
         <p className="mx-auto mt-3 max-w-sm text-[15px] leading-7 text-muted">

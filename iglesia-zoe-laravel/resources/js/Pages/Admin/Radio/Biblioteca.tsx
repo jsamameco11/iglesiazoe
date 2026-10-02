@@ -17,7 +17,7 @@ type Upload = {
   title: string;
   artist: string;
   kind: Kind;
-  rotation: boolean;
+  duck: boolean;
   duration: number | null;
   progress: number;
   status: "ready" | "reading" | "uploading" | "done" | "error";
@@ -25,6 +25,9 @@ type Upload = {
 };
 
 const ACCEPT = ".mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.webm,.flac,audio/*";
+
+/** Spoken audio lowers the music by default when it plays on top of it. */
+const duckFor = (kind: Kind) => kind === "anuncio" || kind === "programa";
 
 function csrf() {
   return document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
@@ -101,7 +104,7 @@ export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
         title,
         artist: uploadKind === "musica" ? artist : "",
         kind: uploadKind,
-        rotation: uploadKind === "musica",
+        duck: duckFor(uploadKind),
         duration: null,
         progress: 0,
         status: tooBig ? "error" : "reading",
@@ -128,7 +131,7 @@ export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
       data.set("artist", item.artist);
       data.set("kind", item.kind);
       data.set("duration", String(item.duration));
-      if (item.rotation) data.set("rotation", "1");
+      data.set("duck", item.duck ? "1" : "0");
       data.set("audio", item.file);
       const result = await upload(data, (progress) => patch(item.key, { progress }));
       if (result.error) patch(item.key, { status: "error", error: result.error });
@@ -163,13 +166,13 @@ export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
     <AdminLayout>
       <RadioHeader
         title="Biblioteca de audio"
-        text="Todo lo que suena en la radio vive aquí: canciones, anuncios grabados, efectos y cortinas, y programas pregrabados. Las canciones marcadas «en rotación» llenan los espacios libres de la programación."
+        text="Aquí guardas los recursos de la radio: canciones, anuncios grabados, efectos y cortinas, y programas pregrabados. Subir un audio no lo pone al aire: suena solo cuando lo programas, lo eliges para la música continua o lo lanzas desde la consola."
       />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Audios en la biblioteca" value={tracks.length} />
-        <Stat label="Canciones en rotación" value={rotation.length} note={longDuration(rotation.reduce((sum, track) => sum + track.duration, 0))} tone="bg-[#f4efe6]" />
-        <Stat label="Anuncios y efectos" value={tracks.filter((track) => track.kind === "anuncio" || track.kind === "efecto").length} note="Aparecen como botones en la consola" />
+        <Stat label="En la música continua" value={rotation.length} note={rotation.length ? `${longDuration(rotation.reduce((sum, track) => sum + track.duration, 0))} · se elige en Programación` : "Se elige en Programación"} tone="bg-[#f4efe6]" />
+        <Stat label="Anuncios y efectos" value={tracks.filter((track) => track.kind === "anuncio" || track.kind === "efecto").length} note="Elígelos para la botonera de la consola" />
         <Stat label="Programas grabados" value={tracks.filter((track) => track.kind === "programa").length} />
       </div>
 
@@ -185,6 +188,7 @@ export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
           <div>
             <h2 className="text-lg font-semibold tracking-[-0.025em]">Subir audios</h2>
             <p className="mt-1 text-[13px] leading-5 text-muted">Arrastra aquí varios archivos o elígelos. MP3, M4A, AAC, OGG, OPUS, WAV o FLAC · hasta {maxMb} MB cada uno.</p>
+            <p className="mt-1 text-[12.5px] font-medium text-emerald-800">Nada empieza a sonar al subir: todo queda guardado para programarlo.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <select value={uploadKind} onChange={(event) => setUploadKind(event.target.value as Kind)} className={`${input} !mt-0 !w-auto`}>
@@ -213,13 +217,13 @@ export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
               <div key={item.key} className="grid gap-2 rounded-2xl border border-line bg-white p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_10rem_auto_auto] md:items-center">
                 <input value={item.title} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { title: event.target.value })} className={`${input} !mt-0`} placeholder="Título" maxLength={160} />
                 <input value={item.artist} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { artist: event.target.value })} className={`${input} !mt-0`} placeholder="Artista (opcional)" maxLength={120} />
-                <select value={item.kind} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { kind: event.target.value as Kind, rotation: event.target.value === "musica" })} className={`${input} !mt-0`}>
+                <select value={item.kind} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { kind: event.target.value as Kind, duck: duckFor(event.target.value as Kind) })} className={`${input} !mt-0`}>
                   {kindList.map((kind) => (
                     <option key={kind} value={kind}>{kinds[kind]}</option>
                   ))}
                 </select>
-                <label className={`flex items-center gap-2 text-xs ${item.kind === "musica" ? "" : "invisible"}`}>
-                  <input type="checkbox" checked={item.rotation} onChange={(event) => patch(item.key, { rotation: event.target.checked })} /> En rotación
+                <label className="flex items-center gap-2 text-xs" title="Cuando suene encima de la música, la música baja para que se escuche mejor.">
+                  <input type="checkbox" checked={item.duck} onChange={(event) => patch(item.key, { duck: event.target.checked })} /> Baja la música
                 </label>
                 <div className="flex items-center justify-end gap-3 text-xs">
                   <span className="font-mono tabular-nums text-muted">{item.duration ? duration(item.duration) : "--:--"}</span>
@@ -313,6 +317,7 @@ function TrackRow({
     const data = new FormData(event.currentTarget);
     data.set("id", track.id);
     data.set("active", data.get("active") ? "1" : "0");
+    data.set("duck", data.get("duck") ? "1" : "0");
     data.delete("audio");
     if (file) {
       if (file.size > maxMb * 1024 * 1024) {
@@ -363,7 +368,8 @@ function TrackRow({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <KindTag kind={track.kind} label={kinds[track.kind]} />
-          {track.kind === "musica" && track.rotation && track.active ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">En rotación</span> : null}
+          {track.kind === "musica" && track.rotation && track.active ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">Música continua</span> : null}
+          {track.duck ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">Baja la música</span> : null}
           {!track.active ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">Desactivado</span> : null}
           <button type="button" onClick={onEdit} className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted transition hover:bg-paper hover:text-ink">{editing ? "Cerrar" : "Editar"}</button>
           <button type="button" disabled={pending} onClick={remove} className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50">Eliminar</button>
@@ -392,11 +398,9 @@ function TrackRow({
             <input type="file" name="audio" accept={ACCEPT} onChange={(event) => setFile(event.target.files?.[0] ?? null)} className={`${input} file:mr-3 file:rounded-full file:border-0 file:bg-paper file:px-3 file:py-1 file:text-xs file:font-semibold`} />
           </label>
           <div className="flex flex-wrap gap-5 md:col-span-2">
-            {kind === "musica" ? (
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" name="rotation" value="1" defaultChecked={track.rotation} /> En rotación (música continua)
-              </label>
-            ) : null}
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="duck" value="1" defaultChecked={track.duck} /> Bajar la música cuando suene encima
+            </label>
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="active" value="1" defaultChecked={track.active} /> Activo
             </label>

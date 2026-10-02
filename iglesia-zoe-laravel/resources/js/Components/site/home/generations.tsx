@@ -5,11 +5,12 @@ import { MinistryCards } from "@/Components/site/ministry-cards";
 import { readCopy } from "@/lib/copy";
 import type { ResolvedMedia } from "@/lib/media";
 import type { Ministry, SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 export function GenerationsSection({ settings, ministries, media }: { settings: SiteSettings; ministries: Ministry[]; media: ResolvedMedia }) {
   if (!ministries.length) return null;
   return (
-    <section className="home-section">
+    <section {...section("generations", "Generaciones")} className="home-section">
       <Rise className="flex flex-wrap items-end justify-between gap-6">
         <SectionHead kicker={readCopy(settings, "home.generationsKicker")} title={settings.generationsTitle} />
         <Link href="/ministerios" className="home-link">

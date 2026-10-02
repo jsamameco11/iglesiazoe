@@ -9,6 +9,7 @@ import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { ServeArea, SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 export default function Serve({
   settings,
@@ -26,7 +27,7 @@ export default function Serve({
   const reasons = t("serve.whyPoints").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const areas = serveAreas.filter((area) => area.accepts_volunteers);
   const also = serveAreas.filter((area) => !area.accepts_volunteers);
-  const firstTeam = areas.reduce<number[]>((starts, area, index) => [...starts, index ? starts[index - 1] + areas[index - 1].teams.length : 1], []);
+  const firstTeam = areas.reduce<number[]>((starts, _area, index) => [...starts, index ? starts[index - 1] + areas[index - 1].teams.length : 1], []);
 
   return (
     <SiteLayout>
@@ -45,7 +46,7 @@ export default function Serve({
           </Rise>
         </div>
 
-        <section className="px-6 pb-6 pt-24 md:px-16 md:pt-28">
+        <section {...section("why", "Por qué servir")} className="px-6 pb-6 pt-24 md:px-16 md:pt-28">
           <div className="section-wrap grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
             <Rise>
               <p className="kicker">{t("serve.whyKicker")}</p>
@@ -69,7 +70,7 @@ export default function Serve({
         </section>
 
         {areas.length > 0 && (
-          <section id="areas" className="scroll-mt-24 px-6 pb-24 pt-16 md:px-16">
+          <section {...section("areas", "Áreas de servicio")} id="areas" className="scroll-mt-24 px-6 pb-24 pt-16 md:px-16">
             <div className="section-wrap">
               <Rise>
                 <p className="kicker">{t("serve.areasKicker")}</p>
@@ -98,7 +99,7 @@ export default function Serve({
         )}
 
         {also.length > 0 && (
-          <section className="px-6 pb-24 md:px-16">
+          <section {...section("also", "También puedes servir")} className="px-6 pb-24 md:px-16">
             <div className="section-wrap">
               <Rise>
                 <p className="kicker">{t("serve.alsoKicker")}</p>
@@ -121,7 +122,7 @@ export default function Serve({
         )}
 
         {areas.length > 0 && (
-          <section id="registro" className="soft-band scroll-mt-20 px-6 py-20 md:px-16 md:py-24">
+          <section {...section("form", "Formulario de inscripción")} id="registro" className="soft-band scroll-mt-20 px-6 py-20 md:px-16 md:py-24">
             <div className="section-wrap grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
               <Rise>
                 <p className="kicker">{t("serve.formKicker")}</p>
@@ -135,7 +136,7 @@ export default function Serve({
           </section>
         )}
 
-        <section className="ink-band px-6 py-20 md:px-16 md:py-24">
+        <section {...section("route", "La Ruta del Servidor")} className="ink-band px-6 py-20 md:px-16 md:py-24">
           <Rise className="section-wrap flex flex-wrap items-end justify-between gap-8">
             <div>
               <p className="kicker">{t("nav.route")}</p>

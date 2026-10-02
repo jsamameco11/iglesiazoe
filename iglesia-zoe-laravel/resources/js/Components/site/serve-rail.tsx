@@ -4,6 +4,7 @@ import { Rise } from "@/Components/motion/rise";
 import { LeadTitle } from "@/Components/site/lead-title";
 import { splitEmphasis, useCopy } from "@/lib/copy";
 import type { ServeArea } from "@/lib/types";
+import { section } from "@/lib/design";
 
 export const SERVE_FALLBACK = "/images/banner8.jpg";
 
@@ -114,7 +115,9 @@ export function ServeRail({ title, text, areas, interval = 3500 }: { title: stri
 
   return (
     <section
+      {...section("serve", "Áreas de servicio")}
       className="serve-rail"
+      data-art="rail"
       aria-roledescription="carrusel"
       aria-label={title.replace(/\*/g, "")}
       onFocus={(event) => event.target.matches(":focus-visible") && setPaused(true)}

@@ -79,7 +79,7 @@ export function useInboxPulse(enabled: boolean) {
 
 export type PushState = "unsupported" | "default" | "denied" | "granted";
 
-export function pushSupported() {
+function pushSupported() {
   return typeof window !== "undefined" && window.isSecureContext && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
 

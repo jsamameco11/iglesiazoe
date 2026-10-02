@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { mediaFocusStyle, videoMime, type MediaAsset } from "@/lib/media";
 import { ServiceCountdown } from "@/Components/site/service-countdown";
+import { section } from "@/lib/design";
 
 function HeroMedia({ asset, className }: { asset: MediaAsset; className: string }) {
   const focus = mediaFocusStyle(asset);
@@ -53,7 +54,7 @@ export function HeroFilm({
   }, []);
 
   return (
-    <section ref={ref} className="hero-bleed relative flex min-h-[max(100svh,560px)] w-full flex-col overflow-hidden">
+    <section {...section("hero", "Portada")} ref={ref} className="hero-bleed relative flex min-h-[max(100svh,560px)] w-full flex-col overflow-hidden">
       <div className="absolute inset-0" style={{ opacity: fade }}>
         <HeroMedia asset={asset} className="hero-bleed-media" />
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
@@ -95,7 +96,7 @@ export function HeroSplit({
   }, []);
 
   return (
-    <section ref={ref} className="hero-split grid min-h-[100svh] w-full lg:h-[100svh] lg:grid-cols-2">
+    <section {...section("hero", "Portada")} ref={ref} className="hero-split grid min-h-[100svh] w-full lg:h-[100svh] lg:grid-cols-2">
       <div className="hero-split-pane relative h-[52svh] min-h-[280px] w-full lg:h-full lg:min-h-0" style={{ opacity: fade }}>
         <HeroMedia asset={asset} className="hero-split-media" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/40 to-transparent lg:h-32" />

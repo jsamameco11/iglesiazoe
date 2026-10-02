@@ -53,6 +53,7 @@ export function Visualizer({ analyser, active, className = "" }: { analyser: Ana
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let frame = 0;
     const draw = (time: number) => {
+      const rgb = (getComputedStyle(el).color.match(/[\d.]+/g) ?? ["255", "255", "255"]).slice(0, 3).join(", ");
       const ratio = window.devicePixelRatio || 1;
       const width = el.clientWidth;
       const height = el.clientHeight;
@@ -75,8 +76,8 @@ export function Visualizer({ analyser, active, className = "" }: { analyser: Ana
         }
         const h = Math.max(3, value * height);
         const gradient = ctx.createLinearGradient(0, height, 0, height - h);
-        gradient.addColorStop(0, "rgba(255,255,255,0.85)");
-        gradient.addColorStop(1, "rgba(255,255,255,0.25)");
+        gradient.addColorStop(0, `rgba(${rgb}, 0.85)`);
+        gradient.addColorStop(1, `rgba(${rgb}, 0.25)`);
         ctx.fillStyle = gradient;
         const x = i * (w + gap);
         ctx.beginPath();

@@ -1,7 +1,7 @@
 /** Static mock of the student classroom, used to show what the access unlocks. */
 export function ClassroomPreview({ levels }: { levels: string[] }) {
   return (
-    <div className="study-preview" aria-hidden>
+    <div className="study-preview" data-art="study" aria-hidden>
       <div className="study-preview-top">
         <span className="study-preview-dot" />
         <span>Tu aula · La Ruta del Servidor</span>

@@ -5,11 +5,12 @@ import { SectionHead } from "@/Components/site/home/section";
 import { readCopy } from "@/lib/copy";
 import type { MediaAsset } from "@/lib/media";
 import type { ChurchEvent, SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 export function EventsSection({ settings, events, fallback }: { settings: SiteSettings; events: ChurchEvent[]; fallback: MediaAsset }) {
   if (!events.length) return null;
   return (
-    <section className="home-section">
+    <section {...section("events", "Eventos")} className="home-section">
       <Rise className="flex flex-wrap items-end justify-between gap-6">
         <div>
           <SectionHead kicker={readCopy(settings, "home.eventsKicker")} title={settings.eventsTitle} />

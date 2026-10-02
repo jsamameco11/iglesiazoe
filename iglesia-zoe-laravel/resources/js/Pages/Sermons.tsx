@@ -7,6 +7,7 @@ import { readCopy, type CopyKey } from "@/lib/copy";
 import { formatSermonDate, youtubeId } from "@/lib/youtube";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { SermonSummary, SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 export default function Sermons({
   settings,
@@ -38,7 +39,7 @@ export default function Sermons({
             media={!liveId && skin === "marea" ? <MediaView asset={media.sermons} /> : undefined}
           />
         </Rise>
-        <Rise delay={100}>
+        <Rise {...section("live", "Transmisión")} delay={100}>
           {liveId ? (
             <div className="shot relative mt-12 aspect-video">
               <iframe
@@ -65,7 +66,7 @@ export default function Sermons({
             <p className="mt-10 max-w-xl text-lg font-light leading-8 text-muted">{settings.sermonsEmpty}</p>
           )}
         </Rise>
-        <Rise>
+        <Rise {...section("library", "Biblioteca de mensajes")}>
           <LeadTitle as="h2" lead={t("sermons.library")} className="mt-24 text-4xl md:text-5xl" />
         </Rise>
         {archive.length === 0 ? (
@@ -73,7 +74,7 @@ export default function Sermons({
         ) : (
           series.map((name, index) => (
             <Rise key={name} delay={index * 80}>
-              <section className="mt-12">
+              <section {...section("series", "Series de mensajes")} className="mt-12">
                 <h3 className="text-[11px] uppercase tracking-[0.22em] text-muted">{name}</h3>
                 <div className="mt-6 divide-y divide-ink/10">
                   {archive.filter((sermon) => (sermon.series || fallbackSeries) === name).map((sermon) => {

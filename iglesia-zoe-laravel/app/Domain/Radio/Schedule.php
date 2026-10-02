@@ -8,7 +8,10 @@ use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-/** Editing of the radio timeline. Blocks never overlap; times are UTC milliseconds. */
+/**
+ * Editing of the radio timeline. Blocks of the same layer never overlap; the main layer
+ * holds the program and the overlay layers sound on top of it. Times are UTC milliseconds.
+ */
 final class Schedule
 {
     /** Two blocks may touch with this much overlap (ms) without counting as a conflict. */
@@ -19,20 +22,51 @@ final class Schedule
         return CarbonImmutable::createFromTimestampMs($ms, 'UTC');
     }
 
-    /** @return Collection<int, RadioSlot> blocks that overlap [from, to) */
-    public static function between(int $from, int $to, ?string $ignore = null): Collection
+    /** A valid Y-m-d calendar date, or null. */
+    public static function date(mixed $value): ?string
+    {
+        if (! is_string($value) || ! preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+        try {
+            return CarbonImmutable::createFromFormat('!Y-m-d', $value, Station::TZ)->toDateString() === $value ? $value : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /** UTC milliseconds of a Lima time (HH:MM or HH:MM:SS) on a day, or null. */
+    public static function at(string $date, string $time): ?int
+    {
+        if (! preg_match('/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/', trim($time), $match)) {
+            return null;
+        }
+
+        return CarbonImmutable::parse($date, Station::TZ)->startOfDay()
+            ->setTime((int) $match[1], (int) $match[2], (int) ($match[3] ?? 0))
+            ->getTimestampMs();
+    }
+
+    public static function clock(int $ms): string
+    {
+        return CarbonImmutable::createFromTimestampMs($ms)->setTimezone(Station::TZ)->format('H:i:s');
+    }
+
+    /** @return Collection<int, RadioSlot> blocks that overlap [from, to), of one layer or of all */
+    public static function between(int $from, int $to, ?string $ignore = null, ?int $layer = null): Collection
     {
         return RadioSlot::query()->with('track')
             ->where('starts_at', '>=', self::utc($from - Station::MAX_BLOCK * 1000))
             ->where('starts_at', '<', self::utc($to))
             ->when($ignore, fn ($query) => $query->whereKeyNot($ignore))
+            ->when($layer !== null, fn ($query) => $query->where('layer', $layer))
             ->orderBy('starts_at')
             ->get()
             ->filter(fn (RadioSlot $slot) => $slot->endsAt()->getTimestampMs() > $from)
             ->values();
     }
 
-    /** Blocks of a Lima day as the timeline shows them, including one that began the day before. */
+    /** Blocks of a Lima day on every layer, including ones that began the day before. */
     public static function day(string $date): array
     {
         [$from, $to] = Station::dayBounds($date);
@@ -45,10 +79,13 @@ final class Schedule
         return [
             'id' => $slot->id,
             'kind' => $slot->kind,
+            'layer' => $slot->layer,
             'title' => $slot->title,
             'artist' => $slot->track?->artist,
             'note' => $slot->note,
             'bed' => $slot->bed,
+            'duck' => $slot->duck,
+            'volume' => $slot->volume,
             'duration' => $slot->duration,
             'track_id' => $slot->radio_track_id,
             'src' => $slot->track?->file_path,
@@ -58,32 +95,47 @@ final class Schedule
         ];
     }
 
-    public static function conflict(int $start, int $end, ?string $ignore = null): ?RadioSlot
+    public static function conflict(int $start, int $end, int $layer = RadioSlot::MAIN, ?string $ignore = null): ?RadioSlot
     {
-        return self::between($start + self::TOLERANCE, $end - self::TOLERANCE, $ignore)->first();
+        return self::between($start + self::TOLERANCE, $end - self::TOLERANCE, $ignore, $layer)->first();
     }
 
-    /** End of the last block that starts on the given Lima day, or null when the day is empty. */
-    public static function dayEnd(string $date): ?int
+    /** End of the last block of a layer that starts on the given Lima day, or null when it is empty. */
+    public static function dayEnd(string $date, int $layer = RadioSlot::MAIN): ?int
     {
         [$from, $to] = Station::dayBounds($date);
-        $last = RadioSlot::query()->where('starts_at', '>=', self::utc($from))->where('starts_at', '<', self::utc($to))->orderByDesc('starts_at')->first();
+        $last = RadioSlot::query()->where('layer', $layer)
+            ->where('starts_at', '>=', self::utc($from))->where('starts_at', '<', self::utc($to))
+            ->orderByDesc('starts_at')->first();
 
         return $last?->endsAt()->getTimestampMs();
     }
 
+    /** Ends of the last block of each layer on a day, keyed by layer. */
+    public static function dayEnds(string $date): array
+    {
+        return collect(range(RadioSlot::MAIN, RadioSlot::OVERLAYS))
+            ->mapWithKeys(fn (int $layer) => [$layer => self::dayEnd($date, $layer)])->all();
+    }
+
     /**
+     * Blocks for library audios. Overlays keep their own volume and may lower the music;
+     * $duck null takes each audio's default.
+     *
      * @param  Collection<int, RadioTrack>  $tracks
-     * @return list<array{kind: string, title: string, duration: float, radio_track_id: ?string, bed: bool, note: ?string}>
+     * @return list<array<string, mixed>>
      */
-    public static function trackBlocks(Collection $tracks, ?string $note = null): array
+    public static function trackBlocks(Collection $tracks, ?string $note = null, int $layer = RadioSlot::MAIN, ?bool $duck = null, int $volume = 100): array
     {
         return $tracks->map(fn (RadioTrack $track) => [
             'kind' => $track->kind,
+            'layer' => $layer,
             'title' => $track->title,
             'duration' => $track->duration,
             'radio_track_id' => $track->id,
             'bed' => false,
+            'duck' => $layer === RadioSlot::MAIN ? false : ($duck ?? $track->duck),
+            'volume' => $layer === RadioSlot::MAIN ? 100 : max(0, min(100, $volume)),
             'note' => $note,
         ])->all();
     }
@@ -107,15 +159,15 @@ final class Schedule
     }
 
     /**
-     * «Al aire ahora»: cuts the block on air, plays the new blocks right away and pushes the
-     * blocks that follow just enough to make room (gaps absorb the push).
+     * «Al aire ahora» on the main layer: cuts the block on air, plays the new blocks right
+     * away and pushes the blocks that follow just enough to make room (gaps absorb the push).
      */
     public static function insertNow(array $blocks): int
     {
         return DB::transaction(function () use ($blocks) {
             $now = Station::nowMs() + 400;
-            $current = self::between($now, $now + 1)->first();
-            $following = RadioSlot::query()
+            $current = self::between($now, $now + 1, null, RadioSlot::MAIN)->first();
+            $following = RadioSlot::query()->where('layer', RadioSlot::MAIN)
                 ->where('starts_at', '>=', self::utc($now))
                 ->where('starts_at', '<', self::utc($now + 24 * 3600 * 1000))
                 ->orderBy('starts_at')->get();
@@ -139,7 +191,7 @@ final class Schedule
         });
     }
 
-    /** Copies the blocks that start on $date to each target day; blocks that would overlap are skipped. */
+    /** Copies the blocks of every layer that start on $date to each target day; blocks that would overlap are skipped. */
     public static function copyDay(string $date, array $targets, bool $replace): array
     {
         [$from, $to] = Station::dayBounds($date);
@@ -157,19 +209,14 @@ final class Schedule
                 foreach ($source as $slot) {
                     $start = $slot->starts_at->getTimestampMs() + $shift;
                     $end = $start + (int) round($slot->duration * 1000);
-                    if (self::conflict($start, $end)) {
+                    if (self::conflict($start, $end, $slot->layer)) {
                         $skipped++;
 
                         continue;
                     }
                     RadioSlot::query()->create([
                         'starts_at' => self::utc($start),
-                        'duration' => $slot->duration,
-                        'kind' => $slot->kind,
-                        'radio_track_id' => $slot->radio_track_id,
-                        'title' => $slot->title,
-                        'note' => $slot->note,
-                        'bed' => $slot->bed,
+                        ...$slot->only(['duration', 'kind', 'layer', 'radio_track_id', 'title', 'note', 'bed', 'duck', 'volume']),
                     ]);
                     $copied++;
                 }
@@ -180,17 +227,17 @@ final class Schedule
         return [$copied, $skipped];
     }
 
-    /** Blocks and minutes scheduled on each of the next days, for the day picker. */
+    /** Blocks (all layers) and minutes of the main program scheduled on each of the next days, for the day picker. */
     public static function overview(string $firstDay, int $days): array
     {
         [$from] = Station::dayBounds($firstDay);
         $to = $from + $days * 86400000;
         $totals = [];
-        foreach (RadioSlot::query()->where('starts_at', '>=', self::utc($from))->where('starts_at', '<', self::utc($to))->get(['starts_at', 'duration']) as $slot) {
+        foreach (RadioSlot::query()->where('starts_at', '>=', self::utc($from))->where('starts_at', '<', self::utc($to))->get(['starts_at', 'duration', 'layer']) as $slot) {
             $day = $slot->starts_at->setTimezone(Station::TZ)->toDateString();
             $totals[$day] ??= ['blocks' => 0, 'seconds' => 0];
             $totals[$day]['blocks']++;
-            $totals[$day]['seconds'] += $slot->duration;
+            $totals[$day]['seconds'] += $slot->layer === RadioSlot::MAIN ? $slot->duration : 0;
         }
 
         return collect(range(0, $days - 1))->map(function (int $offset) use ($firstDay, $totals) {

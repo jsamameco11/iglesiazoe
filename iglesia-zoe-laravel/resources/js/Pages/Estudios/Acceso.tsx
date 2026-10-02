@@ -4,6 +4,7 @@ import { ClassroomPreview } from "@/Components/site/classroom-preview";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { talkUrlOf } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 const field = "mt-1.5 w-full rounded-2xl border border-ink/12 bg-white px-4 py-3 text-[15px] text-ink outline-none transition focus:border-ink/40 focus:ring-4 focus:ring-ink/5";
 
@@ -14,10 +15,10 @@ export default function Acceso({ settings, levels }: { settings: SiteSettings; l
   return (
     <SiteLayout>
       <section className="page-wrap">
-        <div className="grid items-center gap-12 lg:grid-cols-[minmax(0,27rem)_1fr] lg:gap-16">
+        <div {...section("form", "Formulario de acceso")} className="grid items-center gap-12 lg:grid-cols-[minmax(0,27rem)_1fr] lg:gap-16">
           <Rise>
             <p className="kicker">Estudios · Aula virtual</p>
-            <h1 className="editorial mt-4 text-5xl leading-[1.02] md:text-6xl">Acceso de estudiantes</h1>
+            <h1 className="acceso-title mt-4">Acceso de estudiantes</h1>
             <p className="mt-4 max-w-md text-[1.05rem] font-light leading-7 text-muted">
               Ingresa con tu DNI y tu clave para ver tus notas, en qué semana vas, tu horario, las lecturas y los avisos de La Ruta del Servidor.
             </p>

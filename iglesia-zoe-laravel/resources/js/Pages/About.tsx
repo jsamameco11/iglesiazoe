@@ -8,6 +8,7 @@ import SiteLayout from "@/Layouts/SiteLayout";
 import { useCopy } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 export default function About({
   settings,
@@ -40,7 +41,7 @@ export default function About({
         </AboutSlides>
 
         <div className="page-wrap about-rest">
-        <section className="about-pastors">
+        <section {...section("pastors", "Pastores")} className="about-pastors">
           <Rise from="left">
             <p className="kicker">{t("about.pastorsKicker")}</p>
             <LeadTitle as="h2" text={settings.pastorsLabel} className="mt-3 text-4xl md:text-6xl" />
@@ -53,7 +54,7 @@ export default function About({
           </Rise>
         </section>
 
-        <div className="about-facts">
+        <div {...section("facts", "Horarios y dirección")} className="about-facts">
           {[
             [t("facts.sunday"), settings.sunday],
             [t("facts.week"), settings.wednesday],
@@ -68,7 +69,7 @@ export default function About({
           ))}
         </div>
 
-        <section className="about-history">
+        <section {...section("history", "Nuestra historia")} className="about-history">
           <Rise from="left">
             <p className="kicker">{t("about.historyKicker")}</p>
             <LeadTitle as="h2" text={t("about.historyTitle")} className="mt-5 text-5xl md:text-7xl" />
@@ -79,7 +80,7 @@ export default function About({
         </section>
 
         <Rise from="scale">
-          <section className="about-vision">
+          <section {...section("vision", "Visión")} className="about-vision">
             <p className="text-[11px] uppercase tracking-[0.32em] opacity-55">{t("about.visionKicker")}</p>
             <p className="editorial mx-auto mt-6 max-w-4xl text-4xl italic leading-[1.12] md:text-6xl">
               “{settings.vision}”
@@ -87,7 +88,7 @@ export default function About({
           </section>
         </Rise>
 
-        <section className="about-values">
+        <section {...section("values", "Valores")} className="about-values">
           <Rise>
             <div className="flex flex-wrap items-end justify-between gap-6">
               <div>
@@ -113,7 +114,7 @@ export default function About({
         </section>
 
         <Rise from="scale">
-          <section className="first-visit">
+          <section {...section("first-visit", "Tu primera visita")} className="first-visit">
             <p className="kicker">{t("about.firstKicker")}</p>
             <LeadTitle text={t("about.firstTitle")} className="mt-4 text-5xl md:text-7xl" />
             <p className="mx-auto mt-5 max-w-xl text-lg font-light leading-8 text-muted">

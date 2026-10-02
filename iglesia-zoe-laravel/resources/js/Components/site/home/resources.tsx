@@ -5,6 +5,7 @@ import { IconPlay } from "@/Components/site/icons";
 import { readCopy } from "@/lib/copy";
 import type { SermonSummary, SiteSettings } from "@/lib/types";
 import { formatSermonDate, youtubeId } from "@/lib/youtube";
+import { section } from "@/lib/design";
 
 function SermonCard({ sermon }: { sermon: SermonSummary }) {
   const video = youtubeId(sermon.youtube_id);
@@ -32,7 +33,7 @@ function SermonCard({ sermon }: { sermon: SermonSummary }) {
 
 export function ResourcesSection({ settings, sermons }: { settings: SiteSettings; sermons: SermonSummary[] }) {
   return (
-    <section className="home-section home-ink">
+    <section {...section("resources", "Palabra para tu semana")} className="home-section home-ink">
       <Rise className="flex flex-wrap items-end justify-between gap-6">
         <div>
           <SectionHead tone="light" kicker={readCopy(settings, "home.resourcesKicker")} title={settings.resourcesTitle} />

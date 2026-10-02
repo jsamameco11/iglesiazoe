@@ -8,6 +8,7 @@ import { readCopy, readPairs, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import { talkUrlOf } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 function CopyRow({ label, value, mono = true }: { label: string; value: string; mono?: boolean }) {
   const [copied, setCopied] = useState(false);
@@ -70,7 +71,7 @@ export default function Give({
   return (
     <SiteLayout>
       <article className="page-wrap">
-        <header className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+        <header {...section("intro", "Portada")} className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
           <Rise>
             <p className="kicker">{t("give.kicker")}</p>
             <LeadTitle text={settings.giveTitle} className="mt-4 text-5xl md:text-7xl" />
@@ -96,7 +97,7 @@ export default function Give({
           </Rise>
         </header>
 
-        <section className="mt-24 md:mt-28">
+        <section {...section("ways", "Formas de dar")} className="mt-24 md:mt-28">
           <Rise>
             <p className="kicker">{t("give.waysKicker")}</p>
           </Rise>

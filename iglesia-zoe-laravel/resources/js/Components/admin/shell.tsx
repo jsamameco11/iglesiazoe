@@ -2,7 +2,7 @@ import { router, usePage } from "@inertiajs/react";
 import { useEffect, useState, type CSSProperties } from "react";
 import type { PanelUser } from "@/lib/access";
 import { useInboxPulse, useInboxShared, useUnread } from "@/lib/inbox";
-import { useSitePalette } from "@/Components/site/palette-scope";
+import { useSiteDesign } from "@/lib/design";
 import { AdminNav } from "./admin-nav";
 import { PushPrompt } from "./push-notifications";
 
@@ -13,7 +13,7 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
   const { flash, entrance } = usePage().props as unknown as ShellProps;
   const [denied, setDenied] = useState(Boolean(flash?.denied));
   useEffect(() => setDenied(Boolean(flash?.denied)), [flash?.denied]);
-  const { style } = useSitePalette();
+  const { style } = useSiteDesign();
   const initials = (user.full_name || user.username || "Z").split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
   const siteUrl = entrance?.siteUrl || "/";
   const inbox = useInboxShared();

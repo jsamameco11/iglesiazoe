@@ -1,8 +1,9 @@
-import { Link, usePage } from "@inertiajs/react";
+import { Link } from "@inertiajs/react";
 import { useActionState, type ReactNode } from "react";
 import { saveSettings, type ActionResult } from "@/lib/actions";
 import AdminLayout from "@/Layouts/AdminLayout";
 import type { SiteSettings } from "@/lib/types";
+import { useSiteUrl } from "@/lib/access";
 
 const field = "mt-1 w-full rounded-xl border border-line bg-white px-3 py-2";
 
@@ -57,8 +58,7 @@ export default function Secciones({ settings }: { settings: SiteSettings }) {
 
 function SectionForm({ title, page, children }: { title: string; page?: string; children: ReactNode }) {
   const [state, action, pending] = useActionState(async (_: ActionResult | undefined, formData: FormData) => saveSettings(formData), undefined);
-  const { entrance } = usePage().props as unknown as { entrance?: { siteUrl?: string } };
-  const site = (entrance?.siteUrl || "").replace(/\/$/, "");
+  const site = useSiteUrl();
   return (
     <form action={action} className="mt-8 grid gap-5 rounded-[1.5rem] border border-line bg-card p-5 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">

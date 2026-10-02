@@ -6,14 +6,16 @@ export function Rise({
   className = "",
   delay = 0,
   from = "up",
+  ...attrs
 }: {
   children: React.ReactNode;
   className?: string;
   delay?: number;
   from?: Reveal;
+  [data: `data-${string}`]: string | undefined;
 }) {
   return (
-    <div data-reveal={from} data-reveal-delay={delay || undefined} className={`rise ${className}`.trim()}>
+    <div {...attrs} data-reveal={from} data-reveal-delay={delay || undefined} className={`rise ${className}`.trim()}>
       {children}
     </div>
   );

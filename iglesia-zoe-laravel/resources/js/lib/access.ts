@@ -15,7 +15,10 @@ export type Permission =
   | "notices.manage"
   | "events.manage"
   | "devotionals.manage"
-  | "radio.manage"
+  | "radio.console"
+  | "radio.schedule"
+  | "radio.library"
+  | "radio.settings"
   | "studies.grades"
   | "studies.board"
   | "expenses.manage"
@@ -46,6 +49,12 @@ export type Catalog = {
 export function usePanelUser() {
   const { auth } = usePage<{ auth: { user: PanelUser } }>().props as unknown as { auth: { user: PanelUser } };
   return auth.user;
+}
+
+/** Public site address without a trailing slash, for links from the panel to the web. */
+export function useSiteUrl() {
+  const { entrance } = usePage().props as unknown as { entrance?: { siteUrl?: string } };
+  return (entrance?.siteUrl || "").replace(/\/$/, "");
 }
 
 export function can(user: PanelUser | null | undefined, ...permissions: (Permission | "superadmin")[]) {

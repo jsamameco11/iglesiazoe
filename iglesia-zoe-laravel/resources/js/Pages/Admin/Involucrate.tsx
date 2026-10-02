@@ -1,8 +1,9 @@
-import { Link, usePage } from "@inertiajs/react";
+import { Link } from "@inertiajs/react";
 import { useActionState, useState } from "react";
 import { deleteServeArea, moveServeArea, saveServeArea, type ActionResult } from "@/lib/actions";
 import AdminLayout from "@/Layouts/AdminLayout";
 import type { ServeArea } from "@/lib/types";
+import { useSiteUrl } from "@/lib/access";
 
 const field = "mt-1 w-full rounded-xl border border-line bg-white px-3 py-2";
 
@@ -10,8 +11,7 @@ type AdminArea = ServeArea & { registrations: number };
 
 export default function Involucrate({ areas }: { areas: AdminArea[] }) {
   const [creating, setCreating] = useState(false);
-  const { entrance } = usePage().props as unknown as { entrance?: { siteUrl?: string } };
-  const site = (entrance?.siteUrl || "").replace(/\/$/, "");
+  const site = useSiteUrl();
 
   return (
     <AdminLayout>

@@ -9,6 +9,7 @@ import { readCopy, type CopyKey } from "@/lib/copy";
 import { eventBadge, eventDateLabel } from "@/lib/events";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { ChurchEvent, SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 export default function Events({
   events,
@@ -48,14 +49,14 @@ export default function Events({
 
         {events.length ? (
           <>
-            <div ref={stage} className="mt-14 scroll-mt-28 md:mt-20">
+            <div {...section("featured", "Evento destacado")} ref={stage} className="mt-14 scroll-mt-28 md:mt-20">
               <Rise>
                 <EventSlider events={events} fallback={media.events} index={index} onIndex={setIndex} />
               </Rise>
             </div>
 
             {events.length > 1 ? (
-              <section className="mt-24">
+              <section {...section("agenda", "Agenda")} className="mt-24">
                 <Rise>
                   <LeadTitle as="h2" text={t("events.agenda")} className="text-3xl md:text-4xl" />
                 </Rise>
@@ -82,7 +83,7 @@ export default function Events({
             ) : null}
           </>
         ) : (
-          <Rise className="mt-14 grid items-center gap-10 lg:grid-cols-2">
+          <Rise {...section("empty", "Sin eventos")} className="mt-14 grid items-center gap-10 lg:grid-cols-2">
             <div className="panel p-8 md:p-10">
               <p className="kicker">{t("events.agenda")}</p>
               <p className="editorial mt-4 text-3xl italic leading-tight md:text-4xl">{t("events.empty")}</p>

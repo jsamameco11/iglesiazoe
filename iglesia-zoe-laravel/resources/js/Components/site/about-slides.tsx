@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { mediaFocusStyle, videoMime, type MediaAsset } from "@/lib/media";
+import { section } from "@/lib/design";
 
 function SlideMedia({ item, eager }: { item: MediaAsset; eager: boolean }) {
   const style = mediaFocusStyle(item);
@@ -107,6 +108,7 @@ export function AboutSlides({
 
   return (
     <section
+      {...section("intro", "Portada")}
       ref={sectionRef}
       className="hero-bleed about-slides"
       aria-roledescription="carrusel"
@@ -170,6 +172,7 @@ export function AboutSlides({
       <button
         type="button"
         className="about-slides-cue"
+        data-art="cue"
         data-on={cueReady && !scrolled ? "true" : "false"}
         tabIndex={cueReady && !scrolled ? 0 : -1}
         aria-label="Desliza hacia abajo"

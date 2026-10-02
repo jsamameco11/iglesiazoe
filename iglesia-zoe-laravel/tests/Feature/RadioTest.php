@@ -37,10 +37,10 @@ class RadioTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_visuales_runs_the_radio_and_others_need_the_permission(): void
+    public function test_each_radio_area_has_its_own_permission(): void
     {
-        $this->assertContains('radio.manage', Permissions::forTypes(['visuales']));
-        $this->assertNotContains('radio.manage', Permissions::forTypes(['atmosfera']));
+        $this->assertEqualsCanonicalizing(Permissions::RADIO, array_values(array_intersect(Permissions::forTypes(['visuales']), Permissions::RADIO)));
+        $this->assertEmpty(array_intersect(Permissions::forTypes(['atmosfera']), Permissions::RADIO));
 
         $visuales = $this->admin('visuales', ['visuales']);
         foreach (['/admin/radio', '/admin/radio/programacion', '/admin/radio/biblioteca', '/admin/radio/ajustes'] as $page) {
@@ -49,12 +49,17 @@ class RadioTest extends TestCase
         $this->actingAs($visuales)->get(self::ADMIN.'/admin/radio')
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Admin/Radio/Consola')->where('config.name', 'Radio Zoe'));
 
+        $scheduler = $this->admin('programador', ['atmosfera'], ['radio.schedule']);
+        $this->actingAs($scheduler)->get(self::ADMIN.'/admin/radio/programacion')->assertOk();
+        $this->actingAs($scheduler)->get(self::ADMIN.'/admin/radio')->assertRedirect('/admin');
+        $this->actingAs($scheduler)->getJson(self::ADMIN.'/admin/radio/senal')->assertForbidden();
+        $this->actingAs($scheduler)->postJson(self::ADMIN.'/admin/radio/ajustes', [])->assertForbidden();
+
         $other = $this->admin('atmosfera', ['atmosfera']);
-        $this->actingAs($other)->get(self::ADMIN.'/admin/radio')->assertRedirect('/admin');
-        $this->actingAs($other)->getJson(self::ADMIN.'/admin/radio/senal')->assertForbidden();
+        $this->actingAs($other)->get(self::ADMIN.'/admin/radio/biblioteca')->assertRedirect('/admin');
     }
 
-    public function test_audio_is_uploaded_to_the_library_and_rejects_other_files(): void
+    public function test_uploading_only_stores_the_audio_and_nothing_goes_on_air(): void
     {
         $admin = $this->admin('visuales', ['visuales']);
 
@@ -70,8 +75,19 @@ class RadioTest extends TestCase
         $track = RadioTrack::query()->sole();
         $this->assertSame('musica', $track->kind);
         $this->assertSame(245.4, $track->duration);
-        $this->assertTrue($track->rotation);
+        $this->assertFalse($track->rotation);
+        $this->assertFalse($track->duck);
         $this->assertStringStartsWith('/media/radio/musica/', $track->file_path);
+        auth()->logout();
+        $this->getJson(self::SITE.'/radio/estado')->assertOk()->assertJsonPath('queue', []);
+
+        $this->actingAs($admin)->post(self::ADMIN.'/admin/radio/biblioteca', [
+            'title' => 'Retiro de jóvenes',
+            'kind' => 'anuncio',
+            'duration' => '30',
+            'audio' => UploadedFile::fake()->create('retiro.mp3', 50, 'audio/mpeg'),
+        ], ['Accept' => 'application/json'])->assertOk();
+        $this->assertTrue(RadioTrack::query()->where('kind', 'anuncio')->sole()->duck);
 
         $this->actingAs($admin)->post(self::ADMIN.'/admin/radio/biblioteca', [
             'title' => 'Documento',
@@ -79,7 +95,20 @@ class RadioTest extends TestCase
             'duration' => '10',
             'audio' => UploadedFile::fake()->create('notas.pdf', 20, 'application/pdf'),
         ], ['Accept' => 'application/json'])->assertUnprocessable();
-        $this->assertSame(1, RadioTrack::query()->count());
+        $this->assertSame(2, RadioTrack::query()->count());
+    }
+
+    public function test_the_continuous_music_is_chosen_in_the_schedule(): void
+    {
+        $admin = $this->admin('visuales', ['visuales']);
+        $first = $this->track('Canción 1', 'musica', 200, false);
+        $second = $this->track('Canción 2', 'musica', 200, false);
+
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/programacion/rotacion', ['tracks' => [$first->id]])->assertOk();
+        $this->assertTrue($first->fresh()->rotation);
+        $this->assertFalse($second->fresh()->rotation);
+        auth()->logout();
+        $this->getJson(self::SITE.'/radio/estado')->assertJsonPath('queue.0.title', 'Canción 1');
     }
 
     public function test_the_timeline_rejects_overlaps_appends_and_pushes_blocks_when_going_on_air_now(): void
@@ -109,9 +138,7 @@ class RadioTest extends TestCase
         ])->assertUnprocessable();
 
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-02 15:59:00', Station::TZ));
-        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/programacion', [
-            'date' => '2026-10-02', 'mode' => 'now', 'tracks' => [$spot->id, $spot->id, $spot->id],
-        ])->assertOk();
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/lanzar', ['tracks' => [$spot->id, $spot->id, $spot->id]])->assertOk();
 
         $first = RadioSlot::query()->where('radio_track_id', $song->id)->sole();
         $this->assertSame('16:00:30', $first->starts_at->setTimezone(Station::TZ)->format('H:i:s'));
@@ -121,6 +148,45 @@ class RadioTest extends TestCase
             'date' => '2026-10-02', 'targets' => ['2026-10-03', '2026-10-04'],
         ])->assertOk();
         $this->assertSame(18, RadioSlot::query()->count());
+    }
+
+    public function test_overlay_layers_play_on_top_without_moving_the_main_program(): void
+    {
+        $admin = $this->admin('visuales', ['visuales']);
+        $song = $this->track('Canción', 'musica', 180);
+        $spot = $this->track('Anuncio del retiro', 'anuncio', 30, false, true);
+        $chime = $this->track('Campana', 'efecto', 3, false);
+
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/programacion', [
+            'date' => '2026-10-02', 'mode' => 'at', 'time' => '16:00', 'tracks' => [$song->id],
+        ])->assertOk();
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/programacion', [
+            'date' => '2026-10-02', 'mode' => 'at', 'time' => '16:01', 'layer' => 1, 'volume' => 80, 'tracks' => [$spot->id],
+        ])->assertOk();
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/programacion', [
+            'date' => '2026-10-02', 'mode' => 'at', 'time' => '16:01:10', 'layer' => 1, 'tracks' => [$chime->id],
+        ])->assertUnprocessable()->assertJsonPath('error', fn ($error) => str_contains($error, 'capa 1'));
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/programacion', [
+            'date' => '2026-10-02', 'mode' => 'at', 'time' => '16:01:10', 'layer' => 2, 'duck' => '1', 'tracks' => [$chime->id],
+        ])->assertOk();
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/programacion', [
+            'date' => '2026-10-02', 'mode' => 'end', 'layer' => 1, 'type' => 'vivo', 'title' => 'En vivo', 'minutes' => 10,
+        ])->assertUnprocessable();
+
+        $overlay = RadioSlot::query()->where('radio_track_id', $spot->id)->sole();
+        $this->assertSame(1, $overlay->layer);
+        $this->assertSame(80, $overlay->volume);
+        $this->assertTrue($overlay->duck);
+        $this->assertTrue(RadioSlot::query()->where('radio_track_id', $chime->id)->sole()->duck);
+
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-02 16:00:30', Station::TZ));
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/lanzar', ['tracks' => [$chime->id]])->assertOk();
+        $this->assertSame('16:01:00', $overlay->fresh()->starts_at->setTimezone(Station::TZ)->format('H:i:s'));
+
+        auth()->logout();
+        $state = $this->getJson(self::SITE.'/radio/estado')->assertOk();
+        $state->assertJsonPath('queue.0.title', 'Canción')->assertJsonPath('queue.1.title', 'Campana');
+        $state->assertJsonPath('layers.0.title', 'Anuncio del retiro')->assertJsonPath('layers.0.lane', '1')->assertJsonPath('layers.0.volume', 80);
     }
 
     public function test_everybody_hears_the_same_program_with_music_filling_the_gaps(): void
@@ -138,6 +204,7 @@ class RadioTest extends TestCase
         $this->assertSame('musica', $state['queue'][1]['kind']);
         $this->assertSame(CarbonImmutable::parse('2026-10-02 15:20:00', Station::TZ)->getTimestampMs(), $state['queue'][1]['start']);
         $this->assertEquals(0, $state['queue'][1]['seek']);
+        $this->assertContains($state['previous']['title'], $songs->pluck('title')->all());
 
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-02 15:25:00', Station::TZ));
         $a = $this->getJson(self::SITE.'/radio/estado')->json('queue.0');
@@ -152,24 +219,65 @@ class RadioTest extends TestCase
             ->where('program.0.date', '2026-10-02'));
     }
 
+    public function test_continuous_music_crossfades_the_songs(): void
+    {
+        $this->track('Canción 1', 'musica', 200);
+        $this->track('Canción 2', 'musica', 200);
+        Station::saveConfig(['crossfade' => 5]);
+
+        $queue = $this->getJson(self::SITE.'/radio/estado')->json('queue');
+        $this->assertSame($queue[0]['origin'] + 195000, $queue[1]['origin']);
+        $this->assertSame($queue[1]['start'] + 5000, $queue[0]['end']);
+    }
+
+    public function test_the_console_plays_pads_and_players_on_top_of_the_program(): void
+    {
+        $admin = $this->admin('visuales', ['visuales']);
+        $applause = $this->track('Aplausos', 'efecto', 4, false);
+        $spot = $this->track('Anuncio', 'anuncio', 30, false, true);
+        $other = $this->track('Otro anuncio', 'anuncio', 20, false, true);
+
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/botonera', ['tracks' => [$applause->id]])
+            ->assertOk()->assertJsonPath('pads.0.title', 'Aplausos');
+        $this->actingAs($admin)->get(self::ADMIN.'/admin/radio')->assertInertia(fn (AssertableInertia $page) => $page->has('pads', 1));
+
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/capa', ['action' => 'play', 'id' => $applause->id, 'lane' => 'pad'])->assertOk();
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/capa', ['action' => 'play', 'id' => $spot->id, 'lane' => 'A', 'volume' => 70])->assertOk();
+        $layer = $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/capa', ['action' => 'play', 'id' => $other->id, 'lane' => 'A', 'duck' => '0'])
+            ->assertOk()->json('layer');
+        $this->assertFalse($layer['duck']);
+
+        auth()->logout();
+        $layers = collect($this->getJson(self::SITE.'/radio/estado')->assertJsonPath('mix.duck', 0.25)->json('layers'));
+        $this->assertSame(['Aplausos', 'Otro anuncio'], $layers->pluck('title')->all());
+
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/capa', ['action' => 'update', 'layer' => $layer['id'], 'volume' => 40, 'duck' => '1'])
+            ->assertOk()->assertJsonPath('layer.volume', 40)->assertJsonPath('layer.duck', true);
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/capa', ['action' => 'stop', 'lane' => 'A'])
+            ->assertOk()->assertJsonPath('stopped', [$layer['id']]);
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/capa', ['action' => 'play', 'id' => $spot->id, 'lane' => 'Z'])->assertUnprocessable();
+
+        CarbonImmutable::setTestNow(CarbonImmutable::now()->addSeconds(5));
+        auth()->logout();
+        $this->getJson(self::SITE.'/radio/estado')->assertJsonPath('layers', []);
+    }
+
     public function test_the_console_goes_live_and_connects_a_listener_through_the_handshake(): void
     {
         $admin = $this->admin('visuales', ['visuales']);
-        $fx = $this->track('Aplausos', 'efecto', 4);
         $listener = '6f1c3a52-8d2e-4b7a-9c1d-2e3f4a5b6c7d';
 
-        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/vivo', ['action' => 'mix', 'music' => 20])->assertStatus(409);
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/vivo', ['action' => 'mix', 'mic' => '1'])->assertStatus(409);
         $session = $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/vivo', ['action' => 'start', 'host' => 'Pastor Luis'])
             ->assertOk()->json('live.session');
         $this->assertNotEmpty($session);
 
-        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/vivo', ['action' => 'mix', 'bed' => '1', 'mic' => '1'])->assertOk();
-        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/efecto', ['id' => $fx->id])->assertOk();
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/vivo', ['action' => 'mix', 'bed' => '1', 'mic' => '1', 'overlay' => 50])->assertOk();
 
         auth()->logout();
         $state = $this->getJson(self::SITE.'/radio/estado?oyente='.$listener)->assertOk();
         $state->assertJsonPath('live.on', true)->assertJsonPath('live.mic', true)->assertJsonPath('live.host', 'Pastor Luis')
-            ->assertJsonPath('mix.music', 0.22)->assertJsonPath('live.fx.0.title', 'Aplausos');
+            ->assertJsonPath('mix.music', 0.22)->assertJsonPath('mix.fx', 0.45);
         $this->postJson(self::SITE.'/radio/voz', ['oyente' => $listener, 'session' => $session])->assertOk();
 
         $signal = $this->actingAs($admin)->getJson(self::ADMIN.'/admin/radio/senal')->assertOk();
@@ -189,19 +297,20 @@ class RadioTest extends TestCase
         $this->getJson(self::SITE.'/radio/estado')->assertJsonPath('live.on', false)->assertJsonPath('mix.music', fn ($music) => (float) $music === 1.0);
     }
 
-    private function track(string $title, string $kind, float $duration): RadioTrack
+    private function track(string $title, string $kind, float $duration, bool $rotation = true, bool $duck = false): RadioTrack
     {
         return RadioTrack::query()->create([
             'kind' => $kind,
             'title' => $title,
             'file_path' => '/media/radio/'.$kind.'/'.str($title)->slug().'.mp3',
             'duration' => $duration,
-            'rotation' => true,
+            'rotation' => $rotation,
+            'duck' => $duck,
             'active' => true,
         ]);
     }
 
-    private function admin(string $username, array $types): User
+    private function admin(string $username, array $types, ?array $permissions = null): User
     {
         return User::query()->create([
             'name' => ucfirst($username),
@@ -210,7 +319,7 @@ class RadioTest extends TestCase
             'password' => 'secreto1',
             'role' => Role::Admin,
             'admin_types' => $types,
-            'permissions' => Permissions::forTypes($types),
+            'permissions' => $permissions ?? Permissions::forTypes($types),
             'active' => true,
         ]);
     }

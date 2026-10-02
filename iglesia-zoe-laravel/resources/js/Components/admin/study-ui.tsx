@@ -1,15 +1,9 @@
-import { usePage } from "@inertiajs/react";
 import type { FormEvent, ReactNode } from "react";
 import { Notice, button, ghost, input, useAction } from "@/Components/admin/ui";
 import { send, type ActionResult } from "@/lib/actions";
 import type { LevelOption } from "@/lib/studies";
 
 export const STUDY_KICKER = "Estudios · Ruta del Servidor";
-
-export function useSiteUrl() {
-  const { entrance } = usePage().props as unknown as { entrance?: { siteUrl?: string } };
-  return (entrance?.siteUrl || "").replace(/\/$/, "");
-}
 
 export function LevelSelect({ levels, value, name = "study_level_id", label = "Nivel", allLabel = "Todos los niveles" }: { levels: LevelOption[]; value?: string | null; name?: string; label?: string; allLabel?: string | null }) {
   return (

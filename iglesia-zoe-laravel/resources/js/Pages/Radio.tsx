@@ -1,26 +1,15 @@
 import { Link } from "@inertiajs/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useState } from "react";
 import { Rise } from "@/Components/motion/rise";
 import { HeadphonesIcon, MicIcon, PlayIcon, StopIcon, UsersIcon, VolumeIcon } from "@/Components/radio/icons";
 import { Visualizer } from "@/Components/radio/meters";
+import { ProgramList } from "@/Components/radio/listener/program-list";
+import { useStation } from "@/Components/radio/listener/use-station";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
+import { section } from "@/lib/design";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
-import {
-  KIND_LABEL,
-  ProgramPlayer,
-  ServerClock,
-  VoiceLink,
-  clock,
-  currentItem,
-  dayLabel,
-  duration,
-  limaDate,
-  longDuration,
-  newListenerId,
-  type RadioItem,
-  type RadioState,
-} from "@/lib/radio";
+import { KIND_LABEL, clock, currentItem, dayLabel, duration, limaDate, type RadioItem, type RadioState } from "@/lib/radio";
 import type { SiteSettings } from "@/lib/types";
 import "../../css/radio.css";
 
@@ -50,7 +39,7 @@ export default function Radio({
 
   return (
     <SiteLayout overMedia="page">
-      <section className="radio-hero">
+      <section {...section("hero", "Reproductor en vivo")} className="radio-hero">
         {media.radio.src ? <div className="radio-hero-backdrop" style={{ backgroundImage: `url(${media.radio.src})` }} /> : null}
         <div className="section-wrap radio-hero-grid">
           <Rise>
@@ -72,7 +61,7 @@ export default function Radio({
           </Rise>
 
           <Rise delay={0.08}>
-            <div className="radio-deck">
+            <div className="radio-deck" data-art="radio">
               <div className="flex items-center justify-between gap-3">
                 <span className="radio-chip">
                   <HeadphonesIcon className="h-3.5 w-3.5" /> {t("radio.nowPlaying")}
@@ -160,7 +149,7 @@ export default function Radio({
 
       <div className="page-wrap">
         {upcoming.length ? (
-          <section>
+          <section {...section("next", "Lo que viene")}>
             <Rise>
               <p className="kicker">{t("radio.nextTitle")}</p>
             </Rise>
@@ -176,7 +165,7 @@ export default function Radio({
           </section>
         ) : null}
 
-        <section className={upcoming.length ? "mt-24" : ""}>
+        <section {...section("program", "Programación")} className={upcoming.length ? "mt-24" : ""}>
           <Rise className="flex flex-wrap items-end justify-between gap-6">
             <div>
               <p className="kicker">{t("radio.programKicker")}</p>
@@ -210,183 +199,4 @@ export default function Radio({
       </div>
     </SiteLayout>
   );
-}
-
-function ProgramList({ items, now, t }: { items: RadioItem[]; now: number; t: (key: CopyKey) => string }) {
-  if (!items.length) {
-    return (
-      <Rise className="panel mt-10 p-8 md:p-10">
-        <p className="editorial text-2xl italic leading-snug md:text-3xl">{t("radio.empty")}</p>
-      </Rise>
-    );
-  }
-  return (
-    <div className="radio-program mt-10">
-      {items.map((entry) => {
-        const isNow = entry.start <= now && now < entry.end;
-        const past = entry.end <= now;
-        const filler = entry.kind === "relleno";
-        return (
-          <div key={entry.id} className="radio-row" data-now={isNow || undefined} data-past={past || undefined}>
-            <p className="text-[15px] font-semibold tabular-nums text-ink">
-              {clock(entry.start)}
-              <span className="block text-xs font-normal text-muted">{longDuration((entry.end - entry.start) / 1000)}</span>
-            </p>
-            <div className="min-w-0">
-              <p className="truncate text-[1.05rem] font-semibold tracking-[-0.02em] text-ink">{filler ? t("radio.continuous") : entry.title}</p>
-              <p className="truncate text-sm text-muted">{filler ? t("radio.continuousNote") : entry.artist || KIND_LABEL[entry.kind]}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              {isNow ? <span className="radio-tag" data-kind="vivo">{t("radio.nowLabel")}</span> : null}
-              <span className="radio-tag hidden sm:inline-flex" data-kind={entry.kind}>{KIND_LABEL[entry.kind]}</span>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Listener engine: polls the station, follows its clock, mixes the program and the live voice. */
-function useStation(initial: RadioState) {
-  const clockRef = useRef<ServerClock | null>(null);
-  clockRef.current ??= new ServerClock();
-  const serverClock = clockRef.current;
-  const player = useRef<ProgramPlayer | null>(null);
-  const voice = useRef<VoiceLink | null>(null);
-  const stream = useRef<HTMLAudioElement | null>(null);
-  const rev = useRef(initial.live.rev);
-  const playingRef = useRef(false);
-  const [state, setState] = useState(initial);
-  const [now, setNow] = useState(initial.now);
-  const [playing, setPlaying] = useState(false);
-  const [volume, setVolumeState] = useState(0.9);
-  const [voiceStatus, setVoiceStatus] = useState<VoiceLink["status"]>("off");
-  const [blocked, setBlocked] = useState(false);
-  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
-  const listener = useMemo(() => (typeof window === "undefined" ? "" : newListenerId()), []);
-
-  useEffect(() => {
-    serverClock.seed(initial.now);
-    setNow(serverClock.now());
-    const timer = window.setInterval(() => setNow(serverClock.now()), 500);
-    return () => window.clearInterval(timer);
-  }, [initial.now, serverClock]);
-
-  const apply = useCallback((next: RadioState) => {
-    setState(next);
-    const engine = player.current;
-    if (engine) {
-      engine.setQueue(next.queue);
-      if (next.live.rev >= rev.current) {
-        rev.current = next.live.rev;
-        engine.setMix(next.mix);
-      }
-      next.live.fx.forEach((fx) => engine.fx(fx));
-    }
-    if (playingRef.current && !next.stream) void voice.current?.update(next);
-  }, []);
-
-  const poll = useCallback(async () => {
-    const sent = Date.now();
-    try {
-      const res = await fetch(`/radio/estado${playingRef.current ? `?oyente=${listener}` : ""}`, { headers: { Accept: "application/json" }, cache: "no-store" });
-      if (!res.ok) return null;
-      const next = (await res.json()) as RadioState;
-      serverClock.sample(next.now, sent, Date.now());
-      apply(next);
-      return next;
-    } catch {
-      return null;
-    }
-  }, [apply, listener, serverClock]);
-
-  useEffect(() => {
-    let stop = false;
-    let timer = 0;
-    const loop = async () => {
-      const next = await poll();
-      if (stop) return;
-      const negotiating = next?.voice && ["waiting", "offering", "offered"].includes(next.voice.state);
-      const delay = !playingRef.current ? 12000 : negotiating ? 1000 : 2500;
-      timer = window.setTimeout(loop, delay);
-    };
-    timer = window.setTimeout(loop, playing ? 50 : 12000);
-    return () => {
-      stop = true;
-      window.clearTimeout(timer);
-    };
-  }, [playing, poll]);
-
-  const leave = useCallback(() => {
-    const body = new FormData();
-    body.set("oyente", listener);
-    body.set("_token", document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "");
-    navigator.sendBeacon?.("/radio/salir", body);
-  }, [listener]);
-
-  useEffect(() => {
-    const onHide = () => playingRef.current && leave();
-    window.addEventListener("pagehide", onHide);
-    return () => {
-      window.removeEventListener("pagehide", onHide);
-      player.current?.stop();
-      voice.current?.close();
-      stream.current?.pause();
-      if (playingRef.current) leave();
-    };
-  }, [leave]);
-
-  const toggle = useCallback(async () => {
-    if (playingRef.current) {
-      playingRef.current = false;
-      setPlaying(false);
-      player.current?.stop();
-      voice.current?.close();
-      stream.current?.pause();
-      setAnalyser(null);
-      leave();
-      return;
-    }
-    setBlocked(false);
-    if (state.stream) {
-      stream.current ??= new Audio();
-      stream.current.src = state.stream;
-      stream.current.volume = volume;
-      await stream.current.play().catch(() => setBlocked(true));
-    } else {
-      if (!player.current) {
-        player.current = new ProgramPlayer(serverClock);
-        player.current.onBlocked = () => setBlocked(true);
-      }
-      if (!voice.current) {
-        voice.current = new VoiceLink(listener);
-        voice.current.onStatus = setVoiceStatus;
-        voice.current.onMix = (mix, at) => {
-          if (at >= rev.current) {
-            rev.current = at;
-            player.current?.setMix(mix);
-          }
-        };
-        voice.current.onFx = (fx) => player.current?.fx(fx, true);
-      }
-      await Promise.all([player.current.start(), voice.current.unlock()]);
-      player.current.setVolume(volume);
-      voice.current.setVolume(volume);
-      player.current.setQueue(state.queue);
-      player.current.setMix(state.mix);
-      setAnalyser(player.current.analyser);
-    }
-    playingRef.current = true;
-    setPlaying(true);
-  }, [leave, listener, serverClock, state.mix, state.queue, state.stream, volume]);
-
-  const setVolume = useCallback((value: number) => {
-    setVolumeState(value);
-    player.current?.setVolume(value);
-    voice.current?.setVolume(value);
-    if (stream.current) stream.current.volume = value;
-  }, []);
-
-  return { state, now, playing, volume, voice: voiceStatus, blocked, analyser, toggle, setVolume };
 }

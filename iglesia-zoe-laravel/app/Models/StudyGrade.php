@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Domain\Shared\Models\UuidModel;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class StudyGrade extends UuidModel
 {
@@ -14,10 +13,5 @@ class StudyGrade extends UuidModel
         return [
             'score' => 'float',
         ];
-    }
-
-    public function assessment(): BelongsTo
-    {
-        return $this->belongsTo(StudyAssessment::class, 'study_assessment_id');
     }
 }
