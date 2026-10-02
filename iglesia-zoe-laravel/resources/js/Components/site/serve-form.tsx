@@ -10,7 +10,7 @@ const MAX_NOTES = 800;
 type Field = "serve_area_id" | "first_name" | "last_name" | "age" | "marital_status" | "phone" | "email";
 type Errors = Partial<Record<Field, string>>;
 
-/** «Regístrate para servir»: lands in the panel under Formularios → Quieren servir. */
+/** «Regístrate para servir»: lands in the panel under Formularios → Quiero servir. */
 export function ServeForm({ areas, initialArea = "" }: { areas: ServeArea[]; initialArea?: string }) {
   const t = useCopy();
   const form = useRef<HTMLFormElement>(null);

@@ -96,6 +96,7 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::get('/formularios/{kind}', [InboxController::class, 'show'])->whereIn('kind', array_keys(Inbox::KINDS));
         Route::post('/notificaciones/suscribir', [InboxController::class, 'subscribe']);
     });
+    Route::post('/formularios/servidores/estado', [InboxController::class, 'serveStatus'])->middleware($can('inbox.serve'));
     Route::post('/notificaciones/silenciar', [InboxController::class, 'mute'])->middleware(EnsureRole::class.':superadmin');
     Route::redirect('/bandeja', '/admin/formularios');
 

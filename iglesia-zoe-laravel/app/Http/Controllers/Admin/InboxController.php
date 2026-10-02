@@ -7,10 +7,14 @@ use App\Domain\Inbox\Inbox;
 use App\Domain\Inbox\NetworkRoute;
 use App\Http\Controllers\Controller;
 use App\Models\PushSubscription;
+use App\Models\ServeArea;
+use App\Models\ServeRegistration;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -30,15 +34,44 @@ class InboxController extends Controller
             return redirect('/admin')->with('denied', true);
         }
         $previous = Inbox::markSeen($user, $kind);
+        $areas = $kind === 'servidores' ? Inbox::serveAreasOf($user) : null;
 
         return Inertia::render('Admin/Formularios', [
             'kind' => $kind,
             'title' => Inbox::KINDS[$kind]['title'],
             'tabs' => collect(Inbox::kindsFor($user))->map(fn ($key) => ['key' => $key, 'title' => Inbox::KINDS[$key]['title'], 'href' => Inbox::url($key)])->values(),
-            'rows' => Inbox::rows($kind),
+            'rows' => Inbox::rows($kind, $user),
             'limit' => Inbox::LIMIT,
             'seenBefore' => $previous?->toIso8601String(),
             'routes' => NetworkRoute::catalog(),
+            'statuses' => $kind === 'servidores' ? ServeRegistration::STATUSES : null,
+            'scope' => $areas === null ? null : ServeArea::query()->whereIn('id', $areas)->orderBy('sort_order')->pluck('name')->all(),
+        ]);
+    }
+
+    /** Follow-up of a «Quiero servir» sign-up, only within the áreas the account covers. */
+    public function serveStatus(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'id' => 'required|string',
+            'status' => ['required', Rule::in(array_keys(ServeRegistration::STATUSES))],
+        ], ['required' => 'Falta elegir la inscripción y su estado.', 'status.in' => 'Elige un estado válido.']);
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()->first()], 422);
+        }
+        $data = $validator->validated();
+        $user = $request->user();
+        $registration = ServeRegistration::query()->find($data['id']);
+        if (! $registration || ! Inbox::reaches($user, 'servidores', $registration)) {
+            return response()->json(['error' => 'Esta inscripción no está entre las áreas que recibes.'], 403);
+        }
+
+        $registration->update(['status' => $data['status'], 'status_at' => now(), 'status_by' => $user->name ?: $user->username]);
+
+        return response()->json([
+            'ok' => true,
+            'reload' => true,
+            'message' => "{$registration->first_name} quedó como «".ServeRegistration::STATUSES[$data['status']].'».',
         ]);
     }
 

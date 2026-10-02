@@ -28,7 +28,7 @@ class Permissions
         'inbox.visits' => ['group' => 'Formularios de la web', 'title' => 'Visitas planificadas', 'text' => 'Ve a cada persona que planifica su visita, con la red que le corresponde, y recibe una notificación al instante.'],
         'inbox.baptisms' => ['group' => 'Formularios de la web', 'title' => 'Inscripciones de bautismo', 'text' => 'Ve a cada persona que se inscribe para bautizarse, con la red que le corresponde, y recibe una notificación al instante.'],
         'inbox.prayers' => ['group' => 'Formularios de la web', 'title' => 'Peticiones de oración', 'text' => 'Ve cada petición de oración, con la red que le corresponde, y recibe una notificación al instante.'],
-        'inbox.serve' => ['group' => 'Formularios de la web', 'title' => 'Quieren servir', 'text' => 'Ve a cada persona que se registra para servir en un área, con la red que le corresponde, y recibe una notificación al instante.'],
+        'inbox.serve' => ['group' => 'Formularios de la web', 'title' => 'Quiero servir', 'text' => 'Ve a cada persona que se inscribe para servir en un área (todas o solo las que elijas), le da seguimiento y recibe una notificación al instante.'],
     ];
 
     public const INBOX = ['inbox.visits', 'inbox.baptisms', 'inbox.prayers', 'inbox.serve'];
@@ -60,6 +60,12 @@ class Permissions
             'label' => 'Maestro · Ruta del Servidor',
             'text' => 'Solo el aula de la Ruta del Servidor: estudiantes, niveles, notas, avisos, versículos y lecturas en PDF.',
             'permissions' => self::STUDIES,
+            'exclusive' => true,
+        ],
+        'voluntarios' => [
+            'label' => 'Coordinador de servidores',
+            'text' => 'Solo la pestaña «Quiero servir»: recibe a quienes se inscriben para servir, de todas las áreas o solo de las que elijas, y les da seguimiento.',
+            'permissions' => ['inbox.serve'],
             'exclusive' => true,
         ],
         'temas' => [

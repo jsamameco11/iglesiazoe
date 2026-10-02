@@ -13,23 +13,27 @@ type Account = {
   permissions: Permission[];
   network_code: string | null;
   cells: string[];
+  serve_areas: string[];
   active: boolean;
   label: string;
   created_at: string | null;
 };
 
-type Props = { catalog: Catalog; networks: { id: string; code: string }[]; cells: string[]; meId: string; accounts: Account[] };
+type ServeArea = { id: string; name: string; active: boolean };
+
+type Props = { catalog: Catalog; networks: { id: string; code: string }[]; cells: string[]; meId: string; serveAreas: ServeArea[]; accounts: Account[] };
 
 const typeTone: Record<AdminType, string> = {
   red: "bg-sky text-[#28516b]",
   visuales: "bg-blush text-[#8a4a33]",
   celula: "bg-mist text-[#3d6248]",
   atmosfera: "bg-amber/60 text-[#7a5418]",
+  voluntarios: "bg-sage text-[#4b4a2c]",
   temas: "bg-orange/15 text-orange-deep",
   estudios: "bg-sky text-[#28516b]",
 };
 
-export default function Equipo({ catalog, networks, cells, meId, accounts }: Props) {
+export default function Equipo({ catalog, networks, cells, meId, serveAreas, accounts }: Props) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<AdminType | "all">("all");
   const list = accounts.filter((account) => {
@@ -47,7 +51,7 @@ export default function Equipo({ catalog, networks, cells, meId, accounts }: Pro
           aside={<div className="rounded-2xl border border-line bg-white px-5 py-3 text-right"><p className="text-2xl font-semibold">{accounts.length}</p><p className="text-[11px] uppercase tracking-wider text-muted">cuentas</p></div>}
         />
         <div className="mt-7 grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-          <CreateAccount catalog={catalog} networks={networks} cells={cells} />
+          <CreateAccount catalog={catalog} networks={networks} cells={cells} serveAreas={serveAreas} />
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre, usuario o red" className={`${input} mt-0 max-w-xs`} />
@@ -57,7 +61,7 @@ export default function Equipo({ catalog, networks, cells, meId, accounts }: Pro
                 </button>
               ))}
             </div>
-            {list.map((account) => <AccountCard key={account.id} account={account} catalog={catalog} networks={networks} isMe={account.id === meId} />)}
+            {list.map((account) => <AccountCard key={account.id} account={account} catalog={catalog} networks={networks} serveAreas={serveAreas} isMe={account.id === meId} />)}
             {!list.length && <p className="rounded-2xl border border-dashed border-line px-5 py-10 text-center text-sm text-muted">No hay cuentas con ese filtro.</p>}
           </div>
         </div>
@@ -66,9 +70,10 @@ export default function Equipo({ catalog, networks, cells, meId, accounts }: Pro
   );
 }
 
-function CreateAccount({ catalog, networks, cells }: { catalog: Catalog; networks: { code: string }[]; cells: string[] }) {
+function CreateAccount({ catalog, networks, cells, serveAreas }: { catalog: Catalog; networks: { code: string }[]; cells: string[]; serveAreas: ServeArea[] }) {
   const [types, setTypes] = useState<AdminType[]>(["red"]);
   const [permissions, setPermissions] = useState<Permission[]>(() => withTypes(catalog, [], catalog.defaults, ["red"]));
+  const [areas, setAreas] = useState<string[]>([]);
   const { result, setResult, pending, run } = useAction();
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -77,10 +82,12 @@ function CreateAccount({ catalog, networks, cells }: { catalog: Catalog; network
     const data = new FormData(form);
     types.forEach((type) => data.append("types[]", type));
     permissions.forEach((permission) => data.append("permissions[]", permission));
+    areas.forEach((area) => data.append("serve_areas[]", area));
     run(() => send("/admin/equipo", data), () => {
       form.reset();
       setTypes(["red"]);
       setPermissions(withTypes(catalog, [], catalog.defaults, ["red"]));
+      setAreas([]);
     });
   }
 
@@ -93,6 +100,7 @@ function CreateAccount({ catalog, networks, cells }: { catalog: Catalog; network
           <label className="text-xs font-semibold text-muted">Clave inicial<input name="password" type="text" required minLength={6} className={input} placeholder="Mínimo 6 caracteres" autoComplete="new-password" /></label>
         </div>
         <AccessEditor catalog={catalog} types={types} permissions={permissions} onChange={(nextTypes, nextPermissions) => { setTypes(nextTypes); setPermissions(nextPermissions); }} />
+        {permissions.includes("inbox.serve") && <ServeAreaPicker areas={serveAreas} value={areas} onChange={setAreas} />}
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-semibold text-muted">Red (opcional)
             <select name="network_code" className={input} defaultValue="">
@@ -112,12 +120,14 @@ function CreateAccount({ catalog, networks, cells }: { catalog: Catalog; network
   );
 }
 
-function AccountCard({ account, catalog, networks, isMe }: { account: Account; catalog: Catalog; networks: { code: string }[]; isMe: boolean }) {
+function AccountCard({ account, catalog, networks, serveAreas, isMe }: { account: Account; catalog: Catalog; networks: { code: string }[]; serveAreas: ServeArea[]; isMe: boolean }) {
   const [mode, setMode] = useState<"view" | "edit" | "password">("view");
   const [types, setTypes] = useState(account.types);
   const [permissions, setPermissions] = useState(account.permissions);
+  const [areas, setAreas] = useState(account.serve_areas);
   const { result, setResult, pending, run } = useAction();
   const titles = useMemo(() => Object.fromEntries(catalog.permissions.map((item) => [item.key, item.title])), [catalog]);
+  const areaNames = account.serve_areas.map((id) => serveAreas.find((area) => area.id === id)?.name ?? "Área eliminada");
 
   function save(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -125,6 +135,7 @@ function AccountCard({ account, catalog, networks, isMe }: { account: Account; c
     data.set("id", account.id);
     types.forEach((type) => data.append("types[]", type));
     permissions.forEach((permission) => data.append("permissions[]", permission));
+    areas.forEach((area) => data.append("serve_areas[]", area));
     run(() => send("/admin/equipo/actualizar", data), () => setMode("view"));
   }
 
@@ -166,7 +177,12 @@ function AccountCard({ account, catalog, networks, isMe }: { account: Account; c
       </div>
       {mode === "view" && !account.superadmin && (
         <div className="mt-4 flex flex-wrap gap-1.5">
-          {account.permissions.map((permission) => <span key={permission} className="rounded-full bg-paper px-2.5 py-1 text-[11px] text-muted">{titles[permission]}</span>)}
+          {account.permissions.map((permission) => (
+            <span key={permission} className="rounded-full bg-paper px-2.5 py-1 text-[11px] text-muted">
+              {titles[permission]}
+              {permission === "inbox.serve" && <strong className="font-semibold text-ink"> · {areaNames.length ? areaNames.join(", ") : "todas las áreas"}</strong>}
+            </span>
+          ))}
           {!account.permissions.length && <span className="text-xs text-muted">Sin funciones asignadas.</span>}
         </div>
       )}
@@ -174,6 +190,7 @@ function AccountCard({ account, catalog, networks, isMe }: { account: Account; c
         <form onSubmit={save} className="mt-5 space-y-4 border-t border-line pt-5">
           <label className="block text-xs font-semibold text-muted">Nombre<input name="name" defaultValue={account.name} className={input} /></label>
           <AccessEditor catalog={catalog} types={types} permissions={permissions} onChange={(nextTypes, nextPermissions) => { setTypes(nextTypes); setPermissions(nextPermissions); }} />
+          {permissions.includes("inbox.serve") && <ServeAreaPicker areas={serveAreas} value={areas} onChange={setAreas} />}
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-xs font-semibold text-muted">Red
               <select name="network_code" defaultValue={account.network_code ?? ""} className={input}>
@@ -195,6 +212,30 @@ function AccountCard({ account, catalog, networks, isMe }: { account: Account; c
       )}
       <div className="mt-3"><Notice result={result} onClose={() => setResult(null)} /></div>
     </article>
+  );
+}
+
+function ServeAreaPicker({ areas, value, onChange }: { areas: ServeArea[]; value: string[]; onChange: (value: string[]) => void }) {
+  const all = value.length === 0;
+  const chip = (on: boolean) => `rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${on ? "border-ink bg-ink text-white" : "border-line bg-white text-muted hover:border-ink/30 hover:text-ink"}`;
+  const toggle = (id: string) => onChange(value.includes(id) ? value.filter((item) => item !== id) : [...value, id]);
+
+  return (
+    <div className="rounded-2xl border border-line bg-white p-4">
+      <p className="text-xs font-semibold text-muted">«Quiero servir» · áreas que recibe en su pestaña y en sus notificaciones</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button type="button" onClick={() => onChange([])} className={chip(all)} aria-pressed={all}>Todas las áreas</button>
+        {areas.map((area) => (
+          <button key={area.id} type="button" onClick={() => toggle(area.id)} className={chip(value.includes(area.id))} aria-pressed={value.includes(area.id)}>
+            {area.name}
+            {!area.active && <span className="ml-1 font-normal opacity-70">(oculta)</span>}
+          </button>
+        ))}
+      </div>
+      <p className="mt-2 text-[11.5px] leading-4 text-muted">
+        {all ? "Recibe a todas las personas que se inscriben, de cualquier área." : "Solo verá y recibirá notificaciones de las áreas marcadas, por ejemplo el líder de Música solo de Música."}
+      </p>
+    </div>
   );
 }
 
