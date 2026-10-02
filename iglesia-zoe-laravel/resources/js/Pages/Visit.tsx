@@ -26,7 +26,7 @@ export default function Visit({
   const social = useSocial();
   const phone = settings.phone?.trim() || "(074) 252525";
   const email = settings.email?.trim().toLowerCase() || "iglesiacristianazoe@gmail.com";
-  const address = settings.address?.trim() || "Calle Bolívar 755, Chiclayo";
+  const address = settings.address?.trim() || "Simón Bolívar 750, Chiclayo";
   const call = telHref(phone);
   const mapSrc = mapEmbedUrl(address);
 
