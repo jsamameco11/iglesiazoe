@@ -13,7 +13,10 @@ export type Permission =
   | "content.manage"
   | "generosity.manage"
   | "notices.manage"
-  | "expenses.manage";
+  | "expenses.manage"
+  | "inbox.visits"
+  | "inbox.baptisms"
+  | "inbox.prayers";
 
 export type AdminType = "red" | "visuales" | "celula" | "atmosfera" | "temas";
 

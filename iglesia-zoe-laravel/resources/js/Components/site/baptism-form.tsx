@@ -5,10 +5,11 @@ import { useCopy } from "@/lib/copy";
 import { flagUrl, geo, type GeoCountry } from "@/lib/geo";
 
 const SEXES = ["Masculino", "Femenino"];
+const MARITAL = ["Soltero(a)", "Casado(a)", "Conviviente", "Divorciado(a)", "Separado(a)", "Viudo(a)"];
 const DEFAULT_COUNTRY = "PE";
 
 type BaptismEventOption = { id: string; event_date: string | null; location: string | null };
-type Errors = Partial<Record<"first_name" | "last_name" | "sex" | "age" | "country" | "phone" | "email", string>>;
+type Errors = Partial<Record<"first_name" | "last_name" | "sex" | "age" | "marital_status" | "country" | "phone" | "email", string>>;
 
 const input = "visit-input";
 
@@ -45,6 +46,7 @@ export function BaptismForm({
   const [lastName, setLastName] = useState("");
   const [sex, setSex] = useState("");
   const [age, setAge] = useState("");
+  const [marital, setMarital] = useState("");
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
   const [dialKey, setDialKey] = useState(`${DEFAULT_COUNTRY}:51`);
   const [dialTouched, setDialTouched] = useState(false);
@@ -97,6 +99,7 @@ export function BaptismForm({
     if (!sex) next.sex = "Elige una opción.";
     const ageNumber = Number(age);
     if (!age || ageNumber < 1 || ageNumber > 120) next.age = "Edad entre 1 y 120.";
+    if (!marital) next.marital_status = "Elige una opción.";
     if (!country) next.country = "Elige tu país.";
     if (phone.length < 6) next.phone = "Escribe un teléfono válido.";
     if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) next.email = "Escribe un correo válido.";
@@ -108,6 +111,7 @@ export function BaptismForm({
     setLastName("");
     setSex("");
     setAge("");
+    setMarital("");
     setPhone("");
     setEmail("");
     setNotes("");
@@ -128,6 +132,7 @@ export function BaptismForm({
     data.set("last_name", lastName.trim());
     data.set("sex", sex);
     data.set("age", age);
+    data.set("marital_status", marital);
     data.set("country_code", country);
     data.set("phone_code", dial);
     data.set("phone", phone);
@@ -213,6 +218,19 @@ export function BaptismForm({
           {errors.age && <span className="select-field-error">{errors.age}</span>}
         </label>
         <SelectField
+          label={t("forms.marital")}
+          value={marital}
+          options={MARITAL.map((item) => ({ value: item, label: item }))}
+          onChange={(value) => {
+            setMarital(value);
+            clearError("marital_status");
+          }}
+          error={errors.marital_status}
+        />
+      </div>
+
+      <div className="visit-row cols-2">
+        <SelectField
           label={t("forms.country")}
           value={country}
           options={countryOptions}
@@ -225,9 +243,6 @@ export function BaptismForm({
           error={errors.country}
           searchable
         />
-      </div>
-
-      <div className="visit-row cols-2">
         <div className="visit-label">
           <span className="text-sm">{t("forms.phone")}</span>
           <div className="visit-phone">
@@ -266,25 +281,26 @@ export function BaptismForm({
           </div>
           {errors.phone && <span className="select-field-error">{errors.phone}</span>}
         </div>
-        <label className="visit-label">
-          <span className="text-sm">
-            {t("forms.email")} <span className="select-field-optional">{t("forms.optional")}</span>
-          </span>
-          <input
-            className={input}
-            type="email"
-            value={email}
-            onChange={(event) => {
-              setEmail(event.target.value);
-              clearError("email");
-            }}
-            autoComplete="email"
-            maxLength={160}
-            aria-invalid={errors.email ? true : undefined}
-          />
-          {errors.email && <span className="select-field-error">{errors.email}</span>}
-        </label>
       </div>
+
+      <label className="visit-label">
+        <span className="text-sm">
+          {t("forms.email")} <span className="select-field-optional">{t("forms.optional")}</span>
+        </span>
+        <input
+          className={input}
+          type="email"
+          value={email}
+          onChange={(event) => {
+            setEmail(event.target.value);
+            clearError("email");
+          }}
+          autoComplete="email"
+          maxLength={160}
+          aria-invalid={errors.email ? true : undefined}
+        />
+        {errors.email && <span className="select-field-error">{errors.email}</span>}
+      </label>
 
       {eventOptions.length > 0 && <SelectField label={t("baptism.date")} value={eventId} options={eventOptions} onChange={setEventId} />}
 

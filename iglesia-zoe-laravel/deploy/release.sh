@@ -5,16 +5,27 @@ set -euo pipefail
 
 APP=/opt/iglesia-zoe-app
 ARCHIVE=${1:-/root/zoe-release.tgz}
-PARTS=(app config routes bootstrap/app.php database/migrations database/seeders resources/views public/build composer.json composer.lock)
+PARTS=(app config routes bootstrap/app.php database/migrations database/seeders resources/views public/build public/geo-data public/sw.js composer.json composer.lock)
 
 cd "$APP"
 STAMP=$(date +%Y%m%d-%H%M%S)
-tar -czf "/root/zoe-code-before-$STAMP.tgz" "${PARTS[@]}"
+EXISTING=()
+for part in "${PARTS[@]}"; do [ -e "$part" ] && EXISTING+=("$part"); done
+tar -czf "/root/zoe-code-before-$STAMP.tgz" "${EXISTING[@]}"
 [ -f database/database.sqlite ] && cp -p database/database.sqlite "/root/zoe-before-release-$STAMP.sqlite"
 echo "respaldo de codigo: $STAMP"
 
 LOCK_BEFORE=$(sha1sum composer.lock | cut -d' ' -f1)
-tar -xzf "$ARCHIVE" --no-same-owner -C "$APP"
+# Each part is swapped whole so files deleted from the repo also disappear from the server.
+STAGE=$(mktemp -d)
+tar -xzf "$ARCHIVE" --no-same-owner -C "$STAGE"
+for part in "${PARTS[@]}"; do
+  [ -e "$STAGE/$part" ] || continue
+  rm -rf "${APP:?}/$part"
+  mkdir -p "$(dirname "$APP/$part")"
+  mv "$STAGE/$part" "$APP/$part"
+done
+rm -rf "$STAGE"
 if [ "$LOCK_BEFORE" != "$(sha1sum composer.lock | cut -d' ' -f1)" ]; then
   echo "dependencias de PHP cambiaron: composer install"
   COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction --no-progress

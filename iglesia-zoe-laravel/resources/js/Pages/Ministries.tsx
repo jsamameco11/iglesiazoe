@@ -1,5 +1,5 @@
 import { Rise } from "@/Components/motion/rise";
-import { MinistryCards, MinistryFeature } from "@/Components/site/ministry-feature";
+import { MinistryCards } from "@/Components/site/ministry-cards";
 import { PageIntro } from "@/Components/site/page-intro";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy } from "@/lib/copy";
@@ -20,16 +20,13 @@ export default function Ministries({
   const media = resolveMedia(mediaOverrides);
   return (
     <SiteLayout>
-      <article className="pb-16">
-        <div className="page-wrap pb-0">
-          <Rise>
-            <PageIntro skin={skin} kicker={readCopy(settings, "ministries.kicker")} title={settings.ministriesTitle}>
-              <p className="mt-6 max-w-xl text-lg font-light leading-8 text-muted">{settings.ministriesText}</p>
-            </PageIntro>
-          </Rise>
-        </div>
-        <MinistryFeature settings={settings} ministries={ministries} media={media} showCopy={false} />
-        <MinistryCards ministries={ministries} media={media} />
+      <article className="page-wrap">
+        <Rise>
+          <PageIntro skin={skin} kicker={readCopy(settings, "ministries.kicker")} title={settings.ministriesTitle}>
+            <p className="mt-6 max-w-xl text-lg font-light leading-8 text-muted">{settings.ministriesText}</p>
+          </PageIntro>
+        </Rise>
+        <MinistryCards ministries={ministries} media={media} className="mt-14" />
       </article>
     </SiteLayout>
   );

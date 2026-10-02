@@ -17,22 +17,27 @@ class Permissions
         'themes.manage' => ['group' => 'Células', 'title' => 'Temas de célula', 'text' => 'Publica el tema semanal (PDF, Word, PowerPoint o imagen), le pone fecha y público, y lo oculta cuando ya no se usa.'],
         'design.manage' => ['group' => 'Página web', 'title' => 'Diseño de la página', 'text' => 'Paleta de colores, tipografías, colores y tamaños de texto, y formas, página por página.'],
         'media.manage' => ['group' => 'Página web', 'title' => 'Imágenes y videos', 'text' => 'Cambia fotos y videos de la web y la cantidad de imágenes de la galería.'],
-        'content.manage' => ['group' => 'Página web', 'title' => 'Textos y secciones', 'text' => 'Edita textos, ministerios, prédicas, bautismos, temas y la bandeja.'],
+        'content.manage' => ['group' => 'Página web', 'title' => 'Textos y secciones', 'text' => 'Edita textos, ministerios, prédicas, fechas de bautismo y temas.'],
         'generosity.manage' => ['group' => 'Página web', 'title' => 'Datos de generosidad', 'text' => 'Edita cuentas y medios de pago visibles en la web.'],
         'notices.manage' => ['group' => 'Página web', 'title' => 'Indicaciones de la semana', 'text' => 'Publica el aviso emergente que ven los servidores al entrar a /acceso: título, vigencia y todos los puntos de la semana.'],
         'expenses.manage' => ['group' => 'Atmósfera', 'title' => 'Gastos y compras', 'text' => 'Registra compras con foto de la boleta o factura, detalle y monto.'],
+        'inbox.visits' => ['group' => 'Formularios de la web', 'title' => 'Visitas planificadas', 'text' => 'Ve a cada persona que planifica su visita, con la red que le corresponde, y recibe una notificación al instante.'],
+        'inbox.baptisms' => ['group' => 'Formularios de la web', 'title' => 'Inscripciones de bautismo', 'text' => 'Ve a cada persona que se inscribe para bautizarse, con la red que le corresponde, y recibe una notificación al instante.'],
+        'inbox.prayers' => ['group' => 'Formularios de la web', 'title' => 'Peticiones de oración', 'text' => 'Ve cada petición de oración, con la red que le corresponde, y recibe una notificación al instante.'],
     ];
+
+    public const INBOX = ['inbox.visits', 'inbox.baptisms', 'inbox.prayers'];
 
     public const TYPES = [
         'red' => [
             'label' => 'Servidor de Red',
-            'text' => 'Sube informes, ve reportes de todos los servidores, ve ofrendas por semana y crea servidores.',
-            'permissions' => ['reports.submit', 'reports.weekly', 'reports.all', 'offerings.weekly', 'servers.create', 'cells.manage'],
+            'text' => 'Sube informes, ve reportes de todos los servidores, ve ofrendas por semana, crea servidores y recibe los formularios de la web.',
+            'permissions' => ['reports.submit', 'reports.weekly', 'reports.all', 'offerings.weekly', 'servers.create', 'cells.manage', ...self::INBOX],
         ],
         'visuales' => [
             'label' => 'Visuales · Multimedia',
-            'text' => 'Todo lo de la página web: imágenes, videos, textos, formas, colores, tipografías, datos de generosidad y las indicaciones de la semana.',
-            'permissions' => ['design.manage', 'media.manage', 'content.manage', 'generosity.manage', 'notices.manage'],
+            'text' => 'Todo lo de la página web: imágenes, videos, textos, formas, colores, tipografías, datos de generosidad, las indicaciones de la semana y los formularios de la web.',
+            'permissions' => ['design.manage', 'media.manage', 'content.manage', 'generosity.manage', 'notices.manage', ...self::INBOX],
         ],
         'celula' => [
             'label' => 'Servidor de Célula',
@@ -41,8 +46,8 @@ class Permissions
         ],
         'atmosfera' => [
             'label' => 'Servidor Atmósfera',
-            'text' => 'Registra los gastos y compras de la iglesia con su boleta o factura.',
-            'permissions' => ['expenses.manage'],
+            'text' => 'Registra los gastos y compras de la iglesia con su boleta o factura y recibe los formularios de la web.',
+            'permissions' => ['expenses.manage', ...self::INBOX],
         ],
         'temas' => [
             'label' => 'Temas de célula',

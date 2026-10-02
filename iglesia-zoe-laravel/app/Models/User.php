@@ -10,10 +10,11 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['name', 'email', 'password', 'username', 'dni', 'role', 'network_id', 'admin_types', 'permissions', 'active', 'created_by'])]
+#[Fillable(['name', 'email', 'password', 'username', 'dni', 'role', 'network_id', 'admin_types', 'permissions', 'active', 'created_by', 'inbox_seen', 'push_muted'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -29,12 +30,19 @@ class User extends Authenticatable
             'admin_types' => 'array',
             'permissions' => 'array',
             'active' => 'boolean',
+            'inbox_seen' => 'array',
+            'push_muted' => 'boolean',
         ];
     }
 
     public function network(): BelongsTo
     {
         return $this->belongsTo(Network::class);
+    }
+
+    public function pushSubscriptions(): HasMany
+    {
+        return $this->hasMany(PushSubscription::class);
     }
 
     public function cells(): BelongsToMany

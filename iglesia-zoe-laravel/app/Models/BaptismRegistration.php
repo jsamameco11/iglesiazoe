@@ -8,6 +8,13 @@ class BaptismRegistration extends UuidModel
 {
     protected $fillable = [
         'full_name', 'first_name', 'last_name', 'phone_code', 'phone', 'email',
-        'sex', 'age', 'country_code', 'event_id', 'notes',
+        'sex', 'age', 'marital_status', 'country_code', 'event_id', 'notes',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'age' => 'integer',
+        ];
+    }
 }

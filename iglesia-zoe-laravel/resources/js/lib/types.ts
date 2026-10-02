@@ -1,13 +1,3 @@
-export type Role = "superadmin" | "admin" | "red_leader" | "cell_leader";
-
-export type Profile = {
-  id: string;
-  username: string;
-  full_name: string | null;
-  role: Role;
-  network_id: string | null;
-};
-
 export type SiteSettings = {
   heroTitle: string;
   heroSubtitle: string;
@@ -15,7 +5,6 @@ export type SiteSettings = {
   address: string;
   sunday: string;
   wednesday: string;
-  pastor: string;
   pastorsLabel: string;
   aboutQuote: string;
   aboutText: string;
@@ -54,19 +43,17 @@ export type SiteSettings = {
   clayColor: string;
   fontPair: "mixed" | "grotesque" | "editorial";
   visitCta: string;
-  sermonsCta: string;
   baptismCta: string;
-  railTitle: string;
-  railText: string;
-  ctaVisitTitle: string;
-  ctaVisitText: string;
-  ctaBaptismTitle: string;
-  ctaBaptismText: string;
-  ctaPrayerTitle: string;
-  ctaPrayerText: string;
-  homeFamilyKicker: string;
-  homeFamilyTitle: string;
-  homeMinistriesTitle: string;
+  essenceTitle: string;
+  essenceText: string;
+  cellsTitle: string;
+  cellsText: string;
+  cellsCta: string;
+  generationsTitle: string;
+  resourcesTitle: string;
+  resourcesText: string;
+  visitInviteTitle: string;
+  visitInviteText: string;
   footerTagline: string;
   aboutKicker: string;
   aboutTitle: string;
@@ -92,6 +79,16 @@ export type SiteSettings = {
   giveCardText: string;
   sermonsTitle: string;
   sermonsEmpty: string;
+};
+
+export type SermonSummary = {
+  id: string;
+  title: string;
+  preacher: string | null;
+  series: string | null;
+  sermon_date: string | null;
+  youtube_id: string | null;
+  is_live: boolean;
 };
 
 export type Ministry = {

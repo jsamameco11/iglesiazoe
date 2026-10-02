@@ -30,19 +30,6 @@ class ManageSiteMedia
             return ['ok' => true];
         }
 
-        if ($intent === 'remove-gallery') {
-            $index = $this->galleryIndex($id);
-            if ($index <= 6) {
-                return ['error' => 'Las primeras 6 fotos del carrusel no se pueden quitar.'];
-            }
-            MediaLibrary::deletePublic($overrides[$id]['src'] ?? null);
-            unset($overrides[$id]);
-            $overrides = $this->compactGallery($overrides);
-            $this->persist($overrides);
-
-            return ['ok' => true];
-        }
-
         $kind = (string) $request->input('kind');
         if (! in_array($kind, ['image', 'video'], true)) {
             return ['error' => 'Elige imagen o video.'];
@@ -99,27 +86,6 @@ class ManageSiteMedia
         return ['ok' => true];
     }
 
-    public function addGallerySlot(): array
-    {
-        $overrides = $this->overrides();
-        $next = 7;
-        while ($next <= 12 && isset($overrides['gallery-'.$next])) {
-            $next++;
-        }
-        if ($next > 12) {
-            return ['error' => 'Puedes tener hasta 12 fotos en el carrusel.'];
-        }
-        $overrides['gallery-'.$next] = [
-            'kind' => 'image',
-            'src' => '/images/pastores.jpg',
-            'poster' => '',
-            'alt' => 'Foto '.$next.' del carrusel',
-        ];
-        $this->persist($overrides);
-
-        return ['ok' => true];
-    }
-
     public function renameMinistry(string $from, string $to): void
     {
         $overrides = $this->overrides();
@@ -162,27 +128,5 @@ class ManageSiteMedia
     private function store(UploadedFile $file, string $id, string $kind): string
     {
         return MediaLibrary::storePublic($file, 'medios/site/'.str_replace(':', '/', $id), $this->extension($file, $kind));
-    }
-
-    private function galleryIndex(string $id): int
-    {
-        return preg_match('/^gallery-(\d+)$/', $id, $match) ? (int) $match[1] : 0;
-    }
-
-    private function compactGallery(array $overrides): array
-    {
-        $extras = [];
-        for ($i = 7; $i <= 12; $i++) {
-            $key = 'gallery-'.$i;
-            if (! empty($overrides[$key]['src'])) {
-                $extras[] = $overrides[$key];
-            }
-            unset($overrides[$key]);
-        }
-        foreach ($extras as $offset => $asset) {
-            $overrides['gallery-'.(7 + $offset)] = $asset;
-        }
-
-        return $overrides;
     }
 }

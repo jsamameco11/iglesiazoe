@@ -6,17 +6,7 @@ import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import { formatSermonDate, youtubeId } from "@/lib/youtube";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
-import type { SiteSettings } from "@/lib/types";
-
-type Sermon = {
-  id: string;
-  title: string;
-  preacher: string | null;
-  series: string | null;
-  sermon_date: string | null;
-  youtube_id: string | null;
-  is_live: boolean;
-};
+import type { SermonSummary, SiteSettings } from "@/lib/types";
 
 export default function Sermons({
   settings,
@@ -25,7 +15,7 @@ export default function Sermons({
   skin,
 }: {
   settings: SiteSettings;
-  sermons: Sermon[];
+  sermons: SermonSummary[];
   mediaOverrides: Record<string, MediaAsset>;
   skin: "aire" | "marea";
 }) {

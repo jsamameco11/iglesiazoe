@@ -1,10 +1,13 @@
 <?php
 
+use App\Domain\Access\Permissions;
+use App\Domain\Inbox\Inbox;
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\CellsController;
 use App\Http\Controllers\Admin\DesignController;
 use App\Http\Controllers\Admin\ExpensesController;
 use App\Http\Controllers\Admin\FinanceController;
+use App\Http\Controllers\Admin\InboxController;
 use App\Http\Controllers\Admin\NoticeController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\ServersController;
@@ -31,8 +34,16 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::post('/predicas/eliminar', [AdminController::class, 'deleteSermon']);
         Route::get('/bautismos', [AdminController::class, 'bautismos']);
         Route::post('/bautismos', [AdminController::class, 'saveBaptism']);
-        Route::get('/bandeja', [AdminController::class, 'bandeja']);
     });
+
+    Route::middleware($can(...Permissions::INBOX))->group(function () {
+        Route::get('/formularios', [InboxController::class, 'home']);
+        Route::get('/formularios/novedades', [InboxController::class, 'pulse']);
+        Route::get('/formularios/{kind}', [InboxController::class, 'show'])->whereIn('kind', array_keys(Inbox::KINDS));
+        Route::post('/notificaciones/suscribir', [InboxController::class, 'subscribe']);
+    });
+    Route::post('/notificaciones/silenciar', [InboxController::class, 'mute'])->middleware(EnsureRole::class.':superadmin');
+    Route::redirect('/bandeja', '/admin/formularios');
 
     Route::middleware($can('themes.manage', 'content.manage'))->group(function () {
         Route::get('/temas', [AdminController::class, 'temas']);
@@ -45,7 +56,6 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
     Route::middleware($can('media.manage'))->group(function () {
         Route::get('/medios', [AdminController::class, 'medios']);
         Route::post('/medios', [AdminController::class, 'saveMedia']);
-        Route::post('/medios/galeria', [AdminController::class, 'addGallery']);
     });
 
     Route::middleware($can('notices.manage'))->group(function () {
