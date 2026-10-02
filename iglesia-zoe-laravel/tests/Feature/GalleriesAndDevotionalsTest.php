@@ -24,8 +24,23 @@ class GalleriesAndDevotionalsTest extends TestCase
         Storage::fake(config('filesystems.media'));
     }
 
+    public function test_default_albums_and_devotionals_are_published_and_editable(): void
+    {
+        $this->assertSame(3, ServiceGallery::query()->count());
+        $this->assertSame(4, Devotional::query()->count());
+
+        $this->get('/galeria')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->has('galleries', 3));
+        $this->get('/devocionales')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->has('devotionals', 4));
+
+        $devotional = Devotional::query()->firstOrFail();
+        $this->assertNotEmpty($devotional->image_path);
+        $this->assertNotEmpty($devotional->body);
+        $this->assertNotEmpty(ServiceGallery::query()->firstOrFail()->photos);
+    }
+
     public function test_admin_builds_an_album_and_it_reaches_the_public_gallery(): void
     {
+        $this->clearDefaults();
         $admin = $this->superadmin();
 
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/galeria', ['kind' => 'otro', 'service_date' => '2026-09-27'])->assertUnprocessable();
@@ -93,6 +108,7 @@ class GalleriesAndDevotionalsTest extends TestCase
 
     public function test_devotionals_publish_on_their_date_and_admin_manages_them(): void
     {
+        $this->clearDefaults();
         $admin = $this->superadmin();
         $today = now('America/Lima')->toDateString();
         $body = "Dios no se ha olvidado de ti.\n\nAun en el silencio, Él sigue obrando en tu vida.";
@@ -151,6 +167,12 @@ class GalleriesAndDevotionalsTest extends TestCase
 
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/devocionales/eliminar', ['id' => $devotional->id])->assertOk();
         $this->assertNull($devotional->fresh());
+    }
+
+    private function clearDefaults(): void
+    {
+        ServiceGallery::query()->delete();
+        Devotional::query()->delete();
     }
 
     private function superadmin(): User

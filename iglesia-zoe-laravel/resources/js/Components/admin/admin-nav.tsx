@@ -50,6 +50,15 @@ const groups: { title: string; items: Item[] }[] = [
     ],
   },
   {
+    title: "Radio",
+    items: [
+      { href: "/admin/radio", label: "Consola en vivo", needs: ["radio.manage"] },
+      { href: "/admin/radio/programacion", label: "Programación", needs: ["radio.manage"] },
+      { href: "/admin/radio/biblioteca", label: "Biblioteca de audio", needs: ["radio.manage"] },
+      { href: "/admin/radio/ajustes", label: "Ajustes de la radio", needs: ["radio.manage"] },
+    ],
+  },
+  {
     title: "Estudios · Ruta del Servidor",
     items: [
       { href: "/admin/estudios", label: "Niveles y horarios", needs: ["studies.grades"] },
@@ -91,7 +100,7 @@ export function AdminNav({ user, onNavigate }: { user: PanelUser; onNavigate?: (
           {group.title && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/35">{group.title}</p>}
           <div className="space-y-0.5">
             {group.items.map((item) => {
-              const active = item.href === "/admin" || item.href === "/admin/estudios" ? pathname === item.href : pathname.startsWith(item.href);
+              const active = ["/admin", "/admin/estudios", "/admin/radio"].includes(item.href) ? pathname === item.href : pathname.startsWith(item.href);
               const fresh = item.inbox && !active ? unread[item.inbox] ?? 0 : 0;
               return (
                 <Link

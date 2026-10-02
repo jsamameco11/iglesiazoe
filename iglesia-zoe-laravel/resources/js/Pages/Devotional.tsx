@@ -4,6 +4,7 @@ import { Rise } from "@/Components/motion/rise";
 import { DevotionalCard } from "@/Components/site/devotional-card";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
+import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { Devotional as DevotionalCardData, DevotionalFull, SiteSettings } from "@/lib/types";
 import { formatSermonDate } from "@/lib/youtube";
 
@@ -25,8 +26,20 @@ function Body({ text }: { text: string }) {
   );
 }
 
-export default function Devotional({ devotional, more, settings }: { devotional: DevotionalFull; more: DevotionalCardData[]; settings: SiteSettings }) {
+export default function Devotional({
+  devotional,
+  more,
+  settings,
+  mediaOverrides,
+}: {
+  devotional: DevotionalFull;
+  more: DevotionalCardData[];
+  settings: SiteSettings;
+  mediaOverrides: Record<string, MediaAsset>;
+}) {
   const t = (key: CopyKey) => readCopy(settings, key);
+  const cover = resolveMedia(mediaOverrides).devotionals.src;
+  const image = devotional.image || cover;
   const [copied, setCopied] = useState(false);
   const url = typeof window === "undefined" ? "" : window.location.href;
   const whatsapp = `https://wa.me/?text=${encodeURIComponent(`${devotional.title} · Devocional de Iglesia Cristiana Zoe\n${url}`)}`;
@@ -54,20 +67,20 @@ export default function Devotional({ devotional, more, settings }: { devotional:
             {devotional.author ? <p className="mt-4 text-[15px] text-muted">{devotional.author}</p> : null}
           </Rise>
 
+          {image ? (
+            <Rise>
+              <figure className="devo-figure">
+                <img src={image} alt="" />
+              </figure>
+            </Rise>
+          ) : null}
+
           {devotional.verse_text || devotional.verse_ref ? (
             <Rise>
               <blockquote className="devo-quote">
                 {devotional.verse_text ? <p>«{devotional.verse_text}»</p> : null}
                 {devotional.verse_ref ? <cite>{devotional.verse_ref}</cite> : null}
               </blockquote>
-            </Rise>
-          ) : null}
-
-          {devotional.image ? (
-            <Rise>
-              <figure className="devo-figure">
-                <img src={devotional.image} alt="" />
-              </figure>
             </Rise>
           ) : null}
 
@@ -100,7 +113,7 @@ export default function Devotional({ devotional, more, settings }: { devotional:
             </Rise>
             <div className="mt-8 grid gap-5 md:grid-cols-3">
               {more.map((item) => (
-                <DevotionalCard key={item.id} item={item} t={t} />
+                <DevotionalCard key={item.id} item={item} cover={cover} t={t} />
               ))}
             </div>
           </section>
