@@ -1,5 +1,6 @@
 export function mapEmbedUrl(address: string) {
-  return `https://maps.google.com/maps?q=${encodeURIComponent(address)}&z=16&output=embed`;
+  const place = address ? `Iglesia Cristiana Zoe, ${address}` : "Iglesia Cristiana Zoe, Chiclayo";
+  return `https://maps.google.com/maps?q=${encodeURIComponent(place)}&z=17&output=embed`;
 }
 
 export function telHref(value: string) {
