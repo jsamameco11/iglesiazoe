@@ -41,8 +41,8 @@ class GalleriesAndDevotionalsTest extends TestCase
         $this->assertSame('Culto dominical', $gallery->title);
         $this->assertSame('culto-dominical-27-09-2026', $gallery->slug);
 
-        $this->get('/galeria')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Galleries')->has('galleries', 0));
-        $this->get('/galeria/'.$gallery->slug)->assertNotFound();
+        $this->visitor('/galeria')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Galleries')->has('galleries', 0));
+        $this->visitor('/galeria/'.$gallery->slug)->assertNotFound();
 
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/galeria/foto', ['id' => $id, 'photo' => UploadedFile::fake()->create('nota.pdf', 10, 'application/pdf')])
             ->assertUnprocessable();
@@ -63,13 +63,13 @@ class GalleriesAndDevotionalsTest extends TestCase
         $this->assertSame([$paths[2], $paths[0]], $gallery->fresh()->photos);
         Storage::disk(config('filesystems.media'))->assertMissing(substr($paths[1], strlen('/media/')));
 
-        $this->get('/galeria')
+        $this->visitor('/galeria')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Galleries')
                 ->where('galleries.0.cover', $paths[2])
                 ->where('galleries.0.count', 2));
-        $this->get('/galeria/'.$gallery->slug)
+        $this->visitor('/galeria/'.$gallery->slug)
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Gallery')->has('gallery.photos', 2));
 
@@ -78,7 +78,7 @@ class GalleriesAndDevotionalsTest extends TestCase
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Admin/Galeria')->has('galleries', 1));
 
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/galeria', ['id' => $id, 'kind' => 'dominical', 'service_date' => '2026-09-27'])->assertOk();
-        $this->get('/galeria/'.$gallery->slug)->assertNotFound();
+        $this->visitor('/galeria/'.$gallery->slug)->assertNotFound();
 
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/galeria/eliminar', ['id' => $id])->assertOk();
         $this->assertNull($gallery->fresh());
@@ -121,17 +121,17 @@ class GalleriesAndDevotionalsTest extends TestCase
         $devotional = Devotional::query()->where('slug', 'cuando-dios-guarda-silencio')->sole();
         $this->assertStringStartsWith('/media/devocionales/', $devotional->image_path);
 
-        $this->get('/devocionales')
+        $this->visitor('/devocionales')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Devotionals')
                 ->has('devotionals', 1)
                 ->where('devotionals.0.title', 'Cuando Dios guarda silencio')
                 ->where('devotionals.0.verse_ref', 'Salmo 46:10'));
-        $this->get('/devocionales/cuando-dios-guarda-silencio')
+        $this->visitor('/devocionales/cuando-dios-guarda-silencio')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Devotional')->where('devotional.body', $body));
-        $this->get('/devocionales/fe-para-manana')->assertNotFound();
+        $this->visitor('/devocionales/fe-para-manana')->assertNotFound();
 
         $this->actingAs($admin)->get(self::ADMIN.'/admin/devocionales')
             ->assertOk()
@@ -147,7 +147,7 @@ class GalleriesAndDevotionalsTest extends TestCase
         $devotional->refresh();
         $this->assertNull($devotional->image_path);
         $this->assertFalse($devotional->active);
-        $this->get('/devocionales/cuando-dios-guarda-silencio')->assertNotFound();
+        $this->visitor('/devocionales/cuando-dios-guarda-silencio')->assertNotFound();
 
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/devocionales/eliminar', ['id' => $devotional->id])->assertOk();
         $this->assertNull($devotional->fresh());

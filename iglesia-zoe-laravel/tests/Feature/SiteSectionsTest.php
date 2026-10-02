@@ -64,7 +64,11 @@ class SiteSectionsTest extends TestCase
 
         $this->get('/ruta-del-servidor')
             ->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->component('ServerRoute')->has('settings.routeLevels', 4));
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('ServerRoute')
+                ->has('studyLevels', 5)
+                ->where('studyLevels.0.name', 'Nueva Vida')
+                ->where('studyLevels.4.name', 'Visión Celular'));
     }
 
     public function test_admin_publishes_edits_and_deletes_an_event_with_its_flyer(): void

@@ -19,12 +19,18 @@ final class Entrance
 
     public static function fits(User $user, Request $request): bool
     {
-        return self::isAdminHost($request) ? Permissions::isAdministrator($user) : Permissions::isServer($user);
+        return self::isAdminHost($request)
+            ? Permissions::isAdministrator($user)
+            : Permissions::isServer($user) || Permissions::isStudent($user);
     }
 
     /** Login URL of the door this account belongs to. */
     public static function loginUrlFor(User $user): string
     {
+        if (Permissions::isStudent($user)) {
+            return self::siteUrl('/estudios/acceso');
+        }
+
         return Permissions::isAdministrator($user) && ! Permissions::isServer($user)
             ? self::adminUrl('/acceso')
             : self::siteUrl('/acceso');

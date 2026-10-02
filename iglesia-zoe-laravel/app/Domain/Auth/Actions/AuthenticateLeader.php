@@ -2,6 +2,7 @@
 
 namespace App\Domain\Auth\Actions;
 
+use App\Domain\Access\Permissions;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
@@ -31,6 +32,6 @@ class AuthenticateLeader
 
     public static function home(User $user): string
     {
-        return '/admin';
+        return Permissions::isStudent($user) ? '/estudios/mi-ruta' : '/admin';
     }
 }

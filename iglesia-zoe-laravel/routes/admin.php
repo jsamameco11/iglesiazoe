@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\NoticeController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SectionsController;
 use App\Http\Controllers\Admin\ServersController;
+use App\Http\Controllers\Admin\StudiesController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
@@ -37,9 +38,6 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::post('/predicas/eliminar', [AdminController::class, 'deleteSermon']);
         Route::get('/bautismos', [AdminController::class, 'bautismos']);
         Route::post('/bautismos', [AdminController::class, 'saveBaptism']);
-        Route::get('/eventos', [SectionsController::class, 'eventos']);
-        Route::post('/eventos', [SectionsController::class, 'saveEvent']);
-        Route::post('/eventos/eliminar', [SectionsController::class, 'deleteEvent']);
         Route::get('/recursos', [SectionsController::class, 'recursos']);
         Route::post('/recursos', [SectionsController::class, 'saveTeaching']);
         Route::post('/recursos/eliminar', [SectionsController::class, 'deleteTeaching']);
@@ -49,14 +47,47 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::post('/galeria/foto/quitar', [GalleriesController::class, 'removePhoto']);
         Route::post('/galeria/portada', [GalleriesController::class, 'cover']);
         Route::post('/galeria/eliminar', [GalleriesController::class, 'destroy']);
-        Route::get('/devocionales', [DevotionalsController::class, 'index']);
-        Route::post('/devocionales', [DevotionalsController::class, 'save']);
-        Route::post('/devocionales/eliminar', [DevotionalsController::class, 'destroy']);
         Route::get('/secciones', [SectionsController::class, 'secciones']);
         Route::get('/involucrate', [SectionsController::class, 'areas']);
         Route::post('/involucrate', [SectionsController::class, 'saveArea']);
         Route::post('/involucrate/orden', [SectionsController::class, 'moveArea']);
         Route::post('/involucrate/eliminar', [SectionsController::class, 'deleteArea']);
+    });
+
+    Route::middleware($can('events.manage', 'content.manage'))->group(function () {
+        Route::get('/eventos', [SectionsController::class, 'eventos']);
+        Route::post('/eventos', [SectionsController::class, 'saveEvent']);
+        Route::post('/eventos/eliminar', [SectionsController::class, 'deleteEvent']);
+    });
+
+    Route::middleware($can('devotionals.manage', 'content.manage'))->group(function () {
+        Route::get('/devocionales', [DevotionalsController::class, 'index']);
+        Route::post('/devocionales', [DevotionalsController::class, 'save']);
+        Route::post('/devocionales/eliminar', [DevotionalsController::class, 'destroy']);
+    });
+
+    Route::middleware($can('studies.grades'))->prefix('estudios')->group(function () {
+        Route::get('/', [StudiesController::class, 'levels']);
+        Route::post('/niveles', [StudiesController::class, 'saveLevel']);
+        Route::get('/estudiantes', [StudiesController::class, 'students']);
+        Route::post('/estudiantes', [StudiesController::class, 'saveStudent']);
+        Route::post('/estudiantes/eliminar', [StudiesController::class, 'deleteStudent']);
+        Route::get('/notas', [StudiesController::class, 'grades']);
+        Route::post('/notas', [StudiesController::class, 'saveGrades']);
+        Route::post('/notas/evaluacion', [StudiesController::class, 'saveAssessment']);
+        Route::post('/notas/evaluacion/eliminar', [StudiesController::class, 'deleteAssessment']);
+    });
+
+    Route::middleware($can('studies.board'))->prefix('estudios')->group(function () {
+        Route::get('/avisos', [StudiesController::class, 'notices']);
+        Route::post('/avisos', [StudiesController::class, 'saveNotice']);
+        Route::post('/avisos/eliminar', [StudiesController::class, 'deleteNotice']);
+        Route::get('/animo', [StudiesController::class, 'verses']);
+        Route::post('/animo', [StudiesController::class, 'saveVerse']);
+        Route::post('/animo/eliminar', [StudiesController::class, 'deleteVerse']);
+        Route::get('/lecturas', [StudiesController::class, 'readings']);
+        Route::post('/lecturas', [StudiesController::class, 'saveReading']);
+        Route::post('/lecturas/eliminar', [StudiesController::class, 'deleteReading']);
     });
 
     Route::middleware($can(...Permissions::INBOX))->group(function () {

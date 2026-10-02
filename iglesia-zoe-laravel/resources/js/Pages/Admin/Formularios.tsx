@@ -28,6 +28,7 @@ type Row = {
   city?: string | null;
   district?: string | null;
   service?: string | null;
+  visit_date?: string | null;
   event_date?: string | null;
   event_location?: string | null;
   notes?: string | null;
@@ -144,10 +145,17 @@ function Card({ row, kind, isNew, onNetwork }: { row: Row; kind: InboxKind; isNe
         )}
         {kind === "visitas" && (
           <>
-            <Detail label={labels[0] ?? "Departamento"}>{row.region}</Detail>
-            <Detail label={labels[1] ?? "Provincia"}>{row.city}</Detail>
-            <Detail label={labels[2] ?? "Distrito"}>{row.district}</Detail>
             <Detail label="Servicio al que asistirá">{row.service}</Detail>
+            <Detail label="Fecha de visita">{row.visit_date ? longDate.format(new Date(`${row.visit_date}T12:00:00Z`)) : null}</Detail>
+            {row.country ? (
+              <>
+                <Detail label={labels[0] ?? "Departamento"}>{row.region}</Detail>
+                <Detail label={labels[1] ?? "Provincia"}>{row.city}</Detail>
+                <Detail label={labels[2] ?? "Distrito"}>{row.district}</Detail>
+              </>
+            ) : (
+              <Detail label="Procedencia"><span className="text-muted">No la indicó</span></Detail>
+            )}
           </>
         )}
         {kind === "bautismos" && (
@@ -209,7 +217,11 @@ export default function Formularios({ kind, title, tabs, rows, limit, seenBefore
     return rows.filter((row) => {
       if (route !== "all" && row.network.key !== route) return false;
       if (!text) return true;
-      return [row.full_name, row.phone, row.email, row.topic, row.service, row.area, row.team].filter(Boolean).join(" ").toLowerCase().includes(text);
+      return [row.full_name, row.phone, row.email, row.topic, row.service, row.country, row.region, row.city, row.district, row.area, row.team]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(text);
     });
   }, [rows, route, query]);
 

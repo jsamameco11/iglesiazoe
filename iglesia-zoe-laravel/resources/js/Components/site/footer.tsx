@@ -41,6 +41,7 @@ export function Footer({
           <Link href="/involucrate#registro" className="block text-muted">{t("nav.register")}</Link>
           <Link href="/ruta-del-servidor" className="block text-muted">{t("nav.route")}</Link>
           <Link href="/dar" className="block text-muted">{t("footer.give")}</Link>
+          <Link href="/estudios/acceso" className="block text-muted">{t("nav.studentAccess")}</Link>
           <Link href="/acceso" className="block text-muted">{t("nav.access")}</Link>
         </div>
         <div className="text-sm leading-7 md:col-span-3">

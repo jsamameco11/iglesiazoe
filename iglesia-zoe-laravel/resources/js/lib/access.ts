@@ -13,13 +13,17 @@ export type Permission =
   | "content.manage"
   | "generosity.manage"
   | "notices.manage"
+  | "events.manage"
+  | "devotionals.manage"
+  | "studies.grades"
+  | "studies.board"
   | "expenses.manage"
   | "inbox.visits"
   | "inbox.baptisms"
   | "inbox.prayers"
   | "inbox.serve";
 
-export type AdminType = "red" | "visuales" | "celula" | "atmosfera" | "temas";
+export type AdminType = "red" | "visuales" | "celula" | "atmosfera" | "temas" | "estudios";
 
 export type PanelUser = {
   id: string;

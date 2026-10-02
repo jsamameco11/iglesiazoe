@@ -119,8 +119,8 @@ return [
         'serveText' => 'Servir es un privilegio y una expresión de nuestro amor por Dios y por las personas. Descubre el área donde tus dones bendicen a otros y únete a un equipo.',
         'serveRailTitle' => 'Somos una iglesia que *está en movimiento*',
         'serveRailText' => 'Contribuimos con nuestro país. Llevamos esperanza, fe y el mensaje de Jesús a cada persona.',
-        'routeTitle' => 'Ruta del servidor',
-        'routeText' => 'El camino de formación de Zoe: paso a paso, desde tu encuentro con Jesús hasta servir y acompañar a otros en un grupo celular.',
+        'routeTitle' => 'La Ruta del Servidor',
+        'routeText' => 'El camino de estudios de Zoe: cinco niveles para crecer paso a paso, desde tu nueva vida en Jesús hasta servir y acompañar a otros en un grupo celular.',
         'routeLevels' => [
             ['title' => 'Encuentro', 'text' => 'Conoces a Jesús, sanas tu historia y das tus primeros pasos en la casa.'],
             ['title' => 'Discipulado', 'text' => 'Construyes bases firmes en la Palabra, la oración y la vida en comunidad.'],
@@ -144,6 +144,23 @@ return [
             ['title' => 'Acompaña a los nuevos', 'text' => 'Si llegó alguien por primera vez, regístralo como integrante y escríbele durante la semana para darle la bienvenida.'],
         ],
         'closing' => 'Equipo pastoral · Iglesia Cristiana Zoe',
+    ],
+    /** Levels of La Ruta del Servidor created on first install; from then on they are managed in the admin (Estudios). */
+    'study_levels' => [
+        ['slug' => 'nueva-vida', 'name' => 'Nueva Vida', 'summary' => 'Los fundamentos de tu nueva vida en Cristo: la salvación, el perdón, la oración y la Palabra de Dios.'],
+        ['slug' => 'enraizados', 'name' => 'Enraizados', 'summary' => 'Echa raíces firmes en la fe: tu identidad en Cristo, la obra del Espíritu Santo y la vida en comunidad.'],
+        ['slug' => 'grandeza-del-servicio', 'name' => 'Grandeza del Servicio', 'summary' => 'Descubre tus dones y aprende a servir a otros con el corazón y la excelencia de Jesús.'],
+        ['slug' => 'discipulado', 'name' => 'Discipulado', 'summary' => 'Aprende a acompañar a otros en su crecimiento, como Jesús lo hizo con sus discípulos.'],
+        ['slug' => 'vision-celular', 'name' => 'Visión Celular', 'summary' => 'La visión de la iglesia en las casas: cómo abrir, cuidar y multiplicar un grupo celular.'],
+    ],
+    /** Starter encouragement verses for the students' classroom. */
+    'study_verses' => [
+        ['Filipenses 1:6', 'El que comenzó en ustedes la buena obra la irá perfeccionando hasta el día de Cristo Jesús.'],
+        ['Josué 1:9', 'Sé fuerte y valiente. No temas ni desmayes, porque el Señor tu Dios estará contigo dondequiera que vayas.'],
+        ['Colosenses 2:7', 'Arraigados y sobreedificados en él, y confirmados en la fe, así como habéis sido enseñados, abundando en acciones de gracias.'],
+        ['2 Timoteo 2:15', 'Procura con diligencia presentarte a Dios aprobado, como obrero que no tiene de qué avergonzarse, que usa bien la palabra de verdad.'],
+        ['Marcos 10:45', 'Porque el Hijo del Hombre no vino para ser servido, sino para servir, y para dar su vida en rescate por muchos.'],
+        ['Salmo 119:105', 'Lámpara es a mis pies tu palabra, y lumbrera a mi camino.'],
     ],
     'ministries' => [
         ['slug' => 'zoe-kids', 'name' => 'Zoe Kids', 'age_range' => '6 meses a 11 años', 'summary' => 'Un espacio seguro, creativo y diseñado especialmente para que descubran el amor de Dios mientras juegan y aprenden.', 'body' => 'Un lugar divertido, seguro y lleno de vida donde los más pequeños aprenden la Palabra de Dios a través de juegos, dinámicas y enseñanzas adaptadas a su edad. ¡El mejor lugar para tus hijos los domingos!', 'sort_order' => 1, 'accent' => '#f3d7b0', 'active' => true],
@@ -169,8 +186,8 @@ return [
             'name' => 'La Ruta del Servidor',
             'tagline' => 'Formándonos para servir',
             'summary' => 'El camino de formación de Zoe: de tu encuentro con Jesús a acompañar y servir a otros en un grupo celular.',
-            'body' => "La Ruta del Servidor es el proceso con el que cada persona de la casa crece paso a paso: Encuentro, Discipulado, Liderazgo y Servidor.\n\nEn cada nivel aprendes, sirves y te preparas para cuidar a otros con el corazón de Jesús.",
-            'teams' => ['Encuentro', 'Discipulado', 'Liderazgo', 'Servidor'],
+            'body' => "La Ruta del Servidor es el proceso de estudios con el que cada persona de la casa crece paso a paso: Nueva Vida, Enraizados, Grandeza del Servicio, Discipulado y Visión Celular.\n\nEn cada nivel aprendes, sirves y te preparas para cuidar a otros con el corazón de Jesús.",
+            'teams' => ['Nueva Vida', 'Enraizados', 'Grandeza del Servicio', 'Discipulado', 'Visión Celular'],
             'image_path' => '/images/ministerio-redes-de-discipulado.jpg',
             'cta_label' => 'Ver la ruta completa',
             'cta_url' => '/ruta-del-servidor',

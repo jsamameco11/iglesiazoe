@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Auth\AccesoController;
 use App\Http\Controllers\Web\SiteController;
+use App\Http\Controllers\Web\StudiesController;
+use App\Http\Middleware\EnsureRole;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [SiteController::class, 'home'])->name('home');
@@ -11,7 +13,6 @@ Route::get('/ministerios', [SiteController::class, 'ministries'])->name('ministr
 Route::get('/ministerios/{slug}', [SiteController::class, 'ministry'])->name('ministry');
 Route::get('/visita', [SiteController::class, 'visit'])->name('visit');
 Route::post('/visita', [SiteController::class, 'storeVisit'])->middleware('throttle:web-forms');
-Route::post('/visita/aviso', [SiteController::class, 'storeQuickVisit'])->middleware('throttle:web-forms');
 Route::get('/bautismos', [SiteController::class, 'baptisms'])->name('baptisms');
 Route::post('/bautismos', [SiteController::class, 'storeBaptism'])->middleware('throttle:web-forms');
 Route::get('/predicas', [SiteController::class, 'sermons'])->name('sermons');
@@ -24,7 +25,14 @@ Route::get('/eventos', [SiteController::class, 'events'])->name('events');
 Route::get('/involucrate', [SiteController::class, 'serve'])->name('serve');
 Route::post('/involucrate', [SiteController::class, 'storeServe'])->middleware('throttle:web-forms');
 Route::get('/involucrate/{slug}', [SiteController::class, 'serveArea'])->where('slug', '[a-z0-9-]+')->name('serve-area');
-Route::get('/ruta-del-servidor', [SiteController::class, 'serverRoute'])->name('server-route');
+Route::get('/ruta-del-servidor', [StudiesController::class, 'route'])->name('server-route');
+Route::redirect('/estudios', '/ruta-del-servidor');
+Route::get('/estudios/acceso', [StudiesController::class, 'login'])->name('studies.login');
+Route::post('/estudios/acceso', [StudiesController::class, 'authenticate']);
+Route::middleware(EnsureRole::class.':student')->group(function () {
+    Route::get('/estudios/mi-ruta', [StudiesController::class, 'classroom'])->name('studies.classroom');
+    Route::post('/estudios/clave', [StudiesController::class, 'password']);
+});
 Route::get('/dar', [SiteController::class, 'give'])->name('give');
 Route::get('/contacto', [SiteController::class, 'contact'])->name('contact');
 Route::post('/contacto', [SiteController::class, 'storePrayer'])->middleware('throttle:web-forms');

@@ -27,7 +27,7 @@ class ServeAreasTest extends TestCase
 
     public function test_default_areas_reach_the_home_carousel_the_menu_and_their_own_page(): void
     {
-        $this->get('/')
+        $this->visitor('/')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Home')
@@ -37,7 +37,7 @@ class ServeAreasTest extends TestCase
                 ->where('serveAreas.5.teams', ['Multimedia', 'Cámara', 'Redes', 'Transmisión', 'Luces', 'Switcher'])
                 ->where('serveAreas.6.teams', ['Ujieres', 'Seguridad', 'Mantenimiento', 'Decoración', 'Contacto']));
 
-        $this->get('/involucrate/atmosfera')
+        $this->visitor('/involucrate/atmosfera')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('ServeArea')
@@ -45,15 +45,15 @@ class ServeAreasTest extends TestCase
                 ->where('area.accepts_volunteers', true)
                 ->has('serveAreas', count(config('zoe.serve_areas'))));
 
-        $this->get('/involucrate/pastoral')
+        $this->visitor('/involucrate/pastoral')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page->component('ServeArea')->where('area.accepts_volunteers', false));
 
         ServeArea::query()->where('slug', 'musica')->update(['active' => false]);
         LoadPublicSite::flush();
 
-        $this->get('/involucrate/musica')->assertNotFound();
-        $this->get('/involucrate/no-existe')->assertNotFound();
+        $this->visitor('/involucrate/musica')->assertNotFound();
+        $this->visitor('/involucrate/no-existe')->assertNotFound();
     }
 
     public function test_areas_without_volunteers_reject_sign_ups(): void
@@ -137,7 +137,7 @@ class ServeAreasTest extends TestCase
         $this->assertStringStartsWith('/media/involucrate/', $area->image_path);
         $this->assertSame(ServeArea::query()->max('sort_order'), $area->sort_order);
 
-        $this->get('/involucrate/misiones-y-alcance')->assertOk();
+        $this->visitor('/involucrate/misiones-y-alcance')->assertOk();
 
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/involucrate/orden', ['id' => $area->id, 'direction' => 'up'])->assertOk();
         $this->assertSame(count(config('zoe.serve_areas')), $area->fresh()->sort_order);
@@ -147,7 +147,7 @@ class ServeAreasTest extends TestCase
         $area->refresh();
         $this->assertSame('misiones', $area->slug);
         $this->assertFalse($area->active);
-        $this->get('/involucrate/misiones')->assertNotFound();
+        $this->visitor('/involucrate/misiones')->assertNotFound();
 
         $this->actingAs($admin)->get(self::ADMIN.'/admin/involucrate')
             ->assertOk()

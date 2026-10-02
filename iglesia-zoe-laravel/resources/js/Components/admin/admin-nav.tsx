@@ -40,13 +40,24 @@ const groups: { title: string; items: Item[] }[] = [
       { href: "/admin/ministerios", label: "Ministerios", needs: ["content.manage"] },
       { href: "/admin/predicas", label: "Prédicas", needs: ["content.manage"] },
       { href: "/admin/involucrate", label: "Involúcrate · áreas", needs: ["content.manage"] },
-      { href: "/admin/eventos", label: "Eventos", needs: ["content.manage"] },
+      { href: "/admin/eventos", label: "Eventos", needs: ["events.manage", "content.manage"] },
       { href: "/admin/galeria", label: "Galería de cultos", needs: ["content.manage"] },
-      { href: "/admin/devocionales", label: "Devocionales", needs: ["content.manage"] },
+      { href: "/admin/devocionales", label: "Devocionales", needs: ["devotionals.manage", "content.manage"] },
       { href: "/admin/recursos", label: "Recursos y enseñanzas", needs: ["content.manage"] },
       { href: "/admin/secciones", label: "Encabezados y Ruta", needs: ["content.manage"] },
       { href: "/admin/bautismos", label: "Bautismos", needs: ["content.manage"] },
       { href: "/admin/generosidad", label: "Generosidad", needs: ["generosity.manage"] },
+    ],
+  },
+  {
+    title: "Estudios · Ruta del Servidor",
+    items: [
+      { href: "/admin/estudios", label: "Niveles y horarios", needs: ["studies.grades"] },
+      { href: "/admin/estudios/estudiantes", label: "Estudiantes", needs: ["studies.grades"] },
+      { href: "/admin/estudios/notas", label: "Notas", needs: ["studies.grades"] },
+      { href: "/admin/estudios/avisos", label: "Avisos del aula", needs: ["studies.board"] },
+      { href: "/admin/estudios/animo", label: "Versículos y ánimo", needs: ["studies.board"] },
+      { href: "/admin/estudios/lecturas", label: "Lecturas en PDF", needs: ["studies.board"] },
     ],
   },
   { title: "Atmósfera", items: [{ href: "/admin/gastos", label: "Gastos y compras", needs: ["expenses.manage"] }] },
@@ -80,7 +91,7 @@ export function AdminNav({ user, onNavigate }: { user: PanelUser; onNavigate?: (
           {group.title && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/35">{group.title}</p>}
           <div className="space-y-0.5">
             {group.items.map((item) => {
-              const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+              const active = item.href === "/admin" || item.href === "/admin/estudios" ? pathname === item.href : pathname.startsWith(item.href);
               const fresh = item.inbox && !active ? unread[item.inbox] ?? 0 : 0;
               return (
                 <Link
