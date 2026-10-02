@@ -32,6 +32,8 @@ function useNavLinks() {
     { href: "/bautismos", label: t("nav.baptism"), note: t("nav.baptismNote") },
   ];
   const resources: NavLink[] = [
+    { href: "/galeria", label: t("nav.gallery"), note: t("nav.galleryNote") },
+    { href: "/devocionales", label: t("nav.devotionals"), note: t("nav.devotionalsNote") },
     { href: "/predicas", label: t("nav.sermons"), note: t("nav.sermonsNote") },
     { href: "/recursos", label: t("nav.teachings"), note: t("nav.teachingsNote") },
   ];
@@ -173,7 +175,7 @@ function HeaderBar({
   pathname: string;
 }) {
   const t = useCopy();
-  const areas = useServeAreas();
+  const areas = useServeAreas().filter((area) => area.accepts_volunteers);
   const { serve, resources } = useNavLinks();
   const here = (prefix: string) => pathname === prefix || pathname.startsWith(prefix + "/");
   const current = (prefix: string) => (here(prefix) ? "nav-current" : "");
@@ -212,7 +214,7 @@ function HeaderBar({
           <NavDrop label={t("nav.serve")} href="/involucrate" links={serve} ghost={ghost} active={serve.some((link) => here(link.href))} />
         )}
         <Link href="/eventos" className={`transition hover:opacity-60 ${current("/eventos")}`} tabIndex={ghostTab}>{t("nav.events")}</Link>
-        <NavDrop label={t("nav.resources")} href="/recursos" links={resources} ghost={ghost} active={resources.some((link) => here(link.href))} />
+        <NavDrop label={t("nav.resources")} href="/galeria" links={resources} ghost={ghost} active={resources.some((link) => here(link.href))} />
         <Link href="/contacto" className={`transition hover:opacity-60 ${current("/contacto")}`} tabIndex={ghostTab}>{t("nav.prayer")}</Link>
         <Link href="/dar" className={`transition hover:opacity-60 ${current("/dar")}`} tabIndex={ghostTab}>{t("nav.give")}</Link>
       </nav>

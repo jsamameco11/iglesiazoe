@@ -29,6 +29,8 @@ export function Footer({
           <Link href="/ministerios" className="block text-muted">{t("nav.ministries")}</Link>
           <Link href="/eventos" className="block text-muted">{t("nav.events")}</Link>
           <Link href="/predicas" className="block text-muted">{t("nav.sermons")}</Link>
+          <Link href="/galeria" className="block text-muted">{t("nav.gallery")}</Link>
+          <Link href="/devocionales" className="block text-muted">{t("nav.devotionals")}</Link>
           <Link href="/recursos" className="block text-muted">{t("nav.teachings")}</Link>
         </div>
         <div className="text-sm leading-7 md:col-span-3">

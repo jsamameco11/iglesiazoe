@@ -24,7 +24,9 @@ export default function Serve({
   const media = resolveMedia(mediaOverrides);
   const t = (key: CopyKey) => readCopy(settings, key);
   const reasons = t("serve.whyPoints").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const firstTeam = serveAreas.reduce<number[]>((starts, area, index) => [...starts, index ? starts[index - 1] + serveAreas[index - 1].teams.length : 1], []);
+  const areas = serveAreas.filter((area) => area.accepts_volunteers);
+  const also = serveAreas.filter((area) => !area.accepts_volunteers);
+  const firstTeam = areas.reduce<number[]>((starts, area, index) => [...starts, index ? starts[index - 1] + areas[index - 1].teams.length : 1], []);
 
   return (
     <SiteLayout>
@@ -66,7 +68,7 @@ export default function Serve({
           </Rise>
         </section>
 
-        {serveAreas.length > 0 && (
+        {areas.length > 0 && (
           <section id="areas" className="scroll-mt-24 px-6 pb-24 pt-16 md:px-16">
             <div className="section-wrap">
               <Rise>
@@ -74,7 +76,7 @@ export default function Serve({
                 <LeadTitle as="h2" text={t("serve.areasTitle")} className="mt-4 max-w-3xl text-4xl leading-[1.05] md:text-5xl" />
               </Rise>
               <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {serveAreas.map((area, index) => (
+                {areas.map((area, index) => (
                   <Link key={area.id} href={`/involucrate/${area.slug}`} className="serve-card group">
                     <img src={area.image || SERVE_FALLBACK} alt={area.name} loading="lazy" onError={photoFallback} />
                     <span className="serve-card-index">{String(index + 1).padStart(2, "0")}</span>
@@ -95,7 +97,30 @@ export default function Serve({
           </section>
         )}
 
-        {serveAreas.length > 0 && (
+        {also.length > 0 && (
+          <section className="px-6 pb-24 md:px-16">
+            <div className="section-wrap">
+              <Rise>
+                <p className="kicker">{t("serve.alsoKicker")}</p>
+                <h2 className="editorial mt-3 text-3xl md:text-4xl">{t("serve.alsoTitle")}</h2>
+              </Rise>
+              <div className="mt-8 grid gap-4 md:grid-cols-2">
+                {also.map((area) => (
+                  <Link key={area.id} href={`/involucrate/${area.slug}`} className="serve-also group">
+                    <img src={area.image || SERVE_FALLBACK} alt="" loading="lazy" onError={photoFallback} />
+                    <span className="min-w-0">
+                      <span className="block text-[1.35rem] font-medium tracking-[-0.03em] text-ink">{area.name}</span>
+                      {area.tagline ? <span className="editorial mt-0.5 block text-lg italic text-muted">{area.tagline}</span> : null}
+                      <span className="serve-also-link">{t("serve.areaMore")} →</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {areas.length > 0 && (
           <section id="registro" className="soft-band scroll-mt-20 px-6 py-20 md:px-16 md:py-24">
             <div className="section-wrap grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
               <Rise>
@@ -104,7 +129,7 @@ export default function Serve({
                 <p className="mt-5 max-w-md text-[15px] leading-7 text-muted">{t("serve.formText")}</p>
               </Rise>
               <div className="rounded-[1.75rem] bg-card p-6 shadow-[0_30px_70px_-50px_rgba(20,16,12,0.5)] md:p-9">
-                <ServeForm areas={serveAreas} />
+                <ServeForm areas={areas} />
               </div>
             </div>
           </section>

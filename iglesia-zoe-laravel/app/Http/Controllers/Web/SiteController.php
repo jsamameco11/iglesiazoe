@@ -10,11 +10,14 @@ use App\Http\Controllers\Controller;
 use App\Models\BaptismEvent;
 use App\Models\BaptismRegistration;
 use App\Models\ChurchEvent;
+use App\Models\Devotional;
 use App\Models\PrayerRequest;
 use App\Models\Sermon;
 use App\Models\ServeRegistration;
+use App\Models\ServiceGallery;
 use App\Models\Teaching;
 use App\Models\VisitPlan;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -100,6 +103,46 @@ class SiteController extends Controller
         ]);
     }
 
+    public function galleries(Request $request): Response
+    {
+        return Inertia::render('Galleries', [
+            ...$this->shared($request),
+            'galleries' => $this->withPhotos(ServiceGallery::published()->limit(160)->get())->map->card()->all(),
+        ]);
+    }
+
+    public function gallery(Request $request, string $slug): Response
+    {
+        $gallery = ServiceGallery::query()->where('active', true)->where('slug', $slug)->first();
+        abort_unless($gallery && $gallery->photoList() !== [], 404);
+
+        return Inertia::render('Gallery', [
+            ...$this->shared($request),
+            'gallery' => $gallery->full(),
+            'others' => $this->withPhotos(ServiceGallery::published()->whereKeyNot($gallery->id)->limit(12)->get())->take(4)->map->card()->all(),
+        ]);
+    }
+
+    public function devotionals(Request $request): Response
+    {
+        return Inertia::render('Devotionals', [
+            ...$this->shared($request),
+            'devotionals' => Devotional::published()->limit(160)->get()->map->card(),
+        ]);
+    }
+
+    public function devotional(Request $request, string $slug): Response
+    {
+        $devotional = Devotional::published()->where('slug', $slug)->first();
+        abort_unless($devotional, 404);
+
+        return Inertia::render('Devotional', [
+            ...$this->shared($request),
+            'devotional' => $devotional->full(),
+            'more' => Devotional::published()->whereKeyNot($devotional->id)->limit(3)->get()->map->card(),
+        ]);
+    }
+
     public function events(Request $request): Response
     {
         return Inertia::render('Events', [
@@ -163,7 +206,7 @@ class SiteController extends Controller
 
         $data = $validator->validated();
         $area = collect(LoadPublicSite::serveAreas())->firstWhere('id', $data['serve_area_id']);
-        if (! $area) {
+        if (! $area || ! ($area['accepts_volunteers'] ?? true)) {
             return response()->json(['error' => 'Elige un área de servicio de la lista.'], 422);
         }
         $team = trim((string) ($data['team'] ?? '')) ?: null;
@@ -398,6 +441,15 @@ class SiteController extends Controller
             'sermons' => $this->publishedSermons(3),
             'events' => ChurchEvent::upcoming()->limit(6)->get()->map->card(),
         ]);
+    }
+
+    /**
+     * @param  Collection<int, ServiceGallery>  $galleries
+     * @return Collection<int, ServiceGallery>
+     */
+    private function withPhotos(Collection $galleries): Collection
+    {
+        return $galleries->filter(fn (ServiceGallery $gallery) => $gallery->photoList() !== [])->values();
     }
 
     private function publishedSermons(?int $limit = null): array

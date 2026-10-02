@@ -9,8 +9,10 @@ import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import type { ServeArea as Area, SiteSettings } from "@/lib/types";
 
-function AreaButton({ href, label }: { href: string; label: string }) {
-  const className = "inline-flex rounded-full border border-ink/15 px-6 py-3 text-sm font-semibold text-ink transition hover:border-ink/40";
+function AreaButton({ href, label, primary = false }: { href: string; label: string; primary?: boolean }) {
+  const className = primary
+    ? "btn-accent inline-flex rounded-full px-6 py-3 text-sm font-semibold"
+    : "inline-flex rounded-full border border-ink/15 px-6 py-3 text-sm font-semibold text-ink transition hover:border-ink/40";
   return href.startsWith("/") ? (
     <Link href={href} className={className}>{label} →</Link>
   ) : (
@@ -31,6 +33,9 @@ export default function ServeArea({
 }) {
   const t = (key: CopyKey) => readCopy(settings, key);
   const others = serveAreas.filter((item) => item.id !== area.id);
+  const volunteerAreas = serveAreas.filter((item) => item.accepts_volunteers);
+  const signup = area.accepts_volunteers;
+  const extra = area.cta_label && area.cta_url ? { href: area.cta_url, label: area.cta_label } : null;
 
   return (
     <SiteLayout>
@@ -54,10 +59,12 @@ export default function ServeArea({
                 {area.tagline ? <p className="editorial mt-4 text-2xl italic text-ink md:text-3xl">{area.tagline}</p> : null}
                 {area.summary ? <p className="mt-5 max-w-xl text-lg font-light leading-8 text-muted">{area.summary}</p> : null}
                 <div className="mt-8 flex flex-wrap gap-3">
-                  <a href="#registro" className="btn-accent inline-flex rounded-full px-6 py-3 text-sm font-semibold">
-                    {t("serve.areaRegister").replace("{area}", area.name)}
-                  </a>
-                  {area.cta_label && area.cta_url ? <AreaButton href={area.cta_url} label={area.cta_label} /> : null}
+                  {signup ? (
+                    <a href="#registro" className="btn-accent inline-flex rounded-full px-6 py-3 text-sm font-semibold">
+                      {t("serve.areaRegister").replace("{area}", area.name)}
+                    </a>
+                  ) : null}
+                  {extra ? <AreaButton href={extra.href} label={extra.label} primary={!signup} /> : null}
                 </div>
               </PageIntro>
             </Rise>
@@ -89,18 +96,36 @@ export default function ServeArea({
           </section>
         )}
 
-        <section id="registro" className="soft-band mt-16 scroll-mt-20 px-6 py-20 md:px-16 md:py-24">
-          <div className="section-wrap grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
-            <Rise>
-              <p className="kicker">{t("serve.formKicker")}</p>
-              <LeadTitle as="h2" text={t("serve.formTitle")} className="mt-4 text-4xl leading-[1.05] md:text-5xl" />
-              <p className="mt-5 max-w-md text-[15px] leading-7 text-muted">{t("serve.formText")}</p>
-            </Rise>
-            <div className="rounded-[1.75rem] bg-card p-6 shadow-[0_30px_70px_-50px_rgba(20,16,12,0.5)] md:p-9">
-              <ServeForm key={area.id} areas={serveAreas} initialArea={area.id} />
+        {signup ? (
+          <section id="registro" className="soft-band mt-16 scroll-mt-20 px-6 py-20 md:px-16 md:py-24">
+            <div className="section-wrap grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
+              <Rise>
+                <p className="kicker">{t("serve.formKicker")}</p>
+                <LeadTitle as="h2" text={t("serve.formTitle")} className="mt-4 text-4xl leading-[1.05] md:text-5xl" />
+                <p className="mt-5 max-w-md text-[15px] leading-7 text-muted">{t("serve.formText")}</p>
+              </Rise>
+              <div className="rounded-[1.75rem] bg-card p-6 shadow-[0_30px_70px_-50px_rgba(20,16,12,0.5)] md:p-9">
+                <ServeForm key={area.id} areas={volunteerAreas} initialArea={area.id} />
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        ) : (
+          <section className="ink-band mt-16 px-6 py-20 md:px-16 md:py-24">
+            <Rise className="section-wrap flex flex-wrap items-end justify-between gap-8">
+              <div>
+                <p className="kicker">{area.name}</p>
+                <h2 className="editorial mt-4 max-w-2xl text-4xl leading-[1.05] text-white md:text-5xl">{area.tagline || area.name}</h2>
+                <p className="mt-4 max-w-xl text-[15px] leading-7 text-white/75">{t("serve.noSignup")}</p>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                {extra ? <AreaButton href={extra.href} label={extra.label} primary /> : null}
+                <Link href="/involucrate#registro" className="inline-flex rounded-full border border-white/30 px-6 py-3 text-sm font-semibold text-white transition hover:border-white/70">
+                  {t("serve.register")} →
+                </Link>
+              </div>
+            </Rise>
+          </section>
+        )}
 
         {others.length > 0 && (
           <section className="px-6 py-20 md:px-16 md:py-24">

@@ -33,25 +33,48 @@ class ServeAreasTest extends TestCase
                 ->component('Home')
                 ->where('serveAreas.0.slug', 'pastoral')
                 ->where('serveAreas.0.tagline', 'Acompañando vidas, edificando fe')
-                ->where('serveAreas.2.teams', ['Ujieres', 'Visuales', 'Multimedia']));
+                ->where('serveAreas.0.accepts_volunteers', false)
+                ->where('serveAreas.5.teams', ['Multimedia', 'Cámara', 'Redes', 'Transmisión', 'Luces', 'Switcher'])
+                ->where('serveAreas.6.teams', ['Ujieres', 'Seguridad', 'Mantenimiento', 'Decoración', 'Contacto']));
 
         $this->get('/involucrate/atmosfera')
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('ServeArea')
                 ->where('area.name', 'Atmósfera')
+                ->where('area.accepts_volunteers', true)
                 ->has('serveAreas', count(config('zoe.serve_areas'))));
 
-        ServeArea::query()->where('slug', 'alabanza')->update(['active' => false]);
+        $this->get('/involucrate/pastoral')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('ServeArea')->where('area.accepts_volunteers', false));
+
+        ServeArea::query()->where('slug', 'musica')->update(['active' => false]);
         LoadPublicSite::flush();
 
-        $this->get('/involucrate/alabanza')->assertNotFound();
+        $this->get('/involucrate/musica')->assertNotFound();
         $this->get('/involucrate/no-existe')->assertNotFound();
+    }
+
+    public function test_areas_without_volunteers_reject_sign_ups(): void
+    {
+        $pastoral = ServeArea::query()->where('slug', 'pastoral')->sole();
+
+        $this->postJson('/involucrate', [
+            'serve_area_id' => $pastoral->id,
+            'first_name' => 'María',
+            'last_name' => 'Quispe',
+            'age' => '24',
+            'marital_status' => 'Soltero(a)',
+            'phone' => '987 654 321',
+        ])->assertUnprocessable()->assertJsonPath('error', 'Elige un área de servicio de la lista.');
+
+        $this->assertSame(0, ServeRegistration::query()->count());
     }
 
     public function test_a_person_registers_to_serve_and_lands_in_the_inbox(): void
     {
-        $area = ServeArea::query()->where('slug', 'atmosfera')->sole();
+        $area = ServeArea::query()->where('slug', 'visuales')->sole();
         $base = [
             'serve_area_id' => $area->id,
             'first_name' => 'María',
@@ -69,13 +92,13 @@ class ServeAreasTest extends TestCase
             ->assertJsonPath('error', 'Elige un área de servicio de la lista.');
         $this->postJson('/involucrate', [...$base, 'phone' => 'llámame'])->assertUnprocessable();
 
-        $this->postJson('/involucrate', [...$base, 'team' => 'Visuales', 'email' => 'Maria@Correo.pe', 'notes' => 'Sé editar video.'])
+        $this->postJson('/involucrate', [...$base, 'team' => 'Cámara', 'email' => 'Maria@Correo.pe', 'notes' => 'Sé editar video.'])
             ->assertOk()
             ->assertJsonPath('ok', true);
 
         $registration = ServeRegistration::query()->sole();
-        $this->assertSame('Atmósfera', $registration->area_name);
-        $this->assertSame('Visuales', $registration->team);
+        $this->assertSame('Visuales', $registration->area_name);
+        $this->assertSame('Cámara', $registration->team);
         $this->assertSame('María Quispe', $registration->full_name);
         $this->assertSame('maria@correo.pe', $registration->email);
 
@@ -84,8 +107,8 @@ class ServeAreasTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
                 ->component('Admin/Formularios')
-                ->where('rows.0.area', 'Atmósfera')
-                ->where('rows.0.team', 'Visuales')
+                ->where('rows.0.area', 'Visuales')
+                ->where('rows.0.team', 'Cámara')
                 ->where('rows.0.network.key', 'K'));
 
         $this->actingAs($this->user('otro', ['inbox.visits']))->get(self::ADMIN.'/admin/formularios/servidores')->assertRedirect('/admin');

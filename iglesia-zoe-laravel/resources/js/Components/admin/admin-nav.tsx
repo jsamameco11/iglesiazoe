@@ -41,6 +41,8 @@ const groups: { title: string; items: Item[] }[] = [
       { href: "/admin/predicas", label: "Prédicas", needs: ["content.manage"] },
       { href: "/admin/involucrate", label: "Involúcrate · áreas", needs: ["content.manage"] },
       { href: "/admin/eventos", label: "Eventos", needs: ["content.manage"] },
+      { href: "/admin/galeria", label: "Galería de cultos", needs: ["content.manage"] },
+      { href: "/admin/devocionales", label: "Devocionales", needs: ["content.manage"] },
       { href: "/admin/recursos", label: "Recursos y enseñanzas", needs: ["content.manage"] },
       { href: "/admin/secciones", label: "Encabezados y Ruta", needs: ["content.manage"] },
       { href: "/admin/bautismos", label: "Bautismos", needs: ["content.manage"] },

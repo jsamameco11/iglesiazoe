@@ -237,6 +237,7 @@ class SectionsController extends Controller
             ...Arr::only($data, ['name', 'tagline', 'summary', 'body', 'cta_label', 'cta_url']),
             'slug' => $slug,
             'teams' => $teams,
+            'accepts_volunteers' => $request->boolean('accepts_volunteers'),
             'active' => $request->boolean('active'),
         ];
 

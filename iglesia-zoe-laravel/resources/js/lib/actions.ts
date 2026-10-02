@@ -121,6 +121,37 @@ export async function deleteTeaching(id: string): Promise<ActionResult> {
   return send("/admin/recursos/eliminar", { id });
 }
 
+export async function saveGallery(formData: FormData): Promise<ActionResult> {
+  return postJson("/admin/galeria", formData);
+}
+
+export async function uploadGalleryPhoto(id: string, photo: Blob, name: string): Promise<ActionResult> {
+  const formData = new FormData();
+  formData.set("id", id);
+  formData.set("photo", photo, name);
+  return postJson("/admin/galeria/foto", formData);
+}
+
+export async function removeGalleryPhoto(id: string, path: string): Promise<ActionResult> {
+  return send("/admin/galeria/foto/quitar", { id, path });
+}
+
+export async function setGalleryCover(id: string, path: string): Promise<ActionResult> {
+  return send("/admin/galeria/portada", { id, path });
+}
+
+export async function deleteGallery(id: string): Promise<ActionResult> {
+  return send("/admin/galeria/eliminar", { id });
+}
+
+export async function saveDevotional(formData: FormData): Promise<ActionResult> {
+  return postJson("/admin/devocionales", formData);
+}
+
+export async function deleteDevotional(id: string): Promise<ActionResult> {
+  return send("/admin/devocionales/eliminar", { id });
+}
+
 export async function saveSermon(formData: FormData) {
   const data = await postJson("/admin/predicas", formData);
   if (data?.error) throw new Error(data.error);
