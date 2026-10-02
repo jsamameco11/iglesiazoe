@@ -114,7 +114,7 @@ export default function Finanzas({ filters, label, weeks, summary, series, byNet
               </table>
             ) : (
               <table className="w-full min-w-[640px] text-sm">
-                <thead><tr className="text-left text-xs text-muted"><th className="pb-2">Fecha</th><th className="pb-2">Detalle</th><th className="pb-2">Categoría</th><th className="pb-2">Registró</th><th className="pb-2 text-right">Monto</th><th className="pb-2 text-right">Boleta</th></tr></thead>
+                <thead><tr className="text-left text-xs text-muted"><th className="pb-2">Fecha</th><th className="pb-2">Detalle</th><th className="pb-2">Categoría</th><th className="pb-2">Registró</th><th className="pb-2 text-right">Monto</th><th className="pb-2 text-right">Comprobante</th></tr></thead>
                 <tbody>
                   {expenses.map((row) => (
                     <tr key={row.id} className="border-t border-line">

@@ -29,7 +29,7 @@ export default function Gastos({ month, categories, all, total, rows }: { month:
         <PageHeader
           kicker="Atmósfera"
           title="Gastos y compras"
-          text={all ? "Todos los gastos registrados por el equipo Atmósfera, con su boleta." : "Registra cada compra de la iglesia con la foto de la boleta. El SUPERADMI la verá en Finanzas."}
+          text={all ? "Todos los gastos registrados por el equipo Atmósfera, con su boleta o factura." : "Registra cada compra de la iglesia con la foto de la boleta o factura. El SUPERADMI la verá en Finanzas."}
           aside={<div className="rounded-2xl border border-line bg-white px-5 py-3 text-right"><p className="text-2xl font-semibold">{total}</p><p className="text-[11px] uppercase tracking-wider text-muted">total del mes</p></div>}
         />
         <div className="mt-7 grid gap-6 xl:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)]">
@@ -56,10 +56,10 @@ export default function Gastos({ month, categories, all, total, rows }: { month:
                   }}
                 />
                 {preview && preview !== "pdf" ? (
-                  <img src={preview} alt="Boleta" className="mx-auto max-h-56 rounded-xl object-contain" />
+                  <img src={preview} alt="Boleta o factura" className="mx-auto max-h-56 rounded-xl object-contain" />
                 ) : (
                   <span className="block py-4 text-sm">
-                    <span className="block font-semibold">{preview === "pdf" ? "PDF seleccionado ✓" : "Foto de la boleta"}</span>
+                    <span className="block font-semibold">{preview === "pdf" ? "PDF seleccionado ✓" : "Foto de la boleta o factura (obligatoria)"}</span>
                     <span className="mt-1 block text-xs text-muted">Toca para tomar una foto o elegir un archivo (imagen o PDF, hasta 12 MB)</span>
                   </span>
                 )}
@@ -78,7 +78,7 @@ export default function Gastos({ month, categories, all, total, rows }: { month:
                 <div key={row.id} className="flex gap-4 py-4 first:pt-0">
                   {row.receipt ? (
                     <a href={row.receipt} target="_blank" rel="noreferrer" className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-xl border border-line bg-paper text-[10px] font-semibold text-muted">
-                      {row.is_pdf ? "PDF" : <img src={row.receipt} alt="Boleta" className="h-full w-full object-cover" loading="lazy" />}
+                      {row.is_pdf ? "PDF" : <img src={row.receipt} alt="Boleta o factura" className="h-full w-full object-cover" loading="lazy" />}
                     </a>
                   ) : <span className="h-16 w-16 shrink-0 rounded-xl bg-paper" />}
                   <div className="min-w-0 flex-1">

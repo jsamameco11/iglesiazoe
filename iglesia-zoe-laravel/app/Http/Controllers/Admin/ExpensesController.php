@@ -49,8 +49,9 @@ class ExpensesController extends Controller
             'amount' => 'required|numeric|min:0.1|max:999999',
             'receipt' => 'required|file|mimes:jpg,jpeg,png,webp,heic,pdf|max:12288',
         ], [
-            'receipt.required' => 'Sube la foto de la boleta.',
-            'receipt.mimes' => 'La boleta debe ser una imagen o un PDF.',
+            'receipt.required' => 'Sube la foto de la boleta o factura.',
+            'receipt.mimes' => 'La boleta o factura debe ser una imagen o un PDF.',
+            'receipt.max' => 'La boleta o factura no puede pesar más de 12 MB.',
             'detail.required' => 'Escribe el detalle de lo que se compró.',
             'amount.required' => 'Escribe el monto.',
             'spent_on.before_or_equal' => 'La fecha no puede ser futura.',
