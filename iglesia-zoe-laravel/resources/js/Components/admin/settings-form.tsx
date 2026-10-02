@@ -122,6 +122,11 @@ function ContentFields({ settings }: { settings: SiteSettings }) {
           <Field name="baptismRequirementLabel" label="Etiqueta del requisito" defaultValue={settings.baptismRequirementLabel} />
           <Field name="baptismRequirement" label="Requisito" defaultValue={settings.baptismRequirement} />
         </div>
+        <Field name="baptismVideo" label="Video del pastor sobre el bautismo (YouTube)" defaultValue={settings.baptismVideo ? `https://youtu.be/${settings.baptismVideo}` : ""} hint="Pega el enlace de YouTube (idealmente menos de 5 minutos). También puedes subir el video en Imágenes y videos → Bautismos. Si no hay video, la sección no se muestra." />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field name="baptismVideoTitle" label="Título del video" defaultValue={settings.baptismVideoTitle} />
+          <Field name="baptismVideoText" label="Texto junto al video" defaultValue={settings.baptismVideoText} />
+        </div>
       </Block>
 
       <Block title="Visita, oración y prédicas" note="Los motivos de oración se editan en Textos por página.">
@@ -139,6 +144,7 @@ function ContentFields({ settings }: { settings: SiteSettings }) {
         <Field name="giveBody" label="Texto" defaultValue={settings.giveBody} area />
         <Field name="giveYapeText" label="Texto de Yape / Plin" defaultValue={settings.giveYapeText} />
         <Field name="giveCardText" label="Texto de tarjeta" defaultValue={settings.giveCardText} hint="Se muestra solo si hay un enlace «Dar con tarjeta» en Generosidad." />
+        <Field name="giveAbroadText" label="Texto para transferencias desde el extranjero" defaultValue={settings.giveAbroadText} area hint="El código SWIFT y las cuentas se editan en la pestaña Generosidad." />
       </Block>
 
       <Block title="Apariencia" note="Estos colores se usan en toda la web: botones, fondos, tarjetas y franjas. También puedes abrir Diseño de la página para tipografías y formas.">
@@ -174,6 +180,7 @@ function GivingFields({ settings }: { settings: SiteSettings }) {
       <Field name="bankDollars" label="BCP dólares" defaultValue={settings.bankDollars} />
       <Field name="bankDollarsCci" label="CCI dólares" defaultValue={settings.bankDollarsCci} />
       <Field name="bankHolder" label="Titular de las cuentas" defaultValue={settings.bankHolder} />
+      <Field name="bankSwift" label="Código SWIFT (transferencias desde el extranjero)" defaultValue={settings.bankSwift} hint="BCP: BCPLPEPL. Si lo dejas vacío, la tarjeta «Desde el extranjero» no se muestra." />
       <Field name="yape" label="Yape / Plin" defaultValue={settings.yape} />
       <Field name="yapeHolder" label="Nombre que aparece al yapear" defaultValue={settings.yapeHolder} />
       <div className="grid gap-4 rounded-2xl border border-line bg-white p-4 sm:grid-cols-[8rem_1fr]">

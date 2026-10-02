@@ -32,6 +32,13 @@ export function whatsappUrlOf(settings: SocialSettings | undefined) {
   return `https://wa.me/${digits.length === 9 ? `51${digits}` : digits}`;
 }
 
+/** Best channel to write to the church with a ready message: WhatsApp, then Messenger, then the contact page. */
+export function talkUrlOf(settings: SocialSettings | undefined, message: string) {
+  const whatsapp = whatsappUrlOf(settings);
+  if (whatsapp) return `${whatsapp}?text=${encodeURIComponent(message)}`;
+  return messengerUrlOf(settings) || "/contacto";
+}
+
 export function useSocial() {
   const { settings } = usePage().props as unknown as { settings?: SiteSettings };
   return {
@@ -39,5 +46,6 @@ export function useSocial() {
     live: liveUrlOf(settings),
     messenger: messengerUrlOf(settings),
     whatsapp: whatsappUrlOf(settings),
+    talk: (message: string) => talkUrlOf(settings, message),
   };
 }

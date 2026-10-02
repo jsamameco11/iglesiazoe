@@ -89,6 +89,38 @@ export async function saveTexts(formData: FormData): Promise<ActionResult> {
   return postJson("/admin/textos", formData);
 }
 
+export async function saveChurchEvent(formData: FormData): Promise<ActionResult> {
+  return postJson("/admin/eventos", formData);
+}
+
+export async function deleteChurchEvent(id: string): Promise<ActionResult> {
+  return send("/admin/eventos/eliminar", { id });
+}
+
+export async function submitServe(formData: FormData): Promise<ActionResult> {
+  return postJson("/involucrate", formData);
+}
+
+export async function saveServeArea(formData: FormData): Promise<ActionResult> {
+  return postJson("/admin/involucrate", formData);
+}
+
+export async function moveServeArea(id: string, direction: "up" | "down"): Promise<ActionResult> {
+  return send("/admin/involucrate/orden", { id, direction });
+}
+
+export async function deleteServeArea(id: string): Promise<ActionResult> {
+  return send("/admin/involucrate/eliminar", { id });
+}
+
+export async function saveTeaching(formData: FormData): Promise<ActionResult> {
+  return postJson("/admin/recursos", formData);
+}
+
+export async function deleteTeaching(id: string): Promise<ActionResult> {
+  return send("/admin/recursos/eliminar", { id });
+}
+
 export async function saveSermon(formData: FormData) {
   const data = await postJson("/admin/predicas", formData);
   if (data?.error) throw new Error(data.error);

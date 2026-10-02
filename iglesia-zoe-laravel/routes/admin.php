@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\InboxController;
 use App\Http\Controllers\Admin\NoticeController;
 use App\Http\Controllers\Admin\ReportsController;
+use App\Http\Controllers\Admin\SectionsController;
 use App\Http\Controllers\Admin\ServersController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Middleware\EnsurePermission;
@@ -34,6 +35,17 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::post('/predicas/eliminar', [AdminController::class, 'deleteSermon']);
         Route::get('/bautismos', [AdminController::class, 'bautismos']);
         Route::post('/bautismos', [AdminController::class, 'saveBaptism']);
+        Route::get('/eventos', [SectionsController::class, 'eventos']);
+        Route::post('/eventos', [SectionsController::class, 'saveEvent']);
+        Route::post('/eventos/eliminar', [SectionsController::class, 'deleteEvent']);
+        Route::get('/recursos', [SectionsController::class, 'recursos']);
+        Route::post('/recursos', [SectionsController::class, 'saveTeaching']);
+        Route::post('/recursos/eliminar', [SectionsController::class, 'deleteTeaching']);
+        Route::get('/secciones', [SectionsController::class, 'secciones']);
+        Route::get('/involucrate', [SectionsController::class, 'areas']);
+        Route::post('/involucrate', [SectionsController::class, 'saveArea']);
+        Route::post('/involucrate/orden', [SectionsController::class, 'moveArea']);
+        Route::post('/involucrate/eliminar', [SectionsController::class, 'deleteArea']);
     });
 
     Route::middleware($can(...Permissions::INBOX))->group(function () {

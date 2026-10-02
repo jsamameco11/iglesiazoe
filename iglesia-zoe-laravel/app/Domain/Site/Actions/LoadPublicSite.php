@@ -3,14 +3,15 @@
 namespace App\Domain\Site\Actions;
 
 use App\Models\Ministry;
+use App\Models\ServeArea;
 use App\Models\SiteSetting;
 use Illuminate\Support\Facades\Cache;
 
 class LoadPublicSite
 {
-    private const KEYS = ['zoe.site.settings', 'zoe.site.ministries', 'zoe.site.media', 'zoe.site.design', 'zoe.site.notice'];
+    private const KEYS = ['zoe.site.settings', 'zoe.site.ministries', 'zoe.site.serve', 'zoe.site.media', 'zoe.site.design', 'zoe.site.notice'];
 
-    private const LIST_SETTINGS = ['values', 'prayerTopics'];
+    public const LIST_SETTINGS = ['values', 'prayerTopics', 'routeLevels'];
 
     public static function settings(): array
     {
@@ -44,6 +45,14 @@ class LoadPublicSite
 
             return Ministry::query()->where('active', true)->orderBy('sort_order')->get()->toArray();
         });
+    }
+
+    /** Visible áreas de servicio in their admin order, as shown in the menu, the home carousel and Involúcrate. */
+    public static function serveAreas(): array
+    {
+        return Cache::rememberForever('zoe.site.serve', fn () => ServeArea::query()
+            ->where('active', true)->orderBy('sort_order')->get()
+            ->map->card()->all());
     }
 
     public static function mediaOverrides(): array

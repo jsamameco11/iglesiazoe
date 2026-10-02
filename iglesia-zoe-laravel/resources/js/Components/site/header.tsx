@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { AccessButton } from "@/Components/site/skin-switch";
 import { useCopy } from "@/lib/copy";
 import { useSocial } from "@/lib/social";
-import type { Ministry } from "@/lib/types";
+import type { Ministry, ServeArea } from "@/lib/types";
+
+type NavLink = { href: string; label: string; note: string };
 
 function LiveButton({ ghost, className = "live-pill" }: { ghost?: boolean; className?: string }) {
   const { live } = useSocial();
@@ -17,118 +19,278 @@ function LiveButton({ ghost, className = "live-pill" }: { ghost?: boolean; class
   );
 }
 
-function usePrimaryLinks() {
+function useServeAreas() {
+  return (usePage().props as unknown as { serveAreas?: ServeArea[] }).serveAreas ?? [];
+}
+
+function useNavLinks() {
   const t = useCopy();
-  return [
+  const serve: NavLink[] = [
+    { href: "/involucrate", label: t("nav.serve"), note: t("nav.areasNote") },
+    { href: "/involucrate#registro", label: t("nav.register"), note: t("nav.registerNote") },
+    { href: "/ruta-del-servidor", label: t("nav.route"), note: t("nav.routeNote") },
+    { href: "/bautismos", label: t("nav.baptism"), note: t("nav.baptismNote") },
+  ];
+  const resources: NavLink[] = [
+    { href: "/predicas", label: t("nav.sermons"), note: t("nav.sermonsNote") },
+    { href: "/recursos", label: t("nav.teachings"), note: t("nav.teachingsNote") },
+  ];
+  const mobile: NavLink[] = [
     { href: "/conocenos", label: t("nav.about"), note: t("nav.aboutNote") },
     { href: "/ministerios", label: t("nav.ministries"), note: t("nav.ministriesNote") },
-    { href: "/bautismos", label: t("nav.baptism"), note: t("nav.baptismNote") },
-    { href: "/predicas", label: t("nav.sermons"), note: t("nav.sermonsNote") },
-    { href: "/dar", label: t("nav.give"), note: t("nav.giveNote") },
+    ...serve,
+    { href: "/eventos", label: t("nav.events"), note: t("nav.eventsNote") },
+    ...resources,
     { href: "/contacto", label: t("nav.prayer"), note: t("nav.prayerNote") },
+    { href: "/dar", label: t("nav.give"), note: t("nav.giveNote") },
   ];
+  return { serve, resources, mobile };
+}
+
+type MegaItem = { href: string; title: string; note: string | null };
+
+function MegaDrop({
+  label,
+  href,
+  kicker,
+  title,
+  all,
+  items,
+  footer,
+  ghost,
+  active,
+}: {
+  label: string;
+  href: string;
+  kicker: string;
+  title: string;
+  all: string;
+  items: MegaItem[];
+  footer?: NavLink[];
+  ghost?: boolean;
+  active: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative" onMouseEnter={() => !ghost && setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <Link
+        href={href}
+        className={`inline-flex items-center gap-1.5 transition hover:opacity-60 ${active ? "nav-current" : ""}`}
+        tabIndex={ghost ? -1 : undefined}
+        onFocus={() => !ghost && setOpen(true)}
+      >
+        {label}
+        <span className={`text-[8px] transition ${open ? "rotate-180" : ""}`}>▼</span>
+      </Link>
+      {!ghost && open && (
+        <div className="absolute left-1/2 top-full w-[620px] -translate-x-1/2 pt-4 text-ink">
+          <div className="nav-drop overflow-hidden rounded-[1.4rem] border border-black/5 bg-card shadow-[0_30px_80px_rgba(23,24,28,0.12)]">
+            <div className="flex items-end justify-between border-b border-black/5 px-6 py-4">
+              <div>
+                <p className="text-[10.5px] uppercase tracking-[0.22em] text-muted">{kicker}</p>
+                <p className="editorial mt-1 text-2xl italic">{title}</p>
+              </div>
+              <Link href={href} className="text-[13px] font-medium" onClick={() => setOpen(false)}>{all}</Link>
+            </div>
+            <div className="grid grid-cols-2 gap-px bg-black/5">
+              {items.map((item, index) => (
+                <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="bg-card px-6 py-4 transition hover:bg-sage">
+                  <p className="text-[10.5px] tracking-[0.18em] text-muted">{String(index + 1).padStart(2, "0")}</p>
+                  <p className="mt-1.5 text-[1.15rem] font-medium tracking-[-0.03em]">{item.title}</p>
+                  {item.note ? <p className="mt-0.5 text-[13px] text-muted">{item.note}</p> : null}
+                </Link>
+              ))}
+              {items.length % 2 === 1 ? <span className="bg-card" aria-hidden /> : null}
+            </div>
+            {footer?.length ? (
+              <div className="flex flex-wrap items-center gap-2 border-t border-black/5 px-6 py-3.5">
+                {footer.map((link, index) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setOpen(false)}
+                    onBlur={index === footer.length - 1 ? () => setOpen(false) : undefined}
+                    className={index === 0 ? "rounded-full bg-accent px-4 py-2 text-[13px] font-semibold text-white" : "rounded-full px-3 py-2 text-[13px] font-medium transition hover:bg-sage"}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NavDrop({ label, href, links, ghost, active }: { label: string; href: string; links: NavLink[]; ghost?: boolean; active: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative" onMouseEnter={() => !ghost && setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <Link
+        href={href}
+        className={`inline-flex items-center gap-1.5 transition hover:opacity-60 ${active ? "nav-current" : ""}`}
+        tabIndex={ghost ? -1 : undefined}
+        onFocus={() => !ghost && setOpen(true)}
+      >
+        {label}
+        <span className={`text-[8px] transition ${open ? "rotate-180" : ""}`}>▼</span>
+      </Link>
+      {!ghost && open && (
+        <div className="absolute left-1/2 top-full w-[300px] -translate-x-1/2 pt-4 text-ink">
+          <div className="nav-drop overflow-hidden rounded-[1.25rem] border border-black/5 bg-card p-2 shadow-[0_24px_60px_rgba(23,24,28,0.14)]">
+            {links.map((link) => (
+              <Link key={link.href} href={link.href} onBlur={() => setOpen(false)} className="block rounded-[0.9rem] px-4 py-3 transition hover:bg-sage">
+                <span className="block text-[15px] font-medium tracking-[-0.02em]">{link.label}</span>
+                <span className="mt-0.5 block text-[12.5px] text-muted">{link.note}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function HeaderBar({
   ministries,
   home,
-  other,
-  onHero,
   lightCta,
   ghost,
-  onOpenMenu,
+  menuOpen,
+  onToggleMenu,
   visitCta,
+  pathname,
 }: {
   ministries: Ministry[];
   home: string;
-  other?: { href: string; label: string; invert?: boolean };
-  onHero: boolean;
   lightCta: boolean;
   ghost?: boolean;
-  onOpenMenu?: () => void;
+  menuOpen: boolean;
+  onToggleMenu?: () => void;
   visitCta: string;
+  pathname: string;
 }) {
-  const [ministriesOpen, setMinistriesOpen] = useState(false);
   const t = useCopy();
+  const areas = useServeAreas();
+  const { serve, resources } = useNavLinks();
+  const here = (prefix: string) => pathname === prefix || pathname.startsWith(prefix + "/");
+  const current = (prefix: string) => (here(prefix) ? "nav-current" : "");
+  const ghostTab = ghost ? -1 : undefined;
 
   return (
     <div className="flex h-[72px] items-center justify-between gap-3 px-5 sm:gap-6 md:px-10">
-      <Link href={home} className="shrink-0 whitespace-nowrap text-[1.35rem] font-semibold tracking-[-0.03em] text-current" tabIndex={ghost ? -1 : undefined}>
+      <Link href={home} className="shrink-0 whitespace-nowrap text-[1.3rem] font-semibold tracking-[-0.03em] text-current" tabIndex={ghostTab}>
         {t("nav.brand")}
       </Link>
-      <nav className="hidden items-center gap-7 text-[16.5px] font-medium tracking-[-0.01em] text-current lg:flex">
-        <Link href="/conocenos" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>{t("nav.about")}</Link>
-        <div
-          className="relative"
-          onMouseEnter={() => !ghost && setMinistriesOpen(true)}
-          onMouseLeave={() => setMinistriesOpen(false)}
-        >
-          <Link href="/ministerios" className="inline-flex items-center gap-1.5 transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>
-            {t("nav.ministries")}
-            <span className={`text-[9px] transition ${ministriesOpen ? "rotate-180" : ""}`}>▼</span>
-          </Link>
-          {!ghost && ministriesOpen && (
-            <div className="absolute left-1/2 top-full w-[640px] -translate-x-1/2 pt-5 text-ink">
-              <div className="overflow-hidden rounded-[1.6rem] border border-black/5 bg-card shadow-[0_30px_80px_rgba(23,24,28,0.12)]">
-                <div className="flex items-end justify-between border-b border-black/5 px-6 py-5">
-                  <div>
-                    <p className="text-[11px] uppercase tracking-[0.22em] text-muted">{t("nav.dropKicker")}</p>
-                    <p className="editorial mt-1 text-3xl italic">{t("nav.dropTitle")}</p>
-                  </div>
-                  <Link href="/ministerios" className="text-sm font-medium">{t("nav.dropAll")}</Link>
-                </div>
-                <div className="grid grid-cols-2 gap-px bg-black/5">
-                  {ministries.map((ministry, index) => (
-                    <Link key={ministry.slug} href={`/ministerios/${ministry.slug}`} className="bg-card px-6 py-5 transition hover:bg-sage">
-                      <p className="text-[11px] tracking-[0.18em] text-muted">0{index + 1}</p>
-                      <p className="mt-2 text-[1.35rem] font-medium tracking-[-0.03em]">{ministry.name}</p>
-                      <p className="mt-1 text-sm text-muted">{ministry.age_range}</p>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-        <Link href="/bautismos" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>{t("nav.baptism")}</Link>
-        <Link href="/predicas" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>{t("nav.sermons")}</Link>
-        <Link href="/contacto" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>{t("nav.prayer")}</Link>
-        <Link href="/dar" className="transition hover:opacity-60" tabIndex={ghost ? -1 : undefined}>{t("nav.give")}</Link>
+      <nav className="hidden items-center gap-6 text-[15px] font-medium tracking-[-0.01em] text-current xl:flex">
+        <Link href="/conocenos" className={`transition hover:opacity-60 ${current("/conocenos")}`} tabIndex={ghostTab}>{t("nav.about")}</Link>
+        <MegaDrop
+          label={t("nav.ministries")}
+          href="/ministerios"
+          kicker={t("nav.dropKicker")}
+          title={t("nav.dropTitle")}
+          all={t("nav.dropAll")}
+          items={ministries.map((ministry) => ({ href: `/ministerios/${ministry.slug}`, title: ministry.name, note: ministry.age_range }))}
+          ghost={ghost}
+          active={here("/ministerios")}
+        />
+        {areas.length ? (
+          <MegaDrop
+            label={t("nav.serve")}
+            href="/involucrate"
+            kicker={t("nav.serveDropKicker")}
+            title={t("nav.serveDropTitle")}
+            all={t("nav.dropAll")}
+            items={areas.map((area) => ({ href: `/involucrate/${area.slug}`, title: area.name, note: area.tagline }))}
+            footer={serve.slice(1)}
+            ghost={ghost}
+            active={serve.some((link) => here(link.href))}
+          />
+        ) : (
+          <NavDrop label={t("nav.serve")} href="/involucrate" links={serve} ghost={ghost} active={serve.some((link) => here(link.href))} />
+        )}
+        <Link href="/eventos" className={`transition hover:opacity-60 ${current("/eventos")}`} tabIndex={ghostTab}>{t("nav.events")}</Link>
+        <NavDrop label={t("nav.resources")} href="/recursos" links={resources} ghost={ghost} active={resources.some((link) => here(link.href))} />
+        <Link href="/contacto" className={`transition hover:opacity-60 ${current("/contacto")}`} tabIndex={ghostTab}>{t("nav.prayer")}</Link>
+        <Link href="/dar" className={`transition hover:opacity-60 ${current("/dar")}`} tabIndex={ghostTab}>{t("nav.give")}</Link>
       </nav>
-      <div className="hidden items-center gap-5 lg:flex">
+      <div className="hidden items-center gap-4 xl:flex">
         <LiveButton ghost={ghost} />
         <AccessButton ghost={ghost} invert={lightCta} />
-        <Link
-          href="/visita"
-          tabIndex={ghost ? -1 : undefined}
-          className="rounded-full bg-accent px-4 py-2 text-[14.5px] font-semibold text-white"
-        >
+        <Link href="/visita" tabIndex={ghostTab} className="rounded-full bg-accent px-4 py-2 text-[14px] font-semibold text-white">
           {visitCta}
         </Link>
       </div>
-      <div className="flex items-center gap-2 sm:gap-3 lg:hidden">
+      <div className="flex items-center gap-2 sm:gap-3 xl:hidden">
         <LiveButton ghost={ghost} />
         <AccessButton ghost={ghost} invert={lightCta} />
         <button
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-current/20"
-          onClick={ghost ? undefined : onOpenMenu}
-          tabIndex={ghost ? -1 : undefined}
-          aria-label="Abrir menú"
+          type="button"
+          className="menu-toggle flex h-11 w-11 items-center justify-center rounded-full border border-current/20"
+          onClick={ghost ? undefined : onToggleMenu}
+          tabIndex={ghostTab}
+          aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={menuOpen}
+          data-open={menuOpen || undefined}
         >
-        <span className="flex flex-col gap-1.5">
-          <span className="block h-px w-5 bg-current" />
-          <span className="block h-px w-5 bg-current" />
-        </span>
-      </button>
+          <span className="menu-toggle-lines" aria-hidden>
+            <span />
+            <span />
+          </span>
+        </button>
       </div>
     </div>
+  );
+}
+
+function MobileMenu({ home, visitCta, pathname, onClose }: { home: string; visitCta: string; pathname: string; onClose: () => void }) {
+  const t = useCopy();
+  const { mobile } = useNavLinks();
+  return (
+    <>
+      <button type="button" className="menu-scrim xl:hidden" aria-label="Cerrar menú" onClick={onClose} />
+      <div className="menu-sheet xl:hidden" role="dialog" aria-modal="true" aria-label="Menú">
+        <nav className="menu-list">
+          {mobile.map((item, index) => {
+            const active = pathname === item.href || pathname.startsWith(item.href + "/");
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onClose}
+                className="menu-row"
+                data-active={active || undefined}
+                style={{ "--i": index } as React.CSSProperties}
+              >
+                <span className="menu-row-label">{item.label}</span>
+                <span className="menu-row-note">{item.note}</span>
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="menu-foot" style={{ "--i": mobile.length } as React.CSSProperties}>
+          <div className="min-w-0">
+            <p className="menu-foot-kicker">{t("nav.menuKicker")}</p>
+            <p className="menu-foot-title">{t("nav.menuTitle")}</p>
+          </div>
+          <Link href="/visita" onClick={onClose} className="btn-accent shrink-0 rounded-full px-4 py-2.5 text-[13px] font-semibold">
+            {visitCta}
+          </Link>
+        </div>
+        <div className="menu-links">
+          <Link href={home} onClick={onClose}>{t("nav.home")}</Link>
+          <Link href="/acceso" onClick={onClose}>{t("nav.access")} →</Link>
+        </div>
+      </div>
+    </>
   );
 }
 
 export function Header({
   ministries,
   home = "/",
-  other,
   overMedia = false,
   visitCta = "Planifica tu visita",
 }: {
@@ -141,8 +303,6 @@ export function Header({
   const pathname = usePage().url.split("?")[0];
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const primary = usePrimaryLinks();
-  const t = useCopy();
 
   useEffect(() => {
     const onScroll = () => {
@@ -159,9 +319,16 @@ export function Header({
   }, [overMedia]);
 
   useEffect(() => {
-    document.body.style.overflow = open ? "hidden" : "";
+    if (!open) return;
+    document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => event.key === "Escape" && setOpen(false);
+    const onResize = () => window.innerWidth >= 1280 && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onResize);
     return () => {
       document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onResize);
     };
   }, [open]);
 
@@ -172,10 +339,10 @@ export function Header({
   const bar = {
     ministries,
     home,
-    other,
-    onHero,
-    onOpenMenu: () => setOpen(true),
+    menuOpen: open,
+    onToggleMenu: () => setOpen((value) => !value),
     visitCta,
+    pathname,
   };
 
   return (
@@ -199,62 +366,7 @@ export function Header({
         </div>
       )}
 
-      {open && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-paper text-ink">
-          <div className="mx-auto flex min-h-full max-w-6xl flex-col px-5 py-5 md:px-10">
-            <div className="flex items-center justify-between">
-              <p className="text-[1.35rem] font-semibold tracking-[-0.03em]">{t("nav.brand")}</p>
-              <button
-                onClick={() => setOpen(false)}
-                className="rounded-full border border-ink/15 px-4 py-2 text-sm font-medium"
-                aria-label="Cerrar menú"
-              >
-                Cerrar
-              </button>
-            </div>
-            <div className="grid flex-1 items-center gap-10 py-10 md:grid-cols-[1.15fr_0.85fr]">
-              <nav>
-                {primary.map((item) => (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    onClick={() => setOpen(false)}
-                    className="flex items-end justify-between gap-6 border-b border-ink/10 py-4"
-                  >
-                    <span className="text-[1.85rem] font-medium leading-none tracking-[-0.045em] md:text-[2.35rem]">
-                      {item.label}
-                    </span>
-                    <span className="pb-1 text-right text-sm text-muted">{item.note}</span>
-                  </Link>
-                ))}
-                <Link href={home} onClick={() => setOpen(false)} className="mt-5 inline-block text-sm font-medium text-muted">
-                  {t("nav.home")}
-                </Link>
-              </nav>
-              <aside className="rounded-[1.8rem] bg-sage p-7 md:p-8">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-ink/50">{t("nav.menuKicker")}</p>
-                <p className="editorial mt-4 text-4xl italic leading-[1.05] md:text-5xl">
-                  {t("nav.menuTitle")}
-                </p>
-                <p className="mt-4 max-w-xs text-sm leading-6 text-ink/70">
-                  {t("nav.menuText")}
-                </p>
-                <Link
-                  href="/visita"
-                  onClick={() => setOpen(false)}
-                  className="mt-8 inline-flex rounded-full bg-accent px-5 py-3 text-sm font-semibold text-white"
-                >
-                  {visitCta}
-                </Link>
-                <div className="mt-8 flex flex-col gap-3 text-sm">
-                  <LiveButton className="live-pill w-fit" />
-                  <Link href="/acceso" onClick={() => setOpen(false)} className="font-medium">{t("nav.access")} →</Link>
-                </div>
-              </aside>
-            </div>
-          </div>
-        </div>
-      )}
+      {open && <MobileMenu home={home} visitCta={visitCta} pathname={pathname} onClose={() => setOpen(false)} />}
     </header>
   );
 }

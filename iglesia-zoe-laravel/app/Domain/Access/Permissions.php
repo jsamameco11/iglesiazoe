@@ -24,9 +24,10 @@ class Permissions
         'inbox.visits' => ['group' => 'Formularios de la web', 'title' => 'Visitas planificadas', 'text' => 'Ve a cada persona que planifica su visita, con la red que le corresponde, y recibe una notificación al instante.'],
         'inbox.baptisms' => ['group' => 'Formularios de la web', 'title' => 'Inscripciones de bautismo', 'text' => 'Ve a cada persona que se inscribe para bautizarse, con la red que le corresponde, y recibe una notificación al instante.'],
         'inbox.prayers' => ['group' => 'Formularios de la web', 'title' => 'Peticiones de oración', 'text' => 'Ve cada petición de oración, con la red que le corresponde, y recibe una notificación al instante.'],
+        'inbox.serve' => ['group' => 'Formularios de la web', 'title' => 'Quieren servir', 'text' => 'Ve a cada persona que se registra para servir en un área, con la red que le corresponde, y recibe una notificación al instante.'],
     ];
 
-    public const INBOX = ['inbox.visits', 'inbox.baptisms', 'inbox.prayers'];
+    public const INBOX = ['inbox.visits', 'inbox.baptisms', 'inbox.prayers', 'inbox.serve'];
 
     public const TYPES = [
         'red' => [
