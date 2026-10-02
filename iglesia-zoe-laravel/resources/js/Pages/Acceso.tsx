@@ -7,9 +7,9 @@ import { useSitePalette } from "@/Components/site/palette-scope";
 import { useCopy } from "@/lib/copy";
 import type { CSSProperties } from "react";
 
-type Props = { next?: string; adminUrl?: string; notice?: WeeklyNotice | null; preview?: { enabled: boolean } | null };
+type Props = { next?: string; notice?: WeeklyNotice | null; preview?: { enabled: boolean } | null };
 
-export default function Acceso({ next, adminUrl, notice, preview }: Props) {
+export default function Acceso({ next, notice, preview }: Props) {
   const { style, attrs } = useSitePalette();
   const t = useCopy();
   return (
@@ -34,11 +34,6 @@ export default function Acceso({ next, adminUrl, notice, preview }: Props) {
           <Link href="/" className="underline-offset-4 hover:underline">
             {t("acceso.back")}
           </Link>
-          {adminUrl && (
-            <a href={adminUrl} className="mt-1 block text-xs text-muted/80 underline-offset-4 hover:text-ink hover:underline">
-              {t("acceso.adminLink")}
-            </a>
-          )}
         </p>
       </div>
       <AccesoGate />

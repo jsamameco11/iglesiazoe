@@ -48,7 +48,6 @@ class AccesoController extends Controller
         return Inertia::render('Acceso', [
             'next' => $request->query('next'),
             'skin' => 'aire',
-            'adminUrl' => Entrance::adminUrl('/acceso'),
             'notice' => $visible ? [
                 ...Arr::except($notice, ['updated_by']),
                 'period' => $notice['period'] ?: WeekCalendar::currentLabel(),
