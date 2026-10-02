@@ -1,10 +1,19 @@
 import { Link, usePage } from "@inertiajs/react";
 import { can, type PanelUser, type Permission } from "@/lib/access";
+import { useInboxShared, useUnread, type InboxKind } from "@/lib/inbox";
 
-type Item = { href: string; label: string; needs: (Permission | "superadmin")[] | null };
+type Item = { href: string; label: string; needs: (Permission | "superadmin")[] | null; inbox?: InboxKind };
 
 const groups: { title: string; items: Item[] }[] = [
   { title: "", items: [{ href: "/admin", label: "Resumen", needs: null }] },
+  {
+    title: "Formularios de la web",
+    items: [
+      { href: "/admin/formularios/visitas", label: "Visitas planificadas", needs: ["inbox.visits"], inbox: "visitas" },
+      { href: "/admin/formularios/bautismos", label: "Bautismo", needs: ["inbox.baptisms"], inbox: "bautismos" },
+      { href: "/admin/formularios/oraciones", label: "Petición de oración", needs: ["inbox.prayers"], inbox: "oraciones" },
+    ],
+  },
   {
     title: "Células",
     items: [
@@ -31,7 +40,6 @@ const groups: { title: string; items: Item[] }[] = [
       { href: "/admin/predicas", label: "Prédicas", needs: ["content.manage"] },
       { href: "/admin/bautismos", label: "Bautismos", needs: ["content.manage"] },
       { href: "/admin/generosidad", label: "Generosidad", needs: ["generosity.manage"] },
-      { href: "/admin/bandeja", label: "Bandeja", needs: ["content.manage"] },
     ],
   },
   { title: "Atmósfera", items: [{ href: "/admin/gastos", label: "Gastos y compras", needs: ["expenses.manage"] }] },
@@ -46,6 +54,7 @@ const groups: { title: string; items: Item[] }[] = [
 
 export function AdminNav({ user, onNavigate }: { user: PanelUser; onNavigate?: () => void }) {
   const pathname = usePage().url.split("?")[0];
+  const unread = useUnread(useInboxShared()?.unread);
   const visible = groups
     .map((group) => ({
       ...group,
@@ -65,6 +74,7 @@ export function AdminNav({ user, onNavigate }: { user: PanelUser; onNavigate?: (
           <div className="space-y-0.5">
             {group.items.map((item) => {
               const active = item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href);
+              const fresh = item.inbox && !active ? unread[item.inbox] ?? 0 : 0;
               return (
                 <Link
                   key={item.href}
@@ -76,6 +86,11 @@ export function AdminNav({ user, onNavigate }: { user: PanelUser; onNavigate?: (
                 >
                   {item.label}
                   {active && <span className="h-1.5 w-1.5 rounded-full bg-orange" />}
+                  {fresh > 0 && (
+                    <span className="min-w-[1.35rem] rounded-full bg-orange px-1.5 py-0.5 text-center text-[10.5px] font-semibold leading-4 text-white" aria-label={`${fresh} nuevos`}>
+                      {fresh > 99 ? "99+" : fresh}
+                    </span>
+                  )}
                 </Link>
               );
             })}

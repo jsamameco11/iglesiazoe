@@ -62,9 +62,9 @@ export function Footer({
             </a>
           ))}
           {other && (
-            <Link href={other.href} className="mt-5 block text-sm text-muted underline-offset-4 hover:underline">
+            <a href={other.href} className="mt-5 block text-sm text-muted underline-offset-4 hover:underline">
               {other.label}
-            </Link>
+            </a>
           )}
         </div>
       </div>

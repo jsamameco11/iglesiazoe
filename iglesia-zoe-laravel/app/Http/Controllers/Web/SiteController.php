@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Domain\Geo\GeoDirectory;
+use App\Domain\Inbox\PushNotifier;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Actions\ResolveSiteSkin;
 use App\Http\Controllers\Controller;
@@ -18,6 +19,8 @@ use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
+use function Illuminate\Support\defer;
+
 class SiteController extends Controller
 {
     public const SEXES = ['Masculino', 'Femenino'];
@@ -26,12 +29,12 @@ class SiteController extends Controller
 
     public function home(Request $request): Response
     {
-        return $this->page('Home', $request);
+        return $this->homePage($request);
     }
 
     public function marea(Request $request): Response
     {
-        return $this->page('Home', $request, true);
+        return $this->homePage($request, true);
     }
 
     public function about(Request $request): Response
@@ -80,20 +83,9 @@ class SiteController extends Controller
 
     public function sermons(Request $request): Response
     {
-        $sermons = Sermon::query()->where('published', true)->orderByDesc('sermon_date')->get()
-            ->map(fn ($sermon) => [
-                'id' => $sermon->id,
-                'title' => $sermon->title,
-                'preacher' => $sermon->preacher,
-                'series' => $sermon->series,
-                'sermon_date' => optional($sermon->sermon_date)->toDateString(),
-                'youtube_id' => $sermon->youtube_id,
-                'is_live' => $sermon->is_live,
-            ]);
-
         return Inertia::render('Sermons', [
             ...$this->shared($request),
-            'sermons' => $sermons,
+            'sermons' => $this->publishedSermons(),
         ]);
     }
 
@@ -146,13 +138,51 @@ class SiteController extends Controller
             return response()->json(['error' => 'Revisa la ubicación seleccionada.'], 422);
         }
 
-        VisitPlan::query()->create([
+        $visit = VisitPlan::query()->create([
             ...$data,
             ...$place,
             'country_code' => strtoupper($data['country_code']),
             'full_name' => trim($data['first_name'].' '.$data['last_name']),
             'phone' => '+'.$data['phone_code'].' '.$data['phone'],
         ]);
+        defer(fn () => PushNotifier::announce('visitas', $visit));
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function storeQuickVisit(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'full_name' => 'required|string|min:3|max:120',
+            'contact' => 'required|string|max:160',
+        ], [
+            'full_name.required' => 'Escribe tu nombre.',
+            'full_name.min' => 'Escribe tu nombre completo.',
+            'contact.required' => 'Déjanos tu correo o tu teléfono.',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['error' => $validator->errors()->first()], 422);
+        }
+
+        $contact = trim((string) $request->input('contact'));
+        $digits = preg_replace('/\D/', '', $contact);
+        $isEmail = filter_var($contact, FILTER_VALIDATE_EMAIL) !== false;
+        if (! $isEmail && (strlen($digits) < 6 || strlen($digits) > 15)) {
+            return response()->json(['error' => 'Escribe un correo o un teléfono válido.'], 422);
+        }
+
+        $name = trim((string) $request->input('full_name'));
+        $sunday = now('America/Lima')->isSunday() ? now('America/Lima') : now('America/Lima')->next('Sunday');
+        $visit = VisitPlan::query()->create([
+            'full_name' => $name,
+            'first_name' => strtok($name, ' ') ?: $name,
+            'phone' => $isEmail ? '' : (strlen($digits) === 9 ? '+51 '.$digits : '+'.$digits),
+            'email' => $isEmail ? strtolower($contact) : null,
+            'visit_date' => $sunday->toDateString(),
+            'service' => LoadPublicSite::settings()['sunday'] ?? 'Domingo',
+            'notes' => 'Aviso rápido desde el inicio.',
+        ]);
+        defer(fn () => PushNotifier::announce('visitas', $visit));
 
         return response()->json(['ok' => true]);
     }
@@ -164,6 +194,7 @@ class SiteController extends Controller
             'last_name' => 'required|string|min:2|max:80',
             'sex' => ['required', Rule::in(self::SEXES)],
             'age' => 'required|integer|min:1|max:120',
+            'marital_status' => ['required', Rule::in(self::MARITAL_STATUSES)],
             'country_code' => 'required|string|size:2|exists:geo_countries,code',
             'phone_code' => ['required', Rule::in(GeoDirectory::dialCodes())],
             'phone' => ['required', 'regex:/^[0-9]{6,15}$/'],
@@ -186,6 +217,7 @@ class SiteController extends Controller
             'last_name' => 'apellidos',
             'sex' => 'sexo',
             'age' => 'edad',
+            'marital_status' => 'estado civil',
             'country_code' => 'país',
             'phone_code' => 'código de país',
             'phone' => 'teléfono',
@@ -199,12 +231,13 @@ class SiteController extends Controller
         }
 
         $data = $validator->validated();
-        BaptismRegistration::query()->create([
+        $registration = BaptismRegistration::query()->create([
             ...$data,
             'country_code' => strtoupper($data['country_code']),
             'full_name' => trim($data['first_name'].' '.$data['last_name']),
             'phone' => '+'.$data['phone_code'].' '.$data['phone'],
         ]);
+        defer(fn () => PushNotifier::announce('bautismos', $registration));
 
         return response()->json(['ok' => true]);
     }
@@ -212,28 +245,69 @@ class SiteController extends Controller
     public function storePrayer(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'full_name' => 'required|string|min:3|max:120',
+            'first_name' => 'required|string|min:2|max:60',
+            'last_name' => 'required|string|min:2|max:80',
+            'age' => 'required|integer|min:1|max:120',
+            'marital_status' => ['required', Rule::in(self::MARITAL_STATUSES)],
             'phone' => 'nullable|string|max:30',
             'email' => 'nullable|email|max:160',
             'topic' => ['nullable', Rule::in(LoadPublicSite::prayerTopics())],
             'request' => 'required|string|min:8|max:2000',
         ], [
-            'full_name.required' => 'Escribe tu nombre.',
-            'full_name.min' => 'Tu nombre debe tener al menos 3 letras.',
+            'first_name.required' => 'Escribe tus nombres.',
+            'first_name.min' => 'Escribe tus nombres.',
+            'last_name.required' => 'Escribe tus apellidos.',
+            'last_name.min' => 'Escribe tus apellidos.',
+            'age.required' => 'Escribe tu edad.',
+            'age.integer' => 'Escribe tu edad en números.',
+            'age.min' => 'Escribe una edad entre 1 y 120.',
+            'age.max' => 'Escribe una edad entre 1 y 120.',
+            'marital_status.required' => 'Elige tu estado civil.',
+            'marital_status.in' => 'Elige tu estado civil de la lista.',
             'email.email' => 'Revisa tu correo electrónico.',
             'topic.in' => 'Elige un motivo de la lista.',
             'request.required' => 'Cuéntanos por qué quieres que oremos.',
             'request.min' => 'Cuéntanos un poco más sobre tu petición (mínimo 8 caracteres).',
             'request.max' => 'Tu petición puede tener hasta 2000 caracteres.',
         ]);
-        PrayerRequest::query()->create($data);
+        $prayer = PrayerRequest::query()->create([
+            ...$data,
+            'first_name' => trim($data['first_name']),
+            'last_name' => trim($data['last_name']),
+            'full_name' => trim(trim($data['first_name']).' '.trim($data['last_name'])),
+        ]);
+        defer(fn () => PushNotifier::announce('oraciones', $prayer));
 
         return response()->json(['ok' => true]);
     }
 
-    private function page(string $component, Request $request, bool $forceMarea = false): Response
+    private function page(string $component, Request $request): Response
     {
-        return Inertia::render($component, $this->shared($request, $forceMarea));
+        return Inertia::render($component, $this->shared($request));
+    }
+
+    private function homePage(Request $request, bool $forceMarea = false): Response
+    {
+        return Inertia::render('Home', [
+            ...$this->shared($request, $forceMarea),
+            'sermons' => $this->publishedSermons(3),
+        ]);
+    }
+
+    private function publishedSermons(?int $limit = null): array
+    {
+        return Sermon::query()->where('published', true)->orderByDesc('sermon_date')
+            ->when($limit, fn ($query) => $query->limit($limit))
+            ->get()
+            ->map(fn ($sermon) => [
+                'id' => $sermon->id,
+                'title' => $sermon->title,
+                'preacher' => $sermon->preacher,
+                'series' => $sermon->series,
+                'sermon_date' => optional($sermon->sermon_date)->toDateString(),
+                'youtube_id' => $sermon->youtube_id,
+                'is_live' => $sermon->is_live,
+            ])->all();
     }
 
     private function shared(Request $request, bool $forceMarea = false): array

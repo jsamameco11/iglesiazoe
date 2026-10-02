@@ -42,26 +42,22 @@ function ContentFields({ settings }: { settings: SiteSettings }) {
       </p>
 
       <Block title="Inicio" note="Lo primero que se lee al abrir la web.">
-        <Field name="heroTitle" label="Título del inicio" defaultValue={settings.heroTitle} />
-        <Field name="heroSubtitle" label="Subtítulo" defaultValue={settings.heroSubtitle} area />
-        <Field name="railTitle" label="Título de la franja de fotos" defaultValue={settings.railTitle} />
-        <Field name="railText" label="Texto de la franja de fotos" defaultValue={settings.railText} area />
+        <Field name="heroTitle" label="Portada · titular" defaultValue={settings.heroTitle} />
+        <Field name="heroSubtitle" label="Portada · subtítulo" defaultValue={settings.heroSubtitle} area />
         <div className="grid gap-4 md:grid-cols-2">
-          <Field name="visitCta" label="Botón de visita" defaultValue={settings.visitCta} />
-          <Field name="sermonsCta" label="Botón de prédicas" defaultValue={settings.sermonsCta} />
+          <Field name="visitCta" label="Botón de visita" defaultValue={settings.visitCta} hint="Se usa en la portada, el menú y el pie." />
           <Field name="baptismCta" label="Botón de bautismo" defaultValue={settings.baptismCta} />
         </div>
-        <Field name="homeFamilyKicker" label="Etiqueta del bloque familiar" defaultValue={settings.homeFamilyKicker} />
-        <Field name="homeFamilyTitle" label="Título del bloque familiar" defaultValue={settings.homeFamilyTitle} />
-        <Field name="homeMinistriesTitle" label="Título de ministerios en el inicio" defaultValue={settings.homeMinistriesTitle} />
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field name="ctaVisitTitle" label="Tarjeta visita, título" defaultValue={settings.ctaVisitTitle} />
-          <Field name="ctaVisitText" label="Tarjeta visita, texto" defaultValue={settings.ctaVisitText} />
-          <Field name="ctaBaptismTitle" label="Tarjeta bautismo, título" defaultValue={settings.ctaBaptismTitle} />
-          <Field name="ctaBaptismText" label="Tarjeta bautismo, texto" defaultValue={settings.ctaBaptismText} />
-          <Field name="ctaPrayerTitle" label="Tarjeta oración, título" defaultValue={settings.ctaPrayerTitle} />
-          <Field name="ctaPrayerText" label="Tarjeta oración, texto" defaultValue={settings.ctaPrayerText} />
-        </div>
+        <Field name="essenceTitle" label="Nuestra esencia · título" defaultValue={settings.essenceTitle} />
+        <Field name="essenceText" label="Nuestra esencia · texto" defaultValue={settings.essenceText} area hint="Deja una línea en blanco para separar párrafos." />
+        <Field name="cellsTitle" label="La vida en casas · título" defaultValue={settings.cellsTitle} />
+        <Field name="cellsText" label="La vida en casas · texto" defaultValue={settings.cellsText} area hint="Deja una línea en blanco para separar párrafos." />
+        <Field name="cellsCta" label="La vida en casas · enlace" defaultValue={settings.cellsCta} />
+        <Field name="generationsTitle" label="Redes y ministerios · título" defaultValue={settings.generationsTitle} />
+        <Field name="resourcesTitle" label="Recursos · título" defaultValue={settings.resourcesTitle} />
+        <Field name="resourcesText" label="Recursos · texto" defaultValue={settings.resourcesText} area />
+        <Field name="visitInviteTitle" label="Planifica tu visita · título" defaultValue={settings.visitInviteTitle} />
+        <Field name="visitInviteText" label="Planifica tu visita · texto" defaultValue={settings.visitInviteText} area />
       </Block>
 
       <Block title="Casa, horarios y contacto" note="Estos datos se repiten en el inicio, el pie y Contacto.">
@@ -73,7 +69,6 @@ function ContentFields({ settings }: { settings: SiteSettings }) {
           <Field name="address" label="Dirección" defaultValue={settings.address} />
           <Field name="city" label="Ciudad" defaultValue={settings.city} />
           <Field name="pastorsLabel" label="Pastores" defaultValue={settings.pastorsLabel} />
-          <Field name="pastor" label="Pastor principal" defaultValue={settings.pastor} />
           <Field name="phone" label="Teléfono" defaultValue={settings.phone} />
           <Field name="whatsapp" label="WhatsApp" defaultValue={settings.whatsapp} hint="Solo el número, por ejemplo 987654321. Si lo dejas vacío no se muestra." />
           <Field name="email" label="Correo" defaultValue={settings.email} />
@@ -148,12 +143,12 @@ function ContentFields({ settings }: { settings: SiteSettings }) {
 
       <Block title="Apariencia" note="Estos colores se usan en toda la web: botones, fondos, tarjetas y franjas. También puedes abrir Diseño de la página para tipografías y formas.">
         <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-          <Color name="accentColor" label="Acento (naranja ladrillo)" value={settings.accentColor} fallback="#C45C26" />
-          <Color name="headingColor" label="Títulos (carbón)" value={settings.headingColor} fallback="#2A2623" />
-          <Color name="paperColor" label="Fondo (marfil)" value={settings.paperColor} fallback="#F7F4EF" />
-          <Color name="bodyColor" label="Textos" value={settings.bodyColor} fallback="#6F6A64" />
-          <Color name="stoneColor" label="Arena / piedra" value={settings.stoneColor} fallback="#E4DFD6" />
-          <Color name="clayColor" label="Terracota suave" value={settings.clayColor} fallback="#E8D0C2" />
+          <Color name="accentColor" label="Acento (naranja ladrillo)" value={settings.accentColor} fallback="#C14A09" />
+          <Color name="headingColor" label="Títulos (negro carbón)" value={settings.headingColor} fallback="#1A1A1A" />
+          <Color name="paperColor" label="Fondo (blanco marfil)" value={settings.paperColor} fallback="#FDFCFA" />
+          <Color name="bodyColor" label="Textos" value={settings.bodyColor} fallback="#5C5853" />
+          <Color name="stoneColor" label="Beige arena" value={settings.stoneColor} fallback="#EBE4DA" />
+          <Color name="clayColor" label="Terracota suave" value={settings.clayColor} fallback="#EAD8C9" />
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="text-sm">Tipografía

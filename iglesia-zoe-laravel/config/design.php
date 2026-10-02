@@ -36,14 +36,14 @@ return [
 
     'defaults' => [
         'palette' => [
-            'paper' => '#f7f4ef',
-            'card' => '#fbf9f6',
-            'ink' => '#2a2623',
-            'muted' => '#6f6a64',
-            'line' => '#e6e1da',
-            'accent' => '#c45c26',
-            'stone' => '#e4dfd6',
-            'clay' => '#e8d0c2',
+            'paper' => '#fdfcfa',
+            'card' => '#ffffff',
+            'ink' => '#1a1a1a',
+            'muted' => '#5c5853',
+            'line' => '#e7e1d8',
+            'accent' => '#c14a09',
+            'stone' => '#ebe4da',
+            'clay' => '#ead8c9',
         ],
         'fonts' => [
             'heading' => 'Cormorant Garamond',

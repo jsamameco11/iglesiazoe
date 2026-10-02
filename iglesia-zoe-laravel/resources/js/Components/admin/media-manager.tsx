@@ -1,8 +1,8 @@
 
 import { useActionState, useEffect, useState } from "react";
-import { addGallerySlot, saveMediaAsset } from "@/lib/actions";
+import { saveMediaAsset } from "@/lib/actions";
 import { ImageComposer } from "@/Components/admin/image-composer";
-import { clampFocus, galleryIndex, GALLERY_MAX, GALLERY_MIN, normalizeFeather, normalizeRadius, normalizeZoom, parseRatio, ratioPresets, fitPresets, normalizeFit, type MediaAsset, type MediaFit, type MediaKind } from "@/lib/media";
+import { clampFocus, normalizeFeather, normalizeRadius, normalizeZoom, parseRatio, ratioPresets, fitPresets, normalizeFit, type MediaAsset, type MediaFit, type MediaKind } from "@/lib/media";
 
 export type AdminMediaSlot = {
   id: string;
@@ -11,48 +11,29 @@ export type AdminMediaSlot = {
   hint: string;
   asset: MediaAsset;
   custom: boolean;
-  followsHero?: boolean;
 };
 
 const field = "mt-1 w-full rounded-xl border border-line bg-white px-3 py-2";
 
 export function MediaManager({ slots }: { slots: AdminMediaSlot[] }) {
   const groups = [...new Set(slots.map((slot) => slot.group))];
-  const galleryCount = slots.filter((slot) => galleryIndex(slot.id) > 0).length;
   return (
     <div className="space-y-12">
       {groups.map((group) => (
         <section key={group}>
           <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-orange-deep">{group}</p>
-          {group === "Carrusel del inicio" && (
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-              Mínimo {GALLERY_MIN} fotos. En la web se ven 5; al menos una queda fuera y entra cuando cambia la imagen del centro.
-            </p>
-          )}
           <div className="mt-4 grid gap-5">
             {slots.filter((slot) => slot.group === group).map((slot) => (
-              <MediaSlotCard key={slot.id} slot={slot} removable={galleryIndex(slot.id) > GALLERY_MIN} />
+              <MediaSlotCard key={slot.id} slot={slot} />
             ))}
           </div>
-          {group === "Carrusel del inicio" && galleryCount < GALLERY_MAX && (
-            <form
-              action={async () => {
-                await addGallerySlot();
-              }}
-              className="mt-4"
-            >
-              <button className="rounded-full border border-line bg-white px-5 py-2.5 text-sm font-medium">
-                Añadir foto al carrusel
-              </button>
-            </form>
-          )}
         </section>
       ))}
     </div>
   );
 }
 
-function MediaSlotCard({ slot, removable = false }: { slot: AdminMediaSlot; removable?: boolean }) {
+function MediaSlotCard({ slot }: { slot: AdminMediaSlot }) {
   const [state, action, pending] = useActionState(async (_: unknown, formData: FormData) => saveMediaAsset(formData), undefined);
   const initialRatio = parseRatio(slot.asset.ratio);
   const [kind, setKind] = useState<MediaKind>(slot.asset.kind);
@@ -132,7 +113,7 @@ function MediaSlotCard({ slot, removable = false }: { slot: AdminMediaSlot; remo
           Centrar de nuevo
         </button>
         <p className="px-3 py-2 text-[11px] uppercase tracking-[0.16em] text-muted">
-          {slot.followsHero ? "Usa la portada del inicio" : slot.custom ? "Archivo publicado" : "Archivo original"}
+          {slot.custom ? "Archivo publicado" : "Archivo original"}
         </p>
       </div>
 
@@ -290,7 +271,7 @@ function MediaSlotCard({ slot, removable = false }: { slot: AdminMediaSlot; remo
           <button disabled={pending} name="intent" value="save" className="rounded-full bg-accent px-5 py-2.5 text-sm text-white disabled:opacity-60">
             {pending ? "Publicando…" : "Publicar"}
           </button>
-          {slot.custom && !removable && (
+          {slot.custom && (
             <button
               name="intent"
               value="restore"
@@ -300,18 +281,6 @@ function MediaSlotCard({ slot, removable = false }: { slot: AdminMediaSlot; remo
               }}
             >
               Restaurar original
-            </button>
-          )}
-          {removable && (
-            <button
-              name="intent"
-              value="remove-gallery"
-              className="text-sm text-muted underline-offset-4 hover:underline"
-              onClick={(event) => {
-                if (!window.confirm("¿Quitar esta foto del carrusel?")) event.preventDefault();
-              }}
-            >
-              Quitar del carrusel
             </button>
           )}
         </div>

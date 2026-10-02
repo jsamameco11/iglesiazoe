@@ -4,6 +4,8 @@ namespace App\Http\Middleware;
 
 use App\Domain\Access\Permissions;
 use App\Domain\Auth\Support\Entrance;
+use App\Domain\Inbox\Inbox;
+use App\Domain\Inbox\PushNotifier;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Actions\ResolveSiteSkin;
 use Illuminate\Http\Request;
@@ -47,6 +49,14 @@ class HandleInertiaRequests extends Middleware
             'flash' => [
                 'denied' => (bool) $request->session()->get('denied'),
             ],
+            'inbox' => fn () => $user && Inbox::kindsFor($user) ? [
+                'unread' => Inbox::unread($user),
+                'push' => [
+                    'publicKey' => PushNotifier::publicKey(),
+                    'muted' => (bool) $user->push_muted,
+                    'canMute' => Permissions::isSuperadmin($user),
+                ],
+            ] : null,
         ];
     }
 }

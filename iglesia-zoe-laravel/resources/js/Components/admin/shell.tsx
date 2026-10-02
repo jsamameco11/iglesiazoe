@@ -1,8 +1,10 @@
 import { router, usePage } from "@inertiajs/react";
 import { useEffect, useState, type CSSProperties } from "react";
 import type { PanelUser } from "@/lib/access";
+import { useInboxPulse, useInboxShared, useUnread } from "@/lib/inbox";
 import { useSitePalette } from "@/Components/site/palette-scope";
 import { AdminNav } from "./admin-nav";
+import { PushPrompt } from "./push-notifications";
 
 type ShellProps = { flash?: { denied?: boolean }; entrance?: { admin: boolean; siteUrl: string } };
 
@@ -14,6 +16,10 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
   const { style } = useSitePalette();
   const initials = (user.full_name || user.username || "Z").split(" ").map((part) => part[0]).slice(0, 2).join("").toUpperCase();
   const siteUrl = entrance?.siteUrl || "/";
+  const inbox = useInboxShared();
+  const unread = useUnread(inbox?.unread);
+  const fresh = Object.values(unread).reduce((sum, value) => sum + (value ?? 0), 0);
+  useInboxPulse(Boolean(inbox));
 
   useEffect(() => {
     if (!open) return;
@@ -57,9 +63,14 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
           aria-expanded={open}
           aria-controls="panel-menu"
           onClick={() => setOpen((value) => !value)}
-          className="shrink-0 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold"
+          className="relative shrink-0 rounded-full border border-white/15 px-4 py-2 text-xs font-semibold"
         >
           {open ? "Cerrar" : "Menú"}
+          {!open && fresh > 0 && (
+            <span className="absolute -right-1.5 -top-1.5 min-w-[1.25rem] rounded-full bg-orange px-1 text-center text-[10px] font-semibold leading-5 text-white" aria-label={`${fresh} formularios nuevos`}>
+              {fresh > 99 ? "99+" : fresh}
+            </span>
+          )}
         </button>
       </header>
       {open && (
@@ -87,6 +98,7 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
             <button type="button" onClick={() => setDenied(false)} className="text-muted">Cerrar</button>
           </div>
         )}
+        <PushPrompt />
         {children}
       </main>
     </div>

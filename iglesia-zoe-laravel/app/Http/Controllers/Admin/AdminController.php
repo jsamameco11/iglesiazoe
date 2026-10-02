@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Domain\Access\CellScope;
 use App\Domain\Access\Permissions;
 use App\Domain\Finance\Finance;
-use App\Domain\Geo\GeoDirectory;
+use App\Domain\Inbox\Inbox;
 use App\Domain\Media\Actions\ManageSiteMedia;
 use App\Domain\Media\Support\MediaLibrary;
 use App\Domain\Reports\Support\Period;
@@ -18,13 +18,11 @@ use App\Models\BaptismRegistration;
 use App\Models\Cell;
 use App\Models\Expense;
 use App\Models\Ministry;
-use App\Models\PrayerRequest;
 use App\Models\Report;
 use App\Models\Sermon;
 use App\Models\SiteSetting;
 use App\Models\Theme;
 use App\Models\User;
-use App\Models\VisitPlan;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -57,10 +55,8 @@ class AdminController extends Controller
             'myExpenses' => ! $user->isSuperadmin() && $can('expenses.manage') ? $mine() : null,
             'cells' => $can('servers.create') ? Cell::query()->where('active', true)->when($tree !== null, fn ($query) => $query->whereIn('id', $tree ?: [CellScope::NONE])) : null,
             'themes' => $can('themes.manage') || $can('content.manage') ? Theme::query()->where('active', true) : null,
-            'prayers' => $can('content.manage') ? PrayerRequest::query() : null,
-            'visits' => $can('content.manage') ? VisitPlan::query() : null,
-            'baptisms' => $can('content.manage') ? BaptismRegistration::query() : null,
         ]));
+        $unread = Inbox::unread($user);
 
         if ($reports) {
             $total = $cellIds === null ? $counts['activeCells'] : count($cellIds);
@@ -91,9 +87,15 @@ class AdminController extends Controller
             $latest = Theme::query()->where('active', true)->orderByDesc('theme_date')->first();
             $cards[] = ['label' => 'Temas de célula', 'value' => (string) $counts['themes'], 'href' => '/admin/temas', 'note' => $latest ? 'Último: '.$latest->title : 'Aún no hay temas', 'accent' => 'bg-blush'];
         }
-        if ($can('content.manage')) {
-            $cards[] = ['label' => 'Bandeja', 'value' => (string) ($counts['prayers'] + $counts['visits']), 'href' => '/admin/bandeja', 'note' => 'Oraciones y visitas', 'accent' => 'bg-dusk'];
-            $cards[] = ['label' => 'Bautismos', 'value' => (string) $counts['baptisms'], 'href' => '/admin/bautismos', 'note' => 'Registros recibidos', 'accent' => 'bg-clay'];
+        $inboxAccents = ['visitas' => 'bg-dusk', 'bautismos' => 'bg-clay', 'oraciones' => 'bg-sky'];
+        foreach ($unread as $kind => $count) {
+            $cards[] = [
+                'label' => Inbox::KINDS[$kind]['title'],
+                'value' => (string) $count,
+                'href' => Inbox::url($kind),
+                'note' => $count === 1 ? 'Nueva desde tu última revisión' : 'Nuevas desde tu última revisión',
+                'accent' => $inboxAccents[$kind],
+            ];
         }
 
         $recent = [];
@@ -305,7 +307,6 @@ class AdminController extends Controller
     public function medios(Request $request): Response
     {
         return Inertia::render('Admin/Medios', [
-            'allowed' => true,
             'mediaOverrides' => LoadPublicSite::mediaOverrides(),
             'ministries' => collect(LoadPublicSite::ministries())->map(fn ($item) => ['slug' => $item['slug'], 'name' => $item['name']])->all(),
         ]);
@@ -314,11 +315,6 @@ class AdminController extends Controller
     public function saveMedia(Request $request, ManageSiteMedia $media): JsonResponse
     {
         return response()->json($media->save($request));
-    }
-
-    public function addGallery(ManageSiteMedia $media): JsonResponse
-    {
-        return response()->json($media->addGallerySlot());
     }
 
     public function ministerios(): Response
@@ -454,54 +450,8 @@ class AdminController extends Controller
                 'notes' => $event->notes,
                 'active' => $event->active,
             ]),
-            'registrations' => $this->baptismRegistrations(),
+            'registrations' => BaptismRegistration::query()->count(),
         ]);
-    }
-
-    private function visitPlans(): array
-    {
-        $countries = array_column(GeoDirectory::countries(), 'name', 'code');
-
-        return VisitPlan::query()->latest()->limit(50)->get()
-            ->map(fn ($row) => [
-                'id' => $row->id,
-                'full_name' => $row->full_name,
-                'phone' => $row->phone,
-                'email' => $row->email,
-                'sex' => $row->sex,
-                'age' => $row->age,
-                'marital_status' => $row->marital_status,
-                'country_code' => $row->country_code,
-                'country' => $row->country_code ? ($countries[$row->country_code] ?? $row->country_code) : null,
-                'place' => implode(', ', array_filter([$row->district, $row->city, $row->region])) ?: null,
-                'service' => $row->service,
-                'visit_date' => optional($row->visit_date)->toDateString(),
-                'notes' => $row->notes,
-                'created_at' => optional($row->created_at)->toDateString(),
-            ])->all();
-    }
-
-    private function baptismRegistrations(): array
-    {
-        $countries = array_column(GeoDirectory::countries(), 'name', 'code');
-        $events = BaptismEvent::query()->get(['id', 'event_date'])
-            ->mapWithKeys(fn ($event) => [$event->id => optional($event->event_date)->toDateString()]);
-
-        return BaptismRegistration::query()->latest()->limit(100)->get()
-            ->map(fn ($row) => [
-                'id' => $row->id,
-                'full_name' => $row->full_name,
-                'phone' => $row->phone,
-                'email' => $row->email,
-                'sex' => $row->sex,
-                'age' => $row->age,
-                'country_code' => $row->country_code,
-                'country' => $row->country_code ? ($countries[$row->country_code] ?? $row->country_code) : null,
-                'event_date' => $row->event_id ? ($events[$row->event_id] ?? null) : null,
-                'notes' => $row->notes,
-                'created_at' => optional($row->created_at)->toDateString(),
-            ])
-            ->all();
     }
 
     public function saveBaptism(Request $request): JsonResponse
@@ -565,14 +515,6 @@ class AdminController extends Controller
         $theme->update(['active' => false]);
 
         return response()->json(['ok' => true, 'reload' => true, 'message' => 'Tema ocultado.']);
-    }
-
-    public function bandeja(): Response
-    {
-        return Inertia::render('Admin/Bandeja', [
-            'prayers' => PrayerRequest::query()->latest()->limit(50)->get(),
-            'visits' => $this->visitPlans(),
-        ]);
     }
 
     private function themeExtension(UploadedFile $file): ?string

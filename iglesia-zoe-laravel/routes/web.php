@@ -10,13 +10,14 @@ Route::get('/conocenos', [SiteController::class, 'about'])->name('about');
 Route::get('/ministerios', [SiteController::class, 'ministries'])->name('ministries');
 Route::get('/ministerios/{slug}', [SiteController::class, 'ministry'])->name('ministry');
 Route::get('/visita', [SiteController::class, 'visit'])->name('visit');
-Route::post('/visita', [SiteController::class, 'storeVisit']);
+Route::post('/visita', [SiteController::class, 'storeVisit'])->middleware('throttle:web-forms');
+Route::post('/visita/aviso', [SiteController::class, 'storeQuickVisit'])->middleware('throttle:web-forms');
 Route::get('/bautismos', [SiteController::class, 'baptisms'])->name('baptisms');
-Route::post('/bautismos', [SiteController::class, 'storeBaptism']);
+Route::post('/bautismos', [SiteController::class, 'storeBaptism'])->middleware('throttle:web-forms');
 Route::get('/predicas', [SiteController::class, 'sermons'])->name('sermons');
 Route::get('/dar', [SiteController::class, 'give'])->name('give');
 Route::get('/contacto', [SiteController::class, 'contact'])->name('contact');
-Route::post('/contacto', [SiteController::class, 'storePrayer']);
+Route::post('/contacto', [SiteController::class, 'storePrayer'])->middleware('throttle:web-forms');
 
 Route::get('/ingresar', fn () => redirect('/acceso'));
 Route::get('/acceso', [AccesoController::class, 'create'])->name('login');

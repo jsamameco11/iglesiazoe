@@ -45,21 +45,12 @@ export async function send(url: string, payload: FormData | Record<string, strin
   return postJson(url, formData);
 }
 
-export async function signIn(_state: { error?: string } | undefined, formData: FormData) {
-  const username = String(formData.get("username") || "").trim();
-  const password = String(formData.get("password") || "");
-  if (!username || !password) return { error: "Ingresa tu usuario y tu clave." };
-  const data = await postJson("/acceso", formData);
-  if (data?.error) return { error: data.error };
-  return data;
-}
-
-export async function signOut() {
-  router.post("/salir");
-}
-
 export async function submitVisit(_state: { ok?: boolean; error?: string } | undefined, formData: FormData) {
   return postJson("/visita", formData);
+}
+
+export async function submitQuickVisit(_state: { ok?: boolean; error?: string } | undefined, formData: FormData) {
+  return postJson("/visita/aviso", formData);
 }
 
 export async function submitBaptism(_state: { ok?: boolean; error?: string } | undefined, formData: FormData) {
@@ -72,12 +63,6 @@ export async function submitPrayer(_state: { ok?: boolean; error?: string } | un
 
 export async function saveMediaAsset(formData: FormData) {
   const data = await postJson("/admin/medios", formData);
-  if (data?.ok) router.reload();
-  return data;
-}
-
-export async function addGallerySlot() {
-  const data = await postJson("/admin/medios/galeria", new FormData());
   if (data?.ok) router.reload();
   return data;
 }

@@ -33,7 +33,7 @@ php artisan db:seed --class=AccessSeeder   # opcional: cuentas de prueba (requie
 composer run dev
 ```
 
-Para publicar cambios de código (no toca la base de datos ni los archivos subidos):
+Para publicar (compila el frontend, sube el código, corre las migraciones pendientes y limpia cachés; no toca los archivos subidos):
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File deploy\release.ps1
