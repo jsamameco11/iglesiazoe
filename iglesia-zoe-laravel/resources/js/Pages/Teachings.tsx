@@ -89,8 +89,31 @@ export default function Teachings({
           </PageIntro>
         </Rise>
 
+        <Rise className="mt-16">
+          <p className="kicker">{t("teachings.more")}</p>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            {[
+              { href: "/galeria", label: t("nav.gallery"), note: t("nav.galleryNote") },
+              { href: "/devocionales", label: t("nav.devotionals"), note: t("nav.devotionalsNote") },
+              { href: "/predicas", label: t("nav.sermons"), note: t("nav.sermonsNote") },
+            ].map((link, index) => (
+              <Link key={link.href} href={link.href} className="resource-link group">
+                <span className="resource-link-num">{String(index + 1).padStart(2, "0")}</span>
+                <span className="min-w-0">
+                  <span className="block text-[1.25rem] font-medium tracking-[-0.03em] text-ink">{link.label}</span>
+                  <span className="mt-0.5 block text-[13.5px] text-muted">{link.note}</span>
+                </span>
+                <span className="resource-link-arrow" aria-hidden>→</span>
+              </Link>
+            ))}
+          </div>
+        </Rise>
+
         <section className="mt-20">
-          <Rise className="flex flex-wrap items-center justify-between gap-4">
+          <Rise>
+            <h2 className="editorial text-3xl md:text-4xl">{t("teachings.listTitle")}</h2>
+          </Rise>
+          <Rise className="mt-6 flex flex-wrap items-center justify-between gap-4">
             <div className="pill-tabs" role="tablist">
               {tabs.map((tab) => (
                 <button key={tab.id} type="button" role="tab" aria-selected={filter === tab.id} className="pill-tab" data-active={filter === tab.id || undefined} onClick={() => setFilter(tab.id)}>

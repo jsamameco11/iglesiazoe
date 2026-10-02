@@ -39,7 +39,7 @@ export function AccesoGate() {
               <stop offset="52%" stopColor="#f0e4d4" />
               <stop offset="100%" stopColor="#e2cfb8" />
             </linearGradient>
-            <linearGradient id={`${uid}desk`} x1="0" y1="0" x2="1" y2="1">
+            <linearGradient id={`${uid}desk`} gradientUnits="userSpaceOnUse" x1="0" y1="400" x2="720" y2="820">
               <stop offset="0%" stopColor="#c9ae96" />
               <stop offset="100%" stopColor="#a8876e" />
             </linearGradient>
@@ -68,13 +68,14 @@ export function AccesoGate() {
             </filter>
           </defs>
 
-          <rect width="720" height="820" rx="36" fill={`url(#${uid}sky)`} />
+          {/* Sky and desk run past the viewBox so a panel taller or wider than 720×820 shows more scene instead of an empty band. */}
+          <rect x="-1200" y="-1600" width="3120" height="1610" fill="#fbf6ee" />
+          <rect x="-1200" y="0" width="3120" height="820" fill={`url(#${uid}sky)`} />
           <circle className="acceso-mote" cx="86" cy="94" r="54" fill="#f4e7db" opacity="0.85" />
           <circle className="acceso-mote acceso-mote-slow" cx="628" cy="128" r="72" fill="#e4ddd4" opacity="0.55" />
-          <circle className="acceso-mote" cx="560" cy="610" r="42" fill="#edd9a8" opacity="0.28" />
 
-          <path d="M0 470 C160 428 390 448 720 400 V820 H0 Z" fill={`url(#${uid}desk)`} />
-          <path d="M0 508 C240 470 470 492 720 454" fill="none" stroke="#8d6b55" strokeWidth="2" opacity="0.28" />
+          <path d="M-1200 560 L0 470 C160 428 390 448 720 400 L1920 310 V2400 H-1200 Z" fill={`url(#${uid}desk)`} />
+          <path d="M-1200 600 L0 508 C240 470 470 492 720 454 L1920 364" fill="none" stroke="#8d6b55" strokeWidth="2" opacity="0.28" />
 
           <g className="acceso-plant">
             <ellipse cx="118" cy="528" rx="36" ry="10" fill="#6b4a38" opacity="0.18" />
@@ -133,8 +134,8 @@ export function AccesoGate() {
             <rect x="292" y="444" width="136" height="18" rx="6" fill="#1c2024" />
           </g>
 
-          <g className="acceso-bible">
-            <ellipse cx="268" cy="628" rx="150" ry="20" fill="#6b3f32" opacity="0.16" />
+          <g className="acceso-bible" transform="translate(40 128)">
+            <ellipse cx="268" cy="650" rx="164" ry="22" fill="#6b3f32" opacity="0.18" />
             <path
               d="M118 516 C118 496 154 484 204 484 H268 V520 V640 H188 C140 640 118 616 118 588 Z"
               fill="#6b3f32"
@@ -155,8 +156,8 @@ export function AccesoGate() {
             </text>
           </g>
 
-          <g className="acceso-cup">
-            <ellipse cx="520" cy="560" rx="28" ry="8" fill="#6b4a38" opacity="0.14" />
+          <g className="acceso-cup" transform="translate(70 70)">
+            <ellipse cx="520" cy="574" rx="30" ry="8" fill="#6b4a38" opacity="0.16" />
             <path d="M498 520 h44 v32 c0 12 -10 20 -22 20 s-22 -8 -22 -20 Z" fill="#fbfaf6" />
             <path d="M542 528 c18 0 22 12 14 22" fill="none" stroke="#d7c4b0" strokeWidth="4" />
             <path className="acceso-steam" d="M512 508 C508 496 516 492 512 480" fill="none" stroke="#d7c4b0" strokeWidth="3" strokeLinecap="round" />

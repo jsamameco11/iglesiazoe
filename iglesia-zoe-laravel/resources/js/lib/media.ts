@@ -36,6 +36,8 @@ export type ResolvedMedia = {
   baptismVideo: MediaAsset;
   events: MediaAsset;
   teachings: MediaAsset;
+  gallery: MediaAsset;
+  devotionals: MediaAsset;
   serveCover: MediaAsset;
   routeCover: MediaAsset;
   route: (slot: number) => MediaAsset;
@@ -180,6 +182,8 @@ const fixedDefaults: Record<string, MediaAsset> = {
   "baptism-video": { kind: "video", src: "", poster: "", alt: "¿Qué es el bautismo?" },
   events: image("/images/banner8.jpg", "Encuentro de Iglesia Cristiana Zoe"),
   teachings: image("/images/banner4.jpg", "Enseñanza en Iglesia Cristiana Zoe"),
+  gallery: image("/images/banner8.jpg", "Culto de Iglesia Cristiana Zoe"),
+  devotionals: image("/images/vida-en-casas.jpg", "Hermanas de Zoe compartiendo la Palabra"),
   "serve-cover": image("/images/banner4.jpg", "Equipo de servicio de Iglesia Cristiana Zoe"),
   "route-cover": image("/images/familia1.jpg", "Grupo celular de Iglesia Cristiana Zoe"),
   ...Object.fromEntries(Array.from({ length: ROUTE_SLOTS }, (_, index) => [`route-${index + 1}`, image(routePool[index] ?? "", `Ruta del servidor · nivel ${index + 1}`)])),
@@ -222,6 +226,8 @@ const fixedCatalog: MediaSlotMeta[] = [
   { id: "contact", group: "Contacto y oración", label: "Acompañamiento", hint: "Imagen o video de la página de contacto." },
   { id: "events", group: "Eventos", label: "Portada", hint: "Se muestra en Eventos cuando el próximo evento no tiene imagen." },
   { id: "teachings", group: "Recursos", label: "Portada", hint: "Imagen de la página de enseñanzas descargables." },
+  { id: "gallery", group: "Recursos", label: "Galería de cultos · portada", hint: "Foto grande de la página Galería de cultos. Las fotos de cada culto se suben en la pestaña Galería de cultos." },
+  { id: "devotionals", group: "Recursos", label: "Devocionales · portada", hint: "Imagen de la página de devocionales y de los devocionales que no tienen imagen propia." },
   { id: "serve-cover", group: "Involúcrate", label: "Portada", hint: "Foto grande de la página Involúcrate. Ideal: un equipo sirviendo. La foto de cada área se cambia en Involúcrate · áreas." },
   { id: "route-cover", group: "Ruta del servidor", label: "Portada", hint: "Foto grande de la página Ruta del servidor." },
   ...Array.from({ length: ROUTE_SLOTS }, (_, index) => ({
@@ -302,6 +308,8 @@ export function resolveMedia(overrides: Record<string, MediaAsset>): ResolvedMed
     baptismVideo: fixed("baptism-video"),
     events: fixed("events"),
     teachings: fixed("teachings"),
+    gallery: fixed("gallery"),
+    devotionals: fixed("devotionals"),
     serveCover: fixed("serve-cover"),
     routeCover: fixed("route-cover"),
     route: (slot) => (fixedDefaults[`route-${slot}`] ? fixed(`route-${slot}`) : image("", "")),

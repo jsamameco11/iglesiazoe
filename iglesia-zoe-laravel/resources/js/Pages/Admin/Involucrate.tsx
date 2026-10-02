@@ -17,7 +17,7 @@ export default function Involucrate({ areas }: { areas: AdminArea[] }) {
     <AdminLayout>
       <h1 className="display text-4xl">Involúcrate · áreas de servicio</h1>
       <p className="mt-2 max-w-2xl text-muted">
-        Cada área tiene su foto, su página propia y sus equipos (por ejemplo Atmósfera: Ujieres, Visuales, Multimedia). Aparecen en el carrusel «Somos una iglesia que está en movimiento» del inicio, en el menú Involúcrate y en el formulario «Regístrate para servir». Las personas que se registran llegan a{" "}
+        Cada área tiene su foto, su página propia y sus equipos (por ejemplo Visuales: Multimedia, Cámara, Redes, Transmisión, Luces y Switcher). Todas aparecen en el carrusel «Somos una iglesia que está en movimiento» del inicio, con su botón debajo de la foto. Las que reciben voluntarios aparecen además en el menú Involúcrate y en el formulario «Regístrate para servir». Las personas que se registran llegan a{" "}
         <Link href="/admin/formularios/servidores" className="underline underline-offset-4">Formularios → Quieren servir</Link>.
       </p>
       <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -135,7 +135,13 @@ function AreaForm({ area, site, first, last, onDone }: { area?: AdminArea; site:
           <label className="text-sm">Botón extra <span className="text-muted">(opcional)</span><input name="cta_label" maxLength={40} defaultValue={area?.cta_label || ""} placeholder="Ej. Ver la ruta completa" className={field} /></label>
           <label className="text-sm">Enlace del botón<input name="cta_url" maxLength={500} defaultValue={area?.cta_url || ""} placeholder="/ruta-del-servidor o https://…" className={field} /></label>
         </div>
-        <label className="text-sm"><input type="checkbox" name="active" defaultChecked={area ? area.active : true} /> Visible en la web</label>
+        <div className="flex flex-wrap gap-x-6 gap-y-2">
+          <label className="text-sm"><input type="checkbox" name="active" defaultChecked={area ? area.active : true} /> Visible en la web</label>
+          <label className="text-sm">
+            <input type="checkbox" name="accepts_volunteers" defaultChecked={area ? area.accepts_volunteers : true} /> Recibe voluntarios
+            <span className="text-muted"> (aparece en Involúcrate, en el menú y en el formulario «Regístrate para servir»)</span>
+          </label>
+        </div>
         {(state?.error || error) && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{state?.error || error}</p>}
         {state?.ok && area && <p className="rounded-xl bg-sage px-3 py-2 text-sm">{state.message || "Guardado."}</p>}
         <div className="flex gap-3">

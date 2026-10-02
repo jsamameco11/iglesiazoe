@@ -110,8 +110,41 @@ export type ServeArea = {
   image: string | null;
   cta_label: string | null;
   cta_url: string | null;
+  accepts_volunteers: boolean;
   active: boolean;
 };
+
+export type GalleryKind = "dominical" | "media-semana" | "especial";
+
+export type ServiceGallery = {
+  id: string;
+  slug: string;
+  title: string;
+  kind: GalleryKind;
+  service_date: string;
+  summary: string | null;
+  cover: string | null;
+  count: number;
+  active: boolean;
+};
+
+export type ServiceGalleryFull = ServiceGallery & { photos: string[] };
+
+export type Devotional = {
+  id: string;
+  slug: string;
+  title: string;
+  verse_ref: string | null;
+  verse_text: string | null;
+  excerpt: string;
+  author: string | null;
+  publish_on: string;
+  image: string | null;
+  minutes: number;
+  active: boolean;
+};
+
+export type DevotionalFull = Devotional & { body: string };
 
 export type ChurchEvent = {
   id: string;
