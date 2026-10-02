@@ -5,10 +5,11 @@ import { MediaView } from "@/Components/site/media-view";
 import { readCopy } from "@/lib/copy";
 import type { MediaAsset } from "@/lib/media";
 import type { SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 export function CellsSection({ settings, asset }: { settings: SiteSettings; asset: MediaAsset }) {
   return (
-    <section className="home-section home-sand">
+    <section {...section("cells", "Grupos celulares")} className="home-section home-sand">
       <div className="home-split">
         <Rise from="left">
           <div className="home-photo shot">

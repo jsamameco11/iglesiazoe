@@ -7,6 +7,7 @@ import type { MediaAsset } from "@/lib/media";
 import { KIND_LABEL, ServerClock, clock, currentItem, dayLabel, limaDate, type RadioState } from "@/lib/radio";
 import type { SiteSettings } from "@/lib/types";
 import "../../../../css/radio.css";
+import { section } from "@/lib/design";
 
 /** Station snapshot for the home page: refreshed every 30 s while the tab is visible, without joining as a listener. */
 function useRadioSnapshot(initial: RadioState) {
@@ -51,7 +52,7 @@ export function RadioSection({ settings, radio, asset }: { settings: SiteSetting
   const tone = !state.on_air ? "off" : live ? "live" : "air";
 
   return (
-    <section className="home-section">
+    <section {...section("radio", "Radio")} className="home-section">
       <Rise>
         <div className="home-radio">
           {asset.src ? <div className="radio-hero-backdrop" style={{ backgroundImage: `url(${asset.src})` }} /> : null}

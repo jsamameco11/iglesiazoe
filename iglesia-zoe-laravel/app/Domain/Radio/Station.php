@@ -15,8 +15,10 @@ use Illuminate\Support\Str;
  * The radio station: what is on air at any moment and the live state of the console.
  *
  * Every listener computes the same program from the server clock: scheduled blocks of
- * the timeline play at their exact time and, when the timeline has a gap, the music
- * library fills it in a deterministic order, so everybody hears the same song.
+ * the main timeline play at their exact time and, when it has a gap, the continuous music
+ * fills it in a deterministic order (songs overlap by the crossfade), so everybody hears
+ * the same song. On top of it sound the layers: overlay blocks of the timeline and the
+ * pads and players fired from the console, which may lower the music while they play.
  */
 final class Station
 {
@@ -25,6 +27,11 @@ final class Station
     /** Longest block the timeline accepts, in seconds. */
     public const MAX_BLOCK = 6 * 3600;
 
+    /** Console lanes: the pad bank plays many sounds at once, each player one at a time. */
+    public const LANES = ['pad', 'A', 'B', 'C'];
+
+    public const MAX_PADS = 16;
+
     public const DEFAULTS = [
         'name' => 'Radio Zoe',
         'tagline' => 'Música, Palabra y esperanza las 24 horas.',
@@ -32,6 +39,9 @@ final class Station
         'autofill' => true,
         'bed_level' => 22,
         'fx_level' => 90,
+        'duck_level' => 25,
+        'crossfade' => 4,
+        'pads' => null,
         'stream_url' => '',
         'turn_url' => '',
         'turn_username' => '',
@@ -44,10 +54,11 @@ final class Station
         'host' => '',
         'started_at' => null,
         'music' => 100,
+        'overlay' => 100,
         'muted' => false,
         'bed' => false,
         'mic' => false,
-        'fx' => [],
+        'layers' => [],
         'rev' => 0,
     ];
 
@@ -55,6 +66,12 @@ final class Station
     private const OPERATOR_TIMEOUT = 25;
 
     private const LISTENER_WINDOW = 40;
+
+    /** Pads sounding at once; older ones are dropped first. */
+    private const PADS_AT_ONCE = 8;
+
+    /** Scheduled overlays this far ahead travel with the state so listeners can preload them. */
+    private const LAYER_LOOKAHEAD = 60000;
 
     /** 2026-01-01 00:00 in Lima: start of the music rotation when the timeline has never had a block. */
     private const ROTATION_EPOCH = 1767243600000;
@@ -86,14 +103,28 @@ final class Station
         $next = array_replace(self::config(), array_intersect_key($values, self::DEFAULTS));
         SiteSetting::query()->updateOrCreate(['key' => 'radio'], ['value' => $next, 'updated_at' => now()]);
         Cache::forget(self::CONFIG_KEY);
+        self::flush();
 
         return $next;
     }
 
-    /** Called whenever the library or the timeline changes. */
+    /** Called whenever the library, the timeline or the crossfade changes. */
     public static function flush(): void
     {
         Cache::forget(self::ROTATION_KEY);
+    }
+
+    /** Tracks of the pad bank, in the order the operator chose (effects first until the bank is first saved). */
+    public static function pads(): Collection
+    {
+        $ids = self::config()['pads'];
+        if (! is_array($ids)) {
+            return RadioTrack::query()->where('active', true)->whereIn('kind', ['efecto', 'anuncio'])
+                ->orderByRaw("case when kind = 'efecto' then 0 else 1 end")->orderBy('title')->limit(12)->get();
+        }
+        $tracks = RadioTrack::query()->whereIn('id', $ids)->where('active', true)->get()->keyBy('id');
+
+        return collect($ids)->map(fn (string $id) => $tracks->get($id))->filter()->values();
     }
 
     /* ---------------------------------------------------------------- live */
@@ -150,35 +181,95 @@ final class Station
         Cache::put(self::OPERATOR_KEY, CarbonImmutable::now()->getTimestamp(), 3600);
     }
 
-    public static function fire(RadioTrack $track): array
+    /** Puts a library audio on air on top of the program: a pad, or one of the players (replacing what it played). */
+    public static function playLayer(RadioTrack $track, string $lane, int $volume, bool $duck): array
     {
         $now = self::nowMs();
+        $layer = [
+            'id' => Str::lower(Str::random(12)),
+            'lane' => $lane,
+            'track_id' => $track->id,
+            'title' => $track->title,
+            'kind' => $track->kind,
+            'src' => $track->file_path,
+            'start' => $now,
+            'end' => $now + (int) round($track->duration * 1000),
+            'volume' => max(0, min(100, $volume)),
+            'duck' => $duck,
+        ];
 
-        return self::updateLive(function (array $live) use ($track, $now) {
-            $recent = array_values(array_filter($live['fx'], fn ($fx) => $fx['at'] > $now - 30000));
-            $recent[] = ['id' => Str::lower(Str::random(10)), 'src' => $track->file_path, 'title' => $track->title, 'kind' => $track->kind, 'at' => $now];
+        self::updateLive(function (array $live) use ($layer, $lane, $now) {
+            $layers = array_filter(self::sounding($live['layers'], $now), fn (array $item) => $lane === 'pad' || $item['lane'] !== $lane);
+            if ($lane === 'pad') {
+                $pads = array_keys(array_filter($layers, fn (array $item) => $item['lane'] === 'pad'));
+                foreach (array_slice($pads, 0, max(0, count($pads) - self::PADS_AT_ONCE + 1)) as $key) {
+                    unset($layers[$key]);
+                }
+            }
 
-            return ['fx' => array_slice($recent, -8)];
+            return ['layers' => [...array_values($layers), $layer]];
         });
+
+        return $layer;
     }
 
-    /** Gains every listener applies: the music bus (after the console faders) and the effects bus. */
+    /**
+     * Stops console layers: one by id, every sound of a lane, or all of them.
+     *
+     * @return list<string> ids that stopped
+     */
+    public static function stopLayers(?string $lane = null, ?string $id = null): array
+    {
+        $stopped = [];
+        self::updateLive(function (array $live) use ($lane, $id, &$stopped) {
+            $kept = [];
+            foreach (self::sounding($live['layers'], self::nowMs()) as $layer) {
+                $match = $id !== null ? $layer['id'] === $id : ($lane === null || $layer['lane'] === $lane);
+                $match ? $stopped[] = $layer['id'] : $kept[] = $layer;
+            }
+
+            return ['layers' => $kept];
+        });
+
+        return $stopped;
+    }
+
+    public static function updateLayer(string $id, int $volume, bool $duck): ?array
+    {
+        $updated = null;
+        self::updateLive(function (array $live) use ($id, $volume, $duck, &$updated) {
+            $layers = self::sounding($live['layers'], self::nowMs());
+            foreach ($layers as &$layer) {
+                if ($layer['id'] === $id) {
+                    $layer = [...$layer, 'volume' => max(0, min(100, $volume)), 'duck' => $duck];
+                    $updated = $layer;
+                }
+            }
+
+            return ['layers' => $layers];
+        });
+
+        return $updated;
+    }
+
+    /** Gains every listener applies: music bus (after the console faders), layers bus, bed and duck levels. */
     public static function mix(array $live, array $config): array
     {
         $music = $live['muted'] ? 0.0 : ($live['music'] / 100) * ($live['bed'] ? $config['bed_level'] / 100 : 1);
 
         return [
             'music' => round($music, 3),
-            'fx' => round($config['fx_level'] / 100, 3),
+            'fx' => round(($config['fx_level'] / 100) * ($live['overlay'] / 100), 3),
             'bed' => round($config['bed_level'] / 100, 3),
+            'duck' => round($config['duck_level'] / 100, 3),
         ];
     }
 
     /* ------------------------------------------------------------- program */
 
     /**
-     * Playable items overlapping [from, to), in order. With $expand the gaps are filled
-     * song by song; without it each gap is one «Música continua» block (for timelines).
+     * Playable items of the main timeline overlapping [from, to), in order. With $expand the
+     * gaps are filled song by song; without it each gap is one «Música continua» block.
      *
      * @return list<array<string, mixed>>
      */
@@ -223,6 +314,41 @@ final class Station
         return array_slice($items, 0, $limit);
     }
 
+    /**
+     * Sounds on top of the program around $now: console pads and players, and overlay
+     * blocks of the timeline that are playing or start within the lookahead.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function layers(array $live, int $now): array
+    {
+        $layers = array_map(fn (array $layer) => [...$layer, 'source' => 'live'], self::sounding($live['layers'], $now));
+
+        $scheduled = RadioSlot::query()->with('track')->where('layer', '>', RadioSlot::MAIN)
+            ->where('starts_at', '>=', CarbonImmutable::createFromTimestampMs($now - self::MAX_BLOCK * 1000))
+            ->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($now + self::LAYER_LOOKAHEAD))
+            ->orderBy('starts_at')->get()
+            ->filter(fn (RadioSlot $slot) => $slot->track?->active && $slot->endsAt()->getTimestampMs() > $now);
+
+        foreach ($scheduled as $slot) {
+            $layers[] = [
+                'id' => 's'.$slot->id,
+                'lane' => (string) $slot->layer,
+                'track_id' => $slot->radio_track_id,
+                'title' => $slot->title,
+                'kind' => $slot->kind,
+                'src' => $slot->track->file_path,
+                'start' => $slot->starts_at->getTimestampMs(),
+                'end' => $slot->endsAt()->getTimestampMs(),
+                'volume' => $slot->volume,
+                'duck' => $slot->duck,
+                'source' => 'schedule',
+            ];
+        }
+
+        return $layers;
+    }
+
     /** UTC milliseconds of 00:00 and 24:00 of a Lima calendar day. */
     public static function dayBounds(string $date): array
     {
@@ -243,7 +369,8 @@ final class Station
         $live = self::live();
         $now = self::nowMs();
         $onAir = (bool) $config['on_air'];
-        $next = $onAir ? RadioSlot::query()->where('starts_at', '>', CarbonImmutable::createFromTimestampMs($now))->orderBy('starts_at')->first() : null;
+        [$previous, $queue] = $onAir ? self::program($now) : [null, []];
+        $next = $onAir ? RadioSlot::query()->where('layer', RadioSlot::MAIN)->where('starts_at', '>', CarbonImmutable::createFromTimestampMs($now))->orderBy('starts_at')->first() : null;
 
         return [
             'now' => $now,
@@ -251,7 +378,9 @@ final class Station
             'tagline' => $config['tagline'],
             'on_air' => $onAir,
             'stream' => $config['stream_url'] ?: null,
-            'queue' => $onAir ? self::items($now, $now + 4 * 3600 * 1000, true, 6) : [],
+            'previous' => $previous,
+            'queue' => $queue,
+            'layers' => $onAir ? self::layers($live, $now) : [],
             'next_show' => $next ? ['title' => $next->title, 'kind' => $next->kind, 'start' => $next->starts_at->getTimestampMs()] : null,
             'live' => [
                 'on' => $onAir && $live['session'] !== null,
@@ -260,7 +389,6 @@ final class Station
                 'mic' => $onAir && $live['session'] !== null && $live['mic'],
                 'started_at' => $live['started_at'],
                 'rev' => $live['rev'],
-                'fx' => array_values(array_filter($live['fx'], fn ($fx) => $fx['at'] > $now - 15000)),
             ],
             'mix' => self::mix($live, $config),
             'listeners' => self::listenerCount(),
@@ -297,13 +425,45 @@ final class Station
     {
         $stored = Cache::get(self::LIVE_KEY);
 
-        return array_replace(self::LIVE_DEFAULTS, is_array($stored) ? $stored : []);
+        return array_intersect_key(array_replace(self::LIVE_DEFAULTS, is_array($stored) ? $stored : []), self::LIVE_DEFAULTS);
     }
 
-    /** @return Collection<int, RadioSlot> */
+    /** Console layers still sounding at $now. */
+    private static function sounding(array $layers, int $now): array
+    {
+        return array_values(array_filter($layers, fn (array $layer) => $layer['end'] > $now));
+    }
+
+    /**
+     * The song before the one on air and the items from now on (the one on air first;
+     * during a crossfade the song fading out comes first and keeps playing).
+     *
+     * @return array{0: ?array, 1: list<array>}
+     */
+    private static function program(int $now): array
+    {
+        $items = self::items($now - 20 * 60000, $now + 4 * 3600000, true, 60);
+        $current = null;
+        foreach ($items as $index => $item) {
+            if ($item['start'] <= $now && $now < $item['end']) {
+                $current = $index;
+            }
+        }
+        $previous = $current !== null && $current > 0 ? $items[$current - 1] : null;
+        $queue = [];
+        foreach ($items as $item) {
+            if ($item['end'] > $now && count($queue) < 7) {
+                $queue[] = $item['start'] < $now ? [...$item, 'start' => $now, 'seek' => round(($now - $item['origin']) / 1000, 3)] : $item;
+            }
+        }
+
+        return [$previous, $queue];
+    }
+
+    /** @return Collection<int, RadioSlot> main-timeline blocks overlapping [from, to) */
     private static function slotsBetween(int $from, int $to): Collection
     {
-        return RadioSlot::query()->with('track')
+        return RadioSlot::query()->with('track')->where('layer', RadioSlot::MAIN)
             ->where('starts_at', '>=', CarbonImmutable::createFromTimestampMs($from - self::MAX_BLOCK * 1000))
             ->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($to))
             ->orderBy('starts_at')
@@ -312,30 +472,42 @@ final class Station
             ->values();
     }
 
-    /** Where the gap that contains $at began: the end of the block before it. */
+    /** Where the gap that contains $at began: the end of the main block before it. */
     private static function anchorBefore(int $at): int
     {
-        $previous = RadioSlot::query()->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($at))->orderByDesc('starts_at')->first();
+        $previous = RadioSlot::query()->where('layer', RadioSlot::MAIN)->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($at))->orderByDesc('starts_at')->first();
         $end = $previous?->endsAt()->getTimestampMs();
 
         return $end !== null && $end <= $at ? $end : self::ROTATION_EPOCH;
     }
 
-    /** @return list<array{id: string, kind: string, title: string, artist: ?string, src: string, ms: int}> */
+    /**
+     * The continuous music: each song with its length and the step to the next one
+     * (its length minus the crossfade, never more than a third of the song).
+     *
+     * @return list<array{id: string, kind: string, title: string, artist: ?string, src: string, ms: int, step: int}>
+     */
     private static function rotation(): array
     {
+        $crossfade = (int) round(self::config()['crossfade'] * 1000);
+
         return Cache::remember(self::ROTATION_KEY, 600, fn () => RadioTrack::query()
             ->where('kind', 'musica')->where('active', true)->where('rotation', true)->where('duration', '>=', 5)
             ->orderBy('id')
             ->get()
-            ->map(fn (RadioTrack $track) => [
-                'id' => $track->id,
-                'kind' => $track->kind,
-                'title' => $track->title,
-                'artist' => $track->artist,
-                'src' => $track->file_path,
-                'ms' => (int) round($track->duration * 1000),
-            ])->all());
+            ->map(function (RadioTrack $track) use ($crossfade) {
+                $ms = (int) round($track->duration * 1000);
+
+                return [
+                    'id' => $track->id,
+                    'kind' => $track->kind,
+                    'title' => $track->title,
+                    'artist' => $track->artist,
+                    'src' => $track->file_path,
+                    'ms' => $ms,
+                    'step' => max(1000, $ms - min($crossfade, intdiv($ms, 3))),
+                ];
+            })->all());
     }
 
     private static function gap(array $rotation, int $anchor, int $from, int $to, bool $expand, int $limit): array
@@ -363,27 +535,27 @@ final class Station
         ]];
     }
 
-    /** Songs of the library between $from and $to, shuffled per gap so each gap starts a fresh sequence. */
+    /** Songs of the rotation between $from and $to, shuffled per gap so each gap starts a fresh sequence. */
     private static function fill(array $rotation, int $anchor, int $from, int $to, ?string $block, int $limit): array
     {
         $order = $rotation;
         usort($order, fn ($a, $b) => crc32($a['id'].$anchor) <=> crc32($b['id'].$anchor));
-        $total = array_sum(array_column($order, 'ms'));
+        $total = array_sum(array_column($order, 'step'));
         if ($total <= 0 || $to <= $from) {
             return [];
         }
         $count = count($order);
-        $t = $anchor + intdiv(max(0, $from - $anchor), $total) * $total;
+        // One cycle back, so the last song of the previous cycle is kept while it fades into this one.
+        $t = $anchor + max(0, intdiv(max(0, $from - $anchor), $total) - 1) * $total;
         $index = 0;
         while ($t + $order[$index]['ms'] <= $from) {
-            $t += $order[$index]['ms'];
+            $t += $order[$index]['step'];
             $index = ($index + 1) % $count;
         }
 
         $items = [];
         while ($t < $to && count($items) < $limit) {
             $track = $order[$index];
-            $end = $t + $track['ms'];
             $begin = max($t, $from);
             $items[] = [
                 'id' => 'r'.$t.'-'.substr($track['id'], 0, 8),
@@ -392,14 +564,14 @@ final class Station
                 'artist' => $track['artist'],
                 'src' => $track['src'],
                 'start' => $begin,
-                'end' => min($end, $to),
+                'end' => min($t + $track['ms'], $to),
                 'origin' => $t,
                 'seek' => round(($begin - $t) / 1000, 3),
                 'bed' => $block !== null,
                 'block' => $block,
                 'slot' => null,
             ];
-            $t = $end;
+            $t += $track['step'];
             $index = ($index + 1) % $count;
         }
 

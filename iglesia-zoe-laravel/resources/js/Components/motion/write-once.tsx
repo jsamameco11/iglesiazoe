@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useArt } from "@/lib/design";
 
 export function WriteOnce({
   text,
@@ -12,6 +13,9 @@ export function WriteOnce({
   step?: number;
 }) {
   const full = `“${text}”`;
+  const art = useArt("write");
+  const speed = art.speed ?? 1;
+  const still = Boolean(art.still);
   const [count, setCount] = useState(0);
   const [done, setDone] = useState(false);
 
@@ -19,7 +23,7 @@ export function WriteOnce({
     setCount(0);
     setDone(false);
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce || !full) {
+    if (reduce || still || !full) {
       setCount(full.length);
       setDone(true);
       return;
@@ -35,17 +39,17 @@ export function WriteOnce({
           window.clearInterval(interval);
           setDone(true);
         }
-      }, step);
-    }, delay);
+      }, step / speed);
+    }, delay / speed);
 
     return () => {
       window.clearTimeout(start);
       window.clearInterval(interval);
     };
-  }, [full, delay, step]);
+  }, [full, delay, step, speed, still]);
 
   return (
-    <span className={`write-once ${className}`.trim()}>
+    <span className={`write-once ${className}`.trim()} data-art="write">
       <span className="write-once-ghost" aria-hidden="true">{full}</span>
       <span className="write-once-live">
         {full.slice(0, count)}

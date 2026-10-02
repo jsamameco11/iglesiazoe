@@ -53,7 +53,7 @@ export function PrayerLight() {
   const { index, setIndex, paused, setHovered } = useVerseCycle(Math.max(verses.length, 1));
 
   return (
-    <section className="prayer-light" aria-label="Cómo oramos por ti">
+    <section className="prayer-light" data-art="prayer" aria-label="Cómo oramos por ti">
       <div className="prayer-light-halo" aria-hidden="true" />
       <span className="prayer-light-mark" aria-hidden="true">“</span>
 

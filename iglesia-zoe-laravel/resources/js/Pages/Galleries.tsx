@@ -7,6 +7,7 @@ import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { GalleryKind, ServiceGallery, SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 type Filter = "all" | GalleryKind;
 
@@ -50,7 +51,7 @@ export default function Galleries({
         </Rise>
 
         {galleries.length ? (
-          <section className="mt-20">
+          <section {...section("albums", "Álbumes")} className="mt-20">
             {tabs.length > 2 ? (
               <Rise>
                 <div className="pill-tabs" role="tablist">
@@ -86,7 +87,7 @@ export default function Galleries({
             ) : null}
           </section>
         ) : (
-          <Rise className="panel mt-16 p-8 md:p-10">
+          <Rise {...section("empty", "Sin álbumes")} className="panel mt-16 p-8 md:p-10">
             <p className="editorial text-2xl italic leading-snug md:text-3xl">{t("gallery.empty")}</p>
           </Rise>
         )}

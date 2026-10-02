@@ -10,6 +10,7 @@ import { useCopy } from "@/lib/copy";
 import { useSocial } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
 import "../../css/oracion.css";
+import { section } from "@/lib/design";
 
 export default function Contact({
   settings,
@@ -52,7 +53,7 @@ export default function Contact({
           </PageIntro>
         </Rise>
 
-        <div className="mt-14 grid items-stretch gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-8">
+        <div {...section("prayer", "Petición de oración")} className="mt-14 grid items-stretch gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-8">
           <Rise className="h-full" from="left">
             <PrayerLight />
           </Rise>
@@ -71,7 +72,7 @@ export default function Contact({
         </div>
 
         <Rise>
-          <div className="mt-16">
+          <div {...section("visit", "Invitación a visitarnos")} className="mt-16">
             <VisitInvite sunday={settings.sunday} wednesday={settings.wednesday} />
           </div>
         </Rise>

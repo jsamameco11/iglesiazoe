@@ -19,8 +19,8 @@ export function LoginForm({ next }: { next?: string }) {
       }}
       className="w-full"
     >
-      <p className="text-[11px] font-medium uppercase tracking-[0.28em] leading-none text-muted">{t("acceso.kicker")}</p>
-      <h1 className="editorial mt-3 text-[3.4rem] leading-[1.02]">{t("acceso.title")}</h1>
+      <p className="kicker leading-none">{t("acceso.kicker")}</p>
+      <h1 className="acceso-title mt-3">{t("acceso.title")}</h1>
       <p className="mt-3 max-w-sm text-[15px] leading-6 text-muted">
         {t("acceso.text")}
       </p>

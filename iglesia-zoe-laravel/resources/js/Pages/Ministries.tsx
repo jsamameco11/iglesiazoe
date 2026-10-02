@@ -5,6 +5,7 @@ import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { Ministry, SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 export default function Ministries({
   ministries,
@@ -26,7 +27,9 @@ export default function Ministries({
             <p className="mt-6 max-w-xl text-lg font-light leading-8 text-muted">{settings.ministriesText}</p>
           </PageIntro>
         </Rise>
-        <MinistryCards ministries={ministries} media={media} className="mt-14" />
+        <div {...section("cards", "Ministerios")} className="mt-14">
+          <MinistryCards ministries={ministries} media={media} />
+        </div>
       </article>
     </SiteLayout>
   );

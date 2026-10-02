@@ -12,21 +12,21 @@ const networks: { id: SocialNetwork; label: string }[] = [
   { id: "tiktok", label: "TikTok" },
 ];
 
-export function socialLinksOf(settings: SocialSettings | undefined) {
+function socialLinksOf(settings: SocialSettings | undefined) {
   return networks
     .map((network) => ({ ...network, href: (settings?.[network.id] || "").trim() }))
     .filter((network) => network.href);
 }
 
-export function liveUrlOf(settings: SocialSettings | undefined) {
+function liveUrlOf(settings: SocialSettings | undefined) {
   return (settings?.liveUrl || "").trim() || (settings?.youtube || "").trim() || "https://www.youtube.com/@iglesiacristianazoe6279";
 }
 
-export function messengerUrlOf(settings: SocialSettings | undefined) {
+function messengerUrlOf(settings: SocialSettings | undefined) {
   return (settings?.messengerUrl || "").trim();
 }
 
-export function whatsappUrlOf(settings: SocialSettings | undefined) {
+function whatsappUrlOf(settings: SocialSettings | undefined) {
   const digits = (settings?.whatsapp || "").replace(/\D/g, "");
   if (!digits) return "";
   return `https://wa.me/${digits.length === 9 ? `51${digits}` : digits}`;

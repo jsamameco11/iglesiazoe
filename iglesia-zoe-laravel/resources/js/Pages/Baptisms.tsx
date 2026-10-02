@@ -8,6 +8,7 @@ import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 export default function Baptisms({
   events,
@@ -65,7 +66,7 @@ export default function Baptisms({
         </div>
 
         {hasVideo ? (
-          <section className="px-6 pb-4 pt-20 md:px-16 md:pt-28">
+          <section {...section("video", "Video")} className="px-6 pb-4 pt-20 md:px-16 md:pt-28">
             <div className="section-wrap grid items-center gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:gap-16">
               <Rise>
                 <p className="kicker">{t("baptism.videoKicker")}</p>
@@ -79,7 +80,7 @@ export default function Baptisms({
           </section>
         ) : null}
 
-        <section className="baptism-band" aria-label="Galería de bautismos">
+        <section {...section("gallery", "Galería de bautismos")} className="baptism-band" aria-label="Galería de bautismos">
           <span className="baptism-band-cross" aria-hidden="true" />
           <Rise>
             <div className="baptism-band-head">

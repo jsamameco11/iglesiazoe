@@ -1,4 +1,5 @@
 import { LeadTitle } from "@/Components/site/lead-title";
+import { section } from "@/lib/design";
 
 export function PageIntro({
   skin,
@@ -15,7 +16,7 @@ export function PageIntro({
 }) {
   if (skin === "marea") {
     return (
-      <header className={`grid items-center gap-10 border-b border-ink/10 pb-14 lg:gap-16 ${media ? "lg:grid-cols-2" : ""}`}>
+      <header {...section("intro", "Portada")} className={`grid items-center gap-10 border-b border-ink/10 pb-14 lg:gap-16 ${media ? "lg:grid-cols-2" : ""}`}>
         <div>
           <p className="kicker">{kicker}</p>
           <LeadTitle text={title} className="mt-4 text-5xl md:text-7xl" />
@@ -27,7 +28,7 @@ export function PageIntro({
   }
 
   return (
-    <header className={media ? "grid items-center gap-10 lg:grid-cols-2 lg:gap-16" : undefined}>
+    <header {...section("intro", "Portada")} className={media ? "grid items-center gap-10 lg:grid-cols-2 lg:gap-16" : undefined}>
       <div>
         <p className="kicker">{kicker}</p>
         <LeadTitle text={title} className="mt-4 text-5xl md:text-7xl" />

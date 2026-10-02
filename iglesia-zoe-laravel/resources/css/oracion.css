@@ -63,6 +63,7 @@
   gap: 0.75rem;
   font-size: 11px;
   font-weight: 600;
+  font-family: var(--font-accent);
   text-transform: uppercase;
   letter-spacing: 0.28em;
   color: var(--accent);
@@ -123,6 +124,7 @@
   font-weight: 600;
   font-style: normal;
   letter-spacing: 0.2em;
+  font-family: var(--font-accent);
   text-transform: uppercase;
   color: var(--accent);
 }
@@ -248,7 +250,7 @@
   width: 16rem;
   height: 16rem;
   border-radius: 999px;
-  background: radial-gradient(circle, color-mix(in srgb, #f0d090 40%, transparent), transparent 62%);
+  background: radial-gradient(circle, color-mix(in srgb, var(--art-glow, #f0d090) 40%, transparent), transparent 62%);
   transform: translateX(-50%);
   animation: prayer-breathe 5s ease-in-out infinite;
 }

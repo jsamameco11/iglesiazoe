@@ -6,6 +6,7 @@ import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import type { ServiceGallery, ServiceGalleryFull, SiteSettings } from "@/lib/types";
 import { formatSermonDate } from "@/lib/youtube";
+import { section } from "@/lib/design";
 
 export default function Gallery({ gallery, others, settings }: { gallery: ServiceGalleryFull; others: ServiceGallery[]; settings: SiteSettings }) {
   const t = (key: CopyKey) => readCopy(settings, key);
@@ -16,7 +17,7 @@ export default function Gallery({ gallery, others, settings }: { gallery: Servic
       <article className="page-wrap">
         <Rise>
           <Link href="/galeria" className="text-sm text-muted transition hover:text-ink">← {t("gallery.back")}</Link>
-          <header className="mt-10 flex flex-wrap items-end justify-between gap-6 border-b border-ink/10 pb-10">
+          <header {...section("intro", "Portada")} className="mt-10 flex flex-wrap items-end justify-between gap-6 border-b border-ink/10 pb-10">
             <div className="max-w-3xl">
               <p className="kicker">
                 {t(GALLERY_KIND[gallery.kind])} · {formatSermonDate(gallery.service_date)}
@@ -30,7 +31,7 @@ export default function Gallery({ gallery, others, settings }: { gallery: Servic
           </header>
         </Rise>
 
-        <div className="gallery-masonry mt-10">
+        <div {...section("photos", "Fotos")} className="gallery-masonry mt-10">
           {gallery.photos.map((photo, index) => (
             <button key={photo} type="button" className="gallery-tile" onClick={() => setOpen(index)} aria-label={`Ver foto ${index + 1}`}>
               <img src={photo} alt="" loading={index < 8 ? "eager" : "lazy"} />
@@ -39,7 +40,7 @@ export default function Gallery({ gallery, others, settings }: { gallery: Servic
         </div>
 
         {others.length ? (
-          <section className="mt-24">
+          <section {...section("others", "Otros álbumes")} className="mt-24">
             <Rise className="flex flex-wrap items-end justify-between gap-6">
               <h2 className="editorial text-3xl md:text-4xl">{t("gallery.others")}</h2>
               <Link href="/galeria" className="home-link">{t("gallery.back")} →</Link>

@@ -5,11 +5,12 @@ import { VisitForm } from "@/Components/site/visit-form";
 import { mapEmbedUrl } from "@/lib/contact";
 import { readCopy } from "@/lib/copy";
 import type { SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 export function VisitSection({ settings }: { settings: SiteSettings }) {
   const address = settings.address.trim();
   return (
-    <section id="planifica" className="home-section home-sand scroll-mt-[72px]">
+    <section {...section("visit", "Planifica tu visita")} id="planifica" className="home-section home-sand scroll-mt-[72px]">
       <div className="home-split is-visit items-start">
         <Rise>
           <SectionHead kicker={readCopy(settings, "home.visitKicker")} title={settings.visitInviteTitle} />

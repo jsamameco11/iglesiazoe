@@ -160,8 +160,6 @@ class AdminController extends Controller
     /** Editable lists posted as numbered fields, e.g. route_title_1 / route_text_1. Each item keeps its slot so its photo stays with it. */
     private const LIST_FIELDS = ['routeLevels' => ['route', 6]];
 
-    private const COLOR_KEYS = ['headingColor', 'bodyColor', 'accentColor', 'paperColor', 'stoneColor', 'clayColor'];
-
     private const URL_KEYS = ['facebook', 'youtube', 'instagram', 'tiktok', 'messengerUrl', 'liveUrl', 'mapUrl', 'cardUrl', 'yapeQr'];
 
     private const VALUE_SLOTS = 6;
@@ -213,14 +211,6 @@ class AdminController extends Controller
                 unset($input[$key]);
             }
         }
-        if (isset($input['fontPair']) && ! in_array($input['fontPair'], ['mixed', 'grotesque', 'editorial'], true)) {
-            unset($input['fontPair']);
-        }
-        foreach (self::COLOR_KEYS as $key) {
-            if (isset($input[$key]) && ! preg_match('/^#[0-9A-Fa-f]{6}$/', $input[$key])) {
-                unset($input[$key]);
-            }
-        }
 
         if ($canGiving && $request->hasFile('yapeQrFile')) {
             $file = $request->file('yapeQrFile');
@@ -264,20 +254,6 @@ class AdminController extends Controller
         }
 
         SiteSetting::query()->updateOrCreate(['key' => 'site'], ['value' => $next, 'updated_at' => now()]);
-
-        if (array_intersect(self::COLOR_KEYS, array_keys($input))) {
-            $settings = LoadPublicSite::settings();
-            $design = LoadPublicSite::design();
-            $design['palette'] = array_merge($design['palette'] ?? [], [
-                'ink' => strtolower($settings['headingColor']),
-                'muted' => strtolower($settings['bodyColor']),
-                'accent' => strtolower($settings['accentColor']),
-                'paper' => strtolower($settings['paperColor']),
-                'stone' => strtolower($settings['stoneColor']),
-                'clay' => strtolower($settings['clayColor']),
-            ]);
-            SiteSetting::query()->updateOrCreate(['key' => 'design'], ['value' => $design, 'updated_at' => now()]);
-        }
 
         return response()->json(['ok' => true, 'reload' => true]);
     }

@@ -8,6 +8,7 @@ import { readCopy, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { SiteSettings, Teaching, TeachingKind } from "@/lib/types";
 import { formatSermonDate } from "@/lib/youtube";
+import { section } from "@/lib/design";
 
 type Filter = "all" | TeachingKind;
 
@@ -89,7 +90,7 @@ export default function Teachings({
           </PageIntro>
         </Rise>
 
-        <Rise className="mt-16">
+        <Rise {...section("more", "Más recursos")} className="mt-16">
           <p className="kicker">{t("teachings.more")}</p>
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             {[
@@ -109,7 +110,7 @@ export default function Teachings({
           </div>
         </Rise>
 
-        <section className="mt-20">
+        <section {...section("list", "Enseñanzas")} className="mt-20">
           <Rise>
             <h2 className="editorial text-3xl md:text-4xl">{t("teachings.listTitle")}</h2>
           </Rise>

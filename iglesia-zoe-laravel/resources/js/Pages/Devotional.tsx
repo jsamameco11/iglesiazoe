@@ -7,6 +7,7 @@ import { readCopy, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { Devotional as DevotionalCardData, DevotionalFull, SiteSettings } from "@/lib/types";
 import { formatSermonDate } from "@/lib/youtube";
+import { section } from "@/lib/design";
 
 function Body({ text }: { text: string }) {
   const paragraphs = text.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
@@ -57,7 +58,7 @@ export default function Devotional({
   return (
     <SiteLayout>
       <article className="page-wrap">
-        <div className="mx-auto max-w-3xl">
+        <div {...section("reading", "Lectura")} className="mx-auto max-w-3xl">
           <Rise>
             <Link href="/devocionales" className="text-sm text-muted transition hover:text-ink">← {t("devotionals.back")}</Link>
             <p className="kicker mt-10">
@@ -98,7 +99,7 @@ export default function Devotional({
           </Rise>
         </div>
 
-        <Rise className="ink-band mt-20 rounded-[2rem] px-8 py-14 md:px-14">
+        <Rise {...section("prayer", "Invitación a orar")} className="ink-band mt-20 rounded-[2rem] px-8 py-14 md:px-14">
           <div className="flex flex-wrap items-end justify-between gap-8">
             <h2 className="editorial max-w-xl text-4xl leading-[1.05] text-white md:text-5xl">{t("devotionals.prayer")}</h2>
             <Link href="/contacto" className="btn-accent rounded-full px-6 py-3 text-sm font-semibold">{t("devotionals.prayerCta")} →</Link>
@@ -106,7 +107,7 @@ export default function Devotional({
         </Rise>
 
         {more.length ? (
-          <section className="mt-20">
+          <section {...section("more", "Más devocionales")} className="mt-20">
             <Rise className="flex flex-wrap items-end justify-between gap-6">
               <h2 className="editorial text-3xl md:text-4xl">{t("devotionals.more")}</h2>
               <Link href="/devocionales" className="home-link">{t("devotionals.back")} →</Link>

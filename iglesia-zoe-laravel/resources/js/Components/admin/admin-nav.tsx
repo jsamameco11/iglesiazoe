@@ -52,10 +52,10 @@ const groups: { title: string; items: Item[] }[] = [
   {
     title: "Radio",
     items: [
-      { href: "/admin/radio", label: "Consola en vivo", needs: ["radio.manage"] },
-      { href: "/admin/radio/programacion", label: "Programación", needs: ["radio.manage"] },
-      { href: "/admin/radio/biblioteca", label: "Biblioteca de audio", needs: ["radio.manage"] },
-      { href: "/admin/radio/ajustes", label: "Ajustes de la radio", needs: ["radio.manage"] },
+      { href: "/admin/radio", label: "Consola en vivo", needs: ["radio.console"] },
+      { href: "/admin/radio/programacion", label: "Programación", needs: ["radio.schedule"] },
+      { href: "/admin/radio/biblioteca", label: "Biblioteca de audio", needs: ["radio.library"] },
+      { href: "/admin/radio/ajustes", label: "Ajustes de la radio", needs: ["radio.settings"] },
     ],
   },
   {
@@ -97,7 +97,7 @@ export function AdminNav({ user, onNavigate }: { user: PanelUser; onNavigate?: (
     <nav className="space-y-6 px-3 pb-6">
       {visible.map((group) => (
         <div key={group.title || "general"}>
-          {group.title && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/35">{group.title}</p>}
+          {group.title && <p className="px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.24em] text-orange">{group.title}</p>}
           <div className="space-y-0.5">
             {group.items.map((item) => {
               const active = ["/admin", "/admin/estudios", "/admin/radio"].includes(item.href) ? pathname === item.href : pathname.startsWith(item.href);

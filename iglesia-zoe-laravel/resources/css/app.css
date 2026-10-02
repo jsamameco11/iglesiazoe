@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./fonts.css";
 
 @source "../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php";
 @source "../../storage/framework/views/*.php";
@@ -10,6 +11,8 @@
 @theme inline {
   --font-sans: var(--font-text);
   --font-serif: var(--font-heading);
+  --font-mono: var(--font-text);
+  --font-label: var(--font-accent);
   --color-paper: var(--paper);
   --color-ink: var(--ink);
   --color-muted: var(--muted);
@@ -32,6 +35,11 @@
 }
 
 html {
+  --font-heading: "Fraunces Soft", Georgia, "Times New Roman", serif;
+  --font-text: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-accent: "Fredoka Variable", "Fredoka", ui-rounded, ui-sans-serif, sans-serif;
+  /* Fraunces' SOFT axis rounds the serifs; fonts without that axis ignore it. */
+  font-variation-settings: "SOFT" 100;
   --accent: #c14a09;
   --paper: #fdfcfa;
   --ink: #1a1a1a;
@@ -213,6 +221,7 @@ body {
   font-size: 0.72rem;
   font-weight: 500;
   letter-spacing: 0.18em;
+  font-family: var(--font-accent);
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.72);
 }
@@ -561,8 +570,14 @@ body {
   color: var(--ink);
 }
 
+/* Spaced uppercase labels written with utilities take the accent face too. */
+:where(.uppercase[class*="tracking-"]) {
+  font-family: var(--font-accent);
+}
+
 .kicker {
   font-size: 11px;
+  font-family: var(--font-accent);
   text-transform: uppercase;
   letter-spacing: 0.28em;
   color: var(--muted);
@@ -584,21 +599,6 @@ body {
   .visit-card {
     min-height: 14.5rem;
   }
-}
-
-[data-font="grotesque"] .display,
-[data-font="grotesque"] .editorial {
-  font-family: var(--font-text);
-  font-style: normal;
-  font-weight: 500;
-}
-
-[data-font="editorial"] .display,
-[data-font="editorial"] .editorial {
-  font-family: var(--font-heading);
-  font-style: normal;
-  font-weight: 500;
-  letter-spacing: -0.012em;
 }
 
 /* Inicio: secciones del brief de marca (aire generoso, separadores en beige arena) */
@@ -698,6 +698,7 @@ body {
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.24em;
+    font-family: var(--font-accent);
     text-transform: uppercase;
     color: var(--accent);
   }
@@ -783,6 +784,7 @@ body {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
+  font-family: var(--font-accent);
   text-transform: uppercase;
   transition: border-color 0.25s ease;
 }
@@ -891,6 +893,7 @@ body {
 }
 .menu-foot-kicker {
   font-size: 9.5px;
+  font-family: var(--font-accent);
   text-transform: uppercase;
   letter-spacing: 0.22em;
   color: color-mix(in srgb, var(--ink) 50%, transparent);
@@ -935,6 +938,7 @@ body {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.14em;
+  font-family: var(--font-accent);
   text-transform: uppercase;
   line-height: 1;
   white-space: nowrap;
@@ -1672,26 +1676,24 @@ body {
 }
 .weekly-notice-card,
 .weekly-notice-fab {
-  --notice-serif: var(--font-heading);
-  --notice-sans: "Plus Jakarta Sans", var(--font-text);
-  font-family: var(--notice-sans);
+  font-family: var(--font-text);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
 .notice-serif {
-  font-family: var(--notice-serif);
+  font-family: var(--font-heading);
   font-weight: 500;
 }
 .notice-title {
-  font-family: var(--notice-serif);
+  font-family: var(--font-heading);
   font-weight: 500;
   letter-spacing: -0.012em;
   line-height: 1.02;
   text-wrap: balance;
 }
 .notice-label {
-  font-family: var(--notice-sans);
-  font-weight: 700;
+  font-family: var(--font-accent);
+  font-weight: 600;
   font-size: 10.5px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -2180,6 +2182,7 @@ fieldset.visit-label > legend {
   gap: 0.75rem;
   font-size: 11px;
   font-weight: 600;
+  font-family: var(--font-accent);
   text-transform: uppercase;
   letter-spacing: 0.28em;
   color: var(--accent);
@@ -2378,6 +2381,7 @@ fieldset.visit-label > legend {
   gap: 0.75rem;
   font-size: 11px;
   font-weight: 600;
+  font-family: var(--font-accent);
   text-transform: uppercase;
   letter-spacing: 0.3em;
   color: rgba(255, 255, 255, 0.85);

@@ -3,14 +3,14 @@ import { AccesoGate } from "@/Components/auth/acceso-gate";
 import { LoginForm } from "@/Components/auth/login-form";
 import { WeeklyNoticeModal, type WeeklyNotice } from "@/Components/auth/weekly-notice";
 import { SkinScroll } from "@/Components/site/skin-scroll";
-import { useSitePalette } from "@/Components/site/palette-scope";
 import { useCopy } from "@/lib/copy";
+import { section, useSiteDesign } from "@/lib/design";
 import type { CSSProperties } from "react";
 
 type Props = { next?: string; notice?: WeeklyNotice | null; preview?: { enabled: boolean } | null };
 
 export default function Acceso({ next, notice, preview }: Props) {
-  const { style, attrs } = useSitePalette();
+  const { style, attrs } = useSiteDesign();
   const t = useCopy();
   return (
     <div data-skin="aire" {...attrs} className="relative grid min-h-screen items-start gap-8 bg-paper px-6 pt-10 pb-12 md:px-16 md:pt-12 md:pb-14 lg:grid-cols-[minmax(0,28rem)_1fr] lg:items-center lg:gap-12 lg:py-14" style={style as CSSProperties}>
@@ -23,8 +23,8 @@ export default function Acceso({ next, notice, preview }: Props) {
           <Link href="/admin/indicaciones" className="font-semibold text-orange underline-offset-4 hover:underline">Volver al panel →</Link>
         </div>
       )}
-      <div className="relative w-full max-w-md">
-        <Link href="/" className="editorial text-[3.25rem] font-semibold leading-none">
+      <div {...section("form", "Formulario de acceso")} className="relative w-full max-w-md">
+        <Link href="/" className="acceso-brand">
           {t("acceso.brand")}
         </Link>
         <div className="mt-7">

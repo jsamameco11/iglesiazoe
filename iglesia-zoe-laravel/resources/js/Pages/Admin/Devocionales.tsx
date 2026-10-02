@@ -1,16 +1,15 @@
-import { usePage } from "@inertiajs/react";
 import { useActionState, useState } from "react";
 import { deleteDevotional, saveDevotional, type ActionResult } from "@/lib/actions";
 import AdminLayout from "@/Layouts/AdminLayout";
 import type { DevotionalFull } from "@/lib/types";
 import { formatSermonDate } from "@/lib/youtube";
+import { useSiteUrl } from "@/lib/access";
 
 const field = "mt-1 w-full rounded-xl border border-line bg-white px-3 py-2";
 
 export default function Devocionales({ devotionals, today }: { devotionals: DevotionalFull[]; today: string }) {
   const [creating, setCreating] = useState(false);
-  const { entrance } = usePage().props as unknown as { entrance?: { siteUrl?: string } };
-  const site = (entrance?.siteUrl || "").replace(/\/$/, "");
+  const site = useSiteUrl();
   const scheduled = devotionals.filter((item) => item.publish_on > today).sort((a, b) => a.publish_on.localeCompare(b.publish_on));
   const published = devotionals.filter((item) => item.publish_on <= today);
 

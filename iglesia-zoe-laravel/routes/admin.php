@@ -11,7 +11,10 @@ use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GalleriesController;
 use App\Http\Controllers\Admin\InboxController;
 use App\Http\Controllers\Admin\NoticeController;
-use App\Http\Controllers\Admin\RadioController;
+use App\Http\Controllers\Admin\RadioConsoleController;
+use App\Http\Controllers\Admin\RadioLibraryController;
+use App\Http\Controllers\Admin\RadioScheduleController;
+use App\Http\Controllers\Admin\RadioSettingsController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SectionsController;
 use App\Http\Controllers\Admin\ServersController;
@@ -67,23 +70,34 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::post('/devocionales/eliminar', [DevotionalsController::class, 'destroy']);
     });
 
-    Route::middleware($can('radio.manage'))->prefix('radio')->group(function () {
-        Route::get('/', [RadioController::class, 'console']);
-        Route::get('/programacion', [RadioController::class, 'schedule']);
-        Route::post('/programacion', [RadioController::class, 'addBlocks']);
-        Route::post('/programacion/editar', [RadioController::class, 'updateBlock']);
-        Route::post('/programacion/quitar', [RadioController::class, 'deleteBlock']);
-        Route::post('/programacion/vaciar', [RadioController::class, 'clearDay']);
-        Route::post('/programacion/copiar', [RadioController::class, 'copyDay']);
-        Route::get('/biblioteca', [RadioController::class, 'library']);
-        Route::post('/biblioteca', [RadioController::class, 'saveTrack']);
-        Route::post('/biblioteca/eliminar', [RadioController::class, 'deleteTrack']);
-        Route::get('/ajustes', [RadioController::class, 'settings']);
-        Route::post('/ajustes', [RadioController::class, 'saveSettings']);
-        Route::post('/vivo', [RadioController::class, 'live']);
-        Route::post('/efecto', [RadioController::class, 'fire']);
-        Route::get('/senal', [RadioController::class, 'signal']);
-        Route::post('/senal/oferta', [RadioController::class, 'offer']);
+    Route::prefix('radio')->group(function () use ($can) {
+        Route::middleware($can('radio.console'))->group(function () {
+            Route::get('/', [RadioConsoleController::class, 'index']);
+            Route::post('/vivo', [RadioConsoleController::class, 'live']);
+            Route::post('/capa', [RadioConsoleController::class, 'layer']);
+            Route::post('/botonera', [RadioConsoleController::class, 'pads']);
+            Route::post('/lanzar', [RadioConsoleController::class, 'launch']);
+            Route::get('/senal', [RadioConsoleController::class, 'signal']);
+            Route::post('/senal/oferta', [RadioConsoleController::class, 'offer']);
+        });
+        Route::middleware($can('radio.schedule'))->prefix('programacion')->group(function () {
+            Route::get('/', [RadioScheduleController::class, 'index']);
+            Route::post('/', [RadioScheduleController::class, 'store']);
+            Route::post('/editar', [RadioScheduleController::class, 'update']);
+            Route::post('/quitar', [RadioScheduleController::class, 'destroy']);
+            Route::post('/vaciar', [RadioScheduleController::class, 'clear']);
+            Route::post('/copiar', [RadioScheduleController::class, 'copy']);
+            Route::post('/rotacion', [RadioScheduleController::class, 'rotation']);
+        });
+        Route::middleware($can('radio.library'))->group(function () {
+            Route::get('/biblioteca', [RadioLibraryController::class, 'index']);
+            Route::post('/biblioteca', [RadioLibraryController::class, 'save']);
+            Route::post('/biblioteca/eliminar', [RadioLibraryController::class, 'destroy']);
+        });
+        Route::middleware($can('radio.settings'))->group(function () {
+            Route::get('/ajustes', [RadioSettingsController::class, 'index']);
+            Route::post('/ajustes', [RadioSettingsController::class, 'save']);
+        });
     });
 
     Route::middleware($can('studies.grades'))->prefix('estudios')->group(function () {

@@ -8,6 +8,7 @@ import { photoFallback, SERVE_FALLBACK } from "@/Components/site/serve-rail";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import type { ServeArea as Area, SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 function AreaButton({ href, label, primary = false }: { href: string; label: string; primary?: boolean }) {
   const className = primary
@@ -72,7 +73,7 @@ export default function ServeArea({
         </div>
 
         {(area.body || area.teams.length > 0) && (
-          <section className="px-6 pb-8 pt-24 md:px-16 md:pt-28">
+          <section {...section("about", "Sobre el área")} className="px-6 pb-8 pt-24 md:px-16 md:pt-28">
             <div className="section-wrap grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
               {area.body ? (
                 <Rise>
@@ -97,7 +98,7 @@ export default function ServeArea({
         )}
 
         {signup ? (
-          <section id="registro" className="soft-band mt-16 scroll-mt-20 px-6 py-20 md:px-16 md:py-24">
+          <section {...section("form", "Formulario de inscripción")} id="registro" className="soft-band mt-16 scroll-mt-20 px-6 py-20 md:px-16 md:py-24">
             <div className="section-wrap grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
               <Rise>
                 <p className="kicker">{t("serve.formKicker")}</p>
@@ -110,7 +111,7 @@ export default function ServeArea({
             </div>
           </section>
         ) : (
-          <section className="ink-band mt-16 px-6 py-20 md:px-16 md:py-24">
+          <section {...section("join", "Cómo unirte")} className="ink-band mt-16 px-6 py-20 md:px-16 md:py-24">
             <Rise className="section-wrap flex flex-wrap items-end justify-between gap-8">
               <div>
                 <p className="kicker">{area.name}</p>
@@ -128,7 +129,7 @@ export default function ServeArea({
         )}
 
         {others.length > 0 && (
-          <section className="px-6 py-20 md:px-16 md:py-24">
+          <section {...section("others", "Otras áreas")} className="px-6 py-20 md:px-16 md:py-24">
             <div className="section-wrap">
               <Rise className="flex flex-wrap items-end justify-between gap-6">
                 <h2 className="editorial text-3xl md:text-4xl">{t("serve.otherAreas")}</h2>

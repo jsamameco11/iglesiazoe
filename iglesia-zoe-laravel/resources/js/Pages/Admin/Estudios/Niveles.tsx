@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Field, Pill, RecordForm, STUDY_KICKER, useSiteUrl } from "@/Components/admin/study-ui";
+import { Field, Pill, RecordForm, STUDY_KICKER } from "@/Components/admin/study-ui";
 import { PageHeader, button, ghost, input } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { classLine, formatStudyDate, plural, scheduleLabel, type StudyLevel } from "@/lib/studies";
+import { useSiteUrl } from "@/lib/access";
 
 type Level = StudyLevel & { weeks: number; starts_on: string | null; ends_on: string | null; class_time: string; students: number };
 

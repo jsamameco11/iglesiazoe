@@ -15,31 +15,16 @@ export type WeeklyNotice = {
 };
 
 const CLOSE_MS = 280;
-const FONT_ID = "weekly-notice-fonts";
-const FONT_HREF = "https://fonts.bunny.net/css?family=plus-jakarta-sans:400,500,600,700&display=swap";
 
 function useNoticeFonts() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    let link = document.getElementById(FONT_ID) as HTMLLinkElement | null;
-    if (!link) {
-      link = document.createElement("link");
-      link.id = FONT_ID;
-      link.rel = "stylesheet";
-      link.href = FONT_HREF;
-      document.head.appendChild(link);
-    }
-
     let active = true;
     const finish = () => active && setReady(true);
     const timer = window.setTimeout(finish, 900);
-    const wait = () => {
-      if (!document.fonts) return finish();
-      Promise.all([document.fonts.load('500 2rem "Cormorant Garamond"'), document.fonts.load('600 1rem "Plus Jakarta Sans"')]).finally(finish);
-    };
-    if (link.sheet) wait();
-    else link.addEventListener("load", wait, { once: true });
+    if (document.fonts) document.fonts.ready.finally(finish);
+    else finish();
 
     return () => {
       active = false;

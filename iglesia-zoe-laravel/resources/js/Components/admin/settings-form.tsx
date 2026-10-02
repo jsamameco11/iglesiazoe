@@ -147,26 +147,6 @@ function ContentFields({ settings }: { settings: SiteSettings }) {
         <Field name="giveAbroadText" label="Texto para transferencias desde el extranjero" defaultValue={settings.giveAbroadText} area hint="El código SWIFT y las cuentas se editan en la pestaña Generosidad." />
       </Block>
 
-      <Block title="Apariencia" note="Estos colores se usan en toda la web: botones, fondos, tarjetas y franjas. También puedes abrir Diseño de la página para tipografías y formas.">
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-          <Color name="accentColor" label="Acento (naranja ladrillo)" value={settings.accentColor} fallback="#C14A09" />
-          <Color name="headingColor" label="Títulos (negro carbón)" value={settings.headingColor} fallback="#1A1A1A" />
-          <Color name="paperColor" label="Fondo (blanco marfil)" value={settings.paperColor} fallback="#FDFCFA" />
-          <Color name="bodyColor" label="Textos" value={settings.bodyColor} fallback="#5C5853" />
-          <Color name="stoneColor" label="Beige arena" value={settings.stoneColor} fallback="#EBE4DA" />
-          <Color name="clayColor" label="Terracota suave" value={settings.clayColor} fallback="#EAD8C9" />
-        </div>
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className="text-sm">Tipografía
-            <select name="fontPair" defaultValue={settings.fontPair || "mixed"} className={field}>
-              <option value="mixed">Mixta, títulos y texto</option>
-              <option value="grotesque">Moderna, toda en sans</option>
-              <option value="editorial">Editorial, toda en serif</option>
-            </select>
-          </label>
-          <a href="/admin/diseno" className="self-end w-fit rounded-full border border-line bg-white px-4 py-2 text-sm font-semibold">Más opciones de diseño →</a>
-        </div>
-      </Block>
     </>
   );
 }
@@ -215,14 +195,6 @@ function DaySelect({ name, label, value, fallback }: { name: string; label: stri
       <select name={name} defaultValue={value || fallback} className={field}>
         {WEEKDAYS.map((day, index) => <option key={day} value={String(index)}>{day}</option>)}
       </select>
-    </label>
-  );
-}
-
-function Color({ name, label, value, fallback }: { name: string; label: string; value?: string; fallback: string }) {
-  return (
-    <label className="text-sm">{label}
-      <input name={name} type="color" defaultValue={value || fallback} className="mt-1 h-11 w-full rounded-xl border border-line bg-white px-2" />
     </label>
   );
 }

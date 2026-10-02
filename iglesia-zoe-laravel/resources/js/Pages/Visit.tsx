@@ -11,6 +11,7 @@ import { useCopy } from "@/lib/copy";
 import { useSocial } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
 import "../../css/oracion.css";
+import { section } from "@/lib/design";
 
 export default function Visit({
   mediaOverrides,
@@ -39,7 +40,7 @@ export default function Visit({
           </PageIntro>
         </Rise>
 
-        <div className="mt-14 grid items-stretch gap-6 lg:grid-cols-2 lg:gap-8">
+        <div {...section("form", "Formulario y mapa")} className="mt-14 grid items-stretch gap-6 lg:grid-cols-2 lg:gap-8">
           <Rise>
             <div className="panel h-full p-7 md:p-10">
               <p className="kicker">{t("visit.formKicker")}</p>
@@ -62,13 +63,13 @@ export default function Visit({
         </div>
 
         <Rise>
-          <div className="mt-20 text-center">
+          <div {...section("contact", "Contacto")} className="mt-20 text-center">
             <p className="kicker">{t("visit.contactKicker")}</p>
             <LeadTitle text={t("visit.contactTitle")} className="mt-4 text-4xl md:text-6xl" />
           </div>
         </Rise>
 
-        <div className="mt-10 grid gap-4 md:grid-cols-3">
+        <div {...section("contact-cards", "Tarjetas de contacto")} className="mt-10 grid gap-4 md:grid-cols-3">
           <Rise className="h-full">
             <div className="swatch visit-card h-full" style={{ background: "var(--sage)" }}>
               <span className="visit-icon"><IconPhone /></span>

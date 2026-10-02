@@ -148,9 +148,9 @@ export function videoMime(src: string) {
 
 const BAPTISM_PHOTOS = 8;
 const ABOUT_PHOTOS = 8;
-export const MINISTRY_PHOTOS = 6;
+const MINISTRY_PHOTOS = 6;
 const MINISTRY_DEFAULT_PHOTOS = 4;
-export const ROUTE_SLOTS = 6;
+const ROUTE_SLOTS = 6;
 
 function image(src: string, alt: string, extra: Partial<MediaAsset> = {}): MediaAsset {
   return { kind: "image", src, poster: "", alt, ...extra };

@@ -18,12 +18,12 @@ function Toggle({ name, defaultChecked, title, text }: { name: string; defaultCh
   );
 }
 
-function Slider({ name, label, min, max, value, onChange, hint }: { name: string; label: string; min: number; max: number; value: number; onChange: (value: number) => void; hint: string }) {
+function Slider({ name, label, min, max, value, onChange, hint, unit = "%" }: { name: string; label: string; min: number; max: number; value: number; onChange: (value: number) => void; hint: string; unit?: string }) {
   return (
     <label className="block text-xs font-semibold text-muted">
       <span className="flex justify-between">
         {label}
-        <span className="font-mono text-ink">{value}%</span>
+        <span className="font-mono text-ink">{value}{unit}</span>
       </span>
       <input type="range" name={name} min={min} max={max} value={value} onChange={(event) => onChange(Number(event.target.value))} className="mt-3 w-full accent-[var(--color-accent)]" />
       <span className="mt-1 block font-normal leading-5">{hint}</span>
@@ -35,6 +35,8 @@ export default function Ajustes({ config }: { config: RadioConfig }) {
   const { result, setResult, pending, run } = useAction();
   const [bed, setBed] = useState(config.bed_level);
   const [fx, setFx] = useState(config.fx_level);
+  const [duck, setDuck] = useState(config.duck_level);
+  const [crossfade, setCrossfade] = useState(config.crossfade);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -62,15 +64,17 @@ export default function Ajustes({ config }: { config: RadioConfig }) {
               name="autofill"
               defaultChecked={config.autofill}
               title="Música continua"
-              text="Los espacios sin programación se llenan con las canciones «en rotación» de la biblioteca, en orden aleatorio y sin repetir seguidas. Si la apagas, esos espacios quedan en silencio."
+              text="Los espacios libres de la pista principal se llenan con las canciones elegidas en Programación › Música continua, en orden variado y empalmadas. Si la apagas, esos espacios quedan en silencio."
             />
           </div>
         </Panel>
 
         <Panel title="Mezcla" text="Niveles que escuchan todos los oyentes.">
           <div className="grid gap-6">
-            <Slider name="bed_level" label="Volumen de la música de fondo" min={5} max={60} value={bed} onChange={setBed} hint="Cuánto baja la música al presionar «Fondo» o durante un bloque en vivo con fondo. Recomendado: 18–28%." />
-            <Slider name="fx_level" label="Volumen de efectos y anuncios" min={10} max={100} value={fx} onChange={setFx} hint="Nivel de los botones de efectos y anuncios que lanzas desde la consola." />
+            <Slider name="bed_level" label="Volumen de la música de fondo" min={5} max={60} value={bed} onChange={setBed} hint="Cuánto baja la música al presionar «De fondo» o durante un bloque en vivo con fondo. Recomendado: 18–28%." />
+            <Slider name="duck_level" label="Música bajo anuncios y capas" min={5} max={80} value={duck} onChange={setDuck} hint="A qué nivel queda la música mientras suena un audio que «baja la música» (anuncios, programas, capas y reproductores). Recomendado: 20–35%." />
+            <Slider name="fx_level" label="Volumen general de efectos y capas" min={10} max={100} value={fx} onChange={setFx} hint="Tope de la botonera, los reproductores simultáneos y las capas programadas." />
+            <Slider name="crossfade" label="Empalme entre canciones" min={0} max={10} value={crossfade} onChange={setCrossfade} unit=" s" hint="Segundos en que una canción de la música continua se funde con la siguiente. 0 = sin fundido. Recomendado: 3–5 s." />
             <label className="text-xs font-semibold text-muted">
               Oyentes de voz en vivo (máximo)
               <input name="max_voice" type="number" min={1} max={200} defaultValue={config.max_voice} required className={input} />

@@ -29,7 +29,8 @@ class AccesoController extends Controller
     {
         $user = $request->user();
         $preview = $user && $request->query('vista') === 'indicaciones' && Permissions::has($user, 'notices.manage');
-        if ($user && ! $preview) {
+        $designing = $user && $request->boolean('vista-diseno') && Permissions::has($user, 'design.manage');
+        if ($user && ! $preview && ! $designing) {
             return redirect()->to($this->destination($request, $user));
         }
 

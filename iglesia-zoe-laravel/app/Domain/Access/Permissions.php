@@ -22,7 +22,10 @@ class Permissions
         'notices.manage' => ['group' => 'Página web', 'title' => 'Indicaciones de la semana', 'text' => 'Publica el aviso emergente que ven los servidores al entrar a /acceso: título, vigencia y todos los puntos de la semana.'],
         'events.manage' => ['group' => 'Página web', 'title' => 'Eventos', 'text' => 'Publica, edita y oculta los eventos de la iglesia con fecha, hora, lugar e imagen.'],
         'devotionals.manage' => ['group' => 'Página web', 'title' => 'Devocionales', 'text' => 'Escribe y programa los devocionales que la iglesia lee en /devocionales.'],
-        'radio.manage' => ['group' => 'Radio', 'title' => 'Radio en vivo', 'text' => 'Opera la radio de la web: consola en vivo con micrófono y mezclador, programación con línea de tiempo, biblioteca de música, anuncios y efectos, y ajustes de la emisora.'],
+        'radio.console' => ['group' => 'Radio', 'title' => 'Consola en vivo', 'text' => 'Sale al aire con el micrófono, maneja el mezclador y la música de fondo, arma y usa la botonera de efectos y los reproductores simultáneos.'],
+        'radio.schedule' => ['group' => 'Radio', 'title' => 'Programación', 'text' => 'Arma la línea de tiempo de cada día con la pista principal y las capas encima, elige la música continua y copia la parrilla a otros días.'],
+        'radio.library' => ['group' => 'Radio', 'title' => 'Biblioteca de audio', 'text' => 'Sube, edita y elimina canciones, anuncios, efectos y programas grabados. Subir un audio no lo pone al aire.'],
+        'radio.settings' => ['group' => 'Radio', 'title' => 'Ajustes de la radio', 'text' => 'Nombre y lema de la emisora, radio al aire o fuera del aire, niveles de la mezcla, empalme entre canciones y transmisión externa.'],
         'studies.grades' => ['group' => 'Estudios · Ruta del Servidor', 'title' => 'Estudiantes, niveles y notas', 'text' => 'Crea las cuentas de los estudiantes, los ubica en su nivel, define fechas y horario de cada nivel y registra sus notas.'],
         'studies.board' => ['group' => 'Estudios · Ruta del Servidor', 'title' => 'Avisos, versículos y lecturas', 'text' => 'Publica los avisos que aparecen en el aula, los versículos y textos de ánimo y las lecturas en PDF.'],
         'expenses.manage' => ['group' => 'Atmósfera', 'title' => 'Gastos y compras', 'text' => 'Registra compras con foto de la boleta o factura, detalle y monto.'],
@@ -36,6 +39,8 @@ class Permissions
 
     public const STUDIES = ['studies.grades', 'studies.board'];
 
+    public const RADIO = ['radio.console', 'radio.schedule', 'radio.library', 'radio.settings'];
+
     public const TYPES = [
         'red' => [
             'label' => 'Servidor de Red',
@@ -45,7 +50,7 @@ class Permissions
         'visuales' => [
             'label' => 'Visuales · Multimedia',
             'text' => 'Todo lo de la página web: imágenes, videos, textos, formas, colores, tipografías, eventos, devocionales, la radio en vivo, datos de generosidad, las indicaciones de la semana, los formularios de la web y el aula de la Ruta del Servidor.',
-            'permissions' => ['design.manage', 'media.manage', 'content.manage', 'generosity.manage', 'notices.manage', 'events.manage', 'devotionals.manage', 'radio.manage', ...self::STUDIES, ...self::INBOX],
+            'permissions' => ['design.manage', 'media.manage', 'content.manage', 'generosity.manage', 'notices.manage', 'events.manage', 'devotionals.manage', ...self::RADIO, ...self::STUDIES, ...self::INBOX],
         ],
         'celula' => [
             'label' => 'Servidor de Célula',

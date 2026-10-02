@@ -22,7 +22,7 @@ function isoDate(date: Date) {
 }
 
 /** Semana 1: domingo de la semana que contiene el 1 de enero. */
-export function weekRange(year: number, week: number) {
+function weekRange(year: number, week: number) {
   const jan1 = new Date(year, 0, 1);
   const start = new Date(jan1);
   start.setDate(jan1.getDate() - jan1.getDay() + (week - 1) * 7);
@@ -46,17 +46,6 @@ export function weeksOfYear(year: number): WeekOption[] {
     });
   }
   return weeks;
-}
-
-export function currentWeek(date = new Date()) {
-  const year = date.getFullYear();
-  const day = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const weeks = weeksOfYear(year);
-  const match = weeks.find((week) => {
-    const { start, end } = weekRange(year, week.week);
-    return day >= start && day <= end;
-  });
-  return { year, week: match?.week ?? weeks.at(-1)?.week ?? 1 };
 }
 
 export function meetingDateInWeek(year: number, week: number, meetingDay: string | null) {

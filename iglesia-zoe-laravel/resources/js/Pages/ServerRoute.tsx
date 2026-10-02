@@ -10,6 +10,7 @@ import { resolveMedia, type MediaAsset } from "@/lib/media";
 import { talkUrlOf } from "@/lib/social";
 import { classLine, plural, scheduleLabel, type StudyLevel } from "@/lib/studies";
 import type { SiteSettings } from "@/lib/types";
+import { section } from "@/lib/design";
 
 const FEATURES = [
   { title: "Tus notas", text: "Cada tarea y examen, con tu promedio al día." },
@@ -56,7 +57,7 @@ export default function ServerRoute({
           </Rise>
         </div>
 
-        <section id="niveles" className="scroll-mt-24 px-6 py-24 md:px-16 md:py-32">
+        <section {...section("levels", "Niveles")} id="niveles" className="scroll-mt-24 px-6 py-24 md:px-16 md:py-32">
           <div className="section-wrap">
             <Rise className="max-w-2xl">
               <p className="kicker">{t("route.levelsKicker")}</p>
@@ -91,7 +92,7 @@ export default function ServerRoute({
           </div>
         </section>
 
-        <section id="aula" className="route-access scroll-mt-24 px-6 py-24 md:px-16 md:py-28">
+        <section {...section("classroom", "Aula virtual")} id="aula" className="route-access scroll-mt-24 px-6 py-24 md:px-16 md:py-28">
           <div className="section-wrap grid items-center gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-20">
             <Rise>
               <p className="kicker">{t("route.accessKicker")}</p>
@@ -123,7 +124,7 @@ export default function ServerRoute({
           </div>
         </section>
 
-        <section className="px-6 py-20 md:px-16 md:py-24">
+        <section {...section("cta", "Invitación final")} className="px-6 py-20 md:px-16 md:py-24">
           <Rise className="section-wrap flex flex-wrap items-end justify-between gap-8">
             <div className="max-w-2xl">
               <h2 className="editorial text-4xl leading-[1.05] md:text-5xl">{t("route.ctaTitle")}</h2>

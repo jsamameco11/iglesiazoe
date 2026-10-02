@@ -1,23 +1,25 @@
 import { Link, usePage } from "@inertiajs/react";
 import type { ReactNode } from "react";
+import { can, usePanelUser, type Permission, useSiteUrl } from "@/lib/access";
 import { KIND_LABEL, type RadioKind } from "@/lib/radio";
 
-const tabs = [
-  { href: "/admin/radio", label: "Consola en vivo" },
-  { href: "/admin/radio/programacion", label: "Programación" },
-  { href: "/admin/radio/biblioteca", label: "Biblioteca" },
-  { href: "/admin/radio/ajustes", label: "Ajustes" },
+const tabs: { href: string; label: string; needs: Permission }[] = [
+  { href: "/admin/radio", label: "Consola en vivo", needs: "radio.console" },
+  { href: "/admin/radio/programacion", label: "Programación", needs: "radio.schedule" },
+  { href: "/admin/radio/biblioteca", label: "Biblioteca", needs: "radio.library" },
+  { href: "/admin/radio/ajustes", label: "Ajustes", needs: "radio.settings" },
 ];
 
 export function RadioHeader({ title, text, aside }: { title: string; text: string; aside?: ReactNode }) {
   const path = usePage().url.split("?")[0];
-  const { entrance } = usePage().props as unknown as { entrance?: { siteUrl?: string } };
-  const site = (entrance?.siteUrl || "").replace(/\/$/, "");
+  const user = usePanelUser();
+  const allowed = tabs.filter((tab) => can(user, tab.needs));
+  const site = useSiteUrl();
   return (
     <div>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-3xl">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-orange-deep">Radio · Visuales y multimedia</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-orange-deep">Radio Zoe · Estudio</p>
           <h1 className="mt-3 text-[2.35rem] font-semibold leading-[1.02] tracking-[-0.045em] md:text-5xl">{title}</h1>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-muted">{text}</p>
         </div>
@@ -29,7 +31,7 @@ export function RadioHeader({ title, text, aside }: { title: string; text: strin
         </div>
       </div>
       <nav className="mt-6 flex gap-1 overflow-x-auto rounded-full border border-line bg-white p-1 [scrollbar-width:none]">
-        {tabs.map((tab) => {
+        {allowed.map((tab) => {
           const active = tab.href === "/admin/radio" ? path === tab.href : path.startsWith(tab.href);
           return (
             <Link
