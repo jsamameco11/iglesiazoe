@@ -141,7 +141,7 @@ const BAPTISM_PHOTOS = 8;
 const ABOUT_PHOTOS = 8;
 const MINISTRY_PHOTOS = 4;
 
-const photoPool = ["/images/familia1.jpg", "/images/banner4.jpg", "/images/man1.jpg", "/images/man2.jpg", "/images/banner8.jpg", "/images/pastores.jpg"];
+const photoPool = ["/images/banner4.jpg", "/images/banner8.jpg", "/images/familia1.jpg"];
 
 function image(src: string, alt: string, extra: Partial<MediaAsset> = {}): MediaAsset {
   return { kind: "image", src, poster: "", alt, ...extra };
@@ -164,7 +164,7 @@ const aboutPool = ["/images/banner4.jpg", "/images/familia1.jpg", "/images/banne
 
 const fixedDefaults: Record<string, MediaAsset> = {
   hero: { kind: "video", src: "/videos/siguientepaso.mp4", poster: "/images/banner8.jpg", alt: "Iglesia Cristiana Zoe" },
-  "home-cells": image("/images/banner4.jpg", "Un grupo de Zoe reunido", { posX: 30 }),
+  "home-cells": image("/images/vida-en-casas.jpg", "Hermanas de Zoe conversando juntas"),
   "about-pastors": image("/images/pastores.jpg", "Pastores de Iglesia Cristiana Zoe", { ratio: "16/10", fit: "fill", radius: 28, feather: 0 }),
   visit: image("/images/familia1.jpg", "Familia de la iglesia"),
   sermons: image("/images/banner4.jpg", "Culto de Iglesia Cristiana Zoe"),
@@ -203,26 +203,18 @@ const fixedCatalog: MediaSlotMeta[] = [
   { id: "contact", group: "Contacto y oración", label: "Acompañamiento", hint: "Imagen o video de la página de contacto." },
 ];
 
-const ministryFallbacks: Record<string, string> = {
-  "zoe-kids": "/images/familia1.jpg",
-  "zoe-teens": "/images/banner4.jpg",
-  "zoe-youth": "/images/man1.jpg",
-  "redes-de-discipulado": "/images/man2.jpg",
-};
+const ministryPhotos = new Set(["zoe-kids", "zoe-teens", "zoe-youth", "redes-de-discipulado"]);
 
 function ministryPrimarySrc(slug: string) {
-  const known = ministryFallbacks[slug];
-  if (known) return known;
+  if (ministryPhotos.has(slug)) return `/images/ministerio-${slug}.jpg`;
   let hash = 0;
-  for (const char of slug) hash = (hash + char.charCodeAt(0)) % 4;
+  for (const char of slug) hash = (hash + char.charCodeAt(0)) % photoPool.length;
   return photoPool[hash];
 }
 
 function ministryFallback(slug: string, name: string, photo = 1): MediaAsset {
-  const primary = ministryPrimarySrc(slug);
-  const start = Math.max(0, photoPool.indexOf(primary));
-  const src = photo <= 1 ? primary : photoPool[(start + photo - 1) % photoPool.length];
-  return image(src, photo <= 1 ? name : `${name} · foto ${photo}`, { ratio: "4/5", fit: "fill", posX: 50, posY: 28, zoom: 100 });
+  const src = photo <= 1 ? ministryPrimarySrc(slug) : "";
+  return image(src, photo <= 1 ? name : `${name} · foto ${photo}`, { ratio: "4/5", fit: "fill", posX: 50, posY: 50, zoom: 100 });
 }
 
 export function mediaCatalog(ministries: { slug: string; name: string }[]): MediaSlotMeta[] {

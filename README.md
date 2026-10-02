@@ -9,9 +9,8 @@ Sitio público, panel de administración y portal de servidores de la Iglesia Cr
 | `iglesia-zoe-laravel/` | La aplicación en producción: Laravel 13, Inertia, React 19, Vite y Tailwind 4. |
 | `iglesia-zoe-laravel/deploy/` | Scripts para publicar en el VPS y la configuración de Apache. |
 | `docs/` | Documentos del proyecto (inventario de secciones y funcionalidades). |
-| `archivo/sitio-nextjs/` | Versión anterior hecha en Next.js. No se publica; queda como referencia. |
-| `archivo/sitio-php-2021/` | Plantillas PHP del sitio de 2021. |
-| `archivo/supabase/` | Esquema SQL usado por la versión Next.js. La base actual se crea con las migraciones de Laravel. |
+
+Las versiones anteriores (Next.js y las plantillas PHP de 2021) se retiraron del repositorio; siguen disponibles en el historial de git hasta el commit `1172e3c`.
 
 ## Producción
 
