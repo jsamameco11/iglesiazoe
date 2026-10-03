@@ -3,6 +3,7 @@
 namespace App\Domain\Site\Actions;
 
 use App\Domain\Site\Design\NormalizeDesign;
+use App\Domain\Site\Support\SiteVersion;
 use App\Models\Ministry;
 use App\Models\ServeArea;
 use App\Models\SiteSetting;
@@ -93,5 +94,6 @@ class LoadPublicSite
         foreach (self::KEYS as $key) {
             Cache::forget($key);
         }
+        SiteVersion::bump();
     }
 }

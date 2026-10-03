@@ -9,6 +9,7 @@ use App\Domain\Inbox\PushNotifier;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Actions\ResolveSiteSkin;
 use App\Domain\Site\Design\NormalizeDesign;
+use App\Domain\Site\Support\SiteVersion;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -33,6 +34,7 @@ class HandleInertiaRequests extends Middleware
             'settings' => LoadPublicSite::settings(),
             'ministries' => LoadPublicSite::ministries(),
             'design' => [...$design, 'fontHref' => NormalizeDesign::fontHref($design)],
+            'siteVersion' => SiteVersion::current(),
             'auth' => [
                 'user' => $user ? [
                     ...$user->profilePayload(),
