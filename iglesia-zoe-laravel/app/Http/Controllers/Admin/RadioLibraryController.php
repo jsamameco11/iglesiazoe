@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Access\Permissions;
 use App\Domain\Media\Support\MediaLibrary;
+use App\Domain\Radio\Actions\SaveEpisode;
+use App\Domain\Radio\RadioAudio;
 use App\Domain\Radio\Station;
 use App\Models\RadioSlot;
 use App\Models\RadioTrack;
@@ -17,26 +20,24 @@ use Inertia\Response;
 /** The audio library. Uploading only stores the audio: it sounds once it is scheduled or fired from the console. */
 class RadioLibraryController extends RadioController
 {
-    private const AUDIO_TYPES = ['mp3', 'm4a', 'aac', 'ogg', 'oga', 'opus', 'wav', 'webm', 'flac'];
-
-    private const MAX_AUDIO_MB = 75;
-
     public function index(): Response
     {
         $upcoming = RadioSlot::query()->where('starts_at', '>=', now())->whereNotNull('radio_track_id')
             ->selectRaw('radio_track_id, count(*) as total')->groupBy('radio_track_id')->pluck('total', 'radio_track_id');
 
         return Inertia::render('Admin/Radio/Biblioteca', [
-            'tracks' => RadioTrack::query()->orderBy('kind')->orderBy('title')->get()->map(fn (RadioTrack $track) => [
+            'tracks' => RadioTrack::query()->withCount('episodes')->orderBy('kind')->orderBy('title')->get()->map(fn (RadioTrack $track) => [
                 ...$track->payload(),
                 'upcoming' => (int) ($upcoming[$track->id] ?? 0),
+                'episodes' => $track->episodes_count,
             ]),
             'kinds' => RadioTrack::KINDS,
-            'maxMb' => self::MAX_AUDIO_MB,
+            'maxMb' => RadioAudio::MAX_MB,
+            'maxDescription' => SaveEpisode::MAX_DESCRIPTION,
         ]);
     }
 
-    public function save(Request $request): JsonResponse
+    public function save(Request $request, SaveEpisode $episodes): JsonResponse
     {
         $existing = $this->find(RadioTrack::class, $request->input('id'));
         if ($request->filled('id') && ! $existing) {
@@ -65,6 +66,14 @@ class RadioLibraryController extends RadioController
         if (! $existing && ! $file instanceof UploadedFile) {
             return $this->fail('Elige el archivo de audio.');
         }
+        $episode = ! $existing && $request->boolean('episode') && Permissions::has($request->user(), 'radio.episodes')
+            ? $episodes->validate([
+                'title' => $data['title'],
+                'program' => $data['artist'] ?? null,
+                'description' => $request->input('episode_description'),
+                'aired_on' => Station::today(),
+            ], $request->file('episode_cover'))
+            : null;
 
         $payload = [
             'title' => trim($data['title']),
@@ -78,18 +87,13 @@ class RadioLibraryController extends RadioController
         }
 
         if ($file instanceof UploadedFile) {
-            $ext = strtolower($file->getClientOriginalExtension());
-            $mime = (string) $file->getMimeType();
-            if (! $file->isValid() || ! in_array($ext, self::AUDIO_TYPES, true) || ! preg_match('#^(audio/|video/(mp4|webm|ogg)|application/(ogg|octet-stream))#', $mime)) {
-                return $this->fail('El archivo debe ser de audio: MP3, M4A, AAC, OGG, OPUS, WAV, WEBM o FLAC.');
-            }
-            if ($file->getSize() > self::MAX_AUDIO_MB * 1024 * 1024) {
-                return $this->fail('El audio pesa más de '.self::MAX_AUDIO_MB.' MB. Expórtalo en MP3 (128–192 kbps).');
+            if ($problem = RadioAudio::problem($file)) {
+                return $this->fail($problem);
             }
             if (! isset($data['duration'])) {
                 return $this->fail('No pudimos leer la duración del audio. Prueba con otro archivo.');
             }
-            $payload['file_path'] = MediaLibrary::storePublic($file, 'radio/'.$data['kind'], $ext);
+            $payload['file_path'] = RadioAudio::store($file, $data['kind']);
             $payload['duration'] = round((float) $data['duration'], 2);
             MediaLibrary::deletePublic($existing?->file_path);
         }
@@ -101,13 +105,18 @@ class RadioLibraryController extends RadioController
             }
             $existing->slots()->where('starts_at', '>=', now())->update(['title' => $payload['title'], 'kind' => $payload['kind']]);
         } else {
-            RadioTrack::query()->create($payload);
+            $track = RadioTrack::query()->create($payload);
+            if ($episode) {
+                $episodes->handle($episode, $track, true, $request->file('episode_cover'));
+            }
         }
         Station::flush();
 
-        return $this->saved($existing
-            ? 'Audio actualizado.'
-            : 'Audio guardado en la biblioteca. No suena hasta que lo programes o lo lances desde la consola.');
+        return $this->saved(match (true) {
+            (bool) $existing => 'Audio actualizado.',
+            (bool) $episode => 'Audio guardado en la biblioteca y publicado como episodio en la página de la radio.',
+            default => 'Audio guardado en la biblioteca. No suena hasta que lo programes o lo lances desde la consola.',
+        });
     }
 
     /** Puts a song in the continuous music, where it repeats in the gaps of the program, or takes it out. */

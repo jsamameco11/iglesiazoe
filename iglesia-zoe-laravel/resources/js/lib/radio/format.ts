@@ -34,6 +34,11 @@ export function limaDate(ms: number) {
   return new Date(ms).toLocaleDateString("en-CA", { timeZone: TZ });
 }
 
+/** Calendar day of an episode, like «2 oct 2026». */
+export function longDate(date: string) {
+  return new Date(`${date}T12:00:00-05:00`).toLocaleDateString("es-PE", { timeZone: TZ, day: "numeric", month: "short", year: "numeric" });
+}
+
 export const DAY_MS = 86400000;
 
 /** UTC milliseconds of 00:00 of a Lima calendar day (Lima has no daylight saving). */

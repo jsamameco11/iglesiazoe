@@ -40,6 +40,11 @@ class RadioTrack extends UuidModel
         return $this->hasMany(RadioSlot::class);
     }
 
+    public function episodes(): HasMany
+    {
+        return $this->hasMany(RadioEpisode::class);
+    }
+
     public function payload(): array
     {
         return [

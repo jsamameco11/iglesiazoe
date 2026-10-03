@@ -32,7 +32,7 @@ class MinistriesController extends Controller
         $id = $request->input('id');
         $existing = $id ? Ministry::query()->find($id) : null;
         if ($id && ! $existing) {
-            return $this->fail('Ese ministerio ya no existe. Recarga la p├ígina.', 404);
+            return $this->fail('Ese ministerio ya no existe. Recarga la página.', 404);
         }
         $name = trim((string) $request->input('name'));
         if ($name === '') {
@@ -40,11 +40,11 @@ class MinistriesController extends Controller
         }
         $slug = Str::limit(Str::slug(trim((string) $request->input('slug')) ?: $name), 80, '');
         if (! preg_match('/^[a-z0-9-]{1,80}$/', $slug)) {
-            return $this->fail('La direcci├│n web solo puede tener letras, n├║meros y guiones.');
+            return $this->fail('La dirección web solo puede tener letras, números y guiones.');
         }
         $taken = Ministry::query()->where('slug', $slug)->when($existing, fn ($query) => $query->where('id', '!=', $existing->id))->exists();
         if ($taken) {
-            return $this->fail('Ya existe otro ministerio con la direcci├│n ┬½'.$slug.'┬╗.');
+            return $this->fail('Ya existe otro ministerio con la dirección «'.$slug.'».');
         }
         $accent = (string) $request->input('accent');
         $payload = [

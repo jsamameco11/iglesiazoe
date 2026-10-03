@@ -29,7 +29,7 @@ class SermonsController extends Controller
         $payload['is_live'] = $request->boolean('is_live');
         $payload['published'] = $request->boolean('published');
         if (! $payload['title']) {
-            return $this->fail('El t├¡tulo es obligatorio.');
+            return $this->fail('El título es obligatorio.');
         }
         $video = trim((string) $request->input('youtube_id'));
         $payload['youtube_id'] = YouTube::id($video);

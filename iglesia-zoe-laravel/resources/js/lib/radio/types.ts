@@ -79,7 +79,23 @@ export type RadioTrack = {
   duck: boolean;
   active: boolean;
   upcoming?: number;
+  /** Episodes of /radio that play this audio (library only). */
+  episodes?: number;
 };
+
+/** A recorded program published on /radio. */
+export type RadioEpisode = {
+  id: string;
+  title: string;
+  program: string | null;
+  description: string | null;
+  cover: string | null;
+  src: string | null;
+  duration: number;
+  aired_on: string;
+};
+
+export type RadioEpisodeAdmin = RadioEpisode & { track_id: string; track_title: string | null; published: boolean };
 
 export type RadioConfig = {
   name: string;

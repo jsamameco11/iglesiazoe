@@ -1,12 +1,14 @@
 import { Link, usePage } from "@inertiajs/react";
 import type { ReactNode } from "react";
 import { can, usePanelUser, type Permission, useSiteUrl } from "@/lib/access";
+import { csrf, type ActionResult } from "@/lib/actions";
 import { KIND_LABEL, type RadioKind } from "@/lib/radio";
 
 const tabs: { href: string; label: string; needs: Permission }[] = [
   { href: "/admin/radio", label: "Consola en vivo", needs: "radio.console" },
   { href: "/admin/radio/programacion", label: "Programación", needs: "radio.schedule" },
   { href: "/admin/radio/biblioteca", label: "Biblioteca", needs: "radio.library" },
+  { href: "/admin/radio/episodios", label: "Episodios", needs: "radio.episodes" },
   { href: "/admin/radio/ajustes", label: "Ajustes", needs: "radio.settings" },
 ];
 
@@ -59,6 +61,35 @@ const tone: Record<RadioKind, string> = {
 
 export function KindTag({ kind, label }: { kind: RadioKind; label?: string }) {
   return <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-semibold ${tone[kind]}`}>{label ?? KIND_LABEL[kind]}</span>;
+}
+
+export const AUDIO_ACCEPT = ".mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.webm,.flac,audio/*";
+
+export const COVER_ACCEPT = "image/jpeg,image/png,image/webp";
+
+/** Posts a form with files and reports the upload progress (0 to 1); audio files are large. */
+export function postWithProgress(url: string, data: FormData, onProgress: (value: number) => void = () => undefined) {
+  return new Promise<ActionResult>((resolve) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.setRequestHeader("X-CSRF-TOKEN", csrf());
+    xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.upload.onprogress = (event) => event.lengthComputable && onProgress(event.loaded / event.total);
+    xhr.onload = () => {
+      let body: ActionResult = {};
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        /* non-JSON error page */
+      }
+      if (xhr.status === 413) resolve({ error: "El archivo es demasiado grande para el servidor." });
+      else if (xhr.status >= 400 && !body.error) resolve({ error: body.message ? String(body.message) : "No se pudo subir el archivo." });
+      else resolve(body);
+    };
+    xhr.onerror = () => resolve({ error: "Se cortó la conexión mientras subía el archivo." });
+    xhr.send(data);
+  });
 }
 
 /** Reads the length of an audio file in the browser before uploading it. */

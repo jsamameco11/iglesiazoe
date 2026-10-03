@@ -7,6 +7,7 @@ use App\Domain\Radio\Station;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Actions\ResolveSiteSkin;
 use App\Http\Controllers\Controller;
+use App\Models\RadioEpisode;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -33,6 +34,7 @@ class RadioController extends Controller
                 ['date' => $today, 'items' => $this->program($today)],
                 ['date' => $tomorrow, 'items' => $this->program($tomorrow)],
             ],
+            'episodes' => RadioEpisode::published()->limit(60)->get()->map->card(),
         ]);
     }
 
