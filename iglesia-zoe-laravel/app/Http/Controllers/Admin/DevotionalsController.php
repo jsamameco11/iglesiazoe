@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Media\Support\MediaLibrary;
+use App\Domain\Shared\Support\Slug;
 use App\Http\Controllers\Controller;
 use App\Models\Devotional;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -27,9 +27,9 @@ class DevotionalsController extends Controller
 
     public function save(Request $request): JsonResponse
     {
-        $existing = $this->find($request->input('id'));
+        $existing = $this->find(Devotional::class, $request->input('id'));
         if ($request->filled('id') && ! $existing) {
-            return response()->json(['error' => 'Ese devocional ya no existe. Recarga la página.'], 404);
+            return $this->fail('Ese devocional ya no existe. Recarga la página.', 404);
         }
 
         $validator = Validator::make($request->all(), [
@@ -54,21 +54,21 @@ class DevotionalsController extends Controller
             'author' => 'autor',
         ]);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
 
         $data = array_map(fn ($value) => is_string($value) ? (trim($value) ?: null) : $value, $validator->validated());
         $data['body'] = str_replace("\r\n", "\n", $data['body']);
         $data['active'] = $request->boolean('active');
         if (! $existing || $existing->title !== $data['title']) {
-            $data['slug'] = $this->uniqueSlug($data['title'], $existing?->id);
+            $data['slug'] = Slug::unique(Devotional::class, $data['title'], 'devocional', ignore: $existing?->id);
         }
 
         $image = $request->file('image');
         if ($image instanceof UploadedFile) {
-            $ext = $image->isValid() ? strtolower((string) $image->guessExtension()) : '';
-            if (! in_array($ext, self::IMAGE_TYPES, true) || $image->getSize() > 8 * 1024 * 1024) {
-                return response()->json(['error' => 'La imagen debe ser JPG, PNG o WEBP de hasta 8 MB.'], 422);
+            $ext = MediaLibrary::extension($image, self::IMAGE_TYPES);
+            if (! $ext || $image->getSize() > 8 * 1024 * 1024) {
+                return $this->fail('La imagen debe ser JPG, PNG o WEBP de hasta 8 MB.');
             }
             $data['image_path'] = MediaLibrary::storePublic($image, 'devocionales', $ext);
             MediaLibrary::deletePublic($existing?->image_path);
@@ -79,33 +79,17 @@ class DevotionalsController extends Controller
 
         $existing ? $existing->update($data) : Devotional::query()->create($data);
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $existing ? 'Devocional actualizado.' : 'Devocional publicado.']);
+        return $this->saved($existing ? 'Devocional actualizado.' : 'Devocional publicado.');
     }
 
     public function destroy(Request $request): JsonResponse
     {
-        $devotional = $this->find($request->input('id'));
+        $devotional = $this->find(Devotional::class, $request->input('id'));
         if ($devotional) {
             MediaLibrary::deletePublic($devotional->image_path);
             $devotional->delete();
         }
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Devocional eliminado.']);
-    }
-
-    private function find(mixed $id): ?Devotional
-    {
-        return is_string($id) && preg_match('/^[0-9a-f-]{36}$/i', $id) ? Devotional::query()->find($id) : null;
-    }
-
-    private function uniqueSlug(string $text, ?string $ignore): string
-    {
-        $base = Str::limit(Str::slug($text), 120, '') ?: 'devocional';
-        $slug = $base;
-        for ($n = 2; Devotional::query()->where('slug', $slug)->when($ignore, fn ($query) => $query->whereKeyNot($ignore))->exists(); $n++) {
-            $slug = $base.'-'.$n;
-        }
-
-        return $slug;
+        return $this->saved('Devocional eliminado.');
     }
 }

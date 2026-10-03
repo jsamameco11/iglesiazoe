@@ -1,4 +1,4 @@
-export type NextService = {
+type NextService = {
   live: boolean;
   label: string;
   at: number;

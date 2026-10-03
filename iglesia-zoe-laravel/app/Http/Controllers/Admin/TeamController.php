@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Access\Actions\CreateAccount;
 use App\Domain\Access\Permissions;
+use App\Domain\Access\Support\Credentials;
 use App\Domain\Inbox\Inbox;
+use App\Domain\Servers\Support\NetworkLeaders;
 use App\Domain\Shared\Enums\Role;
 use App\Http\Controllers\Controller;
 use App\Models\Cell;
@@ -34,7 +36,7 @@ class TeamController extends Controller
                 'name' => $user->name,
                 'username' => $user->username,
                 'superadmin' => $user->isSuperadmin(),
-                'types' => Permissions::cleanTypes($user->admin_types ?? []),
+                'types' => Permissions::typesOf($user),
                 'permissions' => Permissions::of($user),
                 'network_code' => $user->network?->code,
                 'cells' => $user->cells->pluck('code')->sort()->values(),
@@ -59,7 +61,7 @@ class TeamController extends Controller
         $user->update(['serve_areas' => $this->serveAreas($request, $user->permissions ?? [])]);
         $this->syncCells($user, (string) $request->input('cells'));
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => "Cuenta {$user->username} creada."]);
+        return $this->saved("Cuenta {$user->username} creada.");
     }
 
     public function update(Request $request): JsonResponse
@@ -68,28 +70,33 @@ class TeamController extends Controller
         if ($user->isSuperadmin()) {
             $user->update(['name' => trim((string) $request->input('name')) ?: $user->name]);
 
-            return response()->json(['ok' => true, 'reload' => true, 'message' => 'Datos guardados.']);
+            return $this->saved('Datos guardados.');
         }
         $types = Permissions::cleanTypes((array) $request->input('types', []));
         $permissions = Permissions::resolve($types, (array) $request->input('permissions', []));
+        $networkId = $this->networkId($request);
+        $active = $request->boolean('active');
+        if ($active && $networkId && in_array('red', $types, true)) {
+            NetworkLeaders::ensureRoom($networkId, $user);
+        }
         $user->update([
             'name' => trim((string) $request->input('name')) ?: $user->name,
             'admin_types' => $types,
             'permissions' => $permissions,
             'serve_areas' => $this->serveAreas($request, $permissions),
-            'network_id' => $this->networkId($request),
-            'active' => $request->boolean('active'),
+            'network_id' => $networkId,
+            'active' => $active,
         ]);
         $this->syncCells($user, (string) $request->input('cells'));
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Accesos actualizados.']);
+        return $this->saved('Accesos actualizados.');
     }
 
     public function password(Request $request): JsonResponse
     {
         $password = (string) $request->input('password');
-        if (mb_strlen($password) < 6) {
-            return response()->json(['error' => 'La clave debe tener al menos 6 caracteres.'], 422);
+        if (! Credentials::validPassword($password)) {
+            return $this->fail('La clave debe tener al menos '.Credentials::MIN_PASSWORD.' caracteres.');
         }
         $user = User::query()->findOrFail((int) $request->input('id'));
         $user->password = $password;
@@ -102,15 +109,15 @@ class TeamController extends Controller
     {
         $user = User::query()->findOrFail((int) $request->input('id'));
         if ($user->id === $request->user()->id) {
-            return response()->json(['error' => 'No puedes eliminar tu propia cuenta.'], 422);
+            return $this->fail('No puedes eliminar tu propia cuenta.');
         }
         if ($user->isSuperadmin()) {
-            return response()->json(['error' => 'Las cuentas SUPERADMI no se eliminan desde el panel.'], 422);
+            return $this->fail('Las cuentas SUPERADMI no se eliminan desde el panel.');
         }
         $user->cells()->detach();
         $user->delete();
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Cuenta eliminada.']);
+        return $this->saved('Cuenta eliminada.');
     }
 
     /** Only kept with the «Quiero servir» function; an empty list means every área. */

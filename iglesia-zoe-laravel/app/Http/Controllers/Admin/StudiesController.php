@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Access\Support\Credentials;
 use App\Domain\Media\Support\MediaLibrary;
 use App\Domain\Shared\Enums\Role;
+use App\Domain\Shared\Support\Slug;
 use App\Domain\Studies\Classroom;
 use App\Http\Controllers\Controller;
 use App\Models\StudyAssessment;
@@ -14,13 +16,11 @@ use App\Models\StudyReading;
 use App\Models\StudyStudent;
 use App\Models\StudyVerse;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -59,7 +59,7 @@ class StudiesController extends Controller
     {
         $level = $this->find(StudyLevel::class, $request->input('id'));
         if ($request->filled('id') && ! $level) {
-            return response()->json(['error' => 'Ese nivel ya no existe. Recarga la página.'], 404);
+            return $this->fail('Ese nivel ya no existe. Recarga la página.', 404);
         }
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|min:3|max:80',
@@ -77,17 +77,17 @@ class StudiesController extends Controller
             'class_time' => 'hora', 'place' => 'lugar', 'teacher' => 'maestro', 'pass_score' => 'nota aprobatoria', 'sort_order' => 'orden',
         ]);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
         $data = $this->clean($validator->validated());
         $data['active'] = $request->boolean('active');
         $data['sort_order'] = (int) ($data['sort_order'] ?? ($level?->sort_order ?? (StudyLevel::query()->max('sort_order') + 1)));
         if (! $level) {
-            $data['slug'] = $this->uniqueSlug($data['name']);
+            $data['slug'] = Slug::unique(StudyLevel::class, $data['name'], 'nivel', 70);
         }
         $level ? $level->update($data) : StudyLevel::query()->create($data);
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $level ? 'Nivel actualizado.' : 'Nivel creado.']);
+        return $this->saved($level ? 'Nivel actualizado.' : 'Nivel creado.');
     }
 
     public function students(): Response
@@ -116,12 +116,12 @@ class StudiesController extends Controller
     {
         $student = $this->find(StudyStudent::class, $request->input('id'));
         if ($request->filled('id') && ! $student) {
-            return response()->json(['error' => 'Ese estudiante ya no existe. Recarga la página.'], 404);
+            return $this->fail('Ese estudiante ya no existe. Recarga la página.', 404);
         }
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|min:3|max:120',
-            'username' => ['required', 'regex:/^[A-Za-z0-9._-]{3,40}$/'],
-            'password' => 'nullable|string|min:6|max:120',
+            'username' => ['required', 'regex:'.Credentials::USERNAME],
+            'password' => 'nullable|string|min:'.Credentials::MIN_PASSWORD.'|max:120',
             'phone' => 'nullable|string|max:30',
             'network' => 'nullable|string|max:60',
             'study_level_id' => 'nullable|uuid|exists:study_levels,id',
@@ -132,22 +132,18 @@ class StudiesController extends Controller
             'password.min' => 'La clave debe tener al menos 6 caracteres.',
         ], ['name' => 'nombre', 'username' => 'DNI o usuario', 'phone' => 'celular', 'network' => 'red', 'study_level_id' => 'nivel', 'status' => 'estado']);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
         $data = $this->clean($validator->validated());
         $username = $data['username'];
-        $email = strtolower($username).'@estudiantes.iglesiacristianazoe.pe';
-        $taken = User::query()
-            ->when($student, fn ($query) => $query->whereKeyNot($student->user_id))
-            ->where(fn ($query) => $query->where('username', $username)->orWhere('email', $email)->when(ctype_digit($username), fn ($inner) => $inner->orWhere('dni', $username)))
-            ->exists();
-        if ($taken) {
-            return response()->json(['error' => 'Ese DNI o usuario ya tiene una cuenta. Usa otro, por ejemplo agregando una letra al final.'], 422);
+        $email = Credentials::studentEmail($username);
+        if (Credentials::taken($username, $email, $student?->user_id)) {
+            return $this->fail('Ese DNI o usuario ya tiene una cuenta. Usa otro, por ejemplo agregando una letra al final.');
         }
 
         $password = $data['password'] ?? null;
-        if (! $student && ! $password && strlen($username) < 6) {
-            return response()->json(['error' => 'El usuario «'.$username.'» es muy corto para usarlo como clave. Escribe una clave de al menos 6 caracteres.'], 422);
+        if (! $student && ! $password && ! Credentials::validPassword($username)) {
+            return $this->fail('El usuario «'.$username.'» es muy corto para usarlo como clave. Escribe una clave de al menos 6 caracteres.');
         }
         DB::transaction(function () use ($request, $student, $data, $username, $email, $password) {
             $account = [
@@ -186,7 +182,7 @@ class StudiesController extends Controller
             ? 'Datos del estudiante guardados.'
             : 'Estudiante creado. Ingresa en /estudios/acceso con «'.$username.'» y la clave '.($password ? 'que escribiste.' : 'igual a su DNI o usuario.');
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $message]);
+        return $this->saved($message);
     }
 
     public function deleteStudent(Request $request): JsonResponse
@@ -200,7 +196,7 @@ class StudiesController extends Controller
             }
         }
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Estudiante eliminado con sus notas.']);
+        return $this->saved('Estudiante eliminado con sus notas.');
     }
 
     public function grades(Request $request): Response
@@ -232,7 +228,7 @@ class StudiesController extends Controller
     {
         $level = $this->find(StudyLevel::class, $request->input('level_id'));
         if (! $level) {
-            return response()->json(['error' => 'Elige un nivel.'], 422);
+            return $this->fail('Elige un nivel.');
         }
         $assessmentIds = $level->assessments()->pluck('id')->all();
         $studentIds = StudyStudent::query()->where('study_level_id', $level->id)->pluck('id')->all();
@@ -248,7 +244,7 @@ class StudiesController extends Controller
                 }
                 $value = str_replace(',', '.', trim((string) $value));
                 if ($value !== '' && (! is_numeric($value) || (float) $value < 0 || (float) $value > Classroom::MAX_SCORE)) {
-                    return response()->json(['error' => 'Las notas van de 0 a '.Classroom::MAX_SCORE.'. Revisa el valor «'.$value.'».'], 422);
+                    return $this->fail('Las notas van de 0 a '.Classroom::MAX_SCORE.'. Revisa el valor «'.$value.'».');
                 }
                 $writes[] = [$studentId, $assessmentId, $value === '' ? null : round((float) $value, 1)];
             }
@@ -263,7 +259,7 @@ class StudiesController extends Controller
             }
         });
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Notas guardadas. Los estudiantes ya las ven en su aula.']);
+        return $this->saved('Notas guardadas. Los estudiantes ya las ven en su aula.');
     }
 
     public function saveAssessment(Request $request): JsonResponse
@@ -271,14 +267,14 @@ class StudiesController extends Controller
         $assessment = $this->find(StudyAssessment::class, $request->input('id'));
         $level = $assessment?->level ?? $this->find(StudyLevel::class, $request->input('level_id'));
         if (! $level) {
-            return response()->json(['error' => 'Elige un nivel.'], 422);
+            return $this->fail('Elige un nivel.');
         }
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|min:2|max:80',
             'week' => 'nullable|integer|min:1|max:52',
         ], self::MESSAGES, ['title' => 'nombre de la evaluación', 'week' => 'semana']);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
         $data = $this->clean($validator->validated());
         if ($assessment) {
@@ -287,14 +283,14 @@ class StudiesController extends Controller
             StudyAssessment::query()->create([...$data, 'study_level_id' => $level->id, 'sort_order' => (int) $level->assessments()->max('sort_order') + 1]);
         }
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $assessment ? 'Evaluación actualizada.' : 'Evaluación agregada.']);
+        return $this->saved($assessment ? 'Evaluación actualizada.' : 'Evaluación agregada.');
     }
 
     public function deleteAssessment(Request $request): JsonResponse
     {
         $this->find(StudyAssessment::class, $request->input('id'))?->delete();
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Evaluación eliminada con sus notas.']);
+        return $this->saved('Evaluación eliminada con sus notas.');
     }
 
     public function notices(): Response
@@ -319,20 +315,20 @@ class StudiesController extends Controller
             'ends_on' => 'nullable|date|after_or_equal:starts_on',
         ], self::MESSAGES, ['title' => 'título', 'body' => 'mensaje', 'tone' => 'tipo', 'study_level_id' => 'nivel', 'starts_on' => 'desde', 'ends_on' => 'hasta']);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
         $data = [...$this->clean($validator->validated()), 'active' => $request->boolean('active')];
         $data['body'] = str_replace("\r\n", "\n", $data['body']);
         $notice ? $notice->update($data) : StudyNotice::query()->create($data);
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $notice ? 'Aviso actualizado.' : 'Aviso publicado. Aparecerá en el aula de los estudiantes.']);
+        return $this->saved($notice ? 'Aviso actualizado.' : 'Aviso publicado. Aparecerá en el aula de los estudiantes.');
     }
 
     public function deleteNotice(Request $request): JsonResponse
     {
         $this->find(StudyNotice::class, $request->input('id'))?->delete();
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Aviso eliminado.']);
+        return $this->saved('Aviso eliminado.');
     }
 
     public function verses(): Response
@@ -352,19 +348,19 @@ class StudiesController extends Controller
             'study_level_id' => 'nullable|uuid|exists:study_levels,id',
         ], self::MESSAGES, ['reference' => 'cita', 'text' => 'texto', 'study_level_id' => 'nivel']);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
         $data = [...$this->clean($validator->validated()), 'active' => $request->boolean('active')];
         $verse ? $verse->update($data) : StudyVerse::query()->create($data);
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $verse ? 'Guardado.' : 'Agregado. Ya aparece en el aula.']);
+        return $this->saved($verse ? 'Guardado.' : 'Agregado. Ya aparece en el aula.');
     }
 
     public function deleteVerse(Request $request): JsonResponse
     {
         $this->find(StudyVerse::class, $request->input('id'))?->delete();
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Eliminado.']);
+        return $this->saved('Eliminado.');
     }
 
     public function readings(): Response
@@ -385,23 +381,23 @@ class StudiesController extends Controller
             'study_level_id' => 'nullable|uuid|exists:study_levels,id',
         ], self::MESSAGES, ['title' => 'título', 'summary' => 'descripción', 'week' => 'semana', 'study_level_id' => 'nivel']);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
         $data = [...$this->clean($validator->validated()), 'active' => $request->boolean('active')];
 
         $file = $request->file('file');
         if ($file instanceof UploadedFile) {
-            if (! $file->isValid() || strtolower((string) $file->guessExtension()) !== 'pdf' || $file->getSize() > 25 * 1024 * 1024) {
-                return response()->json(['error' => 'La lectura debe ser un archivo PDF de hasta 25 MB.'], 422);
+            if (! MediaLibrary::extension($file, ['pdf']) || $file->getSize() > 25 * 1024 * 1024) {
+                return $this->fail('La lectura debe ser un archivo PDF de hasta 25 MB.');
             }
             $data['file_path'] = MediaLibrary::storePublic($file, 'estudios/'.now()->format('Y'), 'pdf');
             MediaLibrary::deletePublic($reading?->file_path);
         } elseif (! $reading) {
-            return response()->json(['error' => 'Adjunta el PDF de la lectura.'], 422);
+            return $this->fail('Adjunta el PDF de la lectura.');
         }
         $reading ? $reading->update($data) : StudyReading::query()->create($data);
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $reading ? 'Lectura actualizada.' : 'Lectura publicada en el aula.']);
+        return $this->saved($reading ? 'Lectura actualizada.' : 'Lectura publicada en el aula.');
     }
 
     public function deleteReading(Request $request): JsonResponse
@@ -412,7 +408,7 @@ class StudiesController extends Controller
             $reading->delete();
         }
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Lectura eliminada.']);
+        return $this->saved('Lectura eliminada.');
     }
 
     private function levelOptions(): array
@@ -420,30 +416,8 @@ class StudiesController extends Controller
         return StudyLevel::ordered()->get(['id', 'name'])->map(fn (StudyLevel $level) => ['id' => $level->id, 'name' => $level->name])->all();
     }
 
-    /**
-     * @template T of Model
-     *
-     * @param  class-string<T>  $model
-     * @return T|null
-     */
-    private function find(string $model, mixed $id): ?Model
-    {
-        return is_string($id) && preg_match('/^[0-9a-f-]{36}$/i', $id) ? $model::query()->find($id) : null;
-    }
-
     private function clean(array $data): array
     {
         return array_map(fn ($value) => is_string($value) ? (trim($value) === '' ? null : trim($value)) : $value, $data);
-    }
-
-    private function uniqueSlug(string $name): string
-    {
-        $base = Str::limit(Str::slug($name), 70, '') ?: 'nivel';
-        $slug = $base;
-        for ($n = 2; StudyLevel::query()->where('slug', $slug)->exists(); $n++) {
-            $slug = $base.'-'.$n;
-        }
-
-        return $slug;
     }
 }

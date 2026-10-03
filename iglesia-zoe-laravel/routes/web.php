@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\AccesoController;
+use App\Http\Controllers\Web\FormsController;
 use App\Http\Controllers\Web\RadioController;
 use App\Http\Controllers\Web\SiteController;
 use App\Http\Controllers\Web\StudiesController;
@@ -13,9 +14,9 @@ Route::get('/conocenos', [SiteController::class, 'about'])->name('about');
 Route::get('/ministerios', [SiteController::class, 'ministries'])->name('ministries');
 Route::get('/ministerios/{slug}', [SiteController::class, 'ministry'])->name('ministry');
 Route::get('/visita', [SiteController::class, 'visit'])->name('visit');
-Route::post('/visita', [SiteController::class, 'storeVisit'])->middleware('throttle:web-forms');
+Route::post('/visita', [FormsController::class, 'storeVisit'])->middleware('throttle:web-forms');
 Route::get('/bautismos', [SiteController::class, 'baptisms'])->name('baptisms');
-Route::post('/bautismos', [SiteController::class, 'storeBaptism'])->middleware('throttle:web-forms');
+Route::post('/bautismos', [FormsController::class, 'storeBaptism'])->middleware('throttle:web-forms');
 Route::get('/predicas', [SiteController::class, 'sermons'])->name('sermons');
 Route::get('/recursos', [SiteController::class, 'teachings'])->name('teachings');
 Route::get('/galeria', [SiteController::class, 'galleries'])->name('galleries');
@@ -24,7 +25,7 @@ Route::get('/devocionales', [SiteController::class, 'devotionals'])->name('devot
 Route::get('/devocionales/{slug}', [SiteController::class, 'devotional'])->where('slug', '[a-z0-9-]+')->name('devotional');
 Route::get('/eventos', [SiteController::class, 'events'])->name('events');
 Route::get('/involucrate', [SiteController::class, 'serve'])->name('serve');
-Route::post('/involucrate', [SiteController::class, 'storeServe'])->middleware('throttle:web-forms');
+Route::post('/involucrate', [FormsController::class, 'storeServe'])->middleware('throttle:web-forms');
 Route::get('/involucrate/{slug}', [SiteController::class, 'serveArea'])->where('slug', '[a-z0-9-]+')->name('serve-area');
 Route::get('/ruta-del-servidor', [StudiesController::class, 'route'])->name('server-route');
 Route::redirect('/estudios', '/ruta-del-servidor');
@@ -43,7 +44,7 @@ Route::middleware('throttle:radio')->prefix('radio')->group(function () {
 });
 Route::get('/dar', [SiteController::class, 'give'])->name('give');
 Route::get('/contacto', [SiteController::class, 'contact'])->name('contact');
-Route::post('/contacto', [SiteController::class, 'storePrayer'])->middleware('throttle:web-forms');
+Route::post('/contacto', [FormsController::class, 'storePrayer'])->middleware('throttle:web-forms');
 
 Route::get('/ingresar', fn () => redirect('/acceso'));
 Route::get('/acceso', [AccesoController::class, 'create'])->name('login');

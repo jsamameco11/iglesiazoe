@@ -14,6 +14,7 @@ class Permissions
         'reports.all' => ['group' => 'Células', 'title' => 'Reportes de todos los servidores', 'text' => 'Ve los informes de todas las células y filtra por semana, mes o año.'],
         'offerings.weekly' => ['group' => 'Células', 'title' => 'Ofrendas por semana', 'text' => 'Ve la ofrenda y los diezmos de cada célula semana por semana, sin el tablero de ingresos.'],
         'cells.own' => ['group' => 'Células', 'title' => 'Abrir su propia célula', 'text' => 'El Servidor de Red que también lidera una célula la abre él mismo y sube su informe. Si no lidera una, no la abre.'],
+        'servers.network' => ['group' => 'Células', 'title' => 'Servidores de Red', 'text' => 'Asigna y edita a los Servidores de Red de cada red: nombre, usuario, clave y si su cuenta está activa. Cada red tiene uno, o dos como máximo. Apagado por defecto: solo el superadministrador lo activa.'],
         'servers.create' => ['group' => 'Células', 'title' => 'Crear servidores', 'text' => 'Abre servidores en su red (células como 01A) y les crea su cuenta.'],
         'servers.children' => ['group' => 'Células', 'title' => 'Crear servidores hijo', 'text' => 'Añade células hija debajo de un servidor (como 0101A) y les crea su cuenta. El servidor lo usa para sus propios servidores hijo.'],
         'cells.manage' => ['group' => 'Células', 'title' => 'Células e integrantes', 'text' => 'Edita datos de cada célula y su lista de integrantes.'],
@@ -89,7 +90,7 @@ class Permissions
     public const DEFAULTS = ['servers.create', 'servers.children'];
 
     /** Any of these opens the Servidores page. */
-    public const SERVER_TREE = ['servers.create', 'servers.children', 'cells.own'];
+    public const SERVER_TREE = ['servers.network', 'servers.create', 'servers.children', 'cells.own'];
 
     /** Account of a servidor: files its reports and adds its own servidores hijo. */
     public const SERVER_ACCOUNT = ['reports.submit', 'reports.weekly', 'servers.children'];
@@ -140,6 +141,12 @@ class Permissions
     public static function cleanTypes(array $types): array
     {
         return array_values(array_intersect(array_keys(self::TYPES), array_unique($types)));
+    }
+
+    /** Account types stored on a user, keeping only the ones that still exist. */
+    public static function typesOf(?User $user): array
+    {
+        return self::cleanTypes(is_array($user?->admin_types) ? $user->admin_types : []);
     }
 
     public static function of(?User $user): array
@@ -197,7 +204,7 @@ class Permissions
         if (in_array(self::roleOf($user), [Role::RedLeader, Role::CellLeader], true)) {
             return true;
         }
-        $types = self::cleanTypes(is_array($user->admin_types) ? $user->admin_types : []);
+        $types = self::typesOf($user);
 
         return $types
             ? (bool) array_intersect($types, self::SERVER_TYPES)
@@ -216,7 +223,7 @@ class Permissions
         if (in_array(self::roleOf($user), [Role::RedLeader, Role::CellLeader, Role::Student], true)) {
             return false;
         }
-        $types = self::cleanTypes(is_array($user->admin_types) ? $user->admin_types : []);
+        $types = self::typesOf($user);
 
         return $types
             ? (bool) array_diff($types, self::SERVER_TYPES)
@@ -236,7 +243,7 @@ class Permissions
         if (self::isStudent($user)) {
             return 'ESTUDIANTE';
         }
-        $types = self::cleanTypes(is_array($user?->admin_types) ? $user->admin_types : []);
+        $types = self::typesOf($user);
         if (! $types) {
             return 'ADMINISTRADOR';
         }

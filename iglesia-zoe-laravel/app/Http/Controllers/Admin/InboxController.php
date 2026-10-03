@@ -57,13 +57,13 @@ class InboxController extends Controller
             'status' => ['required', Rule::in(array_keys(ServeRegistration::STATUSES))],
         ], ['required' => 'Falta elegir la inscripción y su estado.', 'status.in' => 'Elige un estado válido.']);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
         $data = $validator->validated();
         $user = $request->user();
         $registration = ServeRegistration::query()->find($data['id']);
         if (! $registration || ! Inbox::reaches($user, 'servidores', $registration)) {
-            return response()->json(['error' => 'Esta inscripción no está entre las áreas que recibes.'], 403);
+            return $this->fail('Esta inscripción no está entre las áreas que recibes.', 403);
         }
 
         $registration->update(['status' => $data['status'], 'status_at' => now(), 'status_by' => $user->name ?: $user->username]);

@@ -7,6 +7,7 @@ import { useStored } from "@/Components/classroom/hooks";
 import { Hero } from "@/Components/classroom/hero";
 import { VerseCard, GradesCard, RouteCard, SectionTitle, Empty } from "@/Components/classroom/cards";
 import { PdfViewer, PasswordDialog } from "@/Components/classroom/dialogs";
+import { BellIcon } from "@/Components/ui/icons";
 import "../../../css/classroom.css";
 
 type Props = {
@@ -79,7 +80,7 @@ export default function MiRuta(props: Props) {
                 aria-label={unseen.length ? `Avisos, ${unseen.length} sin leer` : "Avisos"}
                 aria-expanded={bellOpen}
               >
-                <BellIcon />
+                <BellIcon className="h-[19px] w-[19px]" />
                 {unseen.length ? <span className="aula-badge">{unseen.length > 9 ? "9+" : unseen.length}</span> : null}
               </button>
               {bellOpen ? (
@@ -217,7 +218,7 @@ export default function MiRuta(props: Props) {
           {toasts.map((notice, index) => (
             <div key={notice.id} className="aula-toast" data-tone={notice.tone} style={{ "--i": index } as CSSProperties}>
               <div className="flex items-start gap-3">
-                <span className="aula-toast-icon"><BellIcon /></span>
+                <span className="aula-toast-icon"><BellIcon className="h-[19px] w-[19px]" /></span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">{toneLabel[notice.tone]}</p>
                   <p className="mt-0.5 font-semibold leading-snug">{notice.title}</p>
@@ -238,11 +239,3 @@ export default function MiRuta(props: Props) {
   );
 }
 
-function BellIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-    </svg>
-  );
-}

@@ -1,3 +1,5 @@
+import { flagUrl } from "@/lib/geo";
+
 type IconProps = { className?: string };
 
 function Icon({ className = "h-5 w-5", children }: IconProps & { children: React.ReactNode }) {
@@ -84,4 +86,9 @@ export function IconPlay(props: IconProps) {
       <path strokeLinejoin="round" fill="currentColor" d="M9 7.2v9.6a.6.6 0 0 0 .9.5l7.6-4.8a.6.6 0 0 0 0-1L9.9 6.7a.6.6 0 0 0-.9.5Z" />
     </Icon>
   );
+}
+
+/** Country flag shown next to each option of the country and phone-code pickers. */
+export function Flag({ code }: { code: string }) {
+  return <img src={flagUrl(code)} alt="" width={20} height={14} loading="lazy" className="visit-flag" />;
 }

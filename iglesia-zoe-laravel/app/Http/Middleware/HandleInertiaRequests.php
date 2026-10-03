@@ -40,7 +40,7 @@ class HandleInertiaRequests extends Middleware
                     ...$user->profilePayload(),
                     'cereal' => Permissions::label($user),
                     'superadmin' => Permissions::isSuperadmin($user),
-                    'types' => Permissions::cleanTypes($user->admin_types ?? []),
+                    'types' => Permissions::typesOf($user),
                     'permissions' => Permissions::of($user),
                 ] : null,
                 'profile' => $user?->profilePayload(),

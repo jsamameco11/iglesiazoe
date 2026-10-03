@@ -59,7 +59,7 @@ class RadioController extends Controller
         $id = $this->listenerId($request->input('oyente'));
         $session = Station::state()['live']['session'];
         if (! $id || ! $session || $request->input('session') !== $session) {
-            return response()->json(['error' => 'La transmisión en vivo ya terminó.'], 409);
+            return $this->fail('La transmisión en vivo ya terminó.', 409);
         }
         Signal::request($id, $session);
 
@@ -71,12 +71,12 @@ class RadioController extends Controller
         $id = $this->listenerId($request->input('oyente'));
         $sdp = $request->input('sdp');
         if (! $id || ! is_string($sdp) || strlen($sdp) > self::MAX_SDP || ! is_string($request->input('session'))) {
-            return response()->json(['error' => 'Respuesta inválida.'], 422);
+            return $this->fail('Respuesta inválida.');
         }
 
         return Signal::answer($id, $request->input('session'), $sdp)
             ? response()->json(['ok' => true])
-            : response()->json(['error' => 'La conexión expiró. Volvemos a intentarlo.'], 409);
+            : $this->fail('La conexión expiró. Volvemos a intentarlo.', 409);
     }
 
     public function leave(Request $request): JsonResponse

@@ -3,6 +3,8 @@
 namespace App\Domain\Access\Actions;
 
 use App\Domain\Access\Permissions;
+use App\Domain\Access\Support\Credentials;
+use App\Domain\Servers\Support\NetworkLeaders;
 use App\Domain\Shared\Enums\Role;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
@@ -13,23 +15,22 @@ class CreateAccount
     {
         $username = trim((string) ($data['username'] ?? ''));
         $password = (string) ($data['password'] ?? '');
-        if (! preg_match('/^[A-Za-z0-9._-]{3,40}$/', $username)) {
+        if (! Credentials::validUsername($username)) {
             throw ValidationException::withMessages(['username' => 'El usuario debe tener de 3 a 40 letras, números, punto o guion.']);
         }
-        if (mb_strlen($password) < 6) {
-            throw ValidationException::withMessages(['password' => 'La clave debe tener al menos 6 caracteres.']);
+        if (! Credentials::validPassword($password)) {
+            throw ValidationException::withMessages(['password' => 'La clave debe tener al menos '.Credentials::MIN_PASSWORD.' caracteres.']);
         }
-        $email = strtolower($username).'@lideres.iglesiacristianazoe.pe';
-        $taken = User::query()
-            ->where('username', $username)
-            ->orWhere('email', $email)
-            ->when(ctype_digit($username), fn ($query) => $query->orWhere('dni', $username))
-            ->exists();
-        if ($taken) {
+        $email = Credentials::leaderEmail($username);
+        if (Credentials::taken($username, $email)) {
             throw ValidationException::withMessages(['username' => 'Ese usuario ya existe.']);
         }
 
         $types = Permissions::cleanTypes($data['types'] ?? []);
+        $networkId = $data['network_id'] ?? null;
+        if (in_array('red', $types, true) && $networkId) {
+            NetworkLeaders::ensureRoom($networkId);
+        }
 
         return User::query()->create([
             'name' => trim((string) ($data['name'] ?? '')) ?: $username,
@@ -40,7 +41,7 @@ class CreateAccount
             'role' => Role::Admin,
             'admin_types' => $types,
             'permissions' => Permissions::resolve($types, $data['permissions'] ?? null),
-            'network_id' => $data['network_id'] ?? null,
+            'network_id' => $networkId,
             'active' => true,
             'created_by' => $creator?->id,
         ]);

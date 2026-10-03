@@ -6,7 +6,9 @@ use App\Domain\Access\CellScope;
 use App\Domain\Servers\Actions\CreateServerAccount;
 use App\Domain\Servers\Actions\OpenOwnCell;
 use App\Domain\Servers\Actions\OpenServer;
+use App\Domain\Servers\Actions\UpdateNetworkLeader;
 use App\Domain\Servers\ServerLevel;
+use App\Domain\Servers\Support\NetworkLeaders;
 use App\Domain\Servers\Support\ServerTree;
 use App\Http\Controllers\Controller;
 use App\Models\Cell;
@@ -14,13 +16,24 @@ use App\Models\Network;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ServersController extends Controller
 {
+    private const LEADER_RULES = [
+        'name' => ['required', 'string', 'max:120'],
+        'username' => ['required', 'string'],
+    ];
+
+    private const LEADER_MESSAGES = [
+        'name.required' => 'Escribe el nombre del Servidor de Red.',
+        'name.max' => 'El nombre es demasiado largo.',
+        'username.required' => 'Escribe el usuario o DNI.',
+        'password.required' => 'Escribe la clave.',
+    ];
+
     public function index(Request $request): Response
     {
         return Inertia::render('Admin/Servidores', ServerTree::for($request->user()));
@@ -30,32 +43,51 @@ class ServersController extends Controller
     {
         $network = $this->find(Network::class, $request->input('network_id'));
         if (! $network) {
-            return response()->json(['error' => 'Elige la red.'], 422);
+            return $this->fail('Elige la red.');
+        }
+        if (! CellScope::for($request->user())->managesNetwork($network->id)) {
+            return $this->fail("La Red {$network->code} no está a tu cargo.", 403);
         }
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
-            'username' => ['required', 'string'],
+            ...self::LEADER_RULES,
             'password' => ['required', 'string'],
-        ], [
-            'name.required' => 'Escribe el nombre del Servidor de Red.',
-            'name.max' => 'El nombre es demasiado largo.',
-            'username.required' => 'Escribe el usuario o DNI.',
-            'password.required' => 'Escribe la clave.',
-        ]);
+        ], self::LEADER_MESSAGES);
         $user = $accounts->forNetwork($network, $data, $request->user());
 
-        return $this->done("{$user->name} es Servidor de Red de la Red {$network->code} (usuario {$user->username}).");
+        return $this->saved("{$user->name} es Servidor de Red de la Red {$network->code} (usuario {$user->username}).");
+    }
+
+    public function updateNetworkServer(Request $request, UpdateNetworkLeader $update): JsonResponse
+    {
+        $leader = User::query()->find((int) $request->input('id'));
+        if (! $leader || $leader->isSuperadmin() || ! NetworkLeaders::is($leader) || ! $leader->network_id) {
+            return $this->fail('Ese Servidor de Red ya no existe. Recarga la página.', 404);
+        }
+        if (! CellScope::for($request->user())->managesNetwork($leader->network_id)) {
+            return $this->fail('Ese Servidor de Red no está a tu cargo.', 403);
+        }
+        $data = $request->validate([
+            ...self::LEADER_RULES,
+            'password' => ['nullable', 'string'],
+            'active' => ['required', 'boolean'],
+        ], self::LEADER_MESSAGES);
+        if ($leader->is($request->user()) && ! $data['active']) {
+            return $this->fail('No puedes desactivar tu propia cuenta.');
+        }
+        $update->handle($leader, $data);
+
+        return $this->saved("Datos de {$leader->name} guardados.");
     }
 
     public function storeServer(Request $request, OpenServer $open): JsonResponse
     {
         $network = $this->find(Network::class, $request->input('network_id'));
         if (! $network || ! CellScope::for($request->user())->canOpenServerIn($network->id)) {
-            return response()->json(['error' => 'No tienes permiso para abrir servidores en esta red. El superadministrador lo activa en Equipo y accesos.'], 403);
+            return $this->fail('No tienes permiso para abrir servidores en esta red. El superadministrador lo activa en Equipo y accesos.', 403);
         }
         [$cell, $account] = $open->handle($network, null, $this->serverData($request), $request->user());
 
-        return $this->done($this->created($cell, $account));
+        return $this->saved($this->created($cell, $account));
     }
 
     public function storeOwnCell(Request $request, OpenOwnCell $open): JsonResponse
@@ -66,8 +98,8 @@ class ServersController extends Controller
             $cell = $scope->ownCell();
 
             return $cell
-                ? response()->json(['error' => "Ya tienes tu célula {$cell->code}."], 422)
-                : response()->json(['error' => 'Solo el Servidor de Red con permiso para abrir su propia célula puede hacerlo.'], 403);
+                ? $this->fail("Ya tienes tu célula {$cell->code}.")
+                : $this->fail('Solo el Servidor de Red con permiso para abrir su propia célula puede hacerlo.', 403);
         }
         $data = $request->validate([
             'kind' => ['required', Rule::in(OpenOwnCell::KINDS)],
@@ -82,35 +114,35 @@ class ServersController extends Controller
         $schedule = ['meeting_day' => $data['meeting_day'] ?? null, 'meeting_time' => $data['meeting_time'] ?? null];
         $cell = $open->handle($user, $scope->network, $data['kind'], $this->find(Cell::class, $request->input('cell_id')), $schedule);
 
-        return $this->done("Tu célula {$cell->code} está lista. Ya puedes subir su informe desde «Subir informe».");
+        return $this->saved("Tu célula {$cell->code} está lista. Ya puedes subir su informe desde «Subir informe».");
     }
 
     public function storeChild(Request $request, OpenServer $open): JsonResponse
     {
         $parent = $this->find(Cell::class, $request->input('parent_id'));
         if (! $parent || ! CellScope::for($request->user())->canAddChildTo($parent)) {
-            return response()->json(['error' => 'No puedes añadir servidores hijo a este servidor. Necesitas el permiso «Crear servidores hijo» y que el servidor esté a tu cargo.'], 403);
+            return $this->fail('No puedes añadir servidores hijo a este servidor. Necesitas el permiso «Crear servidores hijo» y que el servidor esté a tu cargo.', 403);
         }
         [$cell, $account] = $open->handle($parent->network, $parent, $this->serverData($request), $request->user());
 
-        return $this->done($this->created($cell, $account));
+        return $this->saved($this->created($cell, $account));
     }
 
     public function storeAccount(Request $request, CreateServerAccount $accounts): JsonResponse
     {
         $cell = $this->find(Cell::class, $request->input('cell_id'));
         if (! $cell || ! CellScope::for($request->user())->oversees($cell)) {
-            return response()->json(['error' => 'Ese servidor no está a tu cargo.'], 403);
+            return $this->fail('Ese servidor no está a tu cargo.', 403);
         }
         if ($cell->isNetworkCell()) {
-            return response()->json(['error' => "La célula {$cell->code} es la del Servidor de Red; su cuenta se crea como Servidor de Red."], 422);
+            return $this->fail("La célula {$cell->code} es la del Servidor de Red; su cuenta se crea como Servidor de Red.");
         }
         if ($cell->users()->exists()) {
-            return response()->json(['error' => "{$cell->code} ya tiene cuenta."], 422);
+            return $this->fail("{$cell->code} ya tiene cuenta.");
         }
         $user = $accounts->forCell($cell, $request->only('username', 'password'), $request->user());
 
-        return $this->done("Cuenta {$user->username} creada para {$cell->code}.");
+        return $this->saved("Cuenta {$user->username} creada para {$cell->code}.");
     }
 
     private function serverData(Request $request): array
@@ -135,21 +167,5 @@ class ServersController extends Controller
         $label = ServerLevel::ofCell($cell)->label();
 
         return "$label {$cell->code} creado".($account ? " con la cuenta {$account->username}." : '.');
-    }
-
-    private function done(string $message): JsonResponse
-    {
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $message]);
-    }
-
-    /**
-     * @template T of \Illuminate\Database\Eloquent\Model
-     *
-     * @param  class-string<T>  $model
-     * @return T|null
-     */
-    private function find(string $model, mixed $id): mixed
-    {
-        return is_string($id) && Str::isUuid($id) ? $model::query()->find($id) : null;
     }
 }

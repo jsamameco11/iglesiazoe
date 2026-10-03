@@ -48,7 +48,7 @@ class SectionsController extends Controller
     {
         $existing = $this->find(ChurchEvent::class, $request->input('id'));
         if ($request->filled('id') && ! $existing) {
-            return response()->json(['error' => 'Ese evento ya no existe. Recarga la página.'], 404);
+            return $this->fail('Ese evento ya no existe. Recarga la página.', 404);
         }
 
         $validator = Validator::make($request->all(), [
@@ -73,7 +73,7 @@ class SectionsController extends Controller
             'cta_url' => 'enlace del botón',
         ]);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
 
         $data = array_map(fn ($value) => is_string($value) ? (trim($value) ?: null) : $value, $validator->validated());
@@ -81,9 +81,9 @@ class SectionsController extends Controller
 
         $image = $request->file('image');
         if ($image instanceof UploadedFile) {
-            $ext = $this->extension($image, self::IMAGE_TYPES);
+            $ext = MediaLibrary::extension($image, self::IMAGE_TYPES);
             if (! $ext || $image->getSize() > 8 * 1024 * 1024) {
-                return response()->json(['error' => 'La imagen debe ser JPG, PNG o WEBP de hasta 8 MB.'], 422);
+                return $this->fail('La imagen debe ser JPG, PNG o WEBP de hasta 8 MB.');
             }
             $data['image_path'] = MediaLibrary::storePublic($image, 'eventos', $ext);
             MediaLibrary::deletePublic($existing?->image_path);
@@ -94,7 +94,7 @@ class SectionsController extends Controller
 
         $existing ? $existing->update($data) : ChurchEvent::query()->create($data);
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $existing ? 'Evento actualizado.' : 'Evento publicado.']);
+        return $this->saved($existing ? 'Evento actualizado.' : 'Evento publicado.');
     }
 
     public function deleteEvent(Request $request): JsonResponse
@@ -105,7 +105,7 @@ class SectionsController extends Controller
             $event->delete();
         }
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Evento eliminado.']);
+        return $this->saved('Evento eliminado.');
     }
 
     public function recursos(): Response
@@ -120,7 +120,7 @@ class SectionsController extends Controller
     {
         $existing = $this->find(Teaching::class, $request->input('id'));
         if ($request->filled('id') && ! $existing) {
-            return response()->json(['error' => 'Ese recurso ya no existe. Recarga la página.'], 404);
+            return $this->fail('Ese recurso ya no existe. Recarga la página.', 404);
         }
 
         $validator = Validator::make($request->all(), [
@@ -137,7 +137,7 @@ class SectionsController extends Controller
             'youtube' => 'video',
         ]);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
 
         $data = $validator->validated();
@@ -145,7 +145,7 @@ class SectionsController extends Controller
         unset($data['youtube']);
         $data['youtube_id'] = $video === '' ? null : YouTube::id($video);
         if ($video !== '' && ! $data['youtube_id']) {
-            return response()->json(['error' => 'No reconocemos ese enlace de YouTube. Pega el enlace del video o su ID.'], 422);
+            return $this->fail('No reconocemos ese enlace de YouTube. Pega el enlace del video o su ID.');
         }
         $data['title'] = trim($data['title']);
         $data['summary'] = trim((string) ($data['summary'] ?? '')) ?: null;
@@ -153,21 +153,21 @@ class SectionsController extends Controller
 
         $file = $request->file('file');
         if ($file instanceof UploadedFile) {
-            $ext = $this->teachingExtension($file);
+            $ext = MediaLibrary::extension($file, self::TEACHING_TYPES);
             if (! $ext || $file->getSize() > 25 * 1024 * 1024) {
-                return response()->json(['error' => 'El archivo debe ser PDF, Word, PowerPoint o una imagen de hasta 25 MB.'], 422);
+                return $this->fail('El archivo debe ser PDF, Word, PowerPoint o una imagen de hasta 25 MB.');
             }
             $data['file_path'] = MediaLibrary::storePublic($file, 'recursos/'.substr($data['teaching_date'], 0, 4), $ext);
             MediaLibrary::deletePublic($existing?->file_path);
         }
 
         if (empty($data['file_path'] ?? $existing?->file_path) && ! $data['youtube_id']) {
-            return response()->json(['error' => 'Adjunta el archivo de la enseñanza o pega el enlace del video.'], 422);
+            return $this->fail('Adjunta el archivo de la enseñanza o pega el enlace del video.');
         }
 
         $existing ? $existing->update($data) : Teaching::query()->create($data);
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $existing ? 'Recurso actualizado.' : 'Recurso publicado.']);
+        return $this->saved($existing ? 'Recurso actualizado.' : 'Recurso publicado.');
     }
 
     public function deleteTeaching(Request $request): JsonResponse
@@ -178,7 +178,7 @@ class SectionsController extends Controller
             $teaching->delete();
         }
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Recurso eliminado.']);
+        return $this->saved('Recurso eliminado.');
     }
 
     public function areas(): Response
@@ -195,7 +195,7 @@ class SectionsController extends Controller
     {
         $existing = $this->find(ServeArea::class, $request->input('id'));
         if ($request->filled('id') && ! $existing) {
-            return response()->json(['error' => 'Esa área ya no existe. Recarga la página.'], 404);
+            return $this->fail('Esa área ya no existe. Recarga la página.', 404);
         }
 
         $validator = Validator::make($request->all(), [
@@ -218,16 +218,16 @@ class SectionsController extends Controller
             'cta_url' => 'enlace del botón',
         ]);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
 
         $data = array_map(fn ($value) => is_string($value) ? (trim($value) ?: null) : $value, $validator->validated());
         $slug = Str::limit(Str::slug($data['slug'] ?? $data['name']), 80, '');
         if ($slug === '') {
-            return response()->json(['error' => 'La dirección web solo puede tener letras, números y guiones.'], 422);
+            return $this->fail('La dirección web solo puede tener letras, números y guiones.');
         }
         if (ServeArea::query()->where('slug', $slug)->when($existing, fn ($query) => $query->whereKeyNot($existing->id))->exists()) {
-            return response()->json(['error' => "Ya existe otra área con la dirección «{$slug}»."], 422);
+            return $this->fail("Ya existe otra área con la dirección «{$slug}».");
         }
         $teams = collect(preg_split('/\r?\n|,/', (string) ($data['teams'] ?? '')))
             ->map(fn ($team) => Str::limit(trim($team), 80, ''))
@@ -243,9 +243,9 @@ class SectionsController extends Controller
 
         $image = $request->file('image');
         if ($image instanceof UploadedFile) {
-            $ext = $this->extension($image, self::IMAGE_TYPES);
+            $ext = MediaLibrary::extension($image, self::IMAGE_TYPES);
             if (! $ext || $image->getSize() > 8 * 1024 * 1024) {
-                return response()->json(['error' => 'La foto debe ser JPG, PNG o WEBP de hasta 8 MB.'], 422);
+                return $this->fail('La foto debe ser JPG, PNG o WEBP de hasta 8 MB.');
             }
             $payload['image_path'] = MediaLibrary::storePublic($image, 'involucrate', $ext);
             MediaLibrary::deletePublic($existing?->image_path);
@@ -256,7 +256,7 @@ class SectionsController extends Controller
             : ServeArea::query()->create([...$payload, 'sort_order' => (int) ServeArea::query()->max('sort_order') + 1]);
         LoadPublicSite::flush();
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $existing ? 'Área actualizada.' : 'Área creada.']);
+        return $this->saved($existing ? 'Área actualizada.' : 'Área creada.');
     }
 
     public function moveArea(Request $request): JsonResponse
@@ -272,7 +272,7 @@ class SectionsController extends Controller
             LoadPublicSite::flush();
         }
 
-        return response()->json(['ok' => true, 'reload' => true]);
+        return $this->saved();
     }
 
     public function deleteArea(Request $request): JsonResponse
@@ -284,7 +284,7 @@ class SectionsController extends Controller
             LoadPublicSite::flush();
         }
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Área eliminada.']);
+        return $this->saved('Área eliminada.');
     }
 
     public function secciones(): Response
@@ -293,36 +293,5 @@ class SectionsController extends Controller
             'settings' => LoadPublicSite::settings(),
             'mediaOverrides' => LoadPublicSite::mediaOverrides(),
         ]);
-    }
-
-    /**
-     * @template T of \Illuminate\Database\Eloquent\Model
-     *
-     * @param  class-string<T>  $model
-     * @return T|null
-     */
-    private function find(string $model, mixed $id)
-    {
-        return is_string($id) && preg_match('/^[0-9a-f-]{36}$/i', $id) ? $model::query()->find($id) : null;
-    }
-
-    private function extension(UploadedFile $file, array $allowed): ?string
-    {
-        $ext = $file->isValid() ? strtolower((string) $file->guessExtension()) : '';
-
-        return in_array($ext, $allowed, true) ? $ext : null;
-    }
-
-    private function teachingExtension(UploadedFile $file): ?string
-    {
-        if (! $file->isValid()) {
-            return null;
-        }
-        $guessed = strtolower((string) $file->guessExtension());
-        $client = strtolower($file->getClientOriginalExtension());
-        $office = in_array($guessed, ['', 'zip', 'bin'], true) && in_array($client, ['doc', 'docx', 'ppt', 'pptx'], true);
-        $ext = $office ? $client : $guessed;
-
-        return in_array($ext, self::TEACHING_TYPES, true) ? $ext : null;
     }
 }

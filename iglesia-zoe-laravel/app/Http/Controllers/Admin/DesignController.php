@@ -12,7 +12,6 @@ use App\Models\ServiceGallery;
 use App\Models\SiteSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -42,7 +41,7 @@ class DesignController extends Controller
     {
         $input = json_decode((string) $request->input('design', '{}'), true);
         if (! is_array($input)) {
-            return response()->json(['error' => 'No se pudo leer el diseño.'], 422);
+            return $this->fail('No se pudo leer el diseño.');
         }
         $before = NormalizeDesign::files($this->published());
         $design = NormalizeDesign::run($input);
@@ -60,21 +59,21 @@ class DesignController extends Controller
         LoadPublicSite::flush();
         $this->forget($files);
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Se restauró el diseño original.']);
+        return $this->saved('Se restauró el diseño original.');
     }
 
     /** Uploads a picture, GIF or video for a page or band background; it shows on the site once the design is published. */
     public function upload(Request $request): JsonResponse
     {
         $file = $request->file('file');
-        $extension = $file instanceof UploadedFile && $file->isValid() ? strtolower((string) $file->guessExtension()) : '';
+        $extension = MediaLibrary::extension($file, [...NormalizeDesign::IMAGES, ...NormalizeDesign::VIDEOS]);
         $kind = in_array($extension, NormalizeDesign::IMAGES, true) ? 'image' : (in_array($extension, NormalizeDesign::VIDEOS, true) ? 'video' : null);
         if (! $kind) {
-            return response()->json(['error' => 'Sube una imagen (JPG, PNG, WebP, GIF o AVIF) o un video (MP4, WebM o MOV).'], 422);
+            return $this->fail('Sube una imagen (JPG, PNG, WebP, GIF o AVIF) o un video (MP4, WebM o MOV).');
         }
         $limit = $kind === 'video' ? 60 : 12;
         if ($file->getSize() > $limit * 1024 * 1024) {
-            return response()->json(['error' => ($kind === 'video' ? 'El video' : 'La imagen').' pesa más de '.$limit.' MB.'], 422);
+            return $this->fail(($kind === 'video' ? 'El video' : 'La imagen').' pesa más de '.$limit.' MB.');
         }
 
         return response()->json(['ok' => true, 'kind' => $kind, 'src' => MediaLibrary::storePublic($file, self::FOLDER, $extension)]);

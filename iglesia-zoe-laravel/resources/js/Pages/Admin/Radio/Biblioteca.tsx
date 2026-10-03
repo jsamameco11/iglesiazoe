@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { KindTag, RadioHeader, readDuration } from "@/Components/radio/admin-ui";
 import { Notice, Stat, button, ghost, input, useAction } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { send, type ActionResult } from "@/lib/actions";
+import { csrf, send, type ActionResult } from "@/lib/actions";
 import { duration, longDuration, type RadioTrack } from "@/lib/radio";
 import "../../../../css/radio.css";
 
@@ -28,10 +28,6 @@ const ACCEPT = ".mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.webm,.flac,audio/*";
 
 /** Spoken audio lowers the music by default when it plays on top of it. */
 const duckFor = (kind: Kind) => kind === "anuncio" || kind === "programa";
-
-function csrf() {
-  return document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
-}
 
 function upload(data: FormData, onProgress: (value: number) => void) {
   return new Promise<ActionResult>((resolve) => {

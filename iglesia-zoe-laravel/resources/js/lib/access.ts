@@ -7,6 +7,7 @@ export type Permission =
   | "reports.all"
   | "offerings.weekly"
   | "cells.own"
+  | "servers.network"
   | "servers.create"
   | "servers.children"
   | "cells.manage"
@@ -30,6 +31,9 @@ export type Permission =
   | "inbox.baptisms"
   | "inbox.prayers"
   | "inbox.serve";
+
+/** Any of these opens the Servidores page (mirrors Permissions::SERVER_TREE). */
+export const SERVER_TREE: Permission[] = ["servers.network", "servers.create", "servers.children", "cells.own"];
 
 export type AdminType = "red" | "visuales" | "celula" | "atmosfera" | "voluntarios" | "temas" | "estudios";
 

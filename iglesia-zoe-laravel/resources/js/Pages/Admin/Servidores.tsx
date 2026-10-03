@@ -7,9 +7,9 @@ import { LevelBadge, ServerCard } from "@/Components/admin/servers/server-card";
 import { ServerForm } from "@/Components/admin/servers/server-form";
 import type { OwnCell, ServerNetwork } from "@/Components/admin/servers/types";
 
-type Props = { networks: ServerNetwork[]; canAssignLeaders: boolean; leadsNetwork: boolean; ownCell: OwnCell | null };
+type Props = { networks: ServerNetwork[]; leaderLimit: number; leadsNetwork: boolean; ownCell: OwnCell | null };
 
-export default function Servidores({ networks, canAssignLeaders, leadsNetwork, ownCell }: Props) {
+export default function Servidores({ networks, leaderLimit, leadsNetwork, ownCell }: Props) {
   const [networkId, setNetworkId] = useState(networks[0]?.id ?? "");
   const network = networks.find((item) => item.id === networkId) ?? networks[0];
 
@@ -21,7 +21,7 @@ export default function Servidores({ networks, canAssignLeaders, leadsNetwork, o
           title={leadsNetwork ? "Servidores" : "Mis servidores hijo"}
           text={
             leadsNetwork
-              ? "Cada red tiene su Servidor de Red. Debajo de él están los servidores, y cada servidor tiene sus servidores hijo. Al crear a alguien puedes darle su cuenta para que suba sus informes."
+              ? `Cada red tiene su Servidor de Red (${leaderLimit} como máximo). Debajo de él están los servidores, y cada servidor tiene sus servidores hijo. Al crear a alguien puedes darle su cuenta para que suba sus informes.`
               : "Tu célula y los servidores hijo a tu cargo. Añade un servidor hijo desde tu tarjeta y, si quieres, dale su cuenta para que suba sus informes."
           }
           aside={<Hierarchy />}
@@ -43,7 +43,7 @@ export default function Servidores({ networks, canAssignLeaders, leadsNetwork, o
           </div>
         )}
         {network ? (
-          <NetworkView key={network.id} network={network} canAssignLeaders={canAssignLeaders} />
+          <NetworkView key={network.id} network={network} leaderLimit={leaderLimit} />
         ) : (
           <p className="mt-8 rounded-2xl border border-dashed border-line px-5 py-10 text-center text-sm text-muted">Todavía no tienes servidores a tu cargo.</p>
         )}
@@ -52,11 +52,11 @@ export default function Servidores({ networks, canAssignLeaders, leadsNetwork, o
   );
 }
 
-function NetworkView({ network, canAssignLeaders }: { network: ServerNetwork; canAssignLeaders: boolean }) {
+function NetworkView({ network, leaderLimit }: { network: ServerNetwork; leaderLimit: number }) {
   return (
     <div className={`mt-6 grid gap-6 ${network.can_open ? "xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]" : "max-w-4xl"}`}>
       <div className="space-y-6">
-        <NetworkLeaders network={network} canAssign={canAssignLeaders} />
+        <NetworkLeaders network={network} limit={leaderLimit} />
         <Panel
           title={`Servidores de la Red ${network.code}`}
           text={`${network.totals.servers} ${network.totals.servers === 1 ? "servidor" : "servidores"} · ${network.totals.children} ${network.totals.children === 1 ? "servidor hijo" : "servidores hijo"}`}

@@ -52,7 +52,7 @@ final class ServerTree
 
         return [
             'networks' => $networks->map(fn (Network $network) => $this->network($network, $leaders->get($network->id, collect())))->values(),
-            'canAssignLeaders' => Permissions::isSuperadmin($this->scope->user),
+            'leaderLimit' => NetworkLeaders::MAX,
             'leadsNetwork' => $this->scope->leadsNetwork(),
             'ownCell' => $this->ownCell(),
         ];
@@ -95,6 +95,7 @@ final class ServerTree
             'code' => $network->code,
             'name' => $network->name,
             'leaders' => $leaders->values(),
+            'can_manage_leaders' => Permissions::has($this->scope->user, 'servers.network') && $this->scope->managesNetwork($network->id),
             'can_open' => $canOpen,
             'next_code' => $canOpen ? CellCodes::root($network->code, OpenServer::nextNumber($network, null)) : null,
             'servers' => $servers,
@@ -139,17 +140,14 @@ final class ServerTree
 
     private function networkLeaders(array $networkIds): Collection
     {
-        return User::query()
-            ->whereIn('network_id', $networkIds ?: [CellScope::NONE])
-            ->orderBy('name')
-            ->get(['id', 'name', 'username', 'network_id', 'admin_types', 'active'])
-            ->filter(fn (User $user) => in_array('red', Permissions::cleanTypes($user->admin_types ?? []), true))
+        return NetworkLeaders::of($networkIds)
             ->map(fn (User $user) => [
                 'id' => (string) $user->id,
                 'name' => $user->name,
                 'username' => $user->username,
                 'network_id' => $user->network_id,
                 'active' => $user->active !== false,
+                'me' => $user->is($this->scope->user),
             ])
             ->groupBy('network_id');
     }
