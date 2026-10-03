@@ -65,8 +65,14 @@ export type LiveSource = "consola" | "externo";
 /** A cut of the automatic music: from `start` until `end` (null until the operator returns). */
 export type LiveWindow = { start: number; end: number | null; auto: boolean; bed: boolean; slot: string | null; title: string };
 
-/** The automatic music of the gaps. */
-export type Autopilot = { playlist: string | null; shuffle: boolean; label: string; since: number; paused: boolean };
+/** Level of the fallback chain that sounds: the chosen list, every list, or every song of the library. */
+export type AutopilotLevel = "playlist" | "lists" | "library" | "none";
+
+/** The automatic music of the gaps; `broken` counts audios off the air because their file failed the checks. */
+export type Autopilot = { playlist: string | null; shuffle: boolean; label: string; since: number; paused: boolean; level?: AutopilotLevel; broken?: number };
+
+/** A healthy song the listener's player falls back on when a file fails or the server stops answering. */
+export type RadioReserveSong = { id: string; title: string; artist: string | null; src: string; ms: number };
 
 export type RadioPlaylist = { id: string; name: string; description: string | null; count: number; seconds: number; tracks?: string[] };
 
@@ -83,6 +89,7 @@ export type RadioState = {
   stream: string | null;
   previous: RadioItem | null;
   queue: RadioItem[];
+  fallback?: RadioReserveSong[];
   layers: RadioLayer[];
   next_show: { title: string; kind: RadioKind; start: number } | null;
   live: RadioLive;
@@ -103,6 +110,8 @@ export type RadioTrack = {
   duck: boolean;
   active: boolean;
   upcoming?: number;
+  /** Why the file is off the air (missing, empty or unplayable), or null when it is healthy. */
+  problem?: string | null;
   /** Episodes of /radio that play this audio (library only). */
   episodes?: number;
 };

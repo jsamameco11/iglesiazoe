@@ -416,6 +416,14 @@ function TrackRow({
           ) : null}
           {track.duck ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">Baja la música</span> : null}
           {!track.active ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">Desactivado</span> : null}
+          {track.problem ? (
+            <span
+              className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-semibold text-red-800"
+              title="La radio lo dejó de usar y siguió con otra canción. Vuelve a subir el archivo para que regrese al aire."
+            >
+              {track.problem === "unplayable" ? "No se pudo reproducir" : "Archivo dañado o perdido"}
+            </span>
+          ) : null}
           {track.episodes ? (
             <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-800">Episodio publicado</span>
           ) : canEpisodes ? (

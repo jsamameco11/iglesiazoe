@@ -43,6 +43,7 @@ Route::middleware('throttle:radio')->prefix('radio')->group(function () {
     Route::post('/voz', [RadioController::class, 'voice']);
     Route::post('/voz/respuesta', [RadioController::class, 'answer']);
     Route::post('/salir', [RadioController::class, 'leave']);
+    Route::post('/fallo', [RadioController::class, 'failed']);
 });
 Route::prefix('juegos')->group(function () {
     Route::get('/', [GamesController::class, 'index'])->name('games');

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { SourcePicker, sourceLabel } from "@/Components/radio/source-picker";
+import { FallbackNotice, SourcePicker, sourceLabel } from "@/Components/radio/source-picker";
 import { clock, type RadioBlock, type RadioPlaylist } from "@/lib/radio";
 import type { ConsoleApi } from "./use-console";
 
@@ -100,6 +100,9 @@ export function SwitchPanel({ api, day, playlists }: { api: ConsoleApi; day: Rad
             {cut ? "Al volver del vivo sigue" : "Sigue en automático"} · <span className="normal-case tracking-normal text-white/80">{changed ? chosen : current}</span>
           </p>
           <SourcePicker studio playlists={playlists} playlist={playlist} shuffle={shuffle} onPlaylist={setPlaylist} onShuffle={setShuffle} />
+          <div className="mt-1.5 empty:hidden">
+            <FallbackNotice studio autopilot={autopilot} />
+          </div>
         </div>
         {cut ? null : (
           <button type="button" disabled={busy || !changed} onClick={() => act(() => api.switchSource(playlist, shuffle))} className="cx-btn !py-2" data-tone="blue" title="Se aplica cuando termine la canción que suena">

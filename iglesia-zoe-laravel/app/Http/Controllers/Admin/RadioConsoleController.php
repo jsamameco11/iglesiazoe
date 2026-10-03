@@ -168,11 +168,15 @@ class RadioConsoleController extends RadioController
             $track->update(['rotation' => false]);
             $lists = DB::table('radio_playlist_track')->where('radio_track_id', $track->id)->delete();
             Station::flush();
-            $left = count(Autopilot::songs(null, 0));
+            $level = Autopilot::resolve(null, true, 0)['level'];
 
             return response()->json(['ok' => true, ...$this->snapshot(), 'message' => "«{$track->title}» salió de la música automática"
                 .($lists ? ' (y de '.($lists === 1 ? 'su lista' : "sus {$lists} listas").')' : '').' y no se repetirá.'
-                .($left ? '' : ' La música automática quedó vacía: los espacios libres estarán en silencio.')]);
+                .match ($level) {
+                    Autopilot::LIBRARY => ' Tus listas quedaron vacías: mientras tanto suenan canciones de la biblioteca en aleatorio.',
+                    Autopilot::NONE => ' La música automática quedó vacía: los espacios libres estarán en silencio.',
+                    default => '',
+                }]);
         }
 
         return $this->fail('Acción desconocida.');

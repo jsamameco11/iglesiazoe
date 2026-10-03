@@ -1,4 +1,4 @@
-import type { RadioItem, RadioLayer, RadioMix } from "./types";
+import type { RadioItem, RadioLayer, RadioMix, RadioReserveSong } from "./types";
 import { currentItem } from "./queue";
 import type { ServerClock } from "./client";
 
@@ -27,13 +27,34 @@ function silence() {
   return silentUrl;
 }
 
+function absolute(src: string) {
+  return new URL(src, window.location.href).href;
+}
+
 /** Plays a silent clip inside a click so iOS lets the element play later on its own. */
 export function unlock(element: HTMLAudioElement) {
   element.src = silence();
   return element.play().then(() => element.pause()).catch(() => undefined);
 }
 
-type Deck = { el: HTMLAudioElement; gain: GainNode; item: RadioItem | null; ready: boolean; fadingUntil: number };
+/**
+ * A player of the program. Its watchdog: `errored` (the file failed to load or decode),
+ * `progressAt` (last time the audio moved, to catch loads and streams that hang), `retries`
+ * of the same file, and `covering` when a reserve song sounds in place of a failed one.
+ */
+type Deck = {
+  el: HTMLAudioElement;
+  gain: GainNode;
+  item: RadioItem | null;
+  ready: boolean;
+  fadingUntil: number;
+  errored: boolean;
+  progressAt: number;
+  lastTime: number;
+  retries: number;
+  covering: boolean;
+  covers: number;
+};
 
 type Voice = { layer: RadioLayer; el: HTMLAudioElement; gain: GainNode; source: MediaElementAudioSourceNode; started: boolean; done: boolean };
 
@@ -44,11 +65,28 @@ const LATE_EFFECT = 6000;
 
 const PRELOAD = 25000;
 
+/** A file that has not started sounding after this long is failing. */
+const LOAD_TIMEOUT = 15000;
+
+/** Audio that should be playing but has not moved for this long is stuck. */
+const STALL_TIMEOUT = 10000;
+
+/** A file that ends this long before its time on the program was shorter than the library says. */
+const EARLY_END = 3000;
+
+/** Failed reserve songs tolerated for one item before giving up on it. */
+const MAX_COVERS = 4;
+
 /**
  * The program as every listener hears it: two decks that follow the server timeline
  * (crossfading songs that overlap), a music bus driven by the console faders, and the
  * layers bus where pads, players and overlay blocks sound at the same time, lowering
  * the music while a layer that asks for it plays.
+ *
+ * The program never goes silent because of a file: a deck that fails (load error, a load or
+ * playback that hangs, a file shorter than announced) tries the same file once more, then
+ * reports it and covers the rest of its time with a reserve song from the server. When the
+ * server stops answering and the queue runs out, the reserve songs keep the music going.
  */
 export class ProgramPlayer {
   ctx: AudioContext | null = null;
@@ -57,6 +95,8 @@ export class ProgramPlayer {
   onItem?: (item: RadioItem | null) => void;
   onBlocked?: () => void;
   onLayers?: (playing: string[]) => void;
+  /** A library audio failed after its retry: the station checks it. */
+  onFailure?: (item: RadioItem) => void;
 
   private master: GainNode | null = null;
   private musicBus: GainNode | null = null;
@@ -74,6 +114,10 @@ export class ProgramPlayer {
   private timer = 0;
   private lastItem: string | null = null;
   private lastPlaying = "";
+  private reserve: RadioReserveSong[] = [];
+  private reserveTurn = 0;
+  private badSources = new Set<string>();
+  private reported = new Set<string>();
 
   constructor(clock: ServerClock) {
     this.clock = clock;
@@ -108,7 +152,11 @@ export class ProgramPlayer {
         gain.gain.value = 0;
         ctx.createMediaElementSource(el).connect(gain);
         gain.connect(this.musicBus!);
-        return { el, gain, item: null, ready: false, fadingUntil: 0 };
+        const deck: Deck = { el, gain, item: null, ready: false, fadingUntil: 0, errored: false, progressAt: 0, lastTime: -1, retries: 0, covering: false, covers: 0 };
+        el.addEventListener("error", () => {
+          if (deck.item && el.error && el.error.code !== el.error.MEDIA_ERR_ABORTED) deck.errored = true;
+        });
+        return deck;
       });
     }
     await this.ctx.resume();
@@ -138,6 +186,11 @@ export class ProgramPlayer {
   setQueue(queue: RadioItem[]) {
     this.queue = queue;
     if (this.running) this.tick();
+  }
+
+  /** Healthy songs from the server to cover failures; an empty list means silence is intended. */
+  setReserve(songs: RadioReserveSong[]) {
+    this.reserve = songs;
   }
 
   setMix(mix: RadioMix) {
@@ -194,7 +247,7 @@ export class ProgramPlayer {
     if (!this.ctx) return;
     const now = this.clock.now();
     this.syncLayers(now);
-    const item = currentItem(this.queue, now);
+    const item = currentItem(this.queue, now) ?? this.stranded(now);
     if ((item?.id ?? null) !== this.lastItem) {
       this.lastItem = item?.id ?? null;
       this.onItem?.(item);
@@ -209,10 +262,14 @@ export class ProgramPlayer {
     }
 
     if (playing && playing.item?.id === item.id) {
-      const expected = (now - item.origin) / 1000;
       const el = playing.el;
-      if (el.readyState >= 2 && !el.seeking && Math.abs(el.currentTime - expected) > 1.5) el.currentTime = Math.max(0, expected);
-      if (el.paused && el.readyState >= 2) void el.play().catch(() => this.onBlocked?.());
+      if (this.failing(playing, item, now)) {
+        this.recover(playing, item, now);
+      } else if (!playing.covering) {
+        const expected = (now - item.origin) / 1000;
+        if (el.readyState >= 2 && !el.seeking && Math.abs(el.currentTime - expected) > 1.5) el.currentTime = Math.max(0, expected);
+      }
+      if (el.paused && el.readyState >= 2 && !el.ended) this.play(el);
       this.preload(now);
       return;
     }
@@ -233,8 +290,130 @@ export class ProgramPlayer {
   private load(deck: Deck, item: RadioItem) {
     deck.item = item;
     deck.ready = false;
+    deck.retries = 0;
+    deck.covering = false;
+    deck.covers = 0;
+    this.watchFrom(deck);
     deck.el.src = item.src!;
     deck.el.load();
+  }
+
+  /** Only the browser blocking autoplay asks the listener to tap play; a broken file is the watchdog's job. */
+  private play(el: HTMLAudioElement) {
+    void el.play().catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === "NotAllowedError") this.onBlocked?.();
+    });
+  }
+
+  private watchFrom(deck: Deck) {
+    deck.errored = false;
+    deck.progressAt = performance.now();
+    deck.lastTime = -1;
+  }
+
+  /**
+   * Whether the deck on air is failing its item: the file errored, it has not sounded or has
+   * stopped moving for too long while it should play, or it ended well before its time.
+   * Pauses that are not the file's fault (autoplay blocked, the audio context suspended by
+   * the system) only restart the watch.
+   */
+  private failing(deck: Deck, item: RadioItem, now: number) {
+    const el = deck.el;
+    const at = performance.now();
+    if (deck.covers > MAX_COVERS) return false;
+    if (deck.errored) return true;
+    if (el.ended) return item.end - now > EARLY_END;
+    if (this.ctx?.state !== "running" || (el.paused && el.readyState >= 2)) {
+      deck.progressAt = at;
+      return false;
+    }
+    if (el.currentTime !== deck.lastTime) {
+      if (deck.lastTime >= 0 || el.readyState >= 2) deck.progressAt = at;
+      deck.lastTime = el.currentTime;
+      return false;
+    }
+    return at - deck.progressAt > (el.readyState >= 2 ? STALL_TIMEOUT : LOAD_TIMEOUT);
+  }
+
+  /** The same file once more; then the station is told and a reserve song covers the rest of the item. */
+  private recover(deck: Deck, item: RadioItem, now: number) {
+    const ended = deck.el.ended && !deck.errored;
+    if (!deck.covering && !ended && deck.retries < 1) {
+      deck.retries += 1;
+      this.watchFrom(deck);
+      deck.el.load();
+      this.begin(deck, item, 0.6);
+      return;
+    }
+    if (!deck.covering && !ended && item.track && !this.reported.has(item.track)) {
+      this.reported.add(item.track);
+      this.onFailure?.(item);
+    }
+    const failed = deck.covering ? deck.el.currentSrc : item.src;
+    if (!ended && failed) this.badSources.add(absolute(failed));
+    if (!ended) deck.covers += 1;
+    const song = deck.covers <= MAX_COVERS ? this.nextReserve(item.src) : null;
+    if (!song) {
+      deck.covers = MAX_COVERS + 1;
+      deck.errored = false;
+      deck.gain.gain.setTargetAtTime(0, this.ctx!.currentTime, 0.15);
+      return;
+    }
+    deck.covering = true;
+    this.watchFrom(deck);
+    deck.el.src = song.src;
+    deck.el.load();
+    const ctx = this.ctx!;
+    const start = () => {
+      if (deck.item?.id !== item.id || !deck.covering) return;
+      deck.el.currentTime = 0;
+      deck.gain.gain.cancelScheduledValues(ctx.currentTime);
+      deck.gain.gain.setValueAtTime(0, ctx.currentTime);
+      deck.gain.gain.linearRampToValueAtTime(this.gainFor(item), ctx.currentTime + Math.min(1.5, Math.max(0.3, (item.end - now) / 4000)));
+      this.play(deck.el);
+    };
+    if (deck.el.readyState >= 1) start();
+    else deck.el.addEventListener("loadedmetadata", start, { once: true });
+  }
+
+  /** The next reserve song that has not failed here, in turns, never the file being replaced. */
+  private nextReserve(avoid: string | null) {
+    const count = this.reserve.length;
+    for (let step = 0; step < count; step += 1) {
+      const song = this.reserve[(this.reserveTurn + step) % count];
+      if (song.src !== avoid && !this.badSources.has(absolute(song.src))) {
+        this.reserveTurn = (this.reserveTurn + step + 1) % count;
+        return song;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * When the queue ran out (the server stopped answering) and music is expected, the reserve
+   * songs keep it going, one after another, until the server's program arrives again.
+   */
+  private stranded(now: number): RadioItem | null {
+    if (!this.reserve.length || this.queue.some((item) => item.end > now)) return null;
+    const song = this.nextReserve(null);
+    if (!song) return null;
+    const item: RadioItem = {
+      id: `reserva-${song.id}-${now}`,
+      kind: "musica",
+      title: song.title,
+      artist: song.artist,
+      src: song.src,
+      start: now,
+      end: now + song.ms,
+      origin: now,
+      seek: 0,
+      bed: false,
+      block: null,
+      slot: null,
+      track: song.id,
+    };
+    this.queue = [item];
+    return item;
   }
 
   private begin(deck: Deck, item: RadioItem, fade: number) {
@@ -245,7 +424,7 @@ export class ProgramPlayer {
       deck.gain.gain.cancelScheduledValues(ctx.currentTime);
       deck.gain.gain.setValueAtTime(0, ctx.currentTime);
       deck.gain.gain.linearRampToValueAtTime(this.gainFor(item), ctx.currentTime + fade);
-      void deck.el.play().catch(() => this.onBlocked?.());
+      this.play(deck.el);
     };
     if (deck.el.readyState >= 1) start();
     else deck.el.addEventListener("loadedmetadata", start, { once: true });
