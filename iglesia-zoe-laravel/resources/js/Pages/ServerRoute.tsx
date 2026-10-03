@@ -11,6 +11,7 @@ import { talkUrlOf } from "@/lib/social";
 import { classLine, plural, scheduleLabel, type StudyLevel } from "@/lib/studies";
 import type { SiteSettings } from "@/lib/types";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 const FEATURES = [
   { title: "Tus notas", text: "Cada tarea y examen, con tu promedio al día." },
@@ -32,6 +33,7 @@ export default function ServerRoute({
   skin: "aire" | "marea";
   studyLevels: StudyLevel[];
 }) {
+  const pages = useSitePages();
   const media = resolveMedia(mediaOverrides);
   const t = (key: CopyKey) => readCopy(settings, key);
   const firstClass = studyLevels.find((level) => level.schedule.day)?.schedule ?? studyLevels[0]?.schedule;
@@ -41,13 +43,13 @@ export default function ServerRoute({
       <article>
         <div className="page-wrap flush-bottom">
           <Rise>
-            <PageIntro skin={skin} kicker={t("route.kicker")} title={settings.routeTitle} media={<PageBand asset={media.routeCover} />}>
+            <PageIntro skin={skin} kicker={pages.kicker("route")} title={settings.routeTitle} media={<PageBand asset={media.routeCover} />}>
               <p className="mt-5 max-w-xl text-lg font-light leading-8 text-muted">{settings.routeText}</p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <span className="rounded-full bg-amber px-4 py-2 text-sm font-semibold text-ink">{plural(studyLevels.length, "nivel", "niveles")}</span>
                 {firstClass ? <span className="rounded-full border border-ink/12 px-4 py-2 text-sm font-medium text-ink">{classLine(firstClass)}</span> : null}
                 <Link href="/estudios/acceso" className="btn-accent rounded-full px-5 py-2 text-sm font-semibold">
-                  {t("nav.studentAccess")} →
+                  {pages.name("classroom")} →
                 </Link>
                 <a href="#niveles" className="home-link">
                   {t("route.levelsTitle")} ↓
@@ -60,7 +62,7 @@ export default function ServerRoute({
         <section {...section("levels", "Niveles")} id="niveles" className="scroll-mt-24 px-6 py-24 md:px-16 md:py-32">
           <div className="section-wrap">
             <Rise className="max-w-2xl">
-              <p className="kicker">{t("route.levelsKicker")}</p>
+              <p className="kicker">{pages.section("route", "levels")}</p>
               <LeadTitle as="h2" text={t("route.levelsTitle")} className="mt-4 text-4xl leading-[1.05] md:text-6xl" />
             </Rise>
             <ol className="route-track mt-16">
@@ -95,7 +97,7 @@ export default function ServerRoute({
         <section {...section("classroom", "Aula virtual")} id="aula" className="route-access scroll-mt-24 px-6 py-24 md:px-16 md:py-28">
           <div className="section-wrap grid items-center gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-20">
             <Rise>
-              <p className="kicker">{t("route.accessKicker")}</p>
+              <p className="kicker">{pages.section("route", "access")}</p>
               <h2 className="editorial mt-4 text-4xl leading-[1.05] text-white md:text-5xl">{t("route.accessTitle")}</h2>
               <p className="mt-4 max-w-lg text-base font-light leading-7 text-white/70">{t("route.accessText")}</p>
               <ul className="route-access-list mt-9">

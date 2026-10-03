@@ -10,6 +10,7 @@ import { eventBadge, eventDateLabel } from "@/lib/events";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { ChurchEvent, SiteSettings } from "@/lib/types";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 export default function Events({
   events,
@@ -22,6 +23,7 @@ export default function Events({
   mediaOverrides: Record<string, MediaAsset>;
   skin: "aire" | "marea";
 }) {
+  const pages = useSitePages();
   const media = resolveMedia(mediaOverrides);
   const t = (key: CopyKey) => readCopy(settings, key);
   const [index, setIndex] = useState(0);
@@ -42,7 +44,7 @@ export default function Events({
     <SiteLayout>
       <article className="page-wrap">
         <Rise>
-          <PageIntro skin={skin} kicker={t("events.kicker")} title={settings.eventsTitle}>
+          <PageIntro skin={skin} kicker={pages.kicker("events")} title={settings.eventsTitle}>
             <p className="mt-5 max-w-xl text-lg font-light leading-8 text-muted">{settings.eventsText}</p>
           </PageIntro>
         </Rise>

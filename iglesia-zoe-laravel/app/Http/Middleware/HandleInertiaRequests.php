@@ -33,6 +33,7 @@ class HandleInertiaRequests extends Middleware
             'skin' => $skin,
             'settings' => LoadPublicSite::settings(),
             'ministries' => LoadPublicSite::ministries(),
+            'sitePages' => LoadPublicSite::pages(),
             'design' => [...$design, 'fontHref' => NormalizeDesign::fontHref($design)],
             'siteVersion' => SiteVersion::current(),
             'auth' => [

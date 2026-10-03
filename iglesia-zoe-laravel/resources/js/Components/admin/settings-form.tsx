@@ -37,17 +37,16 @@ function ContentFields({ settings }: { settings: SiteSettings }) {
   return (
     <>
       <p className="rounded-xl border border-line bg-white px-4 py-3 text-sm leading-6 text-muted">
-        Etiquetas pequeñas, botones, menú, pie de página y textos de formularios se editan en{" "}
+        Los nombres de las páginas y de sus secciones (menú, pie y etiquetas) se editan en{" "}
+        <a href="/admin/paginas" className="font-semibold text-ink underline-offset-4 hover:underline">Páginas y secciones →</a>
+        {" "}Botones y textos de formularios, en{" "}
         <a href="/admin/textos" className="font-semibold text-ink underline-offset-4 hover:underline">Textos por página →</a>
       </p>
 
       <Block title="Inicio" note="Lo primero que se lee al abrir la web.">
         <Field name="heroTitle" label="Portada · titular" defaultValue={settings.heroTitle} />
         <Field name="heroSubtitle" label="Portada · subtítulo" defaultValue={settings.heroSubtitle} area />
-        <div className="grid gap-4 md:grid-cols-2">
-          <Field name="visitCta" label="Botón de visita" defaultValue={settings.visitCta} hint="Se usa en la portada, el menú y el pie." />
-          <Field name="baptismCta" label="Botón de bautismo" defaultValue={settings.baptismCta} />
-        </div>
+        <Field name="baptismCta" label="Botón de bautismo" defaultValue={settings.baptismCta} />
         <Field name="essenceTitle" label="Nuestra esencia · título" defaultValue={settings.essenceTitle} />
         <Field name="essenceText" label="Nuestra esencia · texto" defaultValue={settings.essenceText} area hint="Deja una línea en blanco para separar párrafos." />
         <Field name="cellsTitle" label="La vida en casas · título" defaultValue={settings.cellsTitle} />
@@ -90,7 +89,6 @@ function ContentFields({ settings }: { settings: SiteSettings }) {
       </Block>
 
       <Block title="Conócenos">
-        <Field name="aboutKicker" label="Etiqueta" defaultValue={settings.aboutKicker} />
         <Field name="aboutTitle" label="Título" defaultValue={settings.aboutTitle} />
         <Field name="aboutQuote" label="Cita" defaultValue={settings.aboutQuote} area />
         <Field name="aboutText" label="Texto de los pastores" defaultValue={settings.aboutText} area />

@@ -6,12 +6,13 @@ use App\Domain\Site\Design\NormalizeDesign;
 use App\Domain\Site\Support\SiteVersion;
 use App\Models\Ministry;
 use App\Models\ServeArea;
+use App\Models\SitePage;
 use App\Models\SiteSetting;
 use Illuminate\Support\Facades\Cache;
 
 class LoadPublicSite
 {
-    private const KEYS = ['zoe.site.settings', 'zoe.site.ministries', 'zoe.site.serve', 'zoe.site.media', 'zoe.site.design', 'zoe.site.notice'];
+    private const KEYS = ['zoe.site.settings', 'zoe.site.ministries', 'zoe.site.serve', 'zoe.site.media', 'zoe.site.design', 'zoe.site.notice', 'zoe.site.pages'];
 
     public const LIST_SETTINGS = ['values', 'prayerTopics', 'routeLevels'];
 
@@ -46,6 +47,36 @@ class LoadPublicSite
             }
 
             return Ministry::query()->where('active', true)->orderBy('sort_order')->get()->toArray();
+        });
+    }
+
+    /**
+     * Every public page in menu order with the names stored in the admin, falling back to the
+     * catalog default for a page or section the database does not have yet.
+     *
+     * @return list<array{key: string, parent: ?string, path: string, name: string, note: string, kicker: string, sections: list<array{key: string, name: string}>}>
+     */
+    public static function pages(): array
+    {
+        return Cache::rememberForever('zoe.site.pages', function () {
+            $stored = SitePage::query()->with('sections')->get()->keyBy('key');
+
+            return collect(config('zoe.pages'))->map(function (array $page) use ($stored) {
+                $row = $stored->get($page['key']);
+                $sectionNames = $row?->sections->pluck('name', 'key') ?? collect();
+
+                return [
+                    'key' => $page['key'],
+                    'parent' => $page['parent'] ?? null,
+                    'path' => $page['path'],
+                    'name' => $row?->name ?? $page['name'],
+                    'note' => $row?->note ?? ($page['note'] ?? ''),
+                    'kicker' => $row?->kicker ?? ($page['kicker'] ?? ''),
+                    'sections' => collect($page['sections'] ?? [])
+                        ->map(fn (array $section) => ['key' => $section['key'], 'name' => $sectionNames->get($section['key']) ?? $section['name']])
+                        ->all(),
+                ];
+            })->values()->all();
         });
     }
 

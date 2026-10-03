@@ -14,8 +14,9 @@ export default function Textos({ settings }: { settings: SiteSettings }) {
     <AdminLayout>
       <h1 className="display text-4xl">Textos por página</h1>
       <p className="mt-2 max-w-2xl leading-7 text-muted">
-        Etiquetas, botones, menú, pie de página y textos de formularios. Si borras un campo, vuelve al texto original. Los títulos principales de cada página
-        se editan en <a href="/admin/contenido" className="font-semibold text-ink underline-offset-4 hover:underline">Textos principales</a>.
+        Botones, avisos y textos de formularios. Si borras un campo, vuelve al texto original. Los nombres de las páginas y de sus secciones se editan en{" "}
+        <a href="/admin/paginas" className="font-semibold text-ink underline-offset-4 hover:underline">Páginas y secciones</a>, y los títulos principales en{" "}
+        <a href="/admin/contenido" className="font-semibold text-ink underline-offset-4 hover:underline">Textos principales</a>.
       </p>
       <nav className="mt-6 flex flex-wrap gap-2 text-sm">
         {copyGroups.map((group) => (

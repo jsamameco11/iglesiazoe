@@ -3,10 +3,11 @@ import { Link, usePage } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import { AccessButton } from "@/Components/site/skin-switch";
 import { useCopy } from "@/lib/copy";
+import { useSitePages, type PageLink } from "@/lib/site-pages";
 import { useSocial } from "@/lib/social";
 import type { Ministry, ServeArea } from "@/lib/types";
 
-type NavLink = { href: string; label: string; note: string };
+type NavLink = PageLink;
 
 function LiveButton({ ghost, className = "live-pill" }: { ghost?: boolean; className?: string }) {
   const { live } = useSocial();
@@ -20,11 +21,11 @@ function LiveButton({ ghost, className = "live-pill" }: { ghost?: boolean; class
 }
 
 function RadioPill({ ghost }: { ghost?: boolean }) {
-  const t = useCopy();
+  const pages = useSitePages();
   return (
-    <Link href="/radio" tabIndex={ghost ? -1 : undefined} className="radio-pill hidden sm:inline-flex">
+    <Link href={pages.path("radio")} tabIndex={ghost ? -1 : undefined} className="radio-pill hidden sm:inline-flex">
       <span className="nav-radio-dot" aria-hidden />
-      {t("nav.radio")}
+      {pages.name("radio")}
     </Link>
   );
 }
@@ -34,42 +35,26 @@ function useServeAreas() {
 }
 
 function useNavLinks() {
-  const t = useCopy();
-  const serve: NavLink[] = [
-    { href: "/involucrate", label: t("nav.serve"), note: t("nav.areasNote") },
-    { href: "/involucrate#registro", label: t("nav.register"), note: t("nav.registerNote") },
-    { href: "/bautismos", label: t("nav.baptism"), note: t("nav.baptismNote") },
-  ];
-  const studies: NavLink[] = [
-    { href: "/ruta-del-servidor", label: t("nav.route"), note: t("nav.routeNote") },
-    { href: "/estudios/acceso", label: t("nav.studentAccess"), note: t("nav.studentAccessNote") },
-  ];
-  const resources: NavLink[] = [
-    { href: "/galeria", label: t("nav.gallery"), note: t("nav.galleryNote") },
-    { href: "/devocionales", label: t("nav.devotionals"), note: t("nav.devotionalsNote") },
-    { href: "/predicas", label: t("nav.sermons"), note: t("nav.sermonsNote") },
-    { href: "/recursos", label: t("nav.teachings"), note: t("nav.teachingsNote") },
-  ];
-  const mobile: NavLink[] = [
-    { href: "/conocenos", label: t("nav.about"), note: t("nav.aboutNote") },
-    { href: "/ministerios", label: t("nav.ministries"), note: t("nav.ministriesNote") },
+  const pages = useSitePages();
+  const serve = [pages.link("serve"), ...pages.children("serve")];
+  const studies = pages.children("studies");
+  const resources = pages.children("resources");
+  const mobile = [
+    pages.link("about"),
+    pages.link("ministries"),
     ...serve,
     ...studies,
-    { href: "/eventos", label: t("nav.events"), note: t("nav.eventsNote") },
+    pages.link("events"),
     ...resources,
-    { href: "/radio", label: t("nav.radio"), note: t("nav.radioNote") },
-    { href: "/contacto", label: t("nav.prayer"), note: t("nav.prayerNote") },
-    { href: "/dar", label: t("nav.give"), note: t("nav.giveNote") },
+    pages.link("radio"),
+    pages.link("contact"),
+    pages.link("give"),
   ];
   return { serve, studies, resources, mobile };
 }
 
 type MegaItem = { href: string; title: string; note: string | null };
 type PillLink = { href: string; label: string };
-
-const PILL_LABELS: Record<string, string> = {
-  "/ministerios/redes-de-discipulado": "Grupos Celulares",
-};
 
 function usePillDrops() {
   return (usePage().props as unknown as { skin?: string }).skin === "marea";
@@ -87,7 +72,7 @@ function PillDrop({ links, onClose }: { links: PillLink[]; onClose: () => void }
           className="pill-drop-item"
           style={{ "--i": index } as React.CSSProperties}
         >
-          <span className="truncate">{PILL_LABELS[link.href] ?? link.label}</span>
+          <span className="truncate">{link.label}</span>
         </Link>
       ))}
     </div>
@@ -146,7 +131,7 @@ function MegaDrop({
             </div>
             <div className="grid grid-cols-2 gap-px bg-black/5">
               {items.map((item, index) => (
-                <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="bg-card px-6 py-4 transition hover:bg-sage">
+                <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className="nav-drop-item bg-card px-6 py-4">
                   <p className="text-[10.5px] tracking-[0.18em] text-muted">{String(index + 1).padStart(2, "0")}</p>
                   <p className="mt-1.5 text-[1.15rem] font-medium tracking-[-0.03em]">{item.title}</p>
                   {item.note ? <p className="mt-0.5 text-[13px] text-muted">{item.note}</p> : null}
@@ -162,7 +147,7 @@ function MegaDrop({
                     href={link.href}
                     onClick={() => setOpen(false)}
                     onBlur={index === footer.length - 1 ? () => setOpen(false) : undefined}
-                    className={index === 0 ? "rounded-full bg-accent px-4 py-2 text-[13px] font-semibold text-white" : "rounded-full px-3 py-2 text-[13px] font-medium transition hover:bg-sage"}
+                    className={index === 0 ? "rounded-full bg-accent px-4 py-2 text-[13px] font-semibold text-white" : "nav-drop-item rounded-full px-3 py-2 text-[13px] font-medium"}
                   >
                     {link.label}
                   </Link>
@@ -195,7 +180,7 @@ function NavDrop({ label, href, links, ghost, active }: { label: string; href: s
         <div className="absolute left-1/2 top-full w-[300px] -translate-x-1/2 pt-4 text-ink">
           <div className="nav-drop overflow-hidden rounded-[1.25rem] border border-black/5 bg-card p-2 shadow-[0_24px_60px_rgba(23,24,28,0.14)]">
             {links.map((link) => (
-              <Link key={link.href} href={link.href} onBlur={() => setOpen(false)} className="block rounded-[0.9rem] px-4 py-3 transition hover:bg-sage">
+              <Link key={link.href} href={link.href} onBlur={() => setOpen(false)} className="nav-drop-item block rounded-[0.9rem] px-4 py-3">
                 <span className="block text-[15px] font-medium tracking-[-0.02em]">{link.label}</span>
                 <span className="mt-0.5 block text-[12.5px] text-muted">{link.note}</span>
               </Link>
@@ -214,7 +199,6 @@ function HeaderBar({
   ghost,
   menuOpen,
   onToggleMenu,
-  visitCta,
   pathname,
 }: {
   ministries: Ministry[];
@@ -223,15 +207,18 @@ function HeaderBar({
   ghost?: boolean;
   menuOpen: boolean;
   onToggleMenu?: () => void;
-  visitCta: string;
   pathname: string;
 }) {
   const t = useCopy();
+  const pages = useSitePages();
   const areas = useServeAreas().filter((area) => area.accepts_volunteers);
   const { serve, studies, resources } = useNavLinks();
   const here = (prefix: string) => pathname === prefix || pathname.startsWith(prefix + "/");
   const current = (prefix: string) => (here(prefix) ? "nav-current" : "");
   const ghostTab = ghost ? -1 : undefined;
+  const plain = (key: "about" | "events" | "contact" | "give") => (
+    <Link href={pages.path(key)} className={`transition hover:opacity-60 ${current(pages.path(key))}`} tabIndex={ghostTab}>{pages.name(key)}</Link>
+  );
 
   return (
     <div className="flex h-[72px] items-center justify-between gap-3 px-5 sm:gap-6 md:px-10">
@@ -239,10 +226,10 @@ function HeaderBar({
         {t("nav.brand")}
       </Link>
       <nav className="site-nav hidden items-center gap-[1.15rem] text-current xl:flex 2xl:gap-6">
-        <Link href="/conocenos" className={`transition hover:opacity-60 ${current("/conocenos")}`} tabIndex={ghostTab}>{t("nav.about")}</Link>
+        {plain("about")}
         <MegaDrop
-          label={t("nav.ministries")}
-          href="/ministerios"
+          label={pages.name("ministries")}
+          href={pages.path("ministries")}
           kicker={t("nav.dropKicker")}
           title={t("nav.dropTitle")}
           all={t("nav.dropAll")}
@@ -252,8 +239,8 @@ function HeaderBar({
         />
         {areas.length ? (
           <MegaDrop
-            label={t("nav.serve")}
-            href="/involucrate"
+            label={pages.name("serve")}
+            href={pages.path("serve")}
             kicker={t("nav.serveDropKicker")}
             title={t("nav.serveDropTitle")}
             all={t("nav.dropAll")}
@@ -263,23 +250,23 @@ function HeaderBar({
             active={serve.some((link) => here(link.href))}
           />
         ) : (
-          <NavDrop label={t("nav.serve")} href="/involucrate" links={serve} ghost={ghost} active={serve.some((link) => here(link.href))} />
+          <NavDrop label={pages.name("serve")} href={pages.path("serve")} links={serve} ghost={ghost} active={serve.some((link) => here(link.href))} />
         )}
-        <NavDrop label={t("nav.studies")} href="/ruta-del-servidor" links={studies} ghost={ghost} active={studies.some((link) => here(link.href))} />
-        <Link href="/eventos" className={`transition hover:opacity-60 ${current("/eventos")}`} tabIndex={ghostTab}>{t("nav.events")}</Link>
-        <NavDrop label={t("nav.resources")} href="/galeria" links={resources} ghost={ghost} active={resources.some((link) => here(link.href))} />
-        <Link href="/radio" className={`nav-radio transition hover:opacity-60 ${current("/radio")}`} tabIndex={ghostTab}>
+        <NavDrop label={pages.name("studies")} href={pages.path("studies")} links={studies} ghost={ghost} active={studies.some((link) => here(link.href))} />
+        {plain("events")}
+        <NavDrop label={pages.name("resources")} href={pages.path("resources")} links={resources} ghost={ghost} active={resources.some((link) => here(link.href))} />
+        <Link href={pages.path("radio")} className={`nav-radio transition hover:opacity-60 ${current(pages.path("radio"))}`} tabIndex={ghostTab}>
           <span className="nav-radio-dot" aria-hidden />
-          {t("nav.radio")}
+          {pages.name("radio")}
         </Link>
-        <Link href="/contacto" className={`transition hover:opacity-60 ${current("/contacto")}`} tabIndex={ghostTab}>{t("nav.prayer")}</Link>
-        <Link href="/dar" className={`transition hover:opacity-60 ${current("/dar")}`} tabIndex={ghostTab}>{t("nav.give")}</Link>
+        {plain("contact")}
+        {plain("give")}
       </nav>
       <div className="hidden items-center gap-4 xl:flex">
         <LiveButton ghost={ghost} />
         <AccessButton ghost={ghost} invert={lightCta} />
-        <Link href="/visita" tabIndex={ghostTab} className="rounded-full bg-accent px-4 py-2 text-[14px] font-semibold text-white">
-          {visitCta}
+        <Link href={pages.path("visit")} tabIndex={ghostTab} className="rounded-full bg-accent px-4 py-2 text-[14px] font-semibold text-white">
+          {pages.name("visit")}
         </Link>
       </div>
       <div className="flex items-center gap-2 sm:gap-3 xl:hidden">
@@ -305,8 +292,9 @@ function HeaderBar({
   );
 }
 
-function MobileMenu({ home, visitCta, pathname, onClose }: { home: string; visitCta: string; pathname: string; onClose: () => void }) {
+function MobileMenu({ home, pathname, onClose }: { home: string; pathname: string; onClose: () => void }) {
   const t = useCopy();
+  const pages = useSitePages();
   const { mobile } = useNavLinks();
   return (
     <>
@@ -335,12 +323,12 @@ function MobileMenu({ home, visitCta, pathname, onClose }: { home: string; visit
             <p className="menu-foot-kicker">{t("nav.menuKicker")}</p>
             <p className="menu-foot-title">{t("nav.menuTitle")}</p>
           </div>
-          <Link href="/visita" onClick={onClose} className="btn-accent shrink-0 rounded-full px-4 py-2.5 text-[13px] font-semibold">
-            {visitCta}
+          <Link href={pages.path("visit")} onClick={onClose} className="btn-accent shrink-0 rounded-full px-4 py-2.5 text-[13px] font-semibold">
+            {pages.name("visit")}
           </Link>
         </div>
         <div className="menu-links">
-          <Link href={home} onClick={onClose}>{t("nav.home")}</Link>
+          <Link href={home} onClick={onClose}>{pages.name("home")}</Link>
           <Link href="/acceso" onClick={onClose}>{t("nav.access")} →</Link>
         </div>
       </div>
@@ -352,13 +340,11 @@ export function Header({
   ministries,
   home = "/",
   overMedia = false,
-  visitCta = "Planifica tu visita",
 }: {
   ministries: Ministry[];
   home?: string;
   other?: { href: string; label: string; invert?: boolean };
   overMedia?: boolean | "split" | "page";
-  visitCta?: string;
 }) {
   const pathname = usePage().url.split("?")[0];
   const [open, setOpen] = useState(false);
@@ -401,7 +387,6 @@ export function Header({
     home,
     menuOpen: open,
     onToggleMenu: () => setOpen((value) => !value),
-    visitCta,
     pathname,
   };
 
@@ -426,7 +411,7 @@ export function Header({
         </div>
       )}
 
-      {open && <MobileMenu home={home} visitCta={visitCta} pathname={pathname} onClose={() => setOpen(false)} />}
+      {open && <MobileMenu home={home} pathname={pathname} onClose={() => setOpen(false)} />}
     </header>
   );
 }

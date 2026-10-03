@@ -6,6 +6,7 @@ import { readCopy } from "@/lib/copy";
 import type { SermonSummary, SiteSettings } from "@/lib/types";
 import { formatSermonDate, youtubeId } from "@/lib/youtube";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 function SermonCard({ sermon }: { sermon: SermonSummary }) {
   const video = youtubeId(sermon.youtube_id);
@@ -32,11 +33,12 @@ function SermonCard({ sermon }: { sermon: SermonSummary }) {
 }
 
 export function ResourcesSection({ settings, sermons }: { settings: SiteSettings; sermons: SermonSummary[] }) {
+  const pages = useSitePages();
   return (
     <section {...section("resources", "Palabra para tu semana")} className="home-section home-ink">
       <Rise className="flex flex-wrap items-end justify-between gap-6">
         <div>
-          <SectionHead tone="light" kicker={readCopy(settings, "home.resourcesKicker")} title={settings.resourcesTitle} />
+          <SectionHead tone="light" kicker={pages.section("home", "resources")} title={settings.resourcesTitle} />
           <p className="mt-5 max-w-lg text-base font-light leading-7 text-white/70">{settings.resourcesText}</p>
         </div>
         <Link href="/predicas" className="home-link text-white">

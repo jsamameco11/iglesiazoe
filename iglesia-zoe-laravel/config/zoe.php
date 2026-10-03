@@ -74,10 +74,8 @@ return [
         'phone' => '(074) 252525',
         'whatsapp' => '',
         'email' => 'iglesiacristianazoe@gmail.com',
-        'visitCta' => 'Planifica tu visita',
         'baptismCta' => '¡Quiero bautizarme!',
         'footerTagline' => 'Una familia en Chiclayo, donde el amor de Dios se hace casa.',
-        'aboutKicker' => 'Conócenos',
         'aboutTitle' => 'Una iglesia local, una sola familia.',
         'aboutValuesTitle' => 'Lo que nos sostiene.',
         'aboutValuesText' => 'Estos valores no son un lema. Son la manera en que pastoreamos, nos reunimos y servimos a Chiclayo.',
@@ -159,7 +157,72 @@ return [
         ['slug' => 'zoe-kids', 'name' => 'Zoe Kids', 'age_range' => '6 meses a 11 años', 'summary' => 'Un espacio seguro, creativo y diseñado especialmente para que descubran el amor de Dios mientras juegan y aprenden.', 'body' => 'Un lugar divertido, seguro y lleno de vida donde los más pequeños aprenden la Palabra de Dios a través de juegos, dinámicas y enseñanzas adaptadas a su edad. ¡El mejor lugar para tus hijos los domingos!', 'sort_order' => 1, 'accent' => '#f3d7b0', 'active' => true],
         ['slug' => 'zoe-teens', 'name' => 'Zoe Teens / Red H', 'age_range' => '11 a 18 años', 'summary' => 'Un ambiente dinámico y de mentoría para navegar esta etapa con identidad, propósito y fe real.', 'body' => 'Un espacio creado especialmente para adolescentes en etapa escolar. Aquí pueden hacer amigos, resolver dudas reales sobre la fe y vivir su juventud con propósito.', 'sort_order' => 2, 'accent' => '#f6c7a1', 'active' => true],
         ['slug' => 'zoe-youth', 'name' => 'Zoe Youth / Red K', 'age_range' => '18 a 28 años', 'summary' => 'Un espacio fresco y vibrante para conectar con jóvenes que comparten tu misma sintonía.', 'body' => 'Jóvenes, universitarios y profesionales jóvenes reuniéndose para conectar, conversar sobre la vida real, adorar juntos y crecer en comunidad. ¡Este es tu lugar!', 'sort_order' => 3, 'accent' => '#efb184', 'active' => true],
-        ['slug' => 'redes-de-discipulado', 'name' => 'Redes de Discipulado', 'age_range' => 'Redes A a la L · Jóvenes adultos', 'summary' => 'Grupos de crecimiento diseñados para acompañarte en cada etapa de tu vida adulta.', 'body' => 'Comunidades de adultos y matrimonios organizadas en redes, de la A a la L, para edificarnos mutuamente y crecer en la fe en cada etapa de la vida adulta.', 'sort_order' => 4, 'accent' => '#e8c3a4', 'active' => true],
+        ['slug' => 'redes-de-discipulado', 'name' => 'Grupos Celulares', 'age_range' => 'Redes A a la L · Jóvenes adultos', 'summary' => 'Grupos de crecimiento diseñados para acompañarte en cada etapa de tu vida adulta.', 'body' => 'Comunidades de adultos y matrimonios organizadas en redes, de la A a la L, para edificarnos mutuamente y crecer en la fe en cada etapa de la vida adulta.', 'sort_order' => 4, 'accent' => '#e8c3a4', 'active' => true],
+    ],
+    /*
+     * Every public page and its titled sections. The structure (keys, paths,
+     * menu groups and order) belongs to the code; names, menu notes, page
+     * labels and section names are stored in site_pages / site_sections and
+     * edited in the admin under Páginas y secciones. A page under a group
+     * appears inside that group's dropdown in the menu.
+     */
+    'pages' => [
+        ['key' => 'home', 'path' => '/', 'name' => 'Inicio', 'sections' => [
+            ['key' => 'essence', 'name' => 'Por qué somos Zoe'],
+            ['key' => 'cells', 'name' => 'El latido celular'],
+            ['key' => 'generations', 'name' => 'Redes y ministerios'],
+            ['key' => 'events', 'name' => 'Próximos eventos'],
+            ['key' => 'resources', 'name' => 'Prédicas y recursos'],
+            ['key' => 'visit', 'name' => 'Planifica tu visita'],
+        ]],
+        ['key' => 'about', 'path' => '/conocenos', 'name' => 'Conócenos', 'note' => 'Historia y pastores', 'kicker' => 'Conócenos', 'sections' => [
+            ['key' => 'pastors', 'name' => 'Pastores'],
+            ['key' => 'history', 'name' => '01 · Casa'],
+            ['key' => 'vision', 'name' => 'Visión'],
+            ['key' => 'values', 'name' => '02 · Cómo vivimos'],
+            ['key' => 'first', 'name' => 'Bienvenida'],
+        ]],
+        ['key' => 'ministries', 'path' => '/ministerios', 'name' => 'Ministerios', 'note' => 'Cada generación', 'kicker' => 'Ministerios'],
+        ['key' => 'serve', 'path' => '/involucrate', 'name' => 'Involúcrate', 'note' => 'Sirve con tus dones', 'kicker' => 'Involúcrate', 'sections' => [
+            ['key' => 'why', 'name' => 'Servidores'],
+            ['key' => 'areas', 'name' => 'Áreas donde puedes servir'],
+            ['key' => 'teams', 'name' => 'Equipos'],
+            ['key' => 'form', 'name' => 'Regístrate'],
+            ['key' => 'also', 'name' => 'También en Zoe'],
+        ]],
+        ['key' => 'register', 'parent' => 'serve', 'path' => '/involucrate#registro', 'name' => 'Regístrate para servir', 'note' => 'Únete a un equipo'],
+        ['key' => 'baptism', 'parent' => 'serve', 'path' => '/bautismos', 'name' => 'Bautismo', 'note' => 'Tu nuevo comienzo', 'kicker' => 'Bautismos', 'sections' => [
+            ['key' => 'form', 'name' => 'Inscripción'],
+            ['key' => 'video', 'name' => 'Antes de inscribirte'],
+            ['key' => 'gallery', 'name' => 'Galería'],
+        ]],
+        ['key' => 'studies', 'path' => '/ruta-del-servidor', 'name' => 'Estudios'],
+        ['key' => 'route', 'parent' => 'studies', 'path' => '/ruta-del-servidor', 'name' => 'La Ruta del Servidor', 'note' => 'Cinco niveles para crecer', 'kicker' => 'Estudios', 'sections' => [
+            ['key' => 'levels', 'name' => 'Niveles'],
+            ['key' => 'access', 'name' => 'Aula virtual'],
+        ]],
+        ['key' => 'classroom', 'parent' => 'studies', 'path' => '/estudios/acceso', 'name' => 'Acceso de estudiantes', 'note' => 'Notas, horario, lecturas y avisos'],
+        ['key' => 'events', 'path' => '/eventos', 'name' => 'Eventos', 'note' => 'Lo que se viene', 'kicker' => 'Eventos'],
+        ['key' => 'resources', 'path' => '/galeria', 'name' => 'Recursos'],
+        ['key' => 'gallery', 'parent' => 'resources', 'path' => '/galeria', 'name' => 'Galería de cultos', 'note' => 'Fotos de cada servicio', 'kicker' => 'Recursos · Galería'],
+        ['key' => 'devotionals', 'parent' => 'resources', 'path' => '/devocionales', 'name' => 'Devocionales', 'note' => 'Palabra para cada día', 'kicker' => 'Recursos · Devocionales'],
+        ['key' => 'sermons', 'parent' => 'resources', 'path' => '/predicas', 'name' => 'Prédicas', 'note' => 'Mensajes y series', 'kicker' => 'Prédicas'],
+        ['key' => 'teachings', 'parent' => 'resources', 'path' => '/recursos', 'name' => 'Enseñanzas', 'note' => 'Prédica y grupos', 'kicker' => 'Recursos', 'sections' => [
+            ['key' => 'more', 'name' => 'Más recursos'],
+        ]],
+        ['key' => 'radio', 'path' => '/radio', 'name' => 'Radio', 'note' => 'En vivo, las 24 horas'],
+        ['key' => 'contact', 'path' => '/contacto', 'name' => 'Oración', 'note' => 'Estamos contigo', 'kicker' => 'Oración', 'sections' => [
+            ['key' => 'prayer', 'name' => 'Oramos contigo'],
+            ['key' => 'form', 'name' => 'Escríbenos'],
+            ['key' => 'visit', 'name' => '¿Quieres conocernos en persona?'],
+        ]],
+        ['key' => 'give', 'path' => '/dar', 'name' => 'Dar', 'note' => 'Generosidad', 'kicker' => 'Generosidad', 'sections' => [
+            ['key' => 'ways', 'name' => 'Formas de dar'],
+        ]],
+        ['key' => 'visit', 'path' => '/visita', 'name' => 'Planifica tu visita', 'kicker' => 'Primera vez', 'sections' => [
+            ['key' => 'form', 'name' => 'Bienvenida'],
+            ['key' => 'contact', 'name' => 'Visítanos'],
+        ]],
     ],
     /** Áreas de servicio created on first install; from then on they are managed in the admin (Involúcrate · áreas). */
     'serve_areas' => [

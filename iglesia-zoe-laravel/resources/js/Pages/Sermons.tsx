@@ -8,6 +8,7 @@ import { formatSermonDate, youtubeId } from "@/lib/youtube";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { SermonSummary, SiteSettings } from "@/lib/types";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 export default function Sermons({
   settings,
@@ -20,6 +21,7 @@ export default function Sermons({
   mediaOverrides: Record<string, MediaAsset>;
   skin: "aire" | "marea";
 }) {
+  const pages = useSitePages();
   const media = resolveMedia(mediaOverrides);
   const t = (key: CopyKey) => readCopy(settings, key);
   const fallbackSeries = t("sermons.defaultSeries");
@@ -34,7 +36,7 @@ export default function Sermons({
         <Rise>
           <PageIntro
             skin={skin}
-            kicker={t("sermons.kicker")}
+            kicker={pages.kicker("sermons")}
             title={settings.sermonsTitle}
           />
         </Rise>

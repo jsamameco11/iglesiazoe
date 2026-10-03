@@ -9,6 +9,7 @@ import { resolveMedia, type MediaAsset } from "@/lib/media";
 import { talkUrlOf } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 function CopyRow({ label, value, mono = true }: { label: string; value: string; mono?: boolean }) {
   const [copied, setCopied] = useState(false);
@@ -43,6 +44,7 @@ export default function Give({
   settings: SiteSettings;
   mediaOverrides: Record<string, MediaAsset>;
 }) {
+  const pages = useSitePages();
   const media = resolveMedia(mediaOverrides);
   const t = (key: CopyKey) => readCopy(settings, key);
   const verse = readPairs(settings, "give.verse")[0];
@@ -73,11 +75,11 @@ export default function Give({
       <article className="page-wrap">
         <header {...section("intro", "Portada")} className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
           <Rise>
-            <p className="kicker">{t("give.kicker")}</p>
+            <p className="kicker">{pages.kicker("give")}</p>
             <LeadTitle text={settings.giveTitle} className="mt-4 text-5xl md:text-7xl" />
             <p className="ital mt-5 max-w-xl text-2xl text-muted">{settings.giveLead}</p>
             {settings.giveBody ? <p className="mt-4 max-w-md text-base font-light leading-7">{settings.giveBody}</p> : null}
-            <nav className="give-chips mt-8" aria-label={t("give.waysKicker")}>
+            <nav className="give-chips mt-8" aria-label={pages.section("give", "ways")}>
               {chips.map((chip) => (
                 <a key={chip.href} href={chip.href} className="give-chip">
                   <i aria-hidden />
@@ -99,7 +101,7 @@ export default function Give({
 
         <section {...section("ways", "Formas de dar")} className="mt-24 md:mt-28">
           <Rise>
-            <p className="kicker">{t("give.waysKicker")}</p>
+            <p className="kicker">{pages.section("give", "ways")}</p>
           </Rise>
           <div className={`mt-8 grid gap-5 md:grid-cols-2 ${hasYape && hasAbroad ? "lg:grid-cols-3" : ""}`}>
             <div id="transferencia" className="bank-card scroll-mt-28">

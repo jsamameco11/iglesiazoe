@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties } from "react";
+import { useSitePages } from "@/lib/site-pages";
 import type { StudyLevel, StudyVerse } from "@/lib/studies";
 import type { RouteStep, Grade, Summary } from "./types";
 import { useStored } from "./hooks";
@@ -136,10 +137,11 @@ export function GradesCard({ grades, summary, level }: { grades: Grade[]; summar
 }
 
 export function RouteCard({ route }: { route: RouteStep[] }) {
+  const pages = useSitePages();
   return (
     <div className="aula-card">
       <p className="aula-kicker text-ink/50">Mi ruta</p>
-      <h2 className="mt-1 text-xl font-semibold tracking-[-0.02em]">La Ruta del Servidor</h2>
+      <h2 className="mt-1 text-xl font-semibold tracking-[-0.02em]">{pages.name("route")}</h2>
       <ol className="aula-route mt-5">
         {route.map((step, index) => (
           <li key={step.id} data-state={step.state}>

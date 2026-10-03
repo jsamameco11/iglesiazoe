@@ -10,6 +10,7 @@ import type { SiteSettings, Teaching, TeachingKind } from "@/lib/types";
 import { fold } from "@/lib/text";
 import { formatSermonDate } from "@/lib/youtube";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 type Filter = "all" | TeachingKind;
 
@@ -53,6 +54,7 @@ export default function Teachings({
   mediaOverrides: Record<string, MediaAsset>;
   skin: "aire" | "marea";
 }) {
+  const pages = useSitePages();
   const media = resolveMedia(mediaOverrides);
   const t = (key: CopyKey) => readCopy(settings, key);
   const [filter, setFilter] = useState<Filter>("all");
@@ -79,7 +81,7 @@ export default function Teachings({
     <SiteLayout>
       <article className="page-wrap">
         <Rise>
-          <PageIntro skin={skin} kicker={t("teachings.kicker")} title={settings.teachingsTitle} media={<PageBand asset={media.teachings} />}>
+          <PageIntro skin={skin} kicker={pages.kicker("teachings")} title={settings.teachingsTitle} media={<PageBand asset={media.teachings} />}>
             <p className="mt-5 max-w-xl text-lg font-light leading-8 text-muted">{settings.teachingsText}</p>
             <Link href="/predicas" className="home-link mt-8">
               {t("teachings.sermons")} →
@@ -88,12 +90,12 @@ export default function Teachings({
         </Rise>
 
         <Rise {...section("more", "Más recursos")} className="mt-16">
-          <p className="kicker">{t("teachings.more")}</p>
+          <p className="kicker">{pages.section("teachings", "more")}</p>
           <div className="mt-5 grid gap-4 md:grid-cols-3">
             {[
-              { href: "/galeria", label: t("nav.gallery"), note: t("nav.galleryNote") },
-              { href: "/devocionales", label: t("nav.devotionals"), note: t("nav.devotionalsNote") },
-              { href: "/predicas", label: t("nav.sermons"), note: t("nav.sermonsNote") },
+              { href: "/galeria", label: pages.name("gallery"), note: pages.note("gallery") },
+              { href: "/devocionales", label: pages.name("devotionals"), note: pages.note("devotionals") },
+              { href: "/predicas", label: pages.name("sermons"), note: pages.note("sermons") },
             ].map((link, index) => (
               <Link key={link.href} href={link.href} className="resource-link group">
                 <span className="resource-link-num">{String(index + 1).padStart(2, "0")}</span>

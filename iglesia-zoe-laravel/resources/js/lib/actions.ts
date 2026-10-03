@@ -85,6 +85,12 @@ export async function saveTexts(formData: FormData): Promise<ActionResult> {
   return postJson("/admin/textos", formData);
 }
 
+export async function saveSitePage(formData: FormData): Promise<ActionResult> {
+  const data = await postJson("/admin/paginas", formData);
+  if (data?.ok) router.reload();
+  return data;
+}
+
 export async function saveChurchEvent(formData: FormData): Promise<ActionResult> {
   return postJson("/admin/eventos", formData);
 }

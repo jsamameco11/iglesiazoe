@@ -35,6 +35,7 @@ const groups: { title: string; items: Item[] }[] = [
       { href: "/admin/indicaciones", label: "Indicaciones de la semana", needs: ["notices.manage"] },
       { href: "/admin/diseno", label: "Diseño", needs: ["design.manage"] },
       { href: "/admin/medios", label: "Imágenes y videos", needs: ["media.manage"] },
+      { href: "/admin/paginas", label: "Páginas y secciones", needs: ["content.manage"] },
       { href: "/admin/contenido", label: "Textos principales", needs: ["content.manage"] },
       { href: "/admin/textos", label: "Textos por página", needs: ["content.manage"] },
       { href: "/admin/ministerios", label: "Ministerios", needs: ["content.manage"] },

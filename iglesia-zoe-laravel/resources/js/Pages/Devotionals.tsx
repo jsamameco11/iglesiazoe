@@ -11,6 +11,7 @@ import type { Devotional, SiteSettings } from "@/lib/types";
 import { fold } from "@/lib/text";
 import { formatSermonDate } from "@/lib/youtube";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 export default function Devotionals({
   devotionals,
@@ -23,6 +24,7 @@ export default function Devotionals({
   mediaOverrides: Record<string, MediaAsset>;
   skin: "aire" | "marea";
 }) {
+  const pages = useSitePages();
   const media = resolveMedia(mediaOverrides);
   const t = (key: CopyKey) => readCopy(settings, key);
   const [query, setQuery] = useState("");
@@ -36,7 +38,7 @@ export default function Devotionals({
     <SiteLayout>
       <article className="page-wrap">
         <Rise>
-          <PageIntro skin={skin} kicker={t("devotionals.kicker")} title={t("devotionals.title")} media={<PageBand asset={media.devotionals} />}>
+          <PageIntro skin={skin} kicker={pages.kicker("devotionals")} title={t("devotionals.title")} media={<PageBand asset={media.devotionals} />}>
             <p className="mt-5 max-w-xl text-lg font-light leading-8 text-muted">{t("devotionals.text")}</p>
           </PageIntro>
         </Rise>

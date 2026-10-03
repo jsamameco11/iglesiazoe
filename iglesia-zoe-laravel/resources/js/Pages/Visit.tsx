@@ -12,6 +12,7 @@ import { useSocial } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
 import "../../css/oracion.css";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 export default function Visit({
   mediaOverrides,
@@ -22,6 +23,7 @@ export default function Visit({
   settings: SiteSettings;
   skin: "aire" | "marea";
 }) {
+  const pages = useSitePages();
   const media = resolveMedia(mediaOverrides);
   const t = useCopy();
   const social = useSocial();
@@ -35,7 +37,7 @@ export default function Visit({
     <SiteLayout>
       <article className="page-wrap pb-8">
         <Rise>
-          <PageIntro skin={skin} kicker={t("visit.kicker")} title={settings.visitTitle} media={<MediaView asset={media.visit} />}>
+          <PageIntro skin={skin} kicker={pages.kicker("visit")} title={settings.visitTitle} media={<MediaView asset={media.visit} />}>
             <p className="mt-6 max-w-md text-lg font-light leading-8 text-muted">{settings.visitText}</p>
           </PageIntro>
         </Rise>
@@ -43,13 +45,13 @@ export default function Visit({
         <div {...section("form", "Formulario y mapa")} className="mt-14 grid items-stretch gap-6 lg:grid-cols-2 lg:gap-8">
           <Rise>
             <div className="panel h-full p-7 md:p-10">
-              <p className="kicker">{t("visit.formKicker")}</p>
+              <p className="kicker">{pages.section("visit", "form")}</p>
               <LeadTitle as="h2" text={t("visit.formTitle")} className="mt-3 text-4xl md:text-5xl" />
               <p className="mt-4 max-w-md text-sm leading-6 text-muted">
                 {t("visit.formText")}
               </p>
               <div className="mt-8">
-                <VisitForm cta={settings.visitCta} sunday={settings.sunday} wednesday={settings.wednesday} />
+                <VisitForm cta={pages.name("visit")} sunday={settings.sunday} wednesday={settings.wednesday} />
               </div>
             </div>
           </Rise>
@@ -64,7 +66,7 @@ export default function Visit({
 
         <Rise>
           <div {...section("contact", "Contacto")} className="mt-20 text-center">
-            <p className="kicker">{t("visit.contactKicker")}</p>
+            <p className="kicker">{pages.section("visit", "contact")}</p>
             <LeadTitle text={t("visit.contactTitle")} className="mt-4 text-4xl md:text-6xl" />
           </div>
         </Rise>

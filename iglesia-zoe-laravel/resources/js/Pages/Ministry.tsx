@@ -3,9 +3,9 @@ import { Rise } from "@/Components/motion/rise";
 import { MinistryCarousel } from "@/Components/site/ministry-carousel";
 import { PageIntro } from "@/Components/site/page-intro";
 import SiteLayout from "@/Layouts/SiteLayout";
-import { readCopy } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { Ministry, SiteSettings } from "@/lib/types";
+import { useSitePages } from "@/lib/site-pages";
 
 export default function Ministry({
   ministry,
@@ -18,12 +18,13 @@ export default function Ministry({
   settings: SiteSettings;
   skin: "aire" | "marea";
 }) {
+  const pages = useSitePages();
   const media = resolveMedia(mediaOverrides);
   return (
     <SiteLayout>
       <article className="page-wrap">
         <Rise>
-          <Link href="/ministerios" className="text-sm text-muted transition hover:text-ink">{readCopy(settings, "ministries.back")}</Link>
+          <Link href="/ministerios" className="text-sm text-muted transition hover:text-ink">{pages.name("ministries")}</Link>
         </Rise>
         <div className="mt-10">
           <Rise>
@@ -35,7 +36,7 @@ export default function Ministry({
             >
               <p className="mt-8 max-w-xl text-lg font-light leading-8 text-muted">{ministry.body}</p>
               <Link href="/visita" className="mt-10 inline-block rounded-full bg-accent px-6 py-3 text-sm font-medium text-white">
-                {settings.visitCta}
+                {pages.name("visit")}
               </Link>
             </PageIntro>
           </Rise>

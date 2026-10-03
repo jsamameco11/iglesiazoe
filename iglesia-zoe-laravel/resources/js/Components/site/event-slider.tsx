@@ -5,6 +5,7 @@ import { useCopy } from "@/lib/copy";
 import { eventBadge, eventDateLabel } from "@/lib/events";
 import type { MediaAsset } from "@/lib/media";
 import type { ChurchEvent } from "@/lib/types";
+import { useSitePages } from "@/lib/site-pages";
 
 const INTERVAL = 7000;
 
@@ -55,6 +56,7 @@ export function EventSlider({
   index?: number;
   onIndex?: (index: number) => void;
 }) {
+  const pages = useSitePages();
   const t = useCopy();
   const [own, setOwn] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -105,7 +107,7 @@ export function EventSlider({
               <EventArt event={event} fallback={fallback} />
               <div className="event-info">
                 <p className="kicker">
-                  {i === 0 ? t("events.next") : t("events.kicker")}
+                  {i === 0 ? t("events.next") : pages.kicker("events")}
                   {total > 1 ? <span className="event-count"> · {String(i + 1).padStart(2, "0")} / {String(total).padStart(2, "0")}</span> : null}
                 </p>
                 <h3 className="event-title editorial">{event.title}</h3>

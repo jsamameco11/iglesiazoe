@@ -35,7 +35,6 @@ export type SiteSettings = {
   phone: string;
   whatsapp: string;
   email: string;
-  visitCta: string;
   baptismCta: string;
   essenceTitle: string;
   essenceText: string;
@@ -48,7 +47,6 @@ export type SiteSettings = {
   visitInviteTitle: string;
   visitInviteText: string;
   footerTagline: string;
-  aboutKicker: string;
   aboutTitle: string;
   aboutValuesTitle: string;
   aboutValuesText: string;

@@ -6,14 +6,16 @@ import { mapEmbedUrl } from "@/lib/contact";
 import { readCopy } from "@/lib/copy";
 import type { SiteSettings } from "@/lib/types";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 export function VisitSection({ settings }: { settings: SiteSettings }) {
+  const pages = useSitePages();
   const address = settings.address.trim();
   return (
     <section {...section("visit", "Planifica tu visita")} id="planifica" className="home-section home-sand scroll-mt-[72px]">
       <div className="home-split is-visit items-start">
         <Rise>
-          <SectionHead kicker={readCopy(settings, "home.visitKicker")} title={settings.visitInviteTitle} />
+          <SectionHead kicker={pages.section("home", "visit")} title={settings.visitInviteTitle} />
           <p className="mt-6 max-w-lg text-lg font-light leading-8 text-muted">{settings.visitInviteText}</p>
           <dl className="home-facts">
             <div>
@@ -46,7 +48,7 @@ export function VisitSection({ settings }: { settings: SiteSettings }) {
               <h3 className="text-2xl font-semibold tracking-[-0.02em]">{readCopy(settings, "home.visitFormTitle")}</h3>
               <p className="mt-2 text-sm leading-6 text-muted">{readCopy(settings, "home.visitFormText")}</p>
             </div>
-            <VisitForm cta={settings.visitCta} sunday={settings.sunday} wednesday={settings.wednesday} />
+            <VisitForm cta={pages.name("visit")} sunday={settings.sunday} wednesday={settings.wednesday} />
           </div>
         </Rise>
       </div>

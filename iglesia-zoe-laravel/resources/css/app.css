@@ -30,6 +30,7 @@
   --color-blush: var(--blush);
   --color-sky: var(--sky);
   --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
   --color-orange: var(--accent);
   --color-orange-deep: var(--clay-deep);
 }
@@ -52,6 +53,7 @@ html {
   --amber-deep: color-mix(in srgb, var(--accent) 58%, #8d5430);
   --clay: #ead8c9;
   --clay-deep: color-mix(in srgb, var(--accent) 42%, var(--ink));
+  --accent-soft: color-mix(in srgb, var(--accent) 15%, var(--card));
   --dusk: color-mix(in srgb, var(--ink) 8%, var(--sage));
   --dusk-deep: color-mix(in srgb, var(--ink) 22%, var(--dusk));
   --mist: var(--sage);
@@ -832,9 +834,22 @@ body {
 }
 .pill-drop-item:hover,
 .pill-drop-item:focus-visible {
-  background: color-mix(in srgb, var(--card) 96%, transparent);
-  color: var(--ink);
+  background: var(--accent-soft);
+  color: var(--clay-deep);
   outline: none;
+}
+.nav-drop-item {
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+.nav-drop-item:hover,
+.nav-drop-item:focus-visible {
+  background: var(--accent-soft);
+  color: var(--clay-deep);
+  outline: none;
+}
+.nav-drop-item:hover .text-muted,
+.nav-drop-item:focus-visible .text-muted {
+  color: color-mix(in srgb, var(--clay-deep) 75%, var(--card));
 }
 @keyframes pill-drop-in {
   from { opacity: 0; transform: translateY(-4px); }
