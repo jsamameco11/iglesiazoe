@@ -796,6 +796,47 @@ body {
 @keyframes nav-drop-in {
   from { opacity: 0; transform: translateY(-6px) scale(0.98); }
 }
+.pill-drop {
+  position: absolute;
+  top: 100%;
+  left: -1.1rem;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-top: 0.9rem;
+}
+.pill-drop-item {
+  display: flex;
+  align-items: center;
+  width: 14.5rem;
+  height: 2.75rem;
+  border-radius: 999px;
+  padding: 0 1.25rem;
+  font-size: 14.5px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--card) 58%, transparent);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  backdrop-filter: blur(18px) saturate(1.6);
+  box-shadow: 0 14px 30px -18px rgba(23, 24, 28, 0.45);
+  animation: pill-drop-in 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+  transition: background-color 0.22s ease, color 0.22s ease, border-color 0.22s ease, transform 0.22s ease;
+}
+.pill-drop-item:hover,
+.pill-drop-item:focus-visible {
+  background: color-mix(in srgb, var(--ink) 86%, transparent);
+  border-color: transparent;
+  color: var(--paper);
+  transform: translateX(4px);
+  outline: none;
+}
+@keyframes pill-drop-in {
+  from { opacity: 0; transform: translateY(-8px); }
+}
 
 .menu-toggle-lines {
   position: relative;
@@ -923,7 +964,7 @@ body {
   from { opacity: 0; transform: translateY(8px); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .menu-sheet, .menu-scrim, .menu-row, .menu-foot, .nav-drop { animation: none; }
+  .menu-sheet, .menu-scrim, .menu-row, .menu-foot, .nav-drop, .pill-drop-item { animation: none; }
 }
 
 .live-pill {

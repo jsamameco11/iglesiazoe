@@ -20,7 +20,6 @@ export default function Home({
   events,
   radio,
   mediaOverrides,
-  skin,
 }: {
   settings: SiteSettings;
   ministries: Ministry[];
@@ -29,13 +28,11 @@ export default function Home({
   events: ChurchEvent[];
   radio: RadioState;
   mediaOverrides: Record<string, MediaAsset>;
-  skin: "aire" | "marea";
 }) {
   const media = resolveMedia(mediaOverrides);
-  const split = skin === "marea";
   return (
-    <SiteLayout overMedia={split ? "split" : true}>
-      <HomeHero settings={settings} asset={media.hero} split={split} />
+    <SiteLayout overMedia>
+      <HomeHero settings={settings} asset={media.hero} />
       <EssenceSection settings={settings} />
       <CellsSection settings={settings} asset={media.homeCells} />
       <GenerationsSection settings={settings} ministries={ministries} media={media} />

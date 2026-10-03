@@ -36,7 +36,6 @@ export default function Sermons({
             skin={skin}
             kicker={t("sermons.kicker")}
             title={settings.sermonsTitle}
-            media={!liveId && skin === "marea" ? <MediaView asset={media.sermons} /> : undefined}
           />
         </Rise>
         <Rise {...section("live", "Transmisión")} delay={100}>
@@ -50,7 +49,7 @@ export default function Sermons({
                 allowFullScreen
               />
             </div>
-          ) : skin === "aire" ? (
+          ) : (
             <div className="shot relative mt-12 aspect-video">
               <div className="absolute inset-0">
                 <MediaView asset={media.sermons} fit="cover" />
@@ -62,8 +61,6 @@ export default function Sermons({
                 </div>
               </div>
             </div>
-          ) : (
-            <p className="mt-10 max-w-xl text-lg font-light leading-8 text-muted">{settings.sermonsEmpty}</p>
           )}
         </Rise>
         <Rise {...section("library", "Biblioteca de mensajes")}>
