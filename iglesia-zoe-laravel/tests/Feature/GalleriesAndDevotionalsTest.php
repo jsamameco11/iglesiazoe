@@ -169,6 +169,41 @@ class GalleriesAndDevotionalsTest extends TestCase
         $this->assertNull($devotional->fresh());
     }
 
+    public function test_a_devotional_writer_publishes_and_readers_share_its_square_picture(): void
+    {
+        $this->clearDefaults();
+        $writer = $this->user('escritor', ['devotionals.manage']);
+        $body = "Dios no se ha olvidado de ti.\n\nAun en el silencio, Él sigue obrando en tu vida.";
+
+        $this->actingAs($writer)->postJson(self::ADMIN.'/admin/devocionales', [
+            'title' => 'Nadie camina solo',
+            'publish_on' => now('America/Lima')->toDateString(),
+            'verse_ref' => 'Eclesiastés 4:9',
+            'verse_text' => 'Mejores son dos que uno.',
+            'body' => $body,
+            'active' => '1',
+            'image' => UploadedFile::fake()->image('juntos.jpg', 1600, 900),
+        ])->assertOk();
+        $this->actingAs($writer)->postJson(self::ADMIN.'/admin/devocionales', [
+            'title' => 'Fe para mañana',
+            'publish_on' => now('America/Lima')->addDays(3)->toDateString(),
+            'body' => $body,
+            'active' => '1',
+        ])->assertOk();
+
+        $page = $this->visitor('/devocionales/nadie-camina-solo')->assertOk();
+        $share = $page->viewData('page')['props']['devotional']['share_image'];
+        $this->assertMatchesRegularExpression('#^/devocionales/nadie-camina-solo/imagen\?v=[0-9a-f]{10}$#', $share);
+        $page->assertSee('<meta property="og:image" content="'.config('zoe.site_url').$share.'">', false)
+            ->assertSee('«Mejores son dos que uno.» — Eclesiastés 4:9', false);
+
+        $picture = $this->visitor($share)->assertOk()->assertHeader('Content-Type', 'image/jpeg');
+        [$width, $height] = getimagesizefromstring($picture->getContent());
+        $this->assertSame([1080, 1080], [$width, $height]);
+
+        $this->visitor('/devocionales/fe-para-manana/imagen')->assertNotFound();
+    }
+
     private function clearDefaults(): void
     {
         ServiceGallery::query()->delete();

@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Domain\Auth\Support\Entrance;
 use App\Domain\Radio\Station;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Actions\ResolveSiteSkin;
+use App\Domain\Site\Support\DevotionalArt;
 use App\Http\Controllers\Controller;
 use App\Models\BaptismEvent;
 use App\Models\ChurchEvent;
@@ -14,6 +16,8 @@ use App\Models\ServiceGallery;
 use App\Models\Teaching;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -122,10 +126,31 @@ class SiteController extends Controller
         $devotional = Devotional::published()->where('slug', $slug)->first();
         abort_unless($devotional, 404);
 
+        $verse = $devotional->verse_text ? '«'.$devotional->verse_text.'»'.($devotional->verse_ref ? ' — '.$devotional->verse_ref : '') : null;
+
         return Inertia::render('Devotional', [
             ...$this->shared($request),
             'devotional' => $devotional->full(),
             'more' => Devotional::published()->whereKeyNot($devotional->id)->limit(3)->get()->map->card(),
+        ])->withViewData(['share' => [
+            'title' => $devotional->title.' · Devocional',
+            'description' => Str::limit($verse ?? $devotional->card()['excerpt'], 200),
+            'url' => Entrance::siteUrl('/devocionales/'.$devotional->slug),
+            'image' => Entrance::siteUrl(DevotionalArt::url($devotional)),
+        ]]);
+    }
+
+    /** Square picture of a published devotional, ready to download and share. */
+    public function devotionalImage(string $slug): HttpResponse
+    {
+        $devotional = Devotional::published()->where('slug', $slug)->first();
+        $jpeg = $devotional ? DevotionalArt::jpeg($devotional) : null;
+        abort_unless($jpeg, 404);
+
+        return response($jpeg, 200, [
+            'Content-Type' => 'image/jpeg',
+            'Content-Disposition' => 'inline; filename="devocional-'.$slug.'.jpg"',
+            'Cache-Control' => 'public, max-age=604800',
         ]);
     }
 

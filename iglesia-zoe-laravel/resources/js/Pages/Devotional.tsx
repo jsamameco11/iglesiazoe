@@ -2,6 +2,7 @@ import { Link } from "@inertiajs/react";
 import { useState } from "react";
 import { Rise } from "@/Components/motion/rise";
 import { DevotionalCard } from "@/Components/site/devotional-card";
+import { DevotionalShare } from "@/Components/site/devotional-share";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
@@ -42,26 +43,15 @@ export default function Devotional({
   const pages = useSitePages();
   const t = (key: CopyKey) => readCopy(settings, key);
   const cover = resolveMedia(mediaOverrides).devotionals.src;
-  const image = devotional.image || cover;
-  const [copied, setCopied] = useState(false);
-  const url = typeof window === "undefined" ? "" : window.location.href;
-  const whatsapp = `https://wa.me/?text=${encodeURIComponent(`${devotional.title} · Devocional de Iglesia Cristiana Zoe\n${url}`)}`;
-
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2200);
-    } catch {
-      setCopied(false);
-    }
-  }
+  const original = devotional.image || cover;
+  const [failedArt, setFailedArt] = useState("");
+  const art = failedArt === devotional.share_image && original ? original : devotional.share_image;
 
   return (
     <SiteLayout>
       <article className="page-wrap">
-        <div {...section("reading", "Lectura")} className="mx-auto max-w-3xl">
-          <Rise>
+        <div {...section("reading", "Lectura")} className="mx-auto max-w-6xl">
+          <Rise className="devo-head">
             <Link href="/devocionales" className="text-sm text-muted transition hover:text-ink">← {pages.name("devotionals")}</Link>
             <p className="kicker mt-10">
               {formatSermonDate(devotional.publish_on)} · {devotional.minutes} {t("devotionals.minutes")}
@@ -70,35 +60,32 @@ export default function Devotional({
             {devotional.author ? <p className="mt-4 text-[15px] text-muted">{devotional.author}</p> : null}
           </Rise>
 
-          {image ? (
-            <Rise>
-              <figure className="devo-figure">
-                <img src={image} alt="" />
-              </figure>
-            </Rise>
-          ) : null}
+          <div className="devo-layout">
+            <aside className="devo-aside">
+              <Rise className="devo-art">
+                <figure className="devo-square">
+                  <img src={art} alt={devotional.title} onError={() => setFailedArt(devotional.share_image)} />
+                </figure>
+              </Rise>
+              <Rise className="devo-share-slot">
+                <DevotionalShare devotional={devotional} t={t} />
+              </Rise>
+            </aside>
 
-          {devotional.verse_text || devotional.verse_ref ? (
-            <Rise>
-              <blockquote className="devo-quote">
-                {devotional.verse_text ? <p>«{devotional.verse_text}»</p> : null}
-                {devotional.verse_ref ? <cite>{devotional.verse_ref}</cite> : null}
-              </blockquote>
-            </Rise>
-          ) : null}
-
-          <Rise>
-            <Body text={devotional.body} />
-          </Rise>
-
-          <Rise className="mt-12 flex flex-wrap items-center gap-3 border-t border-ink/10 pt-8">
-            <a href={whatsapp} target="_blank" rel="noreferrer" className="btn-accent inline-flex rounded-full px-5 py-2.5 text-sm font-semibold">
-              {t("devotionals.share")}
-            </a>
-            <button type="button" onClick={copy} className="rounded-full border border-ink/15 px-5 py-2.5 text-sm font-semibold text-ink transition hover:border-ink/40">
-              {copied ? t("devotionals.copied") : t("devotionals.copy")}
-            </button>
-          </Rise>
+            <div className="devo-reading">
+              {devotional.verse_text || devotional.verse_ref ? (
+                <Rise>
+                  <blockquote className="devo-quote">
+                    {devotional.verse_text ? <p>«{devotional.verse_text}»</p> : null}
+                    {devotional.verse_ref ? <cite>{devotional.verse_ref}</cite> : null}
+                  </blockquote>
+                </Rise>
+              ) : null}
+              <Rise>
+                <Body text={devotional.body} />
+              </Rise>
+            </div>
+          </div>
         </div>
 
         <Rise {...section("prayer", "Invitación a orar")} className="ink-band mt-20 rounded-[2rem] px-8 py-14 md:px-14">

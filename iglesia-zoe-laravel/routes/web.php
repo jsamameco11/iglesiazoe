@@ -25,6 +25,7 @@ Route::get('/galeria', [SiteController::class, 'galleries'])->name('galleries');
 Route::get('/galeria/{slug}', [SiteController::class, 'gallery'])->where('slug', '[a-z0-9-]+')->name('gallery');
 Route::get('/devocionales', [SiteController::class, 'devotionals'])->name('devotionals');
 Route::get('/devocionales/{slug}', [SiteController::class, 'devotional'])->where('slug', '[a-z0-9-]+')->name('devotional');
+Route::get('/devocionales/{slug}/imagen', [SiteController::class, 'devotionalImage'])->where('slug', '[a-z0-9-]+')->name('devotional.image');
 Route::get('/eventos', [SiteController::class, 'events'])->name('events');
 Route::get('/involucrate', [SiteController::class, 'serve'])->name('serve');
 Route::post('/involucrate', [FormsController::class, 'storeServe'])->middleware('throttle:web-forms');
