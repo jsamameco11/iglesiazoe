@@ -119,6 +119,37 @@ class RadioConsoleController extends RadioController
         return $this->fail('Acción desconocida.');
     }
 
+    /**
+     * The continuous music from the console: pause or resume it, or take a song out of it so it
+     * stops repeating. Both change the program at once for every listener.
+     */
+    public function music(Request $request): JsonResponse
+    {
+        $action = $request->input('action');
+        if ($action === 'autofill') {
+            $on = $request->boolean('on');
+            Station::saveConfig(['autofill' => $on]);
+
+            return response()->json(['ok' => true, ...$this->snapshot(), 'message' => $on
+                ? 'Música continua reanudada: vuelve a llenar los espacios libres.'
+                : 'Música continua en pausa: solo suena lo programado y lo que lances desde la consola.']);
+        }
+        if ($action === 'drop') {
+            $track = $this->find(RadioTrack::class, $request->input('id'));
+            if (! $track || $track->kind !== 'musica') {
+                return $this->fail('Esa canción ya no está en la biblioteca.', 404);
+            }
+            $track->update(['rotation' => false]);
+            Station::flush();
+            $left = RadioTrack::query()->where('kind', 'musica')->where('active', true)->where('rotation', true)->count();
+
+            return response()->json(['ok' => true, ...$this->snapshot(), 'message' => "«{$track->title}» salió de la música continua y no se repetirá."
+                .($left ? '' : ' La música continua quedó vacía: los espacios libres estarán en silencio.')]);
+        }
+
+        return $this->fail('Acción desconocida.');
+    }
+
     /** Saves which library audios fill the pad bank, in order. */
     public function pads(Request $request): JsonResponse
     {

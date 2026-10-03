@@ -328,6 +328,46 @@ class RadioTest extends TestCase
         $this->getJson(self::SITE.'/radio/estado')->assertJsonPath('live.on', false)->assertJsonPath('mix.music', fn ($music) => (float) $music === 1.0);
     }
 
+    public function test_a_song_repeats_only_when_it_is_switched_into_the_continuous_music(): void
+    {
+        $admin = $this->admin('visuales', ['visuales']);
+        $song = RadioTrack::query()->create(['kind' => 'musica', 'title' => 'Sublime gracia', 'file_path' => '/media/radio/musica/sublime.mp3', 'duration' => 200, 'active' => true]);
+        $spot = $this->track('Cuña', 'anuncio', 30, false);
+        $this->assertFalse($song->fresh()->rotation);
+        $this->assertSame([], Station::state()['queue']);
+
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/biblioteca/rotacion', ['id' => $song->id, 'on' => '1'])->assertOk()->assertJsonPath('ok', true);
+        $this->assertTrue($song->fresh()->rotation);
+        $this->assertSame($song->id, Station::state()['queue'][0]['track']);
+
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/biblioteca/rotacion', ['id' => $spot->id, 'on' => '1'])->assertStatus(422);
+        $this->assertFalse($spot->fresh()->rotation);
+
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/biblioteca/rotacion', ['id' => $song->id, 'on' => '0'])->assertOk();
+        $this->assertFalse($song->fresh()->rotation);
+        $this->assertSame([], Station::state()['queue']);
+    }
+
+    public function test_the_console_stops_a_repeating_song_and_pauses_the_continuous_music(): void
+    {
+        $admin = $this->admin('visuales', ['visuales']);
+        $loop = $this->track('Audio repetido', 'musica', 25);
+        $this->track('Otra canción', 'musica', 180);
+
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/musica-continua', ['action' => 'autofill', 'on' => '0'])
+            ->assertOk()->assertJsonPath('config.autofill', false)->assertJsonPath('radio.queue', []);
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/musica-continua', ['action' => 'autofill', 'on' => '1'])
+            ->assertOk()->assertJsonPath('config.autofill', true);
+
+        $response = $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/musica-continua', ['action' => 'drop', 'id' => $loop->id])->assertOk();
+        $this->assertFalse($loop->fresh()->rotation);
+        $this->assertNotContains($loop->id, array_column($response->json('radio.queue'), 'track'));
+        $this->assertNotEmpty($response->json('radio.queue'));
+
+        $scheduler = $this->admin('programador', ['atmosfera'], ['radio.schedule']);
+        $this->actingAs($scheduler)->postJson(self::ADMIN.'/admin/radio/musica-continua', ['action' => 'autofill', 'on' => '0'])->assertForbidden();
+    }
+
     private function track(string $title, string $kind, float $duration, bool $rotation = true, bool $duck = false): RadioTrack
     {
         return RadioTrack::query()->create([

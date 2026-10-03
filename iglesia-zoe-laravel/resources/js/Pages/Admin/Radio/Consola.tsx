@@ -29,6 +29,7 @@ export default function Consola({ radio, live, voice, config, pads: initialPads,
   const caster = api.caster.current;
   const current = state.queue.find((item) => item.start <= now && now < item.end) ?? null;
   const next = state.queue.find((item) => item.start > now) ?? null;
+  const rotating = current && !current.slot && current.track ? current.track : null;
 
   async function onPad(track: RadioTrack) {
     const result = await addPad(pads, track);
@@ -59,6 +60,11 @@ export default function Consola({ radio, live, voice, config, pads: initialPads,
             <span className="truncate text-white/90">{current ? shortTitle(current.title, 60) : "—"}</span>
             {current ? <span className="shrink-0 font-mono tabular-nums text-emerald-300">-{duration((current.end - now) / 1000)}</span> : null}
           </span>
+          {rotating && current ? (
+            <button type="button" onClick={() => api.dropFromRotation(rotating, current.title)} className="cx-btn" data-tone="amber" title="Saca esta canción de la música continua: deja de sonar ahora y no se repite">
+              No repetir
+            </button>
+          ) : null}
           <span className="cx-stat hidden min-w-0 lg:inline-flex" title={next?.title}>
             <span className="cx-stat-key">Sigue</span>
             <span className="max-w-[14rem] truncate text-white/70">{next ? `${KIND_LABEL[next.kind] ?? ""} · ${next.title}` : "—"}</span>
@@ -73,6 +79,16 @@ export default function Consola({ radio, live, voice, config, pads: initialPads,
           ) : null}
           <button type="button" onClick={api.toggleMonitor} className="cx-btn" data-tone={api.monitor ? "green" : undefined} title="Escuchar lo que oyen los oyentes">
             <HeadphonesIcon className="h-3.5 w-3.5" /> {api.monitor ? "Monitor" : "Escuchar"}
+          </button>
+          <button
+            type="button"
+            onClick={api.toggleAutofill}
+            className="cx-btn"
+            data-tone={api.config.autofill ? "green" : undefined}
+            title={api.config.autofill ? "La música continua llena los espacios sin programación. Clic para pausarla." : "La música continua está en pausa. Clic para reanudarla."}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full ${api.config.autofill ? "bg-emerald-300" : "bg-white/40"}`} />
+            {api.config.autofill ? "Música continua" : "Música continua en pausa"}
           </button>
           <button type="button" onClick={api.toggleAir} className="cx-btn" data-tone={api.config.on_air ? "green" : undefined}>
             <span className={`h-1.5 w-1.5 rounded-full ${api.config.on_air ? "bg-emerald-300" : "bg-white/40"}`} />

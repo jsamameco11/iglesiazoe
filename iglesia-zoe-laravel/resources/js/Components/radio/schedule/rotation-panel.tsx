@@ -28,8 +28,8 @@ export function RotationPanel({ tracks, autofill, crossfade }: { tracks: RadioTr
     <section className="rounded-[1.6rem] border border-line bg-card p-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">Música continua</p>
       <p className="mt-1 text-[12.5px] leading-5 text-muted">
-        Las canciones marcadas llenan los espacios libres de la pista principal, en orden variado y empalmadas {crossfade ? `${crossfade} s` : "sin fundido"}.
-        {autofill ? "" : " Ahora está apagada en Ajustes."}
+        Solo las canciones marcadas se repiten: llenan los espacios libres de la pista principal, en orden variado y empalmadas {crossfade ? `${crossfade} s` : "sin fundido"}.
+        {autofill ? "" : " Ahora está en pausa."}
       </p>
       {songs.length ? (
         <>
@@ -55,6 +55,7 @@ export function RotationPanel({ tracks, autofill, crossfade }: { tracks: RadioTr
           <p className="mt-2 text-xs text-muted">
             {chosen.size} de {songs.length} canciones · {longDuration(length)} antes de repetir
           </p>
+          {chosen.size === 1 ? <p className="mt-1 text-xs font-medium text-amber-800">Con una sola canción, sonará una y otra vez sin parar.</p> : null}
           <Notice result={result} onClose={() => setResult(null)} />
           <button type="button" disabled={pending || !changed} onClick={save} className={`${button} mt-3 w-full`}>
             {pending ? "Guardando…" : "Guardar música continua"}

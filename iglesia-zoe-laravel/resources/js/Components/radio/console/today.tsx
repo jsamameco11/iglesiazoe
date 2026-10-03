@@ -62,7 +62,7 @@ export function TodayList({ day, now, autofill }: { day: RadioBlock[]; now: numb
         </ul>
       ) : (
         <p className="mt-2 text-sm text-white/45">
-          No hay bloques para hoy. {autofill ? "Suena la música continua." : "La música continua está apagada (Ajustes)."}
+          No hay bloques para hoy. {autofill ? "Suena la música continua." : "La música continua está en pausa."}
         </p>
       )}
     </div>

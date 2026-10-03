@@ -83,6 +83,7 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
             Route::post('/capa', [RadioConsoleController::class, 'layer']);
             Route::post('/botonera', [RadioConsoleController::class, 'pads']);
             Route::post('/lanzar', [RadioConsoleController::class, 'launch']);
+            Route::post('/musica-continua', [RadioConsoleController::class, 'music']);
             Route::get('/senal', [RadioConsoleController::class, 'signal']);
             Route::post('/senal/oferta', [RadioConsoleController::class, 'offer']);
         });
@@ -98,6 +99,7 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::middleware($can('radio.library'))->group(function () {
             Route::get('/biblioteca', [RadioLibraryController::class, 'index']);
             Route::post('/biblioteca', [RadioLibraryController::class, 'save']);
+            Route::post('/biblioteca/rotacion', [RadioLibraryController::class, 'rotation']);
             Route::post('/biblioteca/eliminar', [RadioLibraryController::class, 'destroy']);
         });
         Route::middleware($can('radio.settings'))->group(function () {

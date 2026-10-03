@@ -591,6 +591,7 @@ final class Station
             'bed' => false,
             'block' => null,
             'slot' => null,
+            'track' => null,
         ]];
     }
 
@@ -629,6 +630,7 @@ final class Station
                 'bed' => $block !== null,
                 'block' => $block,
                 'slot' => null,
+                'track' => $track['id'],
             ];
             $t += $track['step'];
             $index = ($index + 1) % $count;
@@ -654,6 +656,7 @@ final class Station
             'bed' => false,
             'block' => $slot->kind === RadioSlot::LIVE ? $slot->title : null,
             'slot' => $slot->id,
+            'track' => $slot->radio_track_id,
         ];
     }
 }
