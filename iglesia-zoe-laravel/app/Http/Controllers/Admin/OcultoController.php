@@ -22,7 +22,7 @@ class OcultoController extends GameContentController
                 'id' => $theme->id,
                 'name' => $theme->name,
                 'active' => $theme->active,
-                'words' => $theme->words_count,
+                'count' => $theme->words_count,
             ]),
             'words' => OcultoWord::query()->orderBy('word')->get()->map->full(),
         ]);
