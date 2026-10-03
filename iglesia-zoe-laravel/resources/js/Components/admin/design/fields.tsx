@@ -48,13 +48,13 @@ export function Choice<T extends string>({ value, options, onChange }: { value: 
 }
 
 /** Picks which of the three site typefaces a page or section uses for a kind of text. */
-export function RoleField({ label, value, fallback, from = "la web", onChange }: { label: string; value?: FontRole; fallback: FontRole; from?: string; onChange: (value: FontRole | undefined) => void }) {
+export function RoleField({ label, value, fallback, from = "la web", original, onChange }: { label: string; value?: FontRole; fallback: FontRole; from?: string; original?: string; onChange: (value: FontRole | undefined) => void }) {
   const base = fontRoles.find((role) => role.key === fallback)?.label;
   return (
     <label className="block text-xs font-semibold text-muted">
       {label}
       <select value={value ?? ""} onChange={(event) => onChange((event.target.value || undefined) as FontRole | undefined)} className="mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink/40">
-        <option value="">Igual que {from} ({base})</option>
+        <option value="">{original ?? `Igual que ${from} (${base})`}</option>
         {fontRoles.map((role) => (
           <option key={role.key} value={role.key}>Tipografía de {role.label.toLowerCase()}</option>
         ))}
