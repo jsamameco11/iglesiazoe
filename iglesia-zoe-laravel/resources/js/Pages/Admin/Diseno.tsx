@@ -108,7 +108,7 @@ export default function Diseno({ stored, mediaOverrides, fonts, fontCategories, 
           </div>
         </div>
 
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 px-5 py-3 backdrop-blur md:left-[272px]">
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-white/95 px-5 py-3 backdrop-blur 2xl:left-[272px]">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <Notice result={result} onClose={() => setResult(null)} />
