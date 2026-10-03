@@ -24,6 +24,7 @@ export type Permission =
   | "radio.library"
   | "radio.episodes"
   | "radio.settings"
+  | "games.manage"
   | "studies.students"
   | "studies.grades"
   | "studies.board"
