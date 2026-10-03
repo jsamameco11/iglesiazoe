@@ -2,6 +2,7 @@
 
 namespace App\Domain\Radio;
 
+use App\Models\RadioPlaylist;
 use App\Models\RadioSlot;
 use App\Models\RadioTrack;
 use Carbon\CarbonImmutable;
@@ -55,7 +56,7 @@ final class Schedule
     /** @return Collection<int, RadioSlot> blocks that overlap [from, to), of one layer or of all */
     public static function between(int $from, int $to, ?string $ignore = null, ?int $layer = null): Collection
     {
-        return RadioSlot::query()->with('track')
+        return RadioSlot::query()->with(['track', 'playlist'])
             ->where('starts_at', '>=', self::utc($from - Station::MAX_BLOCK * 1000))
             ->where('starts_at', '<', self::utc($to))
             ->when($ignore, fn ($query) => $query->whereKeyNot($ignore))
@@ -88,6 +89,9 @@ final class Schedule
             'volume' => $slot->volume,
             'duration' => $slot->duration,
             'track_id' => $slot->radio_track_id,
+            'playlist_id' => $slot->radio_playlist_id,
+            'playlist' => $slot->kind === RadioSlot::AUTO ? ($slot->playlist?->name ?? 'Todas las listas') : null,
+            'shuffle' => $slot->shuffle,
             'src' => $slot->track?->file_path,
             'inactive' => $slot->track !== null && ! $slot->track->active,
             'start' => $slot->starts_at->getTimestampMs(),
@@ -138,6 +142,38 @@ final class Schedule
             'volume' => $layer === RadioSlot::MAIN ? 100 : max(0, min(100, $volume)),
             'note' => $note,
         ])->all();
+    }
+
+    /**
+     * An automatic-music period of the main layer, split into blocks of at most MAX_BLOCK
+     * (they play as one, since back-to-back periods of the same playlist never restart).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function autoBlocks(?RadioPlaylist $playlist, bool $shuffle, int $seconds, ?string $note = null): array
+    {
+        $blocks = [];
+        $title = self::autoTitle($playlist, $shuffle);
+        for ($left = $seconds; $left > 0; $left -= Station::MAX_BLOCK) {
+            $blocks[] = [
+                'kind' => RadioSlot::AUTO,
+                'layer' => RadioSlot::MAIN,
+                'title' => $title,
+                'duration' => min($left, Station::MAX_BLOCK),
+                'radio_track_id' => null,
+                'radio_playlist_id' => $playlist?->id,
+                'bed' => false,
+                'shuffle' => $shuffle,
+                'note' => $note,
+            ];
+        }
+
+        return $blocks;
+    }
+
+    public static function autoTitle(?RadioPlaylist $playlist, bool $shuffle): string
+    {
+        return 'Música automática · '.($playlist?->name ?? 'Todas las listas').($shuffle ? ' · aleatorio' : ' · en orden');
     }
 
     public static function length(array $blocks): int
@@ -216,7 +252,7 @@ final class Schedule
                     }
                     RadioSlot::query()->create([
                         'starts_at' => self::utc($start),
-                        ...$slot->only(['duration', 'kind', 'layer', 'radio_track_id', 'title', 'note', 'bed', 'duck', 'volume']),
+                        ...$slot->only(['duration', 'kind', 'layer', 'radio_track_id', 'radio_playlist_id', 'title', 'note', 'bed', 'shuffle', 'duck', 'volume']),
                     ]);
                     $copied++;
                 }

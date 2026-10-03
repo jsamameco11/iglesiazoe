@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Domain\Radio\Schedule;
 use App\Domain\Radio\Station;
 use App\Http\Controllers\Controller;
+use App\Models\RadioPlaylist;
 use App\Models\RadioSlot;
 use App\Models\RadioTrack;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 
 /** Shared helpers of the radio areas (console, schedule, library and settings), each behind its own permission. */
 abstract class RadioController extends Controller
@@ -68,6 +70,35 @@ abstract class RadioController extends Controller
         $duck = $request->has('duck') && $request->input('duck') !== '' ? $request->boolean('duck') : null;
 
         return Schedule::trackBlocks($tracks, $note, $layer, $duck, (int) $request->input('volume', 100));
+    }
+
+    /** Requested playlist: the list, null for «Todas las listas», or false when it no longer exists. */
+    protected function playlistFrom(Request $request): RadioPlaylist|false|null
+    {
+        $id = $request->input('playlist');
+        if ($id === null || $id === '') {
+            return null;
+        }
+
+        return $this->find(RadioPlaylist::class, $id) ?? false;
+    }
+
+    /** Playlists to choose from, in order. */
+    protected function playlists(): array
+    {
+        return RadioPlaylist::query()->with('tracks')->orderBy('sort_order')->orderBy('created_at')->get()
+            ->map(fn (RadioPlaylist $playlist) => Arr::except($playlist->payload(), 'tracks'))->all();
+    }
+
+    /** Changes the automatic music of the gaps and says when the change is heard. */
+    protected function switchedMessage(?RadioPlaylist $playlist, bool $shuffle, bool $immediately = false): string
+    {
+        $since = Station::switchAutopilot($playlist?->id, $shuffle, $immediately);
+        $what = '«'.($playlist?->name ?? 'Todas las listas').'» '.($shuffle ? 'en aleatorio' : 'en orden');
+
+        return $since > Station::nowMs() + 1000
+            ? "Música automática: {$what}. Empieza a las ".Schedule::clock($since).', cuando termine la canción que suena.'
+            : "Música automática: {$what}. Ya está sonando.";
     }
 
     protected function conflictMessage(RadioSlot $conflict): string

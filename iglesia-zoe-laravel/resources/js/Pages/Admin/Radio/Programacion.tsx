@@ -2,12 +2,13 @@ import { router } from "@inertiajs/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RadioHeader } from "@/Components/radio/admin-ui";
 import { AddPanel } from "@/Components/radio/schedule/add-panel";
+import { AutopilotPanel } from "@/Components/radio/schedule/autopilot-panel";
 import { BlockRow } from "@/Components/radio/schedule/block-row";
 import { DayTools } from "@/Components/radio/schedule/day-tools";
 import { LaneRuler } from "@/Components/radio/schedule/lane-ruler";
 import { RotationPanel } from "@/Components/radio/schedule/rotation-panel";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { DAY_MS, clock, dayLabel, dayStart, longDuration, type RadioBlock, type RadioConfig, type RadioTrack } from "@/lib/radio";
+import { DAY_MS, clock, dayLabel, dayStart, longDuration, type Autopilot, type RadioBlock, type RadioConfig, type RadioPlaylist, type RadioTrack } from "@/lib/radio";
 import "../../../../css/radio.css";
 
 type Day = { date: string; blocks: number; seconds: number };
@@ -21,6 +22,8 @@ type Props = {
   days: Day[];
   tracks: RadioTrack[];
   config: RadioConfig;
+  playlists: RadioPlaylist[];
+  autopilot: Autopilot;
 };
 
 type Row = { type: "gap"; from: number; to: number } | { type: "block"; block: RadioBlock };
@@ -35,7 +38,7 @@ function useNow(initial: number) {
   return now;
 }
 
-export default function Programacion({ date, today, now: serverNow, blocks, dayEnds, days, tracks, config }: Props) {
+export default function Programacion({ date, today, now: serverNow, blocks, dayEnds, days, tracks, config, playlists, autopilot }: Props) {
   const now = useNow(serverNow);
   const start = dayStart(date);
   const end = start + DAY_MS;
@@ -85,7 +88,7 @@ export default function Programacion({ date, today, now: serverNow, blocks, dayE
     <AdminLayout>
       <RadioHeader
         title="Programación"
-        text="Arma la línea de tiempo de cada día con los audios de la biblioteca: la pista principal lleva el programa y hasta tres capas suenan encima (anuncios, cortinas, efectos), con su volumen y bajando la música si hace falta. Los espacios libres se llenan con la música continua."
+        text="Arma la línea de tiempo de cada día: la pista principal lleva el programa (audios, periodos de música automática y bloques en vivo) y hasta tres capas suenan encima (anuncios, cortinas, efectos). Los espacios libres se llenan solos con el piloto automático."
       />
 
       <div className="mt-6 flex gap-2 overflow-x-auto pb-2 [scrollbar-width:thin]">
@@ -136,7 +139,7 @@ export default function Programacion({ date, today, now: serverNow, blocks, dayE
                   <div key={`gap-${row.from}`} className="tl-item py-2">
                     <p className="pt-1 text-right font-mono text-[11px] tabular-nums text-muted">{clock(row.from)}</p>
                     <p className="ml-6 rounded-xl border border-dashed border-line px-3 py-2 text-[12.5px] text-muted">
-                      {config.autofill ? "Música continua" : "Silencio"} · {longDuration((row.to - row.from) / 1000)}
+                      {config.autofill ? `Piloto automático · ${autopilot.label}` : "Silencio"} · {longDuration((row.to - row.from) / 1000)}
                     </p>
                   </div>
                 ) : (
@@ -147,6 +150,7 @@ export default function Programacion({ date, today, now: serverNow, blocks, dayE
                     now={now}
                     editing={editing === row.block.id}
                     previewing={preview === row.block.id}
+                    playlists={playlists}
                     onEdit={() => setEditing(editing === row.block.id ? null : row.block.id)}
                     onPreview={() => togglePreview(row.block)}
                   />
@@ -160,8 +164,9 @@ export default function Programacion({ date, today, now: serverNow, blocks, dayE
           {isPast ? (
             <p className="rounded-[1.4rem] border border-line bg-card p-5 text-sm text-muted">Este día ya pasó. Puedes copiar su programación a días futuros.</p>
           ) : (
-            <AddPanel date={date} isToday={isToday} dayEnds={dayEnds} tracks={tracks} />
+            <AddPanel date={date} isToday={isToday} dayEnds={dayEnds} tracks={tracks} playlists={playlists} />
           )}
+          <AutopilotPanel autopilot={autopilot} playlists={playlists} />
           <RotationPanel tracks={tracks} autofill={config.autofill} crossfade={config.crossfade} />
           <DayTools date={date} today={today} hasBlocks={blocks.length > 0} />
         </aside>

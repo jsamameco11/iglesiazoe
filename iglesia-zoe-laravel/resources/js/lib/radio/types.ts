@@ -1,4 +1,4 @@
-export type RadioKind = "musica" | "anuncio" | "efecto" | "programa" | "vivo" | "relleno";
+export type RadioKind = "musica" | "anuncio" | "efecto" | "programa" | "vivo" | "relleno" | "automatica";
 
 export type RadioItem = {
   id: string;
@@ -49,7 +49,26 @@ export type RadioLive = {
   mic: boolean;
   started_at: number | null;
   rev: number;
+  mode?: LiveMode;
+  source?: LiveSource;
+  /** The automatic music is cut for the live signal. */
+  cut?: boolean;
+  window?: LiveWindow | null;
+  /** External live signal (OBS / Icecast) that listeners play during the cut. */
+  url?: string | null;
 };
+
+export type LiveMode = "auto" | "manual";
+
+export type LiveSource = "consola" | "externo";
+
+/** A cut of the automatic music: from `start` until `end` (null until the operator returns). */
+export type LiveWindow = { start: number; end: number | null; auto: boolean; bed: boolean; slot: string | null; title: string };
+
+/** The automatic music of the gaps. */
+export type Autopilot = { playlist: string | null; shuffle: boolean; label: string; since: number; paused: boolean };
+
+export type RadioPlaylist = { id: string; name: string; description: string | null; count: number; seconds: number; tracks?: string[] };
 
 export type RadioState = {
   now: number;
@@ -70,7 +89,7 @@ export type RadioState = {
 
 export type RadioTrack = {
   id: string;
-  kind: Exclude<RadioKind, "vivo" | "relleno">;
+  kind: Exclude<RadioKind, "vivo" | "relleno" | "automatica">;
   title: string;
   artist: string | null;
   src: string;
@@ -112,6 +131,11 @@ export type RadioConfig = {
   turn_username: string;
   turn_credential: string;
   max_voice: number;
+  auto_playlist: string | null;
+  auto_shuffle: boolean;
+  live_mode: LiveMode;
+  live_source: LiveSource;
+  live_url: string;
 };
 
 export type RadioBlock = {
@@ -126,6 +150,10 @@ export type RadioBlock = {
   volume: number;
   duration: number;
   track_id: string | null;
+  /** Automatic-music periods: their playlist (null = every list) and order. */
+  playlist_id: string | null;
+  playlist: string | null;
+  shuffle: boolean;
   src: string | null;
   inactive: boolean;
   start: number;
@@ -139,6 +167,7 @@ export const KIND_LABEL: Record<RadioKind, string> = {
   programa: "Programa",
   vivo: "En vivo",
   relleno: "Música continua",
+  automatica: "Música automática",
 };
 
 /** Timeline layers: 0 is the main program, the rest sound on top of it. */

@@ -37,6 +37,8 @@ export default function Ajustes({ config }: { config: RadioConfig }) {
   const [fx, setFx] = useState(config.fx_level);
   const [duck, setDuck] = useState(config.duck_level);
   const [crossfade, setCrossfade] = useState(config.crossfade);
+  const [liveMode, setLiveMode] = useState(config.live_mode);
+  const [liveSource, setLiveSource] = useState(config.live_source);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,9 +65,61 @@ export default function Ajustes({ config }: { config: RadioConfig }) {
             <Toggle
               name="autofill"
               defaultChecked={config.autofill}
-              title="Música continua"
-              text="Los espacios libres de la pista principal se llenan con las canciones marcadas «Se repite» en la Biblioteca (o en Programación › Música continua), en orden variado y empalmadas. Si la apagas, esos espacios quedan en silencio."
+              title="Piloto automático (música 24/7)"
+              text="Los espacios libres de la pista principal se llenan con la música automática: la lista que elijas en Programación o en la consola (o todas tus listas y las canciones marcadas «Se repite»), empalmadas y sin repetir hasta completar cada vuelta. Si lo apagas, esos espacios quedan en silencio."
             />
+          </div>
+        </Panel>
+
+        <Panel title="En vivo" text="Cómo la música automática le da paso al locutor y cómo vuelve." className="xl:col-span-2">
+          <div className="grid gap-5 lg:grid-cols-2">
+            <fieldset className="grid gap-2">
+              <legend className="mb-1 text-xs font-semibold text-muted">Interruptor</legend>
+              <input type="hidden" name="live_mode" value={liveMode} />
+              {(
+                [
+                  ["auto", "Automático", "A la hora de un bloque en vivo, en cuanto el locutor se conecta la música se corta sola; al terminar el bloque (o si se desconecta) la música vuelve sola. Si nadie se conecta, sigue la música."],
+                  ["manual", "Manual", "La música solo se corta con «Cortar música · ir al vivo» y vuelve con «Volver a la música automática», desde la consola."],
+                ] as const
+              ).map(([value, title, text]) => (
+                <label key={value} className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${liveMode === value ? "border-ink bg-white" : "border-line bg-white hover:border-ink/25"}`}>
+                  <input type="radio" checked={liveMode === value} onChange={() => setLiveMode(value)} className="mt-1 h-4 w-4 accent-[var(--color-accent)]" />
+                  <span>
+                    <span className="block text-sm font-semibold">{title}</span>
+                    <span className="mt-0.5 block text-[12.5px] leading-5 text-muted">{text}</span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+            <fieldset className="grid content-start gap-2">
+              <legend className="mb-1 text-xs font-semibold text-muted">¿Desde dónde sale el vivo?</legend>
+              <input type="hidden" name="live_source" value={liveSource} />
+              {(
+                [
+                  ["consola", "Consola de este panel", "El locutor habla desde «Consola en vivo» con su micrófono; su voz llega directo a cada oyente."],
+                  ["externo", "OBS o plataforma de radio", "El locutor transmite con OBS, BUTT, Mixxx o su plataforma (Icecast, Shoutcast, Zeno.fm, Radio.co…). La web detecta la señal y la reproduce mientras dure el vivo."],
+                ] as const
+              ).map(([value, title, text]) => (
+                <label key={value} className={`flex cursor-pointer items-start gap-3 rounded-2xl border p-4 transition ${liveSource === value ? "border-ink bg-white" : "border-line bg-white hover:border-ink/25"}`}>
+                  <input type="radio" checked={liveSource === value} onChange={() => setLiveSource(value)} className="mt-1 h-4 w-4 accent-[var(--color-accent)]" />
+                  <span>
+                    <span className="block text-sm font-semibold">{title}</span>
+                    <span className="mt-0.5 block text-[12.5px] leading-5 text-muted">{text}</span>
+                  </span>
+                </label>
+              ))}
+              {liveSource === "externo" ? (
+                <label className="mt-1 text-xs font-semibold text-muted">
+                  Enlace de la señal en vivo (https://…)
+                  <input name="live_url" type="url" required defaultValue={config.live_url} maxLength={300} placeholder="https://stream.ejemplo.com/vivo" className={input} />
+                  <span className="mt-1 block font-normal leading-5">
+                    El «mount» de tu servidor: cuando OBS transmite responde y la música se corta; cuando deja de transmitir, la música vuelve. Debe ser https para que los navegadores lo reproduzcan.
+                  </span>
+                </label>
+              ) : (
+                <input type="hidden" name="live_url" value={config.live_url} />
+              )}
+            </fieldset>
           </div>
         </Panel>
 

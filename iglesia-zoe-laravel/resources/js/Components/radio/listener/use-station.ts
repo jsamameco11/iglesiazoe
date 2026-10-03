@@ -9,6 +9,9 @@ export function useStation(initial: RadioState) {
   const player = useRef<ProgramPlayer | null>(null);
   const voice = useRef<VoiceLink | null>(null);
   const stream = useRef<HTMLAudioElement | null>(null);
+  const feed = useRef<HTMLAudioElement | null>(null);
+  const feedUrl = useRef<string | null>(null);
+  const volumeRef = useRef(0.9);
   const rev = useRef(initial.live.rev);
   const playingRef = useRef(false);
   const [state, setState] = useState(initial);
@@ -27,8 +30,25 @@ export function useStation(initial: RadioState) {
     return () => window.clearInterval(timer);
   }, [initial.now, serverClock]);
 
+  /** The external live signal (OBS / Icecast) sounds while the station cuts the music for it. */
+  const follow = useCallback((url: string | null) => {
+    if (url === feedUrl.current) return;
+    feedUrl.current = url;
+    if (!url) {
+      feed.current?.pause();
+      feed.current?.removeAttribute("src");
+      feed.current?.load();
+      return;
+    }
+    feed.current ??= new Audio();
+    feed.current.src = url;
+    feed.current.volume = volumeRef.current;
+    void feed.current.play().catch(() => setBlocked(true));
+  }, []);
+
   const apply = useCallback((next: RadioState) => {
     setState(next);
+    if (playingRef.current && !next.stream) follow(next.live.url ?? null);
     const engine = player.current;
     if (engine) {
       engine.setQueue(next.queue);
@@ -39,7 +59,7 @@ export function useStation(initial: RadioState) {
       engine.setLayers(next.layers);
     }
     if (playingRef.current && !next.stream) void voice.current?.update(next);
-  }, []);
+  }, [follow]);
 
   const poll = useCallback(async () => {
     const sent = Date.now();
@@ -87,6 +107,7 @@ export function useStation(initial: RadioState) {
       player.current?.stop();
       voice.current?.close();
       stream.current?.pause();
+      feed.current?.pause();
       if (playingRef.current) leave();
     };
   }, [leave]);
@@ -98,6 +119,7 @@ export function useStation(initial: RadioState) {
       player.current?.stop();
       voice.current?.close();
       stream.current?.pause();
+      follow(null);
       setAnalyser(null);
       leave();
       return;
@@ -132,16 +154,19 @@ export function useStation(initial: RadioState) {
       player.current.setMix(state.mix);
       player.current.setLayers(state.layers);
       setAnalyser(player.current.analyser);
+      follow(state.live.url ?? null);
     }
     playingRef.current = true;
     setPlaying(true);
-  }, [leave, listener, serverClock, state.layers, state.mix, state.queue, state.stream, volume]);
+  }, [follow, leave, listener, serverClock, state.layers, state.live.url, state.mix, state.queue, state.stream, volume]);
 
   const setVolume = useCallback((value: number) => {
     setVolumeState(value);
+    volumeRef.current = value;
     player.current?.setVolume(value);
     voice.current?.setVolume(value);
     if (stream.current) stream.current.volume = value;
+    if (feed.current) feed.current.volume = value;
   }, []);
 
   return { state, now, playing, volume, voice: voiceStatus, blocked, analyser, toggle, setVolume };

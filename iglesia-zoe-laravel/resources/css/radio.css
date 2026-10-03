@@ -1123,6 +1123,7 @@
 .cx-sound[data-kind="programa"], .cx-clip[data-kind="programa"] { --cx-kind: #3b82f6; }
 .cx-clip[data-kind="vivo"] { --cx-kind: #ef4444; }
 .cx-clip[data-kind="relleno"] { --cx-kind: #64748b; }
+.cx-clip[data-kind="automatica"] { --cx-kind: #14b8a6; }
 .cx-clip[data-kind="voz"] { --cx-kind: #f43f5e; }
 
 /* Línea de tiempo en vivo */
@@ -1390,6 +1391,7 @@
 .tl-kind-programa { background: #3b82f6; }
 .tl-kind-vivo { background: #ef4444; }
 .tl-kind-relleno { background: #d1fae5; }
+.tl-kind-automatica { background: #14b8a6; }
 .tl-item {
   position: relative;
   display: grid;

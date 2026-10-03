@@ -15,10 +15,12 @@ use Illuminate\Support\Str;
  * The radio station: what is on air at any moment and the live state of the console.
  *
  * Every listener computes the same program from the server clock: scheduled blocks of
- * the main timeline play at their exact time and, when it has a gap, the continuous music
+ * the main timeline play at their exact time and, when it has a gap, the automatic music
  * fills it in a deterministic order (songs overlap by the crossfade), so everybody hears
- * the same song. On top of it sound the layers: overlay blocks of the timeline and the
- * pads and players fired from the console, which may lower the music while they play.
+ * the same song. Automatic-music blocks hold a period for one playlist; live blocks give
+ * way to the live signal only while the host is connected (see LiveSwitch). On top of it
+ * sound the layers: overlay blocks of the timeline and the pads and players fired from the
+ * console, which may lower the music while they play.
  */
 final class Station
 {
@@ -50,6 +52,16 @@ final class Station
         'turn_username' => '',
         'turn_credential' => '',
         'max_voice' => 60,
+        // Automatic music of the gaps: a playlist id (null = every list), shuffled or in order.
+        // A change applies from auto_since (when the song on air ends); before it, auto_prev played.
+        'auto_playlist' => null,
+        'auto_shuffle' => true,
+        'auto_since' => 0,
+        'auto_prev' => null,
+        // Live switch: automatic or manual, fed by the console or an external OBS/Icecast signal.
+        'live_mode' => LiveSwitch::AUTO,
+        'live_source' => LiveSwitch::CONSOLE,
+        'live_url' => '',
     ];
 
     private const LIVE_DEFAULTS = [
@@ -62,6 +74,8 @@ final class Station
         'bed' => false,
         'mic' => false,
         'layers' => [],
+        'window' => null,
+        'skip' => null,
         'rev' => 0,
     ];
 
@@ -84,8 +98,6 @@ final class Station
     private const LIVE_KEY = 'radio.live';
 
     private const OPERATOR_KEY = 'radio.operator';
-
-    private const ROTATION_KEY = 'radio.rotation';
 
     public static function nowMs(): int
     {
@@ -111,10 +123,49 @@ final class Station
         return $next;
     }
 
-    /** Called whenever the library, the timeline or the crossfade changes. */
+    /** Called whenever the library, a playlist, the timeline or the crossfade changes. */
     public static function flush(): void
     {
-        Cache::forget(self::ROTATION_KEY);
+        Autopilot::flush();
+    }
+
+    /**
+     * Changes the automatic music of the gaps. The song on air finishes first: the new source
+     * starts when it ends (at once when no automatic song is playing, or when $now is asked).
+     *
+     * @return int when the new source starts (UTC ms)
+     */
+    public static function switchAutopilot(?string $playlist, bool $shuffle, bool $immediately = false): int
+    {
+        $config = self::config();
+        $now = self::nowMs();
+        $current = $immediately ? null : collect(self::program($now)[1])->filter(fn (array $item) => $item['start'] <= $now)->last();
+        $since = $current && $current['kind'] === 'musica' && $current['slot'] === null && $current['block'] === null
+            ? max($now, (int) $current['end'])
+            : $now;
+        $wasPlaying = $config['auto_since'] > $now ? $config['auto_prev'] : null;
+        self::saveConfig([
+            'auto_prev' => $wasPlaying ?? ['playlist' => $config['auto_playlist'], 'shuffle' => (bool) $config['auto_shuffle']],
+            'auto_since' => $since,
+            'auto_playlist' => $playlist,
+            'auto_shuffle' => $shuffle,
+        ]);
+
+        return $since;
+    }
+
+    /** The automatic music of the gaps, for the console and the schedule. */
+    public static function autopilot(?array $config = null): array
+    {
+        $config ??= self::config();
+
+        return [
+            'playlist' => $config['auto_playlist'],
+            'shuffle' => (bool) $config['auto_shuffle'],
+            'label' => Autopilot::label($config['auto_playlist']),
+            'since' => (int) $config['auto_since'],
+            'paused' => ! $config['autofill'],
+        ];
     }
 
     /** Tracks of the pad bank, in the order the operator chose (effects first until the bank is first saved). */
@@ -175,8 +226,12 @@ final class Station
         if ($session) {
             Signal::close($session);
         }
+        $config = self::config();
 
-        return self::updateLive(fn () => ['session' => null, 'host' => '', 'started_at' => null, 'mic' => false, 'bed' => false, 'muted' => false]);
+        return self::updateLive(fn (array $live) => [
+            'session' => null, 'host' => '', 'started_at' => null, 'mic' => false, 'bed' => false, 'muted' => false,
+            ...LiveSwitch::closeOnHangUp($live, $config),
+        ]);
     }
 
     public static function heartbeat(): void
@@ -327,47 +382,39 @@ final class Station
     /* ------------------------------------------------------------- program */
 
     /**
-     * Playable items of the main timeline overlapping [from, to), in order. With $expand the
-     * gaps are filled song by song; without it each gap is one «Música continua» block.
+     * Playable items of the main timeline overlapping [from, to), in order. With $expand it is
+     * what sounds, song by song: live blocks give way to the music unless the live switch cut
+     * it. Without it, it is the schedule: each gap and automatic period is one block.
      *
      * @return list<array<string, mixed>>
      */
     public static function items(int $from, int $to, bool $expand = true, int $limit = 600): array
     {
         $config = self::config();
-        $rotation = $config['autofill'] ? self::rotation() : [];
-        $slots = self::slotsBetween($from, $to);
+        $window = $expand ? LiveSwitch::window($config, self::live(), self::nowMs()) : null;
         $items = [];
         $cursor = $from;
         $anchor = null;
 
-        foreach ($slots as $slot) {
-            $start = $slot->starts_at->getTimestampMs();
-            $end = $slot->endsAt()->getTimestampMs();
-            if ($end <= $cursor) {
+        foreach (self::entries(self::slotsBetween($from, $to), $window, $expand) as $entry) {
+            if ($entry['end'] <= $cursor) {
                 continue;
             }
-            if ($start > $cursor) {
-                $anchor ??= $cursor === $from ? self::anchorBefore($from) : $cursor;
-                array_push($items, ...self::gap($rotation, $anchor, $cursor, min($start, $to), $expand, $limit));
+            if ($entry['start'] > $cursor) {
+                $anchor ??= $cursor === $from ? self::anchorBefore($from, $window) : $cursor;
+                array_push($items, ...self::gap($config, $anchor, $cursor, min($entry['start'], $to), $expand, $limit - count($items)));
             }
-            $begin = max($start, $cursor);
-            $finish = min($end, $to);
-            if ($slot->kind === RadioSlot::LIVE && $slot->bed && $expand && $rotation) {
-                array_push($items, ...self::fill($rotation, $start, $begin, $finish, $slot->title, $limit));
-            } else {
-                $items[] = self::slotItem($slot, $begin, $finish);
-            }
-            $cursor = $end;
-            $anchor = $end;
+            array_push($items, ...self::entryItems($entry, $config, max($entry['start'], $cursor), min($entry['end'], $to), $expand, $limit - count($items)));
+            $cursor = $entry['end'];
+            $anchor = $entry['end'];
             if ($cursor >= $to || count($items) >= $limit) {
                 break;
             }
         }
 
         if ($cursor < $to && count($items) < $limit) {
-            $anchor ??= self::anchorBefore($from);
-            array_push($items, ...self::gap($rotation, $cursor === $from ? $anchor : $cursor, $cursor, $to, $expand, $limit));
+            $anchor ??= self::anchorBefore($from, $window);
+            array_push($items, ...self::gap($config, $cursor === $from ? $anchor : $cursor, $cursor, $to, $expand, $limit - count($items)));
         }
 
         return array_slice($items, 0, $limit);
@@ -429,7 +476,11 @@ final class Station
         $now = self::nowMs();
         $onAir = (bool) $config['on_air'];
         [$previous, $queue] = $onAir ? self::program($now) : [null, []];
-        $next = $onAir ? RadioSlot::query()->where('layer', RadioSlot::MAIN)->where('starts_at', '>', CarbonImmutable::createFromTimestampMs($now))->orderBy('starts_at')->first() : null;
+        $live = self::storedLive();
+        $window = $onAir && LiveSwitch::isOpen($live['window'], $now) ? $live['window'] : null;
+        $external = $window && $config['live_source'] === LiveSwitch::EXTERNAL && $config['live_url'] !== '';
+        $next = $onAir ? RadioSlot::query()->where('layer', RadioSlot::MAIN)->where('kind', '!=', RadioSlot::AUTO)
+            ->where('starts_at', '>', CarbonImmutable::createFromTimestampMs($now))->orderBy('starts_at')->first() : null;
 
         return [
             'now' => $now,
@@ -442,12 +493,17 @@ final class Station
             'layers' => $onAir ? self::layers($live, $now) : [],
             'next_show' => $next ? ['title' => $next->title, 'kind' => $next->kind, 'start' => $next->starts_at->getTimestampMs()] : null,
             'live' => [
-                'on' => $onAir && $live['session'] !== null,
+                'on' => $onAir && ($live['session'] !== null || $external),
                 'session' => $onAir ? $live['session'] : null,
                 'host' => $live['host'],
                 'mic' => $onAir && $live['session'] !== null && $live['mic'],
                 'started_at' => $live['started_at'],
                 'rev' => $live['rev'],
+                'mode' => $config['live_mode'],
+                'source' => $config['live_source'],
+                'cut' => $window !== null,
+                'window' => $window,
+                'url' => $external ? $config['live_url'] : null,
             ],
             'mix' => self::mix($live, $config),
             'listeners' => self::listenerCount(),
@@ -527,116 +583,190 @@ final class Station
             ->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($to))
             ->orderBy('starts_at')
             ->get()
-            ->filter(fn (RadioSlot $slot) => $slot->endsAt()->getTimestampMs() > $from && ($slot->kind === RadioSlot::LIVE || ($slot->track && $slot->track->active)))
+            ->filter(fn (RadioSlot $slot) => $slot->endsAt()->getTimestampMs() > $from
+                && (in_array($slot->kind, [RadioSlot::LIVE, RadioSlot::AUTO], true) || ($slot->track && $slot->track->active)))
             ->values();
     }
 
-    /** Where the gap that contains $at began: the end of the main block before it. */
-    private static function anchorBefore(int $at): int
+    /**
+     * The main program as entries of what sounds: scheduled blocks, automatic periods and the
+     * live cut, which overrides whatever was scheduled under it. Live blocks only sound while
+     * the cut holds them, so outside it they are gaps the music fills. Back-to-back periods of
+     * the same playlist play as one, so a long period does not restart at each block.
+     *
+     * @return list<array{type: string, start: int, end: int, anchor: int, slot: ?RadioSlot, window: ?array}>
+     */
+    private static function entries(Collection $slots, ?array $window, bool $expand): array
     {
-        $previous = RadioSlot::query()->where('layer', RadioSlot::MAIN)->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($at))->orderByDesc('starts_at')->first();
-        $end = $previous?->endsAt()->getTimestampMs();
+        $entries = [];
+        foreach ($slots as $slot) {
+            if ($expand && $slot->kind === RadioSlot::LIVE) {
+                continue;
+            }
+            $start = $slot->starts_at->getTimestampMs();
+            foreach (self::outside($start, $slot->endsAt()->getTimestampMs(), $window) as [$begin, $end]) {
+                $auto = $slot->kind === RadioSlot::AUTO;
+                $entries[] = [
+                    'type' => $auto ? 'auto' : 'slot',
+                    'start' => $begin,
+                    'end' => $end,
+                    'anchor' => $auto && $begin === $start ? self::chainStart($slot) : $begin,
+                    'slot' => $slot,
+                    'window' => null,
+                ];
+            }
+        }
+        if ($window) {
+            $entries[] = ['type' => 'cut', 'start' => $window['start'], 'end' => $window['end'] ?? PHP_INT_MAX, 'anchor' => $window['start'], 'slot' => null, 'window' => $window];
+        }
+        usort($entries, fn (array $a, array $b) => $a['start'] <=> $b['start']);
 
-        return $end !== null && $end <= $at ? $end : self::ROTATION_EPOCH;
+        $merged = [];
+        foreach ($entries as $entry) {
+            $last = $merged ? $merged[count($merged) - 1] : null;
+            if ($last && $last['type'] === 'auto' && $entry['type'] === 'auto' && abs($entry['start'] - $last['end']) <= 50
+                && self::sameSource($last['slot'], $entry['slot'])) {
+                $merged[count($merged) - 1]['end'] = $entry['end'];
+
+                continue;
+            }
+            $merged[] = $entry;
+        }
+
+        return $merged;
+    }
+
+    /** @return list<array{0: int, 1: int}> the parts of [start, end) outside the live cut */
+    private static function outside(int $start, int $end, ?array $window): array
+    {
+        $cutFrom = $window['start'] ?? PHP_INT_MAX;
+        $cutTo = $window ? ($window['end'] ?? PHP_INT_MAX) : PHP_INT_MAX;
+        if ($cutTo <= $start || $cutFrom >= $end) {
+            return [[$start, $end]];
+        }
+
+        return array_values(array_filter([[$start, $cutFrom], [$cutTo, $end]], fn (array $part) => $part[1] > $part[0]));
+    }
+
+    private static function sameSource(RadioSlot $a, RadioSlot $b): bool
+    {
+        return $a->radio_playlist_id === $b->radio_playlist_id && $a->shuffle === $b->shuffle;
+    }
+
+    /** Where a run of back-to-back automatic periods of the same playlist began. */
+    private static function chainStart(RadioSlot $slot): int
+    {
+        $start = $slot->starts_at->getTimestampMs();
+        for ($step = 0; $step < 8; $step++) {
+            $previous = RadioSlot::query()->where('layer', RadioSlot::MAIN)
+                ->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($start))
+                ->where('starts_at', '>=', CarbonImmutable::createFromTimestampMs($start - self::MAX_BLOCK * 1000))
+                ->orderByDesc('starts_at')->first();
+            if (! $previous || $previous->kind !== RadioSlot::AUTO || ! self::sameSource($previous, $slot)
+                || abs($previous->endsAt()->getTimestampMs() - $start) > 50) {
+                break;
+            }
+            $start = $previous->starts_at->getTimestampMs();
+        }
+
+        return $start;
+    }
+
+    /** @return list<array<string, mixed>> what an entry plays between $begin and $finish */
+    private static function entryItems(array $entry, array $config, int $begin, int $finish, bool $expand, int $limit): array
+    {
+        if ($finish <= $begin || $limit <= 0) {
+            return [];
+        }
+        $crossfade = (int) round($config['crossfade'] * 1000);
+        $slot = $entry['slot'];
+
+        if ($entry['type'] === 'auto') {
+            if (! $expand) {
+                return [self::block('a'.$slot->id, 'relleno', $slot->title, $begin, $finish, $entry['start'])];
+            }
+
+            return Autopilot::fill(Autopilot::songs($slot->radio_playlist_id, $crossfade), $slot->shuffle, $entry['anchor'], $begin, $finish, $limit, ['block' => $slot->title]);
+        }
+
+        if ($entry['type'] === 'cut') {
+            $window = $entry['window'];
+            if ($window['bed']) {
+                $songs = Autopilot::songs($config['auto_playlist'], $crossfade);
+                if ($songs) {
+                    return Autopilot::fill($songs, (bool) $config['auto_shuffle'], $window['start'], $begin, $finish, $limit, ['kind' => 'vivo', 'bed' => true, 'block' => $window['title']]);
+                }
+            }
+
+            return [[...self::block('live-'.$window['start'], RadioSlot::LIVE, $window['title'], $begin, $finish, $window['start']), 'block' => $window['title'], 'slot' => $window['slot']]];
+        }
+
+        return [self::slotItem($slot, $begin, $finish)];
     }
 
     /**
-     * The continuous music: each song with its length and the step to the next one
-     * (its length minus the crossfade, never more than a third of the song).
-     *
-     * @return list<array{id: string, kind: string, title: string, artist: ?string, src: string, ms: int, step: int}>
+     * Where the gap that contains $at began: the end of the block before it (live blocks only
+     * count through the cut, since the music plays across them when nobody is on air).
      */
-    private static function rotation(): array
+    private static function anchorBefore(int $at, ?array $window): int
     {
-        $crossfade = (int) round(self::config()['crossfade'] * 1000);
+        $previous = RadioSlot::query()->where('layer', RadioSlot::MAIN)->where('kind', '!=', RadioSlot::LIVE)
+            ->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($at))->orderByDesc('starts_at')->first();
+        $ends = array_filter(
+            [$previous?->endsAt()->getTimestampMs(), $window['end'] ?? null],
+            fn (?int $end) => $end !== null && $end <= $at,
+        );
 
-        return Cache::remember(self::ROTATION_KEY, 600, fn () => RadioTrack::query()
-            ->where('kind', 'musica')->where('active', true)->where('rotation', true)->where('duration', '>=', 5)
-            ->orderBy('id')
-            ->get()
-            ->map(function (RadioTrack $track) use ($crossfade) {
-                $ms = (int) round($track->duration * 1000);
-
-                return [
-                    'id' => $track->id,
-                    'kind' => $track->kind,
-                    'title' => $track->title,
-                    'artist' => $track->artist,
-                    'src' => $track->file_path,
-                    'ms' => $ms,
-                    'step' => max(1000, $ms - min($crossfade, intdiv($ms, 3))),
-                ];
-            })->all());
+        return $ends ? max($ends) : self::ROTATION_EPOCH;
     }
 
-    private static function gap(array $rotation, int $anchor, int $from, int $to, bool $expand, int $limit): array
+    /**
+     * Automatic music of a gap, from the station's source. A source change splits the gap: the
+     * old source plays until auto_since and the new one starts fresh there.
+     */
+    private static function gap(array $config, int $anchor, int $from, int $to, bool $expand, int $limit): array
     {
-        if ($to <= $from || ! $rotation) {
+        if ($to <= $from || ! $config['autofill'] || $limit <= 0) {
             return [];
         }
-        if ($expand) {
-            return self::fill($rotation, $anchor, $from, $to, null, $limit);
+        $crossfade = (int) round($config['crossfade'] * 1000);
+        $current = ['playlist' => $config['auto_playlist'], 'shuffle' => (bool) $config['auto_shuffle']];
+        if (! $expand) {
+            return Autopilot::songs($current['playlist'], $crossfade) ? [self::block('gap-'.$from, 'relleno', 'Música continua', $from, $to, $from)] : [];
         }
 
-        return [[
-            'id' => 'gap-'.$from,
-            'kind' => 'relleno',
-            'title' => 'Música continua',
+        $since = (int) $config['auto_since'];
+        $previous = is_array($config['auto_prev']) ? $config['auto_prev'] : null;
+        $parts = $previous && $anchor < $since && $since < $to
+            ? [[$anchor, $since, $previous], [$since, $to, $current]]
+            : [[$anchor, $to, $previous && $anchor < $since ? $previous : $current]];
+
+        $items = [];
+        foreach ($parts as [$start, $end, $source]) {
+            $songs = Autopilot::songs($source['playlist'] ?? null, $crossfade);
+            array_push($items, ...Autopilot::fill($songs, (bool) ($source['shuffle'] ?? true), $start, max($start, $from), $end, $limit - count($items)));
+        }
+
+        return $items;
+    }
+
+    private static function block(string $id, string $kind, string $title, int $begin, int $finish, int $origin): array
+    {
+        return [
+            'id' => $id,
+            'kind' => $kind,
+            'title' => $title,
             'artist' => null,
             'src' => null,
-            'start' => $from,
-            'end' => $to,
-            'origin' => $from,
-            'seek' => 0,
+            'start' => $begin,
+            'end' => $finish,
+            'origin' => $origin,
+            'seek' => round(($begin - $origin) / 1000, 3),
             'bed' => false,
             'block' => null,
             'slot' => null,
             'track' => null,
-        ]];
-    }
-
-    /** Songs of the rotation between $from and $to, shuffled per gap so each gap starts a fresh sequence. */
-    private static function fill(array $rotation, int $anchor, int $from, int $to, ?string $block, int $limit): array
-    {
-        $order = $rotation;
-        usort($order, fn ($a, $b) => crc32($a['id'].$anchor) <=> crc32($b['id'].$anchor));
-        $total = array_sum(array_column($order, 'step'));
-        if ($total <= 0 || $to <= $from) {
-            return [];
-        }
-        $count = count($order);
-        // One cycle back, so the last song of the previous cycle is kept while it fades into this one.
-        $t = $anchor + max(0, intdiv(max(0, $from - $anchor), $total) - 1) * $total;
-        $index = 0;
-        while ($t + $order[$index]['ms'] <= $from) {
-            $t += $order[$index]['step'];
-            $index = ($index + 1) % $count;
-        }
-
-        $items = [];
-        while ($t < $to && count($items) < $limit) {
-            $track = $order[$index];
-            $begin = max($t, $from);
-            $items[] = [
-                'id' => 'r'.$t.'-'.substr($track['id'], 0, 8),
-                'kind' => $block ? 'vivo' : 'musica',
-                'title' => $track['title'],
-                'artist' => $track['artist'],
-                'src' => $track['src'],
-                'start' => $begin,
-                'end' => min($t + $track['ms'], $to),
-                'origin' => $t,
-                'seek' => round(($begin - $t) / 1000, 3),
-                'bed' => $block !== null,
-                'block' => $block,
-                'slot' => null,
-                'track' => $track['id'],
-            ];
-            $t += $track['step'];
-            $index = ($index + 1) % $count;
-        }
-
-        return $items;
+        ];
     }
 
     private static function slotItem(RadioSlot $slot, int $begin, int $finish): array

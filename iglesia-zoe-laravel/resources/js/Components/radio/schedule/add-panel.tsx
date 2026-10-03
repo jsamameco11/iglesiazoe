@@ -3,13 +3,31 @@ import { Notice, button, input, useAction } from "@/Components/admin/ui";
 import { KindTag } from "@/Components/radio/admin-ui";
 import { DuckIcon } from "@/Components/radio/icons";
 import { send } from "@/lib/actions";
-import { KIND_LABEL, LAYERS, clock, duration, layerLabel, type RadioTrack } from "@/lib/radio";
+import { KIND_LABEL, LAYERS, clock, duration, layerLabel, type RadioPlaylist, type RadioTrack } from "@/lib/radio";
+import { SourcePicker } from "@/Components/radio/source-picker";
 
 type Mode = "end" | "at" | "now";
 
-/** Places library audios (or a live block) on a layer of the day: after the last block, at an exact time or right now. */
-export function AddPanel({ date, isToday, dayEnds, tracks }: { date: string; isToday: boolean; dayEnds: Record<number, number | null>; tracks: RadioTrack[] }) {
-  const [type, setType] = useState<"tracks" | "vivo">("tracks");
+/**
+ * Places library audios, a live block or a period of automatic music on a layer of the day:
+ * after the last block, at an exact time or right now.
+ */
+export function AddPanel({
+  date,
+  isToday,
+  dayEnds,
+  tracks,
+  playlists,
+}: {
+  date: string;
+  isToday: boolean;
+  dayEnds: Record<number, number | null>;
+  tracks: RadioTrack[];
+  playlists: RadioPlaylist[];
+}) {
+  const [type, setType] = useState<"tracks" | "vivo" | "automatica">("tracks");
+  const [playlist, setPlaylist] = useState<string>("");
+  const [shuffle, setShuffle] = useState(true);
   const [layer, setLayer] = useState(0);
   const [mode, setMode] = useState<Mode>("end");
   const [query, setQuery] = useState("");
@@ -19,7 +37,7 @@ export function AddPanel({ date, isToday, dayEnds, tracks }: { date: string; isT
   const [duck, setDuck] = useState<"" | "1" | "0">("");
   const { result, setResult, pending, run } = useAction();
   const overlay = type === "tracks" && layer > 0;
-  const dayEnd = dayEnds[type === "vivo" ? 0 : layer] ?? null;
+  const dayEnd = dayEnds[type === "tracks" ? layer : 0] ?? null;
 
   const shown = tracks.filter((track) => (!kind || track.kind === kind) && `${track.title} ${track.artist ?? ""}`.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 60);
   const length = type === "tracks" ? picked.reduce((sum, track) => sum + track.duration, 0) : 0;
@@ -30,7 +48,11 @@ export function AddPanel({ date, isToday, dayEnds, tracks }: { date: string; isT
     data.set("date", date);
     data.set("mode", mode);
     data.set("type", type);
-    data.set("layer", String(type === "vivo" ? 0 : layer));
+    data.set("layer", String(type === "tracks" ? layer : 0));
+    if (type === "automatica") {
+      data.set("playlist", playlist);
+      data.set("shuffle", shuffle ? "1" : "0");
+    }
     if (overlay) {
       data.set("volume", String(volume));
       data.set("duck", duck);
@@ -48,11 +70,12 @@ export function AddPanel({ date, isToday, dayEnds, tracks }: { date: string; isT
       <div className="mt-3 flex rounded-full bg-paper p-1">
         {(
           [
-            ["tracks", "Desde la biblioteca"],
-            ["vivo", "Bloque en vivo"],
+            ["tracks", "Biblioteca"],
+            ["automatica", "Música automática"],
+            ["vivo", "En vivo"],
           ] as const
         ).map(([value, label]) => (
-          <button key={value} type="button" onClick={() => setType(value)} className={`flex-1 rounded-full px-3 py-2 text-xs font-semibold transition ${type === value ? "bg-ink text-white" : "text-muted"}`}>
+          <button key={value} type="button" onClick={() => setType(value)} className={`flex-1 rounded-full px-2.5 py-2 text-xs font-semibold transition ${type === value ? "bg-ink text-white" : "text-muted"}`}>
             {label}
           </button>
         ))}
@@ -141,6 +164,18 @@ export function AddPanel({ date, isToday, dayEnds, tracks }: { date: string; isT
             </div>
           ) : null}
         </div>
+      ) : type === "automatica" ? (
+        <div className="mt-4 grid gap-3">
+          <p className="text-[11.5px] leading-4 text-muted">
+            De una hora a otra suena la lista que elijas: cada vuelta toca todas sus canciones sin repetir y al terminar empieza otra vuelta. Si alguien sale en vivo, la música le da paso y luego vuelve sola.
+          </p>
+          <SourcePicker playlists={playlists} playlist={playlist} shuffle={shuffle} onPlaylist={setPlaylist} onShuffle={setShuffle} />
+          <label className="text-xs font-semibold text-muted">
+            Hasta las
+            <input name="until" type="time" required defaultValue="12:00" className={`${input} !w-40`} />
+            <span className="mt-1 block font-normal">Si es más temprano que el inicio, termina al día siguiente (hasta 24 horas).</span>
+          </label>
+        </div>
       ) : (
         <div className="mt-4 grid gap-3">
           <label className="text-xs font-semibold text-muted">
@@ -155,7 +190,7 @@ export function AddPanel({ date, isToday, dayEnds, tracks }: { date: string; isT
             <input type="checkbox" name="bed" value="1" defaultChecked className="mt-1" />
             <span>
               Música de fondo
-              <span className="block text-xs text-muted">Durante el bloque suena la música continua bajita, lista para tu voz.</span>
+              <span className="block text-xs text-muted">Mientras estás al aire suena la música automática bajita, lista para tu voz. Si nadie se conecta, la música sigue normal.</span>
             </span>
           </label>
         </div>

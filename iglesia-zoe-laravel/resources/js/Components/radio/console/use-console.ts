@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BEDS, Broadcaster, ProgramPlayer, ServerClock, postForm, type RadioConfig, type RadioLayer, type RadioState, type RadioTrack } from "@/lib/radio";
+import { BEDS, Broadcaster, ProgramPlayer, ServerClock, postForm, type Autopilot, type LiveMode, type RadioConfig, type RadioLayer, type RadioState, type RadioTrack } from "@/lib/radio";
 
 export type ConsoleLive = {
   session: string | null;
@@ -13,7 +13,7 @@ export type ConsoleLive = {
   rev: number;
 };
 
-export type Snapshot = { radio: RadioState; live: ConsoleLive; voice: number; config: RadioConfig };
+export type Snapshot = { radio: RadioState; live: ConsoleLive; voice: number; config: RadioConfig; autopilot: Autopilot };
 
 type Notice = { tone: "error" | "info"; text: string } | null;
 
@@ -42,6 +42,7 @@ export function useConsole(initial: Snapshot, host: string) {
   const [state, setState] = useState(initial.radio);
   const [live, setLive] = useState(initial.live);
   const [config, setConfig] = useState(initial.config);
+  const [autopilot, setAutopilot] = useState(initial.autopilot);
   const [voice, setVoice] = useState(initial.voice);
   const [now, setNow] = useState(initial.radio.now);
   const [notice, setNotice] = useState<Notice>(null);
@@ -61,6 +62,7 @@ export function useConsole(initial: Snapshot, host: string) {
     setState(data.radio);
     setLive(data.live);
     setConfig(data.config);
+    if (data.autopilot) setAutopilot(data.autopilot);
     setVoice(data.voice);
     player.current?.setQueue(data.radio.queue);
     player.current?.setMix(data.radio.mix);
@@ -303,14 +305,38 @@ export function useConsole(initial: Snapshot, host: string) {
 
   /** Takes the song on air out of the continuous music: it fades out now and does not repeat. */
   async function dropFromRotation(trackId: string, title: string) {
-    if (!window.confirm(`¿Sacar «${title}» de la música continua?\n\nDeja de sonar ahora y no se repetirá. Puedes volver a incluirla cuando quieras desde la Biblioteca o la Programación.`)) return;
+    if (!window.confirm(`¿Sacar «${title}» de la música automática?\n\nDeja de sonar ahora, sale de sus listas y no se repetirá. Puedes volver a incluirla cuando quieras desde Listas o la Biblioteca.`)) return;
     await musicAction({ action: "drop", id: trackId });
+  }
+
+  /** Changes what the automatic music plays; the song on air finishes first. */
+  async function switchSource(playlist: string, shuffle: boolean) {
+    await musicAction({ action: "source", playlist, shuffle: shuffle ? "1" : "0" });
+  }
+
+  /** «Ir al vivo»: cuts the automatic music for every listener until the operator returns. */
+  async function cutMusic() {
+    await musicAction({ action: "cut", on: "1" });
+  }
+
+  /** Back to the automatic music right away, optionally with another playlist or order. */
+  async function resumeMusic(source?: { playlist: string; shuffle: boolean }) {
+    await musicAction({ action: "cut", on: "0", ...(source ? { playlist: source.playlist, shuffle: source.shuffle ? "1" : "0" } : {}) });
+  }
+
+  async function setLiveMode(mode: LiveMode) {
+    await musicAction({ action: "mode", mode });
   }
 
   return {
     state,
     live,
     config,
+    autopilot,
+    switchSource,
+    cutMusic,
+    resumeMusic,
+    setLiveMode,
     voice,
     now,
     notice,

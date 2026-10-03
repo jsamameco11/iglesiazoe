@@ -202,7 +202,7 @@ export class ProgramPlayer {
 
     const playing = this.active >= 0 ? this.decks[this.active] : null;
     if (!item || !item.src) {
-      if (playing) this.fadeOut(this.active);
+      if (playing) this.fadeOut(this.active, item?.kind === "vivo" ? 1.5 : 0.4);
       this.active = -1;
       this.preload(now);
       return;
