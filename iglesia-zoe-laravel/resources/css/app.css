@@ -796,46 +796,48 @@ body {
 @keyframes nav-drop-in {
   from { opacity: 0; transform: translateY(-6px) scale(0.98); }
 }
+.site-nav {
+  font-family: var(--nav-face, var(--face-text, var(--font-text)));
+  font-size: var(--nav-size, 15px);
+  font-weight: var(--nav-weight, 500);
+  letter-spacing: var(--nav-tracking, -0.01em);
+}
 .pill-drop {
   position: absolute;
   top: 100%;
-  left: -1.1rem;
+  left: -0.85rem;
   z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
-  padding-top: 0.9rem;
+  gap: 0.25rem;
+  padding-top: 0.8rem;
 }
 .pill-drop-item {
   display: flex;
   align-items: center;
-  width: 14.5rem;
-  height: 2.75rem;
+  width: 13.5rem;
+  height: 2.125rem;
   border-radius: 999px;
-  padding: 0 1.25rem;
-  font-size: 14.5px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  color: var(--ink);
-  background: color-mix(in srgb, var(--card) 58%, transparent);
-  border: 1px solid rgba(255, 255, 255, 0.55);
-  -webkit-backdrop-filter: blur(18px) saturate(1.6);
-  backdrop-filter: blur(18px) saturate(1.6);
-  box-shadow: 0 14px 30px -18px rgba(23, 24, 28, 0.45);
-  animation: pill-drop-in 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: calc(var(--i, 0) * 45ms);
-  transition: background-color 0.22s ease, color 0.22s ease, border-color 0.22s ease, transform 0.22s ease;
+  padding: 0 0.85rem;
+  font-size: var(--nav-drop-size, 14px);
+  font-weight: var(--nav-drop-weight, 400);
+  line-height: 1;
+  color: color-mix(in srgb, var(--ink) 88%, transparent);
+  background: color-mix(in srgb, var(--card) 78%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(1.3);
+  backdrop-filter: blur(12px) saturate(1.3);
+  animation: pill-drop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 25ms);
+  transition: background-color 0.18s ease, color 0.18s ease;
 }
 .pill-drop-item:hover,
 .pill-drop-item:focus-visible {
-  background: color-mix(in srgb, var(--ink) 86%, transparent);
-  border-color: transparent;
-  color: var(--paper);
-  transform: translateX(4px);
+  background: color-mix(in srgb, var(--card) 96%, transparent);
+  color: var(--ink);
   outline: none;
 }
 @keyframes pill-drop-in {
-  from { opacity: 0; transform: translateY(-8px); }
+  from { opacity: 0; transform: translateY(-4px); }
 }
 
 .menu-toggle-lines {
