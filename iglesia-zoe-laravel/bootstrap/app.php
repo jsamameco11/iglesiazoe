@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\BumpSiteVersion;
 use App\Http\Middleware\EnsureEntrance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -22,6 +23,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web(append: [
             EnsureEntrance::class,
             HandleInertiaRequests::class,
+            BumpSiteVersion::class,
         ]);
         $middleware->redirectGuestsTo('/acceso');
         $middleware->redirectUsersTo('/admin');
