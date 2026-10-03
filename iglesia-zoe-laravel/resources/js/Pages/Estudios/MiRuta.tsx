@@ -1,6 +1,7 @@
 import { Head, Link, router } from "@inertiajs/react";
 import { useEffect, useState, type CSSProperties } from "react";
 import { useSiteDesign } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 import { formatStudyDate, plural, type StudyLevel, type StudyNotice, type StudyReading, type StudyVerse } from "@/lib/studies";
 import type { RouteStep, Grade, Summary, Student } from "@/Components/classroom/types";
 import { useStored } from "@/Components/classroom/hooks";
@@ -27,6 +28,7 @@ const toneLabel: Record<StudyNotice["tone"], string> = { aviso: "Aviso", importa
 export default function MiRuta(props: Props) {
   const { student, level, route, grades, summary, verses, notices, readings } = props;
   const { style, attrs } = useSiteDesign();
+  const pages = useSitePages();
   const [seen, setSeen] = useStored(`zoe-aula-avisos-${student.username}`);
   const [bellOpen, setBellOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -60,7 +62,7 @@ export default function MiRuta(props: Props) {
 
   return (
     <div data-skin="aire" {...attrs} className="aula min-h-screen bg-paper text-ink" style={style as CSSProperties}>
-      <Head title={`Mi aula · ${level?.name ?? "La Ruta del Servidor"}`} />
+      <Head title={`Mi aula · ${level?.name ?? pages.name("route")}`} />
 
       <header className="aula-top">
         <div className="aula-wrap flex h-16 items-center justify-between gap-3">
@@ -133,7 +135,7 @@ export default function MiRuta(props: Props) {
                   <button type="button" onClick={() => { setPasswordOpen(true); setMenuOpen(false); }} className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium hover:bg-sage">
                     Cambiar mi clave
                   </button>
-                  <Link href="/ruta-del-servidor" className="block rounded-xl px-3 py-2.5 text-sm font-medium hover:bg-sage">La Ruta del Servidor</Link>
+                  <Link href="/ruta-del-servidor" className="block rounded-xl px-3 py-2.5 text-sm font-medium hover:bg-sage">{pages.name("route")}</Link>
                   <button type="button" onClick={() => router.post("/salir")} className="block w-full rounded-xl px-3 py-2.5 text-left text-sm font-medium text-red-700 hover:bg-red-50">
                     Salir
                   </button>

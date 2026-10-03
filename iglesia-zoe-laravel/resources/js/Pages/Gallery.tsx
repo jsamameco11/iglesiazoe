@@ -7,8 +7,10 @@ import { readCopy, type CopyKey } from "@/lib/copy";
 import type { ServiceGallery, ServiceGalleryFull, SiteSettings } from "@/lib/types";
 import { formatSermonDate } from "@/lib/youtube";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 export default function Gallery({ gallery, others, settings }: { gallery: ServiceGalleryFull; others: ServiceGallery[]; settings: SiteSettings }) {
+  const pages = useSitePages();
   const t = (key: CopyKey) => readCopy(settings, key);
   const [open, setOpen] = useState<number | null>(null);
 
@@ -16,7 +18,7 @@ export default function Gallery({ gallery, others, settings }: { gallery: Servic
     <SiteLayout>
       <article className="page-wrap">
         <Rise>
-          <Link href="/galeria" className="text-sm text-muted transition hover:text-ink">← {t("gallery.back")}</Link>
+          <Link href="/galeria" className="text-sm text-muted transition hover:text-ink">← {pages.name("gallery")}</Link>
           <header {...section("intro", "Portada")} className="mt-10 flex flex-wrap items-end justify-between gap-6 border-b border-ink/10 pb-10">
             <div className="max-w-3xl">
               <p className="kicker">
@@ -43,7 +45,7 @@ export default function Gallery({ gallery, others, settings }: { gallery: Servic
           <section {...section("others", "Otros álbumes")} className="mt-24">
             <Rise className="flex flex-wrap items-end justify-between gap-6">
               <h2 className="editorial text-3xl md:text-4xl">{t("gallery.others")}</h2>
-              <Link href="/galeria" className="home-link">{t("gallery.back")} →</Link>
+              <Link href="/galeria" className="home-link">{pages.name("gallery")} →</Link>
             </Rise>
             <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
               {others.map((item) => (

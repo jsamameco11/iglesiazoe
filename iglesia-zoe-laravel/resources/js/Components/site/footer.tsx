@@ -1,8 +1,12 @@
 import { Link } from "@inertiajs/react";
 import { Rise } from "@/Components/motion/rise";
 import { useCopy } from "@/lib/copy";
+import { useSitePages, type PageKey } from "@/lib/site-pages";
 import { useSocial } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
+
+const KNOW: PageKey[] = ["about", "ministries", "events", "sermons", "gallery", "devotionals", "teachings", "radio"];
+const NEXT: PageKey[] = ["visit", "baptism", "serve", "register", "route", "give", "classroom"];
 
 export function Footer({
   settings,
@@ -12,6 +16,7 @@ export function Footer({
   other?: { href: string; label: string; invert?: boolean };
 }) {
   const t = useCopy();
+  const pages = useSitePages();
   const social = useSocial();
   return (
     <footer className="border-t border-line px-6 py-20 md:px-16 lg:px-24">
@@ -25,24 +30,15 @@ export function Footer({
         </div>
         <div className="text-sm leading-7 md:col-span-2">
           <p className="kicker">{t("footer.colKnow")}</p>
-          <Link href="/conocenos" className="mt-3 block">{t("nav.about")}</Link>
-          <Link href="/ministerios" className="block text-muted">{t("nav.ministries")}</Link>
-          <Link href="/eventos" className="block text-muted">{t("nav.events")}</Link>
-          <Link href="/predicas" className="block text-muted">{t("nav.sermons")}</Link>
-          <Link href="/galeria" className="block text-muted">{t("nav.gallery")}</Link>
-          <Link href="/devocionales" className="block text-muted">{t("nav.devotionals")}</Link>
-          <Link href="/recursos" className="block text-muted">{t("nav.teachings")}</Link>
-          <Link href="/radio" className="block text-muted">{t("nav.radio")}</Link>
+          {KNOW.map((key, index) => (
+            <Link key={key} href={pages.path(key)} className={index === 0 ? "mt-3 block" : "block text-muted"}>{pages.name(key)}</Link>
+          ))}
         </div>
         <div className="text-sm leading-7 md:col-span-3">
           <p className="kicker">{t("footer.colNext")}</p>
-          <Link href="/visita" className="mt-3 block">{settings.visitCta}</Link>
-          <Link href="/bautismos" className="block text-muted">{t("nav.baptism")}</Link>
-          <Link href="/involucrate" className="block text-muted">{t("nav.areas")}</Link>
-          <Link href="/involucrate#registro" className="block text-muted">{t("nav.register")}</Link>
-          <Link href="/ruta-del-servidor" className="block text-muted">{t("nav.route")}</Link>
-          <Link href="/dar" className="block text-muted">{t("footer.give")}</Link>
-          <Link href="/estudios/acceso" className="block text-muted">{t("nav.studentAccess")}</Link>
+          {NEXT.map((key, index) => (
+            <Link key={key} href={pages.path(key)} className={index === 0 ? "mt-3 block" : "block text-muted"}>{pages.name(key)}</Link>
+          ))}
           <Link href="/acceso" className="block text-muted">{t("nav.access")}</Link>
         </div>
         <div className="text-sm leading-7 md:col-span-3">

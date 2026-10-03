@@ -11,6 +11,7 @@ import { useSocial } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
 import "../../css/oracion.css";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 export default function Contact({
   settings,
@@ -21,6 +22,7 @@ export default function Contact({
   mediaOverrides: Record<string, MediaAsset>;
   skin: "aire" | "marea";
 }) {
+  const pages = useSitePages();
   const media = resolveMedia(mediaOverrides);
   const t = useCopy();
   const social = useSocial();
@@ -28,7 +30,7 @@ export default function Contact({
     <SiteLayout>
       <article className="page-wrap pb-8">
         <Rise>
-          <PageIntro skin={skin} kicker={t("contact.kicker")} title={settings.contactTitle} media={<PageBand asset={media.contact} />}>
+          <PageIntro skin={skin} kicker={pages.kicker("contact")} title={settings.contactTitle} media={<PageBand asset={media.contact} />}>
             <div className="mt-8 space-y-1 text-lg font-light text-muted">
               <p>{settings.address}</p>
               <p>{settings.sunday}</p>
@@ -59,7 +61,7 @@ export default function Contact({
           </Rise>
           <Rise delay={100} className="h-full" from="right">
             <div id="peticion" className="panel h-full p-7 md:p-10">
-              <p className="kicker">{t("contact.formKicker")}</p>
+              <p className="kicker">{pages.section("contact", "form")}</p>
               <LeadTitle as="h2" text={settings.prayerTitle || "¿Cómo podemos orar por ti?"} className="mt-3 text-4xl md:text-5xl" />
               <p className="mt-4 max-w-md text-sm leading-6 text-muted">
                 {t("contact.formText")}

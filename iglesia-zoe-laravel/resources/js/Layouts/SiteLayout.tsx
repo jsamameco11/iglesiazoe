@@ -45,7 +45,6 @@ export default function SiteLayout({
         home="/"
         other={other}
         overMedia={overMedia}
-        visitCta={settings.visitCta}
       />
       <div ref={revealRoot}>
         <main>{children}</main>

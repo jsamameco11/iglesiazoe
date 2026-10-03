@@ -10,6 +10,7 @@ import { readCopy, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { ServeArea, SiteSettings } from "@/lib/types";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 export default function Serve({
   settings,
@@ -22,6 +23,7 @@ export default function Serve({
   mediaOverrides: Record<string, MediaAsset>;
   skin: "aire" | "marea";
 }) {
+  const pages = useSitePages();
   const media = resolveMedia(mediaOverrides);
   const t = (key: CopyKey) => readCopy(settings, key);
   const reasons = t("serve.whyPoints").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
@@ -34,7 +36,7 @@ export default function Serve({
       <article>
         <div className="page-wrap flush-bottom">
           <Rise>
-            <PageIntro skin={skin} kicker={t("serve.kicker")} title={settings.serveTitle} media={<PageBand asset={media.serveCover} />}>
+            <PageIntro skin={skin} kicker={pages.kicker("serve")} title={settings.serveTitle} media={<PageBand asset={media.serveCover} />}>
               <p className="mt-5 max-w-xl text-lg font-light leading-8 text-muted">{settings.serveText}</p>
               <div className="mt-8 flex flex-wrap gap-3">
                 <a href="#registro" className="btn-accent inline-flex rounded-full px-6 py-3 text-sm font-semibold">{t("serve.register")}</a>
@@ -49,7 +51,7 @@ export default function Serve({
         <section {...section("why", "Por qué servir")} className="px-6 pb-6 pt-24 md:px-16 md:pt-28">
           <div className="section-wrap grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
             <Rise>
-              <p className="kicker">{t("serve.whyKicker")}</p>
+              <p className="kicker">{pages.section("serve", "why")}</p>
               <LeadTitle as="h2" text={t("serve.whyTitle")} className="mt-4 text-4xl leading-[1.05] md:text-5xl" />
             </Rise>
             <ul className="grid gap-3 sm:grid-cols-2">
@@ -73,7 +75,7 @@ export default function Serve({
           <section {...section("areas", "Áreas de servicio")} id="areas" className="scroll-mt-24 px-6 pb-24 pt-16 md:px-16">
             <div className="section-wrap">
               <Rise>
-                <p className="kicker">{t("serve.areasKicker")}</p>
+                <p className="kicker">{pages.section("serve", "areas")}</p>
                 <LeadTitle as="h2" text={t("serve.areasTitle")} className="mt-4 max-w-3xl text-4xl leading-[1.05] md:text-5xl" />
               </Rise>
               <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -102,7 +104,7 @@ export default function Serve({
           <section {...section("also", "También puedes servir")} className="px-6 pb-24 md:px-16">
             <div className="section-wrap">
               <Rise>
-                <p className="kicker">{t("serve.alsoKicker")}</p>
+                <p className="kicker">{pages.section("serve", "also")}</p>
                 <h2 className="editorial mt-3 text-3xl md:text-4xl">{t("serve.alsoTitle")}</h2>
               </Rise>
               <div className="mt-8 grid gap-4 md:grid-cols-2">
@@ -125,7 +127,7 @@ export default function Serve({
           <section {...section("form", "Formulario de inscripción")} id="registro" className="soft-band scroll-mt-20 px-6 py-20 md:px-16 md:py-24">
             <div className="section-wrap grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
               <Rise>
-                <p className="kicker">{t("serve.formKicker")}</p>
+                <p className="kicker">{pages.section("serve", "form")}</p>
                 <LeadTitle as="h2" text={t("serve.formTitle")} className="mt-4 text-4xl leading-[1.05] md:text-5xl" />
                 <p className="mt-5 max-w-md text-[15px] leading-7 text-muted">{t("serve.formText")}</p>
               </Rise>
@@ -139,7 +141,7 @@ export default function Serve({
         <section {...section("route", "La Ruta del Servidor")} className="ink-band px-6 py-20 md:px-16 md:py-24">
           <Rise className="section-wrap flex flex-wrap items-end justify-between gap-8">
             <div>
-              <p className="kicker">{t("nav.route")}</p>
+              <p className="kicker">{pages.name("route")}</p>
               <h2 className="editorial mt-4 max-w-2xl text-4xl leading-[1.05] text-white md:text-5xl">{t("serve.routeTitle")}</h2>
             </div>
             <Link href="/ruta-del-servidor" className="btn-accent rounded-full px-6 py-3 text-sm font-semibold">

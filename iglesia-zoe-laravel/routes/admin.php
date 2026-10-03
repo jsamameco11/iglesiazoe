@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\SermonsController;
 use App\Http\Controllers\Admin\ServersController;
 use App\Http\Controllers\Admin\SiteContentController;
 use App\Http\Controllers\Admin\SiteMediaController;
+use App\Http\Controllers\Admin\SitePagesController;
 use App\Http\Controllers\Admin\StudiesController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\ThemesController;
@@ -42,6 +43,8 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::get('/contenido', [SiteContentController::class, 'contenido']);
         Route::get('/textos', [SiteContentController::class, 'textos']);
         Route::post('/textos', [SiteContentController::class, 'saveTexts']);
+        Route::get('/paginas', [SitePagesController::class, 'index']);
+        Route::post('/paginas', [SitePagesController::class, 'save']);
         Route::get('/ministerios', [MinistriesController::class, 'ministerios']);
         Route::post('/ministerios', [MinistriesController::class, 'saveMinistry']);
         Route::post('/ministerios/orden', [MinistriesController::class, 'moveMinistry']);

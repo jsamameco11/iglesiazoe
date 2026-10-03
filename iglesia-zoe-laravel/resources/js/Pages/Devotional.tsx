@@ -8,6 +8,7 @@ import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { Devotional as DevotionalCardData, DevotionalFull, SiteSettings } from "@/lib/types";
 import { formatSermonDate } from "@/lib/youtube";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 function Body({ text }: { text: string }) {
   const paragraphs = text.split(/\n\s*\n/).map((part) => part.trim()).filter(Boolean);
@@ -38,6 +39,7 @@ export default function Devotional({
   settings: SiteSettings;
   mediaOverrides: Record<string, MediaAsset>;
 }) {
+  const pages = useSitePages();
   const t = (key: CopyKey) => readCopy(settings, key);
   const cover = resolveMedia(mediaOverrides).devotionals.src;
   const image = devotional.image || cover;
@@ -60,7 +62,7 @@ export default function Devotional({
       <article className="page-wrap">
         <div {...section("reading", "Lectura")} className="mx-auto max-w-3xl">
           <Rise>
-            <Link href="/devocionales" className="text-sm text-muted transition hover:text-ink">← {t("devotionals.back")}</Link>
+            <Link href="/devocionales" className="text-sm text-muted transition hover:text-ink">← {pages.name("devotionals")}</Link>
             <p className="kicker mt-10">
               {formatSermonDate(devotional.publish_on)} · {devotional.minutes} {t("devotionals.minutes")}
             </p>
@@ -110,7 +112,7 @@ export default function Devotional({
           <section {...section("more", "Más devocionales")} className="mt-20">
             <Rise className="flex flex-wrap items-end justify-between gap-6">
               <h2 className="editorial text-3xl md:text-4xl">{t("devotionals.more")}</h2>
-              <Link href="/devocionales" className="home-link">{t("devotionals.back")} →</Link>
+              <Link href="/devocionales" className="home-link">{pages.name("devotionals")} →</Link>
             </Rise>
             <div className="mt-8 grid gap-5 md:grid-cols-3">
               {more.map((item) => (

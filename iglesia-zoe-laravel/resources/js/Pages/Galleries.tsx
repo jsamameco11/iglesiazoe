@@ -8,6 +8,7 @@ import { readCopy, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { GalleryKind, ServiceGallery, SiteSettings } from "@/lib/types";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 type Filter = "all" | GalleryKind;
 
@@ -22,6 +23,7 @@ export default function Galleries({
   mediaOverrides: Record<string, MediaAsset>;
   skin: "aire" | "marea";
 }) {
+  const pages = useSitePages();
   const media = resolveMedia(mediaOverrides);
   const t = (key: CopyKey) => readCopy(settings, key);
   const [filter, setFilter] = useState<Filter>("all");
@@ -45,7 +47,7 @@ export default function Galleries({
     <SiteLayout>
       <article className="page-wrap">
         <Rise>
-          <PageIntro skin={skin} kicker={t("gallery.kicker")} title={t("gallery.title")} media={<PageBand asset={media.gallery} />}>
+          <PageIntro skin={skin} kicker={pages.kicker("gallery")} title={t("gallery.title")} media={<PageBand asset={media.gallery} />}>
             <p className="mt-5 max-w-xl text-lg font-light leading-8 text-muted">{t("gallery.text")}</p>
           </PageIntro>
         </Rise>

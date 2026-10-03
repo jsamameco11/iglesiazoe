@@ -2,6 +2,7 @@ import { Link, usePage } from "@inertiajs/react";
 import { useEffect, useRef, useState } from "react";
 import { readPairs, splitEmphasis, useCopy } from "@/lib/copy";
 import type { SiteSettings } from "@/lib/types";
+import { useSitePages } from "@/lib/site-pages";
 
 const VERSE_MS = 4000;
 
@@ -42,6 +43,7 @@ function useVerseCycle(count: number) {
 }
 
 export function PrayerLight() {
+  const pages = useSitePages();
   const { settings } = usePage().props as unknown as { settings?: SiteSettings };
   const t = useCopy();
   const verses = readPairs(settings, "prayer.verses");
@@ -58,7 +60,7 @@ export function PrayerLight() {
       <span className="prayer-light-mark" aria-hidden="true">“</span>
 
       <div className="relative">
-        <p className="prayer-light-kicker">{t("prayer.kicker")}</p>
+        <p className="prayer-light-kicker">{pages.section("contact", "prayer")}</p>
         <h2 className="editorial mt-4 text-[2.5rem] leading-[1.02] text-ink md:text-[3.1rem]">
           {splitEmphasis(t("prayer.title")).map((part, i) => (part.em ? <em key={i}>{part.text}</em> : <span key={i}>{part.text}</span>))}
         </h2>
@@ -131,6 +133,7 @@ function InviteTitle({ text }: { text: string }) {
 }
 
 export function VisitInvite({ sunday, wednesday }: { sunday?: string; wednesday?: string }) {
+  const pages = useSitePages();
   const t = useCopy();
   return (
     <Link href="/visita" className="visit-invite group">
@@ -142,7 +145,7 @@ export function VisitInvite({ sunday, wednesday }: { sunday?: string; wednesday?
         </svg>
       </span>
       <span className="relative min-w-0 flex-1">
-        <span className="kicker block">{t("contact.visitKicker")}</span>
+        <span className="kicker block">{pages.section("contact", "visit")}</span>
         <span className="editorial mt-3 block text-[2.3rem] leading-[1.02] md:text-[3.2rem]">
           <InviteTitle text={t("contact.visitTitle")} />
         </span>

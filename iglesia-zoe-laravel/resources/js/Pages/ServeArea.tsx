@@ -9,6 +9,7 @@ import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import type { ServeArea as Area, SiteSettings } from "@/lib/types";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 function AreaButton({ href, label, primary = false }: { href: string; label: string; primary?: boolean }) {
   const className = primary
@@ -32,6 +33,7 @@ export default function ServeArea({
   settings: SiteSettings;
   skin: "aire" | "marea";
 }) {
+  const pages = useSitePages();
   const t = (key: CopyKey) => readCopy(settings, key);
   const others = serveAreas.filter((item) => item.id !== area.id);
   const volunteerAreas = serveAreas.filter((item) => item.accepts_volunteers);
@@ -43,13 +45,13 @@ export default function ServeArea({
       <article>
         <div className="page-wrap flush-bottom">
           <Rise>
-            <Link href="/involucrate" className="text-sm text-muted transition hover:text-ink">← {t("serve.back")}</Link>
+            <Link href="/involucrate" className="text-sm text-muted transition hover:text-ink">← {pages.name("serve")}</Link>
           </Rise>
           <div className="mt-10">
             <Rise>
               <PageIntro
                 skin={skin}
-                kicker={t("serve.kicker")}
+                kicker={pages.kicker("serve")}
                 title={area.name}
                 media={
                   <figure className="serve-area-photo m-0">
@@ -82,7 +84,7 @@ export default function ServeArea({
               ) : <span />}
               {area.teams.length > 0 && (
                 <Rise>
-                  <p className="kicker">{t("serve.teamsKicker")}</p>
+                  <p className="kicker">{pages.section("serve", "teams")}</p>
                   <ol className="mt-5 grid gap-3">
                     {area.teams.map((team, index) => (
                       <li key={team} className="serve-team">
@@ -101,7 +103,7 @@ export default function ServeArea({
           <section {...section("form", "Formulario de inscripción")} id="registro" className="soft-band mt-16 scroll-mt-20 px-6 py-20 md:px-16 md:py-24">
             <div className="section-wrap grid gap-12 lg:grid-cols-[0.85fr_1.15fr] lg:items-start">
               <Rise>
-                <p className="kicker">{t("serve.formKicker")}</p>
+                <p className="kicker">{pages.section("serve", "form")}</p>
                 <LeadTitle as="h2" text={t("serve.formTitle")} className="mt-4 text-4xl leading-[1.05] md:text-5xl" />
                 <p className="mt-5 max-w-md text-[15px] leading-7 text-muted">{t("serve.formText")}</p>
               </Rise>

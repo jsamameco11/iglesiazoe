@@ -9,6 +9,7 @@ import { readCopy, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { SiteSettings } from "@/lib/types";
 import { section } from "@/lib/design";
+import { useSitePages } from "@/lib/site-pages";
 
 export default function Baptisms({
   events,
@@ -21,6 +22,7 @@ export default function Baptisms({
   settings: SiteSettings;
   skin: "aire" | "marea";
 }) {
+  const pages = useSitePages();
   const media = resolveMedia(mediaOverrides);
   const next = events[0];
   const dateLabel = next?.event_date
@@ -32,7 +34,7 @@ export default function Baptisms({
 
   const formCard = (
     <div className="panel baptism-form-card">
-      <p className="kicker">{t("baptism.formKicker")}</p>
+      <p className="kicker">{pages.section("baptism", "form")}</p>
       <LeadTitle as="h2" text={t("baptism.formTitle")} className="mt-3 text-3xl md:text-4xl" />
       <p className="mt-3 max-w-md text-sm leading-6 text-muted">
         {t("baptism.formText")}
@@ -48,7 +50,7 @@ export default function Baptisms({
       <article>
         <div className="page-wrap baptism-intro">
           <Rise>
-            <PageIntro skin={skin} kicker={t("baptism.kicker")} title={settings.baptismTitle} media={formCard}>
+            <PageIntro skin={skin} kicker={pages.kicker("baptism")} title={settings.baptismTitle} media={formCard}>
               <p className="ital mt-5 text-2xl text-muted">{settings.baptismLead}</p>
               <p className="mt-6 max-w-xl text-lg font-light leading-8 text-muted">{settings.baptismBody}</p>
               <dl className="mt-12 grid gap-8 sm:grid-cols-2">
@@ -69,7 +71,7 @@ export default function Baptisms({
           <section {...section("video", "Video")} className="px-6 pb-4 pt-20 md:px-16 md:pt-28">
             <div className="section-wrap grid items-center gap-10 lg:grid-cols-[0.75fr_1.25fr] lg:gap-16">
               <Rise>
-                <p className="kicker">{t("baptism.videoKicker")}</p>
+                <p className="kicker">{pages.section("baptism", "video")}</p>
                 <LeadTitle as="h2" text={settings.baptismVideoTitle} className="mt-4 text-4xl leading-[1.05] md:text-5xl" />
                 <p className="mt-5 max-w-md text-base font-light leading-7">{settings.baptismVideoText}</p>
               </Rise>
@@ -84,7 +86,7 @@ export default function Baptisms({
           <span className="baptism-band-cross" aria-hidden="true" />
           <Rise>
             <div className="baptism-band-head">
-              <p className="baptism-band-kicker">{t("baptism.galleryKicker")}</p>
+              <p className="baptism-band-kicker">{pages.section("baptism", "gallery")}</p>
               <LeadTitle as="h2" text={t("baptism.galleryTitle")} className="mt-4 text-4xl md:text-6xl" />
             </div>
           </Rise>

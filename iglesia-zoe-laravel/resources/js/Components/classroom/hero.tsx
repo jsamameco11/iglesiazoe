@@ -1,17 +1,19 @@
 import { classLine, formatClassTime, formatStudyDate, scheduleLabel, type StudyLevel } from "@/lib/studies";
 import type { Student } from "./types";
 import { useNow } from "./hooks";
+import { useSitePages } from "@/lib/site-pages";
 
 export function Hero({ student, level }: { student: Student; level: StudyLevel | null }) {
   const now = useNow();
+  const routeName = useSitePages().name("route");
   if (!level) {
     return (
       <div className="aula-hero">
-        <p className="aula-kicker">La Ruta del Servidor</p>
+        <p className="aula-kicker">{routeName}</p>
         <h1 className="aula-title">Hola, {student.first_name}</h1>
         <p className="mt-4 max-w-md text-[15px] leading-7 text-white/75">
           {student.status === "egresado"
-            ? "¡Terminaste La Ruta del Servidor! Gracias por tu compromiso. Aquí siempre puedes revisar tus notas, avisos y lecturas."
+            ? `¡Terminaste ${routeName}! Gracias por tu compromiso. Aquí siempre puedes revisar tus notas, avisos y lecturas.`
             : "Aún no te han ubicado en un nivel. Tu maestro lo hará muy pronto y aquí verás tu semana, tu horario y tus notas."}
         </p>
       </div>
