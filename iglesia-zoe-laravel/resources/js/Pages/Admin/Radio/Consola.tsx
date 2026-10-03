@@ -6,11 +6,12 @@ import { LiveTimeline } from "@/Components/radio/console/live-timeline";
 import { Mixer } from "@/Components/radio/console/mixer";
 import { PadBank, addPad } from "@/Components/radio/console/pad-bank";
 import { SoundBrowser } from "@/Components/radio/console/sound-browser";
+import { SwitchPanel } from "@/Components/radio/console/switch-panel";
 import { LaunchNow, TodayList } from "@/Components/radio/console/today";
 import { useConsole, type Snapshot } from "@/Components/radio/console/use-console";
 import { HeadphonesIcon, MicIcon, UsersIcon } from "@/Components/radio/icons";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { KIND_LABEL, clock, duration, shortTitle, type RadioBlock, type RadioTrack } from "@/lib/radio";
+import { KIND_LABEL, clock, duration, shortTitle, type RadioBlock, type RadioPlaylist, type RadioTrack } from "@/lib/radio";
 import "../../../../css/radio.css";
 
 type Props = Snapshot & {
@@ -19,10 +20,11 @@ type Props = Snapshot & {
   today: string;
   day: RadioBlock[];
   host: string;
+  playlists: RadioPlaylist[];
 };
 
-export default function Consola({ radio, live, voice, config, pads: initialPads, library, day, host }: Props) {
-  const api = useConsole({ radio, live, voice, config }, host);
+export default function Consola({ radio, live, voice, config, autopilot, pads: initialPads, library, day, host, playlists }: Props) {
+  const api = useConsole({ radio, live, voice, config, autopilot }, host);
   const { notice, setNotice, now, state } = api;
   const [pads, setPads] = useState(initialPads);
   const session = api.live.session;
@@ -50,8 +52,8 @@ export default function Consola({ radio, live, voice, config, pads: initialPads,
 
       <div className="studio cx mt-4">
         <div className="cx-bar">
-          <span className="studio-onair" data-on={session ? "" : undefined}>
-            <span className="h-2 w-2 rounded-full bg-current" /> {session ? "On air" : "Sin locutor"}
+          <span className="studio-onair" data-on={session || state.live.cut ? "" : undefined}>
+            <span className="h-2 w-2 rounded-full bg-current" /> {state.live.cut ? "En vivo" : session ? "On air" : "Piloto automático"}
           </span>
           {session ? <span className="cx-stat font-mono tabular-nums text-white">{api.live.started_at ? duration((now - api.live.started_at) / 1000) : "0:00"}</span> : null}
           <span className="cx-stat font-mono tabular-nums" title="Hora de Lima">{clock(now, true)}</span>
@@ -95,6 +97,8 @@ export default function Consola({ radio, live, voice, config, pads: initialPads,
             {api.config.on_air ? "Radio al aire" : "Fuera del aire"}
           </button>
         </div>
+
+        <SwitchPanel api={api} day={day} playlists={playlists} />
 
         <div className="mt-2 grid gap-2 xl:grid-cols-[16rem_minmax(0,1fr)]">
           <SoundBrowser api={api} library={library} onPad={onPad} />

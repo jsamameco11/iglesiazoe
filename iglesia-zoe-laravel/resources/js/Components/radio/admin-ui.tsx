@@ -8,6 +8,7 @@ const tabs: { href: string; label: string; needs: Permission }[] = [
   { href: "/admin/radio", label: "Consola en vivo", needs: "radio.console" },
   { href: "/admin/radio/programacion", label: "Programación", needs: "radio.schedule" },
   { href: "/admin/radio/biblioteca", label: "Biblioteca", needs: "radio.library" },
+  { href: "/admin/radio/listas", label: "Listas", needs: "radio.library" },
   { href: "/admin/radio/episodios", label: "Episodios", needs: "radio.episodes" },
   { href: "/admin/radio/ajustes", label: "Ajustes", needs: "radio.settings" },
 ];
@@ -57,6 +58,7 @@ const tone: Record<RadioKind, string> = {
   programa: "bg-blue-100 text-blue-800",
   vivo: "bg-red-100 text-red-700",
   relleno: "bg-emerald-50 text-emerald-700",
+  automatica: "bg-teal-100 text-teal-800",
 };
 
 export function KindTag({ kind, label }: { kind: RadioKind; label?: string }) {

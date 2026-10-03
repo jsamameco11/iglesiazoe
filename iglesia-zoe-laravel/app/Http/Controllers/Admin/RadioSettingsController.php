@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Radio\LiveSwitch;
 use App\Domain\Radio\Station;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -9,7 +10,7 @@ use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 use Inertia\Response;
 
-/** Station settings: identity, on air, mix levels, crossfade and external stream. */
+/** Station settings: identity, on air, mix levels, crossfade, the live switch and external streams. */
 class RadioSettingsController extends RadioController
 {
     public function index(): Response
@@ -31,8 +32,13 @@ class RadioSettingsController extends RadioController
             'turn_username' => 'nullable|string|max:120',
             'turn_credential' => 'nullable|string|max:200',
             'max_voice' => 'required|integer|min:1|max:200',
+            'live_mode' => 'sometimes|in:'.LiveSwitch::AUTO.','.LiveSwitch::MANUAL,
+            'live_source' => 'sometimes|in:'.LiveSwitch::CONSOLE.','.LiveSwitch::EXTERNAL,
+            'live_url' => ['nullable', 'required_if:live_source,'.LiveSwitch::EXTERNAL, 'string', 'max:300', 'regex:#^https://#i'],
         ], [
             'required' => 'Completa el campo :attribute.',
+            'live_url.required_if' => 'Escribe el enlace de la señal externa (OBS / Icecast) o elige la consola como fuente del vivo.',
+            'live_url.regex' => 'El enlace de la señal en vivo debe empezar con https:// (los navegadores bloquean http en una web segura).',
             'stream_url.regex' => 'El enlace de transmisión externa debe empezar con https://',
             'turn_url.regex' => 'El servidor TURN debe empezar con turn: o turns:',
             'min' => 'Revisa el campo :attribute.',
@@ -45,6 +51,8 @@ class RadioSettingsController extends RadioController
             'duck_level' => 'música bajo los anuncios',
             'crossfade' => 'empalme entre canciones',
             'max_voice' => 'oyentes de voz',
+            'live_mode' => 'modo del vivo',
+            'live_source' => 'fuente del vivo',
         ]);
         if ($validator->fails()) {
             return $this->fail($validator->errors()->first());

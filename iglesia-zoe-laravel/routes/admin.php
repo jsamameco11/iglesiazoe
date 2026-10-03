@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\NoticeController;
 use App\Http\Controllers\Admin\RadioConsoleController;
 use App\Http\Controllers\Admin\RadioEpisodesController;
 use App\Http\Controllers\Admin\RadioLibraryController;
+use App\Http\Controllers\Admin\RadioPlaylistsController;
 use App\Http\Controllers\Admin\RadioScheduleController;
 use App\Http\Controllers\Admin\RadioSettingsController;
 use App\Http\Controllers\Admin\ReportsController;
@@ -96,12 +97,17 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
             Route::post('/vaciar', [RadioScheduleController::class, 'clear']);
             Route::post('/copiar', [RadioScheduleController::class, 'copy']);
             Route::post('/rotacion', [RadioScheduleController::class, 'rotation']);
+            Route::post('/piloto', [RadioScheduleController::class, 'autopilot']);
         });
         Route::middleware($can('radio.library'))->group(function () {
             Route::get('/biblioteca', [RadioLibraryController::class, 'index']);
             Route::post('/biblioteca', [RadioLibraryController::class, 'save']);
             Route::post('/biblioteca/rotacion', [RadioLibraryController::class, 'rotation']);
             Route::post('/biblioteca/eliminar', [RadioLibraryController::class, 'destroy']);
+            Route::get('/listas', [RadioPlaylistsController::class, 'index']);
+            Route::post('/listas', [RadioPlaylistsController::class, 'save']);
+            Route::post('/listas/orden', [RadioPlaylistsController::class, 'order']);
+            Route::post('/listas/eliminar', [RadioPlaylistsController::class, 'destroy']);
         });
         Route::middleware($can('radio.episodes'))->group(function () {
             Route::get('/episodios', [RadioEpisodesController::class, 'index']);

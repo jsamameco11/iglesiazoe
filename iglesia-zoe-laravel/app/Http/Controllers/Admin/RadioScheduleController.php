@@ -28,6 +28,8 @@ class RadioScheduleController extends RadioController
             'days' => Schedule::overview($today, 21),
             'tracks' => RadioTrack::query()->where('active', true)->orderBy('kind')->orderBy('title')->get()->map->payload(),
             'config' => Station::config(),
+            'playlists' => $this->playlists(),
+            'autopilot' => Station::autopilot(),
         ]);
     }
 
@@ -38,6 +40,9 @@ class RadioScheduleController extends RadioController
         $layer = $this->layerFrom($request);
         if (! $date || ! in_array($mode, ['end', 'at', 'now'], true) || $layer === null) {
             return $this->fail('Elige el día, la pista y cuándo debe sonar.');
+        }
+        if ($request->input('type') === RadioSlot::AUTO) {
+            return $this->storeAuto($request, $date, $mode, $layer);
         }
 
         $blocks = $this->blocksFrom($request, $layer);
@@ -104,6 +109,28 @@ class RadioScheduleController extends RadioController
             }
             $data['duration'] = round($minutes * 60, 2);
             $data['bed'] = $request->boolean('bed');
+        } elseif ($slot->kind === RadioSlot::AUTO) {
+            $playlist = $this->playlistFrom($request);
+            if ($playlist === false) {
+                return $this->fail('Esa lista de reproducción ya no existe.');
+            }
+            $until = $request->filled('until') ? Schedule::at($date, (string) $request->input('until')) : $slot->endsAt()->getTimestampMs();
+            if ($until === null) {
+                return $this->fail('Escribe la hora en que termina (por ejemplo 18:00).');
+            }
+            $until += $until <= $start ? 86400000 : 0;
+            $seconds = ($until - $start) / 1000;
+            if ($seconds < 60 || $seconds > Station::MAX_BLOCK) {
+                return $this->fail('Al editar, un periodo dura entre 1 minuto y 6 horas. Para uno más largo, quítalo y prográmalo de nuevo.');
+            }
+            $shuffle = $request->boolean('shuffle', $slot->shuffle);
+            $data = [
+                ...$data,
+                'duration' => round($seconds, 2),
+                'radio_playlist_id' => $playlist?->id,
+                'shuffle' => $shuffle,
+                'title' => Schedule::autoTitle($playlist, $shuffle),
+            ];
         } else {
             $layer = $request->has('layer') ? $this->layerFrom($request) : $slot->layer;
             if ($layer === null) {
@@ -178,5 +205,65 @@ class RadioScheduleController extends RadioController
         return $this->saved($count
             ? "Música continua: {$count} ".($count === 1 ? 'canción' : 'canciones').' en rotación.'
             : 'Música continua vacía: los huecos de la programación quedarán en silencio.');
+    }
+
+    /** The automatic music of the gaps: one playlist or all of them, shuffled or in order. */
+    public function autopilot(Request $request): JsonResponse
+    {
+        $playlist = $this->playlistFrom($request);
+        if ($playlist === false) {
+            return $this->fail('Esa lista de reproducción ya no existe.');
+        }
+
+        return $this->saved($this->switchedMessage($playlist, $request->boolean('shuffle', true)));
+    }
+
+    /** «Música automática» from one time to another: a period of the main program for a playlist. */
+    private function storeAuto(Request $request, string $date, string $mode, int $layer): JsonResponse
+    {
+        if ($layer !== RadioSlot::MAIN) {
+            return $this->fail('La música automática va en la pista principal.');
+        }
+        $playlist = $this->playlistFrom($request);
+        if ($playlist === false) {
+            return $this->fail('Esa lista de reproducción ya no existe.');
+        }
+
+        $now = Station::nowMs();
+        $start = match ($mode) {
+            'now' => $now + 400,
+            'end' => Schedule::dayEnd($date) ?? Schedule::at($date, (string) $request->input('time', '06:00')),
+            default => Schedule::at($date, (string) $request->input('time')),
+        };
+        if ($start === null) {
+            return $this->fail('Escribe la hora de inicio (por ejemplo 06:00).');
+        }
+        if ($start < $now - 1000) {
+            if ($mode !== 'end' || $date !== Station::today()) {
+                return $this->fail('Esa hora ya pasó. Elige una hora futura o usa «Al aire ahora».');
+            }
+            $start = $now + 3000;
+        }
+        $until = Schedule::at($date, (string) $request->input('until'));
+        if ($until === null) {
+            return $this->fail('Escribe la hora en que termina la música automática (por ejemplo 18:00).');
+        }
+        while ($until <= $start) {
+            $until += 86400000;
+        }
+        $seconds = intdiv($until - $start, 1000);
+        if ($seconds < 60 || $seconds > 86400) {
+            return $this->fail('Un periodo de música automática dura entre 1 minuto y 24 horas.');
+        }
+
+        if ($conflict = Schedule::conflict($start, $until)) {
+            return $this->fail($this->conflictMessage($conflict).' Ajusta el periodo o mueve ese bloque.');
+        }
+        $shuffle = $request->boolean('shuffle', true);
+        $note = mb_substr(trim((string) $request->input('note', '')), 0, 240) ?: null;
+        Schedule::place(Schedule::autoBlocks($playlist, $shuffle, $seconds, $note), $start);
+
+        return $this->saved('Música automática de '.Schedule::clock($start).' a '.Schedule::clock($until).': «'
+            .($playlist?->name ?? 'Todas las listas').'», '.($shuffle ? 'en aleatorio sin repetir' : 'en orden').'.');
     }
 }

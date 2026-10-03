@@ -3,15 +3,17 @@ import { Notice, button, input, useAction } from "@/Components/admin/ui";
 import { KindTag } from "@/Components/radio/admin-ui";
 import { DuckIcon } from "@/Components/radio/icons";
 import { send } from "@/lib/actions";
-import { LAYERS, clock, duration, layerLabel, type RadioBlock } from "@/lib/radio";
+import { SourcePicker } from "@/Components/radio/source-picker";
+import { LAYERS, clock, duration, layerLabel, type RadioBlock, type RadioPlaylist } from "@/lib/radio";
 
-/** One block of the timeline: details, preview, edit (time, layer, volume, music lowering) and remove. */
+/** One block of the timeline: details, preview, edit (time, layer, volume, music lowering, playlist) and remove. */
 export function BlockRow({
   block,
   date,
   now,
   editing,
   previewing,
+  playlists,
   onEdit,
   onPreview,
 }: {
@@ -20,22 +22,29 @@ export function BlockRow({
   now: number;
   editing: boolean;
   previewing: boolean;
+  playlists: RadioPlaylist[];
   onEdit: () => void;
   onPreview: () => void;
 }) {
   const { result, setResult, pending, run } = useAction();
   const [layer, setLayer] = useState(block.layer);
   const [volume, setVolume] = useState(block.volume);
+  const [playlist, setPlaylist] = useState(block.playlist_id ?? "");
+  const [shuffle, setShuffle] = useState(block.shuffle);
   const isNow = block.start <= now && now < block.end;
   const past = block.end <= now;
   const overlay = block.layer > 0;
+  const auto = block.kind === "automatica";
 
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     data.set("id", block.id);
     data.set("date", date);
-    if (block.kind !== "vivo") {
+    if (auto) {
+      data.set("playlist", playlist);
+      data.set("shuffle", shuffle ? "1" : "0");
+    } else if (block.kind !== "vivo") {
       data.set("layer", String(layer));
       if (!data.has("duck")) data.set("duck", "0");
     }
@@ -62,6 +71,7 @@ export function BlockRow({
               <KindTag kind={block.kind} />
               {isNow ? <span className="text-[10.5px] font-bold uppercase tracking-[0.18em] text-red-600">Al aire</span> : null}
               {block.kind === "vivo" && block.bed ? <span className="text-[11px] text-muted">con música de fondo</span> : null}
+              {block.kind === "vivo" ? <span className="text-[11px] text-muted">si nadie se conecta, sigue la música automática</span> : null}
               {overlay && block.duck ? (
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700">
                   <DuckIcon className="h-3.5 w-3.5" /> baja la música
@@ -97,11 +107,22 @@ export function BlockRow({
               Hora de inicio
               <input name="time" type="time" step={1} defaultValue={clock(block.start, true)} className={input} />
             </label>
-            <label className="text-xs font-semibold text-muted">
-              Título
-              <input name="title" defaultValue={block.title} maxLength={160} className={input} />
-            </label>
-            {block.kind === "vivo" ? (
+            {auto ? (
+              <label className="text-xs font-semibold text-muted">
+                Hasta las
+                <input name="until" type="time" step={1} defaultValue={clock(block.end, true)} className={input} />
+              </label>
+            ) : (
+              <label className="text-xs font-semibold text-muted">
+                Título
+                <input name="title" defaultValue={block.title} maxLength={160} className={input} />
+              </label>
+            )}
+            {auto ? (
+              <div className="sm:col-span-2">
+                <SourcePicker playlists={playlists} playlist={playlist} shuffle={shuffle} onPlaylist={setPlaylist} onShuffle={setShuffle} />
+              </div>
+            ) : block.kind === "vivo" ? (
               <>
                 <label className="text-xs font-semibold text-muted">
                   Duración (minutos)

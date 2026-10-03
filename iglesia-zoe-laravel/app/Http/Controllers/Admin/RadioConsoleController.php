@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Radio\Autopilot;
+use App\Domain\Radio\LiveSwitch;
 use App\Domain\Radio\Schedule;
 use App\Domain\Radio\Signal;
 use App\Domain\Radio\Station;
@@ -9,6 +11,7 @@ use App\Models\RadioSlot;
 use App\Models\RadioTrack;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,6 +31,7 @@ class RadioConsoleController extends RadioController
             'today' => $today,
             'day' => Schedule::day($today),
             'host' => $request->user()->full_name ?: $request->user()->username,
+            'playlists' => $this->playlists(),
         ]);
     }
 
@@ -120,12 +124,33 @@ class RadioConsoleController extends RadioController
     }
 
     /**
-     * The continuous music from the console: pause or resume it, or take a song out of it so it
-     * stops repeating. Both change the program at once for every listener.
+     * The automatic music from the console: pause or resume it, take a song out of it so it stops
+     * repeating, choose what it plays, and the live switch (cut the music for the live signal,
+     * return to the music, automatic or manual mode). Every change reaches all listeners at once.
      */
     public function music(Request $request): JsonResponse
     {
         $action = $request->input('action');
+        if ($action === 'source') {
+            $playlist = $this->playlistFrom($request);
+            if ($playlist === false) {
+                return $this->fail('Esa lista de reproducción ya no existe.', 404);
+            }
+            $message = $this->switchedMessage($playlist, $request->boolean('shuffle', true));
+
+            return response()->json(['ok' => true, ...$this->snapshot(), 'message' => $message]);
+        }
+        if ($action === 'cut') {
+            return $this->cut($request);
+        }
+        if ($action === 'mode') {
+            $mode = $request->input('mode') === LiveSwitch::MANUAL ? LiveSwitch::MANUAL : LiveSwitch::AUTO;
+            Station::saveConfig(['live_mode' => $mode]);
+
+            return response()->json(['ok' => true, ...$this->snapshot(), 'message' => $mode === LiveSwitch::AUTO
+                ? 'En vivo automático: en los bloques en vivo la música se corta sola al conectarte y vuelve sola al terminar.'
+                : 'En vivo manual: la música solo se corta y vuelve cuando lo indiques desde la consola.']);
+        }
         if ($action === 'autofill') {
             $on = $request->boolean('on');
             Station::saveConfig(['autofill' => $on]);
@@ -140,14 +165,54 @@ class RadioConsoleController extends RadioController
                 return $this->fail('Esa canción ya no está en la biblioteca.', 404);
             }
             $track->update(['rotation' => false]);
+            $lists = DB::table('radio_playlist_track')->where('radio_track_id', $track->id)->delete();
             Station::flush();
-            $left = RadioTrack::query()->where('kind', 'musica')->where('active', true)->where('rotation', true)->count();
+            $left = count(Autopilot::songs(null, 0));
 
-            return response()->json(['ok' => true, ...$this->snapshot(), 'message' => "«{$track->title}» salió de la música continua y no se repetirá."
-                .($left ? '' : ' La música continua quedó vacía: los espacios libres estarán en silencio.')]);
+            return response()->json(['ok' => true, ...$this->snapshot(), 'message' => "«{$track->title}» salió de la música automática"
+                .($lists ? ' (y de '.($lists === 1 ? 'su lista' : "sus {$lists} listas").')' : '').' y no se repetirá.'
+                .($left ? '' : ' La música automática quedó vacía: los espacios libres estarán en silencio.')]);
         }
 
         return $this->fail('Acción desconocida.');
+    }
+
+    /**
+     * «Ir al vivo» cuts the automatic music for the live signal; «Volver a la música» brings it
+     * back at once, optionally with another playlist or order.
+     */
+    private function cut(Request $request): JsonResponse
+    {
+        $config = Station::config();
+        if ($request->boolean('on')) {
+            if (! $config['on_air']) {
+                return $this->fail('La radio está fuera del aire. Ponla al aire primero.', 409);
+            }
+            $external = $config['live_source'] === LiveSwitch::EXTERNAL;
+            if ($external && $config['live_url'] === '') {
+                return $this->fail('Falta el enlace de la señal externa. Escríbelo en Ajustes › En vivo.', 409);
+            }
+            if (! $external && ! Station::live()['session']) {
+                return $this->fail('Abre la transmisión en vivo (micrófono) antes de cortar la música.', 409);
+            }
+            LiveSwitch::cut(Station::live()['host'] ?: 'En vivo');
+
+            return response()->json(['ok' => true, ...$this->snapshot(), 'message' => $external
+                ? 'Al aire la señal externa: la música automática se cortó para todos los oyentes.'
+                : 'Estás al aire: la música automática se cortó para todos los oyentes.']);
+        }
+
+        $message = 'De vuelta a la música automática.';
+        if ($request->has('playlist')) {
+            $playlist = $this->playlistFrom($request);
+            if ($playlist === false) {
+                return $this->fail('Esa lista de reproducción ya no existe.', 404);
+            }
+            $message = $this->switchedMessage($playlist, $request->boolean('shuffle', true), true);
+        }
+        LiveSwitch::resume();
+
+        return response()->json(['ok' => true, ...$this->snapshot(), 'message' => $message]);
     }
 
     /** Saves which library audios fill the pad bank, in order. */
@@ -214,6 +279,7 @@ class RadioConsoleController extends RadioController
             'live' => $live,
             'voice' => Station::voiceCount($live['session']),
             'config' => Station::config(),
+            'autopilot' => Station::autopilot(),
         ];
     }
 }
