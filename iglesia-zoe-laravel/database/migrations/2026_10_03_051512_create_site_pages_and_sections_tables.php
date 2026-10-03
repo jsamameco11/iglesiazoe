@@ -69,7 +69,9 @@ return new class extends Migration
             $table->string('kicker', 80)->default('');
             $table->unsignedSmallInteger('sort_order')->default(0);
             $table->timestamps();
+        });
 
+        Schema::table('site_pages', function (Blueprint $table) {
             $table->foreign('parent_key')->references('key')->on('site_pages')->nullOnDelete();
         });
 
