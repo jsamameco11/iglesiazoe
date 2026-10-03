@@ -13,25 +13,25 @@ export function photoFallback(event: SyntheticEvent<HTMLImageElement>) {
   if (!img.src.endsWith(SERVE_FALLBACK)) img.src = SERVE_FALLBACK;
 }
 
-/** Centres and widths in % of the stage: side by side with an even 2% gap (3% on phones), never overlapping. */
+/** Centres and widths in % of the stage: the two photos beside the featured one tuck a few % under its plate. */
 const slots = {
   wide: {
-    [-3]: { x: "-10%", w: "14%", o: 0, z: 0 },
-    [-2]: { x: "7.5%", w: "14%", o: 1, z: 2 },
-    [-1]: { x: "25%", w: "17%", o: 1, z: 3 },
-    [0]: { x: "50%", w: "29%", o: 1, z: 6 },
-    [1]: { x: "75%", w: "17%", o: 1, z: 3 },
-    [2]: { x: "92.5%", w: "14%", o: 1, z: 2 },
-    [3]: { x: "110%", w: "14%", o: 0, z: 0 },
+    [-3]: { x: "-10%", w: "17%", o: 0, z: 0 },
+    [-2]: { x: "9.5%", w: "17%", o: 1, z: 2 },
+    [-1]: { x: "28.5%", w: "19%", o: 1, z: 3 },
+    [0]: { x: "50%", w: "33%", o: 1, z: 6 },
+    [1]: { x: "71.5%", w: "19%", o: 1, z: 3 },
+    [2]: { x: "90.5%", w: "17%", o: 1, z: 2 },
+    [3]: { x: "110%", w: "17%", o: 0, z: 0 },
   },
   narrow: {
-    [-3]: { x: "-60%", w: "32%", o: 0, z: 0 },
-    [-2]: { x: "-35%", w: "32%", o: 0, z: 1 },
-    [-1]: { x: "2%", w: "32%", o: 1, z: 3 },
-    [0]: { x: "50%", w: "58%", o: 1, z: 6 },
-    [1]: { x: "98%", w: "32%", o: 1, z: 3 },
-    [2]: { x: "135%", w: "32%", o: 0, z: 1 },
-    [3]: { x: "160%", w: "32%", o: 0, z: 0 },
+    [-3]: { x: "-50%", w: "32%", o: 0, z: 0 },
+    [-2]: { x: "-30%", w: "32%", o: 0, z: 1 },
+    [-1]: { x: "12%", w: "32%", o: 1, z: 3 },
+    [0]: { x: "50%", w: "60%", o: 1, z: 6 },
+    [1]: { x: "88%", w: "32%", o: 1, z: 3 },
+    [2]: { x: "130%", w: "32%", o: 0, z: 1 },
+    [3]: { x: "150%", w: "32%", o: 0, z: 0 },
   },
 } as const;
 

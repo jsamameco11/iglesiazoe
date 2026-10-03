@@ -64,13 +64,14 @@ function frames(el: Element, kind: Kind, nested: boolean, canMove: boolean): Key
 /**
  * Brings the page in piece by piece: every heading, text, card and photo of `root`
  * fades and rises into place the first time it scrolls into view, including the
- * ones already on screen when the page opens.
+ * ones already on screen when the page opens. It follows the site's own «still»
+ * setting rather than the system's reduced-motion flag, which Windows turns on
+ * whenever its animation effects are off.
  */
 export function useAutoReveal(root: RefObject<HTMLElement | null>, { off = false, speed = 1 }: { off?: boolean; speed?: number } = {}) {
   useLayoutEffect(() => {
     const host = root.current;
     if (off || !host || typeof IntersectionObserver === "undefined" || typeof Element.prototype.animate !== "function") return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
     const scrollers = new WeakMap<Element, boolean>();
     const scrollsSideways = (el: Element) => {

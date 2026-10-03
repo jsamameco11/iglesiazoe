@@ -401,35 +401,49 @@
   width: 100%;
   max-width: 72rem;
   margin: 2.75rem auto 0;
-  aspect-ratio: 1.72 / 1;
+  aspect-ratio: 1.6 / 1;
   overflow: hidden;
   touch-action: pan-y;
 }
-/* Every card sits on the same baseline, side by side with an even gap: no frame, no shadow. */
+@property --rail-frame {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+/*
+ * Every photo sits on the same baseline. The featured one grows a plate around it (a soft,
+ * slightly larger container, no shadow, no border) that drops by its own thickness and covers
+ * the edges of the two photos tucked behind it.
+ */
 .serve-rail-card {
+  --rail-frame: 0px;
+  --rail-ring: 7px;
   --rail-radius: 1.1rem;
   position: absolute;
-  bottom: 7%;
+  bottom: calc(7% + var(--rail-ring) - var(--rail-frame));
   overflow: hidden;
   border: 0;
-  padding: 0;
-  border-radius: var(--rail-radius);
-  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  padding: var(--rail-frame);
+  border-radius: calc(var(--rail-radius) + var(--rail-frame));
+  background: var(--rail-plate, var(--paper));
   aspect-ratio: 9 / 8;
   transform: translateX(-50%);
   filter: brightness(0.9) saturate(0.92);
   cursor: pointer;
-  isolation: isolate;
   transition:
     left 0.95s cubic-bezier(0.22, 1, 0.36, 1),
     width 0.95s cubic-bezier(0.22, 1, 0.36, 1),
+    bottom 0.95s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.55s ease,
-    filter 0.6s ease;
+    filter 0.6s ease,
+    background-color 0.6s ease,
+    --rail-frame 0.6s ease;
 }
 .serve-rail-card img {
   display: block;
   width: 100%;
   height: 100%;
+  clip-path: inset(0 round var(--rail-radius));
   object-fit: cover;
   object-position: center;
   pointer-events: none;
@@ -439,6 +453,8 @@
   filter: brightness(0.97) saturate(1);
 }
 .serve-rail-card[data-offset="0"] {
+  --rail-frame: var(--rail-ring);
+  --rail-plate: color-mix(in srgb, var(--ink) 5%, var(--paper));
   filter: none;
 }
 .serve-rail-card[data-offset="0"] img {
@@ -451,13 +467,20 @@
   outline: 3px solid var(--accent);
   outline-offset: 3px;
 }
+/* The clip shrinks as the image scales so the zoom never covers the plate. */
 @keyframes rail-breathe {
-  from { transform: scale(1); }
-  to { transform: scale(1.05); }
+  from {
+    transform: scale(1);
+    clip-path: inset(0 round var(--rail-radius));
+  }
+  to {
+    transform: scale(1.05);
+    clip-path: inset(2.381% round calc(var(--rail-radius) / 1.05));
+  }
 }
 @media (min-width: 768px) {
-  .serve-rail-stage { aspect-ratio: 3.3 / 1; }
-  .serve-rail-card { --rail-radius: 1.4rem; }
+  .serve-rail-stage { aspect-ratio: 2.9 / 1; }
+  .serve-rail-card { --rail-ring: 12px; --rail-radius: 1.4rem; }
 }
 .serve-rail-caption {
   display: flex;
@@ -522,11 +545,305 @@
 }
 .serve-rail-arrows button:first-child:hover { transform: translateX(-3px); }
 .serve-rail-arrows button:last-child:hover { transform: translateX(3px); }
-@media (prefers-reduced-motion: reduce) {
-  .serve-rail-card img,
-  .serve-rail-caption-in { animation: none; }
+
+/* ---------- Radio Zoe en la portada ---------- */
+.onair {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #0e0f11;
+  color: #fff;
+  padding: 2.4rem 1.4rem;
+}
+@media (min-width: 768px) {
+  .onair { padding: 3.4rem; }
+}
+@media (min-width: 1024px) {
+  .onair { padding: 4.25rem 4.5rem; }
+}
+.onair::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 3rem 3rem;
+  mask-image: radial-gradient(70% 90% at 75% 40%, #000, transparent 75%);
+}
+.onair::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(38rem 26rem at 92% -12%, color-mix(in srgb, var(--accent) 42%, transparent), transparent 70%),
+    radial-gradient(28rem 18rem at -6% 112%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 70%);
+  pointer-events: none;
+}
+.onair-backdrop {
+  position: absolute;
+  inset: -40px;
+  z-index: -2;
+  background-position: center;
+  background-size: cover;
+  filter: blur(32px) saturate(1.1);
+  opacity: 0.2;
+}
+.onair-grid {
+  display: grid;
+  gap: 2.5rem;
+  align-items: center;
+}
+@media (min-width: 1024px) {
+  .onair-grid { grid-template-columns: minmax(0, 1.05fr) minmax(0, 27rem); gap: 4.5rem; }
+}
+.onair-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.38rem 0.85rem;
+  font-family: var(--font-accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.55);
+}
+.onair-badge[data-tone="air"] { border-color: rgba(107, 227, 164, 0.35); background: rgba(107, 227, 164, 0.1); color: #6be3a4; }
+.onair-badge[data-tone="live"] { border-color: rgba(255, 90, 95, 0.45); background: rgba(255, 90, 95, 0.12); color: #ff6b70; }
+.onair-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: currentColor;
+}
+.onair-badge:not([data-tone="off"]) .onair-dot { animation: onair-pulse 1.6s ease-in-out infinite; }
+@keyframes onair-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 currentColor; opacity: 1; }
+  50% { box-shadow: 0 0 0 5px transparent; opacity: 0.5; }
+}
+.onair-kicker {
+  font-family: var(--font-accent);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+.onair-title {
+  margin-top: 1.5rem;
+  font-size: clamp(3.1rem, 7vw, 5.75rem);
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+}
+.onair-tagline {
+  margin-top: 1.15rem;
+  max-width: 28rem;
+  font-size: 1.05rem;
+  font-weight: 300;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.68);
+}
+.onair-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.1rem 1.6rem;
+  margin-top: 2.25rem;
+}
+.onair-listen {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.45rem 1.35rem 0.45rem 0.45rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0e0f11;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s ease;
+}
+.onair-listen:hover { transform: translateY(-2px); background: #f3f1ee; }
+.onair-listen-icon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.onair-listen:hover .onair-listen-icon { transform: scale(1.08); }
+.onair-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.72);
+  transition: color 0.25s ease, gap 0.3s ease;
+}
+.onair-more:hover { gap: 0.7rem; color: #fff; }
+.onair-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem 2.25rem;
+  margin-top: 2.6rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 1.4rem;
+}
+.onair-facts dt {
+  display: flex;
+  align-items: center;
+  height: 1rem;
+  font-family: var(--font-accent);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+.onair-facts dd {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.86);
 }
 
+.onair-player {
+  min-width: 0;
+  border-radius: 1.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.02));
+  padding: 1.5rem;
+  backdrop-filter: blur(16px);
+}
+@media (min-width: 768px) {
+  .onair-player { padding: 1.85rem; }
+}
+.onair-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.3rem 0.7rem;
+  font-family: var(--font-accent);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.8);
+}
+.onair-block {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-accent);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #ff8a8e;
+}
+.onair-eq {
+  display: flex;
+  height: 3.6rem;
+  align-items: flex-end;
+  gap: 3px;
+  margin: 1.5rem 0 1.35rem;
+}
+.onair-eq > span {
+  flex: 1;
+  height: 100%;
+  border-radius: 2px;
+  background: linear-gradient(to top, var(--accent), color-mix(in srgb, var(--accent) 50%, #fff));
+  opacity: 0.35;
+  transform: scaleY(0.1);
+  transform-origin: bottom;
+}
+.onair-eq[data-on] > span {
+  opacity: 0.9;
+  animation-name: onair-eq;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+}
+@keyframes onair-eq {
+  0% { transform: scaleY(0.12); }
+  45% { transform: scaleY(0.85); }
+  100% { transform: scaleY(0.32); }
+}
+.onair-now {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+@media (min-width: 768px) {
+  .onair-now { font-size: 1.7rem; }
+}
+.onair-sub {
+  margin-top: 0.4rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.92rem;
+  color: rgba(255, 255, 255, 0.55);
+}
+.onair-progress {
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.onair-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width 1s linear;
+}
+.onair-host {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-top: 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 90, 95, 0.28);
+  background: rgba(255, 90, 95, 0.1);
+  padding: 0.75rem 0.9rem;
+}
+.onair-up {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.35rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 1.05rem;
+  font-size: 0.88rem;
+}
+.onair-up-label {
+  flex-shrink: 0;
+  font-family: var(--font-accent);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
 /* ---------- Involúcrate ---------- */
 .serve-card {
   position: relative;
