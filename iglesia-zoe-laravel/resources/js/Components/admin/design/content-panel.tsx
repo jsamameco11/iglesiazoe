@@ -41,7 +41,7 @@ const pageContent: Record<string, { media?: Match; copy: string[] }> = {
   AccesoAdmin: { copy: ["panel"] },
 };
 
-const everyPage = ["nav", "footer"];
+const everyPage = ["nav"];
 
 /** Photos, videos and texts of the page shown in the preview, published on the spot. */
 export function ContentPanel({ page, mediaOverrides, onSaved }: { page: DesignPage; mediaOverrides: Record<string, MediaAsset>; onSaved: () => void }) {

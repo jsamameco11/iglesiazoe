@@ -53,11 +53,18 @@ class NormalizeDesign
         'tracking' => [-0.03, 0.2, 0.005],
     ];
 
+    /** Kinds of footer text that each take a color, a size factor and an alignment. */
+    private const FOOTER_TEXTS = ['brand', 'slogan', 'titles', 'links'];
+
+    /** Where the footer logo can sit: above or beside the name, instead of it, centered on top, or in the closing strip. */
+    private const FOOTER_LOGOS = ['above', 'beside', 'only', 'center', 'bottom'];
+
     public static function run(array $input): array
     {
         $defaults = config('design.defaults');
         $fonts = self::fonts($input['fonts'] ?? [], $defaults['fonts']);
         $nav = self::nav($input['nav'] ?? null);
+        $footer = self::footer($input['footer'] ?? null);
 
         return [
             'palette' => self::palette($input['palette'] ?? [], $defaults['palette']),
@@ -69,6 +76,7 @@ class NormalizeDesign
             ],
             'shape' => in_array($input['shape'] ?? '', ['round', 'soft', 'square'], true) ? $input['shape'] : $defaults['shape'],
             ...($nav ? ['nav' => $nav] : []),
+            ...($footer ? ['footer' => $footer] : []),
             'pages' => self::pages(is_array($input['pages'] ?? null) ? $input['pages'] : [], $fonts),
             'art' => self::art(is_array($input['art'] ?? null) ? $input['art'] : []),
         ];
@@ -125,6 +133,50 @@ class NormalizeDesign
             if (is_numeric($input[$key] ?? null)) {
                 $value = round(max($min, min($max, (float) $input[$key])) / $step) * $step;
                 $clean[$key] = is_int($step) ? (int) $value : round($value, 3);
+            }
+        }
+
+        return $clean;
+    }
+
+    /**
+     * The footer every page shares: a background color, a logo from the site's library with its place
+     * and height, and the color, size factor and alignment of each kind of text.
+     *
+     * @return array{background?: string, logo?: string, logoPlace?: string, logoSize?: int, brand?: array{color?: string, size?: float, align?: string}, slogan?: array{color?: string, size?: float, align?: string}, titles?: array{color?: string, size?: float, align?: string}, links?: array{color?: string, size?: float, align?: string}}
+     */
+    private static function footer(mixed $input): array
+    {
+        if (! is_array($input)) {
+            return [];
+        }
+        $clean = [];
+        if ($background = self::color($input['background'] ?? null)) {
+            $clean['background'] = $background;
+        }
+        if ($logo = self::mediaPath($input['logo'] ?? null, self::IMAGES)) {
+            $clean['logo'] = $logo;
+        }
+        if (in_array($input['logoPlace'] ?? null, self::FOOTER_LOGOS, true)) {
+            $clean['logoPlace'] = $input['logoPlace'];
+        }
+        if (is_numeric($input['logoSize'] ?? null)) {
+            $clean['logoSize'] = (int) round(max(32, min(160, (float) $input['logoSize'])));
+        }
+        foreach (self::FOOTER_TEXTS as $part) {
+            $rule = is_array($input[$part] ?? null) ? $input[$part] : [];
+            $text = [];
+            if ($color = self::color($rule['color'] ?? null)) {
+                $text['color'] = $color;
+            }
+            if (is_numeric($rule['size'] ?? null) && ($size = round(round(max(0.6, min(1.8, (float) $rule['size'])) / 0.05) * 0.05, 2)) !== 1.0) {
+                $text['size'] = $size;
+            }
+            if (in_array($rule['align'] ?? null, self::ALIGNS, true)) {
+                $text['align'] = $rule['align'];
+            }
+            if ($text) {
+                $clean[$part] = $text;
             }
         }
 
@@ -281,10 +333,10 @@ class NormalizeDesign
         return $clean;
     }
 
-    /** Every library file a design paints as a background. */
+    /** Every library file a design uses: page and band backgrounds and the footer logo. */
     public static function files(array $design): array
     {
-        $files = [];
+        $files = is_string($design['footer']['logo'] ?? null) ? [$design['footer']['logo']] : [];
         foreach ($design['pages'] ?? [] as $page) {
             foreach ([$page, ...array_values($page['sections'] ?? [])] as $rule) {
                 foreach (['image', 'video'] as $key) {

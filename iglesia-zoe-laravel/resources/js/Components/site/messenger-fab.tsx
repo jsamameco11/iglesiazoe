@@ -44,16 +44,18 @@ function MessengerGlyph() {
   );
 }
 
-function usePastHero() {
-  const [past, setPast] = useState(false);
+/** Shows the button once the hero is behind and hides it again over the footer, which has its own contact links. */
+function useInView() {
+  const [shown, setShown] = useState(false);
 
   useEffect(() => {
     const hero = document.querySelector<HTMLElement>(".hero-bleed");
-    if (!hero) {
-      setPast(true);
-      return;
-    }
-    const onScroll = () => setPast(hero.getBoundingClientRect().bottom <= window.innerHeight * 0.55);
+    const footer = document.querySelector<HTMLElement>("[data-site-footer]");
+    const onScroll = () => {
+      const pastHero = !hero || hero.getBoundingClientRect().bottom <= window.innerHeight * 0.55;
+      const overFooter = Boolean(footer && footer.getBoundingClientRect().top < window.innerHeight - 24);
+      setShown(pastHero && !overFooter);
+    };
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
@@ -63,14 +65,14 @@ function usePastHero() {
     };
   }, []);
 
-  return past;
+  return shown;
 }
 
 export function MessengerFab() {
   const label = useCopy()("nav.fab");
   const { messenger } = useSocial();
   const typed = useTypewriter(label);
-  const visible = usePastHero();
+  const visible = useInView();
 
   if (!messenger) return null;
 

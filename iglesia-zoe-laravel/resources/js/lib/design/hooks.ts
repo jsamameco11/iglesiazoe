@@ -1,9 +1,10 @@
 import { usePage } from "@inertiajs/react";
 import { useEffect, useSyncExternalStore } from "react";
 import { designFonts, fontHref } from "./fonts";
+import { resolvePalette } from "./palette";
 import { collectSections, getDraft, isPreview, postToEditor, PREVIEW_CSS, subscribeDraft } from "./preview";
 import { backdropVideos, designAttributes, designCss } from "./styles";
-import type { ArtRule, Design } from "./types";
+import type { ArtRule, Design, FooterRule, Palette } from "./types";
 
 /** The design in force: the published one, or the editor's draft inside the live preview. */
 function useDesign(): Design | undefined {
@@ -14,6 +15,12 @@ function useDesign(): Design | undefined {
 
 export function useArt(key: string): ArtRule {
   return useDesign()?.art?.[key] ?? {};
+}
+
+/** The footer rule with the site palette, never a page's own colors, so the footer looks the same on every page. */
+export function useFooterDesign(): { rule: FooterRule; palette: Palette } {
+  const design = useDesign();
+  return { rule: design?.footer ?? {}, palette: resolvePalette(design) };
 }
 
 function useRootVars(style: Record<string, string>) {

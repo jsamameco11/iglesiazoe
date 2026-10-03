@@ -5,6 +5,7 @@ import { Notice, PageHeader, button, ghost, useAction } from "@/Components/admin
 import { ArtPanel } from "@/Components/admin/design/art-panel";
 import { ContentPanel } from "@/Components/admin/design/content-panel";
 import { Choice } from "@/Components/admin/design/fields";
+import { FooterPanel } from "@/Components/admin/design/footer-panel";
 import { GlobalPanel } from "@/Components/admin/design/global-panel";
 import { LivePreview } from "@/Components/admin/design/live-preview";
 import { PagePanel } from "@/Components/admin/design/page-panel";
@@ -16,7 +17,7 @@ import { can, usePanelUser } from "@/lib/access";
 import { designFonts, fontHref, type ArtSpec, type Design, type DesignPage, type FontCategory, type FontOption, type SectionInfo, type TextPick } from "@/lib/design";
 import type { MediaAsset } from "@/lib/media";
 
-type Tab = "global" | "page" | "text" | "content" | "art";
+type Tab = "global" | "page" | "text" | "content" | "footer" | "art";
 
 type Props = { stored: Design; mediaOverrides: Record<string, MediaAsset>; fonts: FontOption[]; fontCategories: FontCategory[]; pages: DesignPage[]; art: ArtSpec[] };
 
@@ -65,12 +66,13 @@ export default function Diseno({ stored, mediaOverrides, fonts, fontCategories, 
 
         <div className="mt-6 grid gap-5 xl:grid-cols-[400px_minmax(0,1fr)]">
           <aside className="space-y-4 xl:sticky xl:top-6 xl:max-h-[calc(100vh-8rem)] xl:self-start xl:overflow-y-auto xl:pr-1">
-            <Choice<Tab> value={tab} options={[{ key: "global", label: "Toda la web" }, { key: "page", label: "Página" }, { key: "text", label: "Textos" }, { key: "content", label: "Contenido" }, { key: "art", label: "Ilustraciones" }]} onChange={setTab} />
+            <Choice<Tab> value={tab} options={[{ key: "global", label: "Toda la web" }, { key: "page", label: "Página" }, { key: "text", label: "Textos" }, { key: "content", label: "Contenido" }, { key: "footer", label: "Pie" }, { key: "art", label: "Ilustraciones" }]} onChange={setTab} />
             <div className="rounded-[1.6rem] border border-line bg-card p-5">
               {tab === "global" && <GlobalPanel draft={draft} fonts={fonts} categories={fontCategories} />}
               {tab === "page" && page && <PagePanel draft={draft} page={page} sections={sections} section={section} onSection={setSection} />}
               {tab === "text" && page && <TextPanel draft={draft} page={page} fonts={fonts} categories={fontCategories} pick={text} onPick={setText} />}
               {tab === "content" && page && <ContentPanel key={page.key} page={page} mediaOverrides={mediaOverrides} onSaved={() => setRefresh((value) => value + 1)} />}
+              {tab === "footer" && <FooterPanel draft={draft} onSaved={() => setRefresh((value) => value + 1)} />}
               {tab === "art" && <ArtPanel draft={draft} specs={art} pages={pages} onShow={openPage} />}
             </div>
             {(can(user, "media.manage") || can(user, "content.manage")) && (
@@ -99,10 +101,12 @@ export default function Diseno({ stored, mediaOverrides, fonts, fontCategories, 
                 section={tab === "page" ? section : null}
                 mode={tab === "text" ? "text" : "section"}
                 text={tab === "text" ? text?.path ?? null : null}
+                footer={tab === "footer"}
                 refresh={refresh}
                 onSections={setSections}
                 onPick={pick}
                 onPickText={setText}
+                onPickFooter={() => setTab("footer")}
               />
             )}
           </div>

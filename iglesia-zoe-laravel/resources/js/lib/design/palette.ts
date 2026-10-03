@@ -15,6 +15,15 @@ export function hex(value: string | undefined, fallback: string) {
   return /^#[0-9A-Fa-f]{6}$/.test(value || "") ? (value as string).toLowerCase() : fallback;
 }
 
+/** Text color that reads on a #rrggbb background: the site's dark ink on light colors, white on dark ones (WCAG relative luminance). */
+export function readableInk(background: string, ink: string) {
+  const [r, g, b] = [1, 3, 5].map((at) => {
+    const channel = parseInt(background.slice(at, at + 2), 16) / 255;
+    return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.4 ? ink : "#ffffff";
+}
+
 export function resolvePalette(design: Design | undefined): Palette {
   const palette: Partial<Palette> = design?.palette ?? {};
   return Object.fromEntries(Object.entries(zoePalette).map(([key, fallback]) => [key, hex(palette[key as keyof Palette], fallback)])) as Palette;

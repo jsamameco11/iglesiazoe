@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ArtRule, Design, FontOption, FontRole, NavType, PageRule, Palette, SectionRule, TextRule } from "@/lib/design";
+import type { ArtRule, Design, FontOption, FontRole, FooterPart, FooterRule, FooterText, NavType, PageRule, Palette, SectionRule, TextRule } from "@/lib/design";
 
 /** Drops empty values so "same as the site" never gets saved as a rule. */
 function compact<T extends object>(rule: T): T | undefined {
@@ -40,6 +40,17 @@ export function useDraft(published: Design) {
       update(({ nav, ...current }) => {
         const next = compact({ ...(nav ?? {}), ...patch });
         return next ? { ...current, nav: next } : current;
+      }),
+    setFooter: (patch: Partial<FooterRule>) =>
+      update(({ footer, ...current }) => {
+        const next = compact({ ...(footer ?? {}), ...patch });
+        return next ? { ...current, footer: next } : current;
+      }),
+    setFooterText: (part: FooterPart, patch: Partial<FooterText>) =>
+      update(({ footer, ...current }) => {
+        const rule = footer ?? {};
+        const next = compact({ ...rule, [part]: compact({ ...(rule[part] ?? {}), ...patch }) });
+        return next ? { ...current, footer: next } : current;
       }),
     setPage: (page: string, patch: Partial<PageRule> | null) =>
       update((current) => {

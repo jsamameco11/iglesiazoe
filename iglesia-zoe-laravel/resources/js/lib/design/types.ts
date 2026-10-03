@@ -89,12 +89,29 @@ export type NavType = {
 
 export type ArtRule = { hidden?: boolean; still?: boolean; speed?: number; colors?: Record<string, string> };
 
+/** Where the footer shows the logo: above or beside the church name, instead of it, centered on top, or in the closing strip. */
+export type FooterLogo = "above" | "beside" | "only" | "center" | "bottom";
+
+export type FooterPart = "brand" | "slogan" | "titles" | "links";
+
+/** Look of one kind of footer text. Size is a factor of the original. */
+export type FooterText = { color?: string; size?: number; align?: TextAlign };
+
+/** The footer every page shares: its background, the logo and where it sits, and the look of each kind of text. */
+export type FooterRule = Partial<Record<FooterPart, FooterText>> & {
+  background?: string;
+  logo?: string;
+  logoPlace?: FooterLogo;
+  logoSize?: number;
+};
+
 export type Design = {
   palette: Palette;
   fonts: Record<FontRole, FontOption>;
   sizes: { title: number; subtitle: number; text: number };
   shape: "round" | "soft" | "square";
   nav?: NavType;
+  footer?: FooterRule;
   pages: Record<string, PageRule>;
   art: Record<string, ArtRule>;
   fontHref?: string;
