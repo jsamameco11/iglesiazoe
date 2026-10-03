@@ -1,6 +1,6 @@
 import { Link } from "@inertiajs/react";
 import { Rise } from "@/Components/motion/rise";
-import { Paragraphs } from "@/Components/site/home/section";
+import { Paragraphs } from "@/Components/site/section";
 import { LeadTitle } from "@/Components/site/lead-title";
 import { PageIntro } from "@/Components/site/page-intro";
 import { ServeForm } from "@/Components/site/serve-form";
