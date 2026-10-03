@@ -816,7 +816,7 @@ body {
   display: flex;
   align-items: center;
   width: 13.5rem;
-  height: 2.125rem;
+  height: 1.75rem;
   border-radius: 999px;
   padding: 0 0.85rem;
   font-size: var(--nav-drop-size, 14px);
