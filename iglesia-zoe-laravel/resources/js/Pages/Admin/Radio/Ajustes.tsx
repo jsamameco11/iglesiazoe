@@ -64,7 +64,7 @@ export default function Ajustes({ config }: { config: RadioConfig }) {
               name="autofill"
               defaultChecked={config.autofill}
               title="Música continua"
-              text="Los espacios libres de la pista principal se llenan con las canciones elegidas en Programación › Música continua, en orden variado y empalmadas. Si la apagas, esos espacios quedan en silencio."
+              text="Los espacios libres de la pista principal se llenan con las canciones marcadas «Se repite» en la Biblioteca (o en Programación › Música continua), en orden variado y empalmadas. Si la apagas, esos espacios quedan en silencio."
             />
           </div>
         </Panel>

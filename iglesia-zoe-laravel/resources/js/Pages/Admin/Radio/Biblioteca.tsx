@@ -162,12 +162,17 @@ export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
     <AdminLayout>
       <RadioHeader
         title="Biblioteca de audio"
-        text="Aquí guardas los recursos de la radio: canciones, anuncios grabados, efectos y cortinas, y programas pregrabados. Subir un audio no lo pone al aire: suena solo cuando lo programas, lo eliges para la música continua o lo lanzas desde la consola."
+        text="Aquí guardas los recursos de la radio: canciones, anuncios grabados, efectos y cortinas, y programas pregrabados. Subir un audio no lo pone al aire: suena solo cuando lo programas o lo lanzas desde la consola. Una canción se repite en la música continua únicamente si activas «Se repite»."
       />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Audios en la biblioteca" value={tracks.length} />
-        <Stat label="En la música continua" value={rotation.length} note={rotation.length ? `${longDuration(rotation.reduce((sum, track) => sum + track.duration, 0))} · se elige en Programación` : "Se elige en Programación"} tone="bg-[#f4efe6]" />
+        <Stat
+          label="En la música continua"
+          value={rotation.length}
+          note={rotation.length === 1 ? "Una sola canción: se repetirá sin parar" : rotation.length ? `${longDuration(rotation.reduce((sum, track) => sum + track.duration, 0))} antes de repetir` : "Ninguna se repite sola"}
+          tone="bg-[#f4efe6]"
+        />
         <Stat label="Anuncios y efectos" value={tracks.filter((track) => track.kind === "anuncio" || track.kind === "efecto").length} note="Elígelos para la botonera de la consola" />
         <Stat label="Programas grabados" value={tracks.filter((track) => track.kind === "programa").length} />
       </div>
@@ -337,6 +342,10 @@ function TrackRow({
     );
   }
 
+  function toggleRotation() {
+    run(() => send("/admin/radio/biblioteca/rotacion", { id: track.id, on: track.rotation ? "0" : "1" }));
+  }
+
   function remove() {
     const extra = track.upcoming ? ` También se quitará de ${track.upcoming} bloque(s) programados.` : "";
     if (!window.confirm(`¿Eliminar «${track.title}» de la biblioteca?${extra}`)) return;
@@ -364,7 +373,22 @@ function TrackRow({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <KindTag kind={track.kind} label={kinds[track.kind]} />
-          {track.kind === "musica" && track.rotation && track.active ? <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-800">Música continua</span> : null}
+          {track.kind === "musica" ? (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={track.rotation}
+              disabled={pending || (!track.active && !track.rotation)}
+              onClick={toggleRotation}
+              title={track.rotation ? "Se repite en los espacios libres de la programación. Clic para que no se repita." : "Solo suena cuando lo programas o lo lanzas. Clic para que se repita en la música continua."}
+              className={`inline-flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 text-[11px] font-semibold transition disabled:opacity-50 ${track.rotation ? "bg-emerald-50 text-emerald-800 hover:bg-emerald-100" : "bg-paper text-muted hover:text-ink"}`}
+            >
+              <span className={`relative h-4 w-7 rounded-full transition-colors ${track.rotation ? "bg-emerald-600" : "bg-line"}`}>
+                <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-[left] ${track.rotation ? "left-3.5" : "left-0.5"}`} />
+              </span>
+              {track.rotation ? "Se repite" : "No se repite"}
+            </button>
+          ) : null}
           {track.duck ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">Baja la música</span> : null}
           {!track.active ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">Desactivado</span> : null}
           <button type="button" onClick={onEdit} className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted transition hover:bg-paper hover:text-ink">{editing ? "Cerrar" : "Editar"}</button>

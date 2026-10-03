@@ -110,6 +110,28 @@ class RadioLibraryController extends RadioController
             : 'Audio guardado en la biblioteca. No suena hasta que lo programes o lo lances desde la consola.');
     }
 
+    /** Puts a song in the continuous music, where it repeats in the gaps of the program, or takes it out. */
+    public function rotation(Request $request): JsonResponse
+    {
+        $track = $this->find(RadioTrack::class, $request->input('id'));
+        if (! $track) {
+            return $this->fail('Ese audio ya no existe. Recarga la página.', 404);
+        }
+        if ($track->kind !== 'musica') {
+            return $this->fail('Solo las canciones van en la música continua.');
+        }
+        $on = $request->boolean('on');
+        if ($on && ! $track->active) {
+            return $this->fail('Activa el audio antes de ponerlo en la música continua.');
+        }
+        $track->update(['rotation' => $on]);
+        Station::flush();
+
+        return $this->saved($on
+            ? "«{$track->title}» se repetirá en la música continua."
+            : "«{$track->title}» ya no se repetirá en la música continua.");
+    }
+
     public function destroy(Request $request): JsonResponse
     {
         $track = $this->find(RadioTrack::class, $request->input('id'));

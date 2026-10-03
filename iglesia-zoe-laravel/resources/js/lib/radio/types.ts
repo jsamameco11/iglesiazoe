@@ -13,6 +13,8 @@ export type RadioItem = {
   bed: boolean;
   block: string | null;
   slot: string | null;
+  /** Library audio that sounds; a song of the continuous music when `slot` is null. */
+  track?: string | null;
 };
 
 /** A sound on top of the program: a console pad or player, or an overlay block of the timeline. */

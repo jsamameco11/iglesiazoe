@@ -282,6 +282,31 @@ export function useConsole(initial: Snapshot, host: string) {
     await liveAction({ action: "air", on: on ? "1" : "0" }, false);
   }
 
+  const musicAction = useCallback(
+    async (payload: Record<string, string>) => {
+      const data = (await postForm("/admin/radio/musica-continua", payload)) as Snapshot & { ok?: boolean; error?: string; message?: string };
+      if (data.error) setNotice({ tone: "error", text: data.error });
+      else if (data.ok) {
+        apply(data);
+        if (data.message) setNotice({ tone: "info", text: data.message });
+      }
+    },
+    [apply],
+  );
+
+  /** Pauses or resumes the continuous music that fills the gaps of the program. */
+  async function toggleAutofill() {
+    const on = !config.autofill;
+    if (!on && !window.confirm("¿Pausar la música continua? Los espacios sin programación quedarán en silencio hasta que la reanudes.")) return;
+    await musicAction({ action: "autofill", on: on ? "1" : "0" });
+  }
+
+  /** Takes the song on air out of the continuous music: it fades out now and does not repeat. */
+  async function dropFromRotation(trackId: string, title: string) {
+    if (!window.confirm(`¿Sacar «${title}» de la música continua?\n\nDeja de sonar ahora y no se repetirá. Puedes volver a incluirla cuando quieras desde la Biblioteca o la Programación.`)) return;
+    await musicAction({ action: "drop", id: trackId });
+  }
+
   return {
     state,
     live,
@@ -317,6 +342,8 @@ export function useConsole(initial: Snapshot, host: string) {
     stopLive,
     toggleTalk,
     toggleAir,
+    toggleAutofill,
+    dropFromRotation,
   };
 }
 
