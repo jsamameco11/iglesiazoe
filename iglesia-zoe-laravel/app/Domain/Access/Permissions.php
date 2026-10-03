@@ -8,11 +8,14 @@ use App\Models\User;
 class Permissions
 {
     public const CATALOG = [
-        'reports.submit' => ['group' => 'Células', 'title' => 'Subir informes', 'text' => 'Registra el informe semanal de sus células con asistencia, ofrenda, diezmos y fotos.'],
+        'reports.submit' => ['group' => 'Células', 'title' => 'Subir informes', 'text' => 'Registra el informe semanal de su propia célula con asistencia, ofrenda, diezmos y fotos.'],
+        'reports.delegate' => ['group' => 'Células', 'title' => 'Subir informes de sus servidores', 'text' => 'Sube o corrige el informe semanal de los servidores y servidores hijo de su red cuando ellos no pueden. Apagado por defecto: cada servidor sube el suyo.'],
         'reports.weekly' => ['group' => 'Células', 'title' => 'Reporte semanal', 'text' => 'Ve el seguimiento de la semana de su red.'],
         'reports.all' => ['group' => 'Células', 'title' => 'Reportes de todos los servidores', 'text' => 'Ve los informes de todas las células y filtra por semana, mes o año.'],
-        'offerings.weekly' => ['group' => 'Células', 'title' => 'Ofrendas por semana', 'text' => 'Ve la ofrenda de cada célula semana por semana, sin el tablero de ingresos.'],
-        'servers.create' => ['group' => 'Células', 'title' => 'Crear servidores y servidores hijo', 'text' => 'El Servidor de Red abre servidores en su red; cada servidor añade sus propios servidores hijo y les crea su cuenta.'],
+        'offerings.weekly' => ['group' => 'Células', 'title' => 'Ofrendas por semana', 'text' => 'Ve la ofrenda y los diezmos de cada célula semana por semana, sin el tablero de ingresos.'],
+        'cells.own' => ['group' => 'Células', 'title' => 'Abrir su propia célula', 'text' => 'El Servidor de Red que también lidera una célula la abre él mismo y sube su informe. Si no lidera una, no la abre.'],
+        'servers.create' => ['group' => 'Células', 'title' => 'Crear servidores', 'text' => 'Abre servidores en su red (células como 01A) y les crea su cuenta.'],
+        'servers.children' => ['group' => 'Células', 'title' => 'Crear servidores hijo', 'text' => 'Añade células hija debajo de un servidor (como 0101A) y les crea su cuenta. El servidor lo usa para sus propios servidores hijo.'],
         'cells.manage' => ['group' => 'Células', 'title' => 'Células e integrantes', 'text' => 'Edita datos de cada célula y su lista de integrantes.'],
         'themes.manage' => ['group' => 'Células', 'title' => 'Temas de célula', 'text' => 'Publica el tema semanal (PDF, Word, PowerPoint o imagen), le pone fecha y público, y lo oculta cuando ya no se usa.'],
         'design.manage' => ['group' => 'Página web', 'title' => 'Diseño de la página', 'text' => 'Paleta de colores, tipografías, fondos de pantalla y de franja (color, degradado, foto, GIF o video), tamaños, grosor y espaciado del texto, y formas, página por página y sección por sección.'],
@@ -45,8 +48,8 @@ class Permissions
     public const TYPES = [
         'red' => [
             'label' => 'Servidor de Red',
-            'text' => 'Sube informes, ve reportes de todos los servidores, ve ofrendas por semana, crea servidores y recibe los formularios de la web.',
-            'permissions' => ['reports.submit', 'reports.weekly', 'reports.all', 'offerings.weekly', 'servers.create', 'cells.manage', ...self::INBOX],
+            'text' => 'Abre su propia célula si lidera una y sube su informe, ve reportes de todos los servidores, ve ofrendas y diezmos por semana, crea servidores y servidores hijo y recibe los formularios de la web.',
+            'permissions' => ['reports.submit', 'reports.weekly', 'reports.all', 'offerings.weekly', 'cells.own', 'servers.create', 'servers.children', 'cells.manage', ...self::INBOX],
         ],
         'visuales' => [
             'label' => 'Visuales · Multimedia',
@@ -83,10 +86,13 @@ class Permissions
         ],
     ];
 
-    public const DEFAULTS = ['servers.create'];
+    public const DEFAULTS = ['servers.create', 'servers.children'];
+
+    /** Any of these opens the Servidores page. */
+    public const SERVER_TREE = ['servers.create', 'servers.children', 'cells.own'];
 
     /** Account of a servidor: files its reports and adds its own servidores hijo. */
-    public const SERVER_ACCOUNT = ['reports.submit', 'reports.weekly', 'servers.create'];
+    public const SERVER_ACCOUNT = ['reports.submit', 'reports.weekly', 'servers.children'];
 
     /** Account of a servidor hijo: files its reports only. */
     public const CHILD_SERVER_ACCOUNT = ['reports.submit', 'reports.weekly'];
@@ -94,7 +100,7 @@ class Permissions
     /** Account types that sign in from the church site; every other type uses the admin site. */
     public const SERVER_TYPES = ['red', 'celula'];
 
-    private const SERVER_PERMISSIONS = ['reports.submit', 'reports.weekly', 'reports.all', 'offerings.weekly', 'servers.create', 'cells.manage'];
+    private const SERVER_PERMISSIONS = ['reports.submit', 'reports.delegate', 'reports.weekly', 'reports.all', 'offerings.weekly', 'cells.own', 'servers.create', 'servers.children', 'cells.manage'];
 
     public static function keys(): array
     {

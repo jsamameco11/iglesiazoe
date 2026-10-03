@@ -59,6 +59,7 @@ function ServerRow({ server }: { server: ServerNode }) {
             <div className="flex flex-wrap items-center gap-2">
               <p className={`font-semibold tracking-[-0.02em] ${main ? "text-base" : "text-sm"}`}>{server.leader_name || "Sin nombre"}</p>
               <LevelBadge level={server.level} />
+              {server.own && <span className="rounded-full bg-amber px-2.5 py-1 text-[10.5px] font-semibold text-ink">Tu célula</span>}
               {!server.active && <span className="rounded-full bg-red-50 px-2.5 py-1 text-[10.5px] font-semibold text-red-700">Inactiva</span>}
             </div>
             <p className="mt-0.5 text-xs text-muted">

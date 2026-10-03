@@ -162,11 +162,12 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::post('/diseno/fondo', [DesignController::class, 'upload']);
     });
 
-    Route::middleware($can('servers.create'))->group(function () {
+    Route::middleware($can(...Permissions::SERVER_TREE))->group(function () use ($can) {
         Route::get('/servidores', [ServersController::class, 'index']);
-        Route::post('/servidores', [ServersController::class, 'storeServer']);
-        Route::post('/servidores/hijo', [ServersController::class, 'storeChild']);
-        Route::post('/servidores/cuenta', [ServersController::class, 'storeAccount']);
+        Route::post('/servidores', [ServersController::class, 'storeServer'])->middleware($can('servers.create'));
+        Route::post('/servidores/hijo', [ServersController::class, 'storeChild'])->middleware($can('servers.children'));
+        Route::post('/servidores/mi-celula', [ServersController::class, 'storeOwnCell'])->middleware($can('cells.own'));
+        Route::post('/servidores/cuenta', [ServersController::class, 'storeAccount'])->middleware($can('servers.create', 'servers.children'));
         Route::post('/servidores/red', [ServersController::class, 'storeNetworkServer'])->middleware(EnsureRole::class.':superadmin');
     });
 

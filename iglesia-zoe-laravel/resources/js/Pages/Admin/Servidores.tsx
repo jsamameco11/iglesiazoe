@@ -2,16 +2,16 @@ import { useState } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { PageHeader, Panel } from "@/Components/admin/ui";
 import { NetworkLeaders } from "@/Components/admin/servers/network-leaders";
+import { OwnCellPanel } from "@/Components/admin/servers/own-cell";
 import { LevelBadge, ServerCard } from "@/Components/admin/servers/server-card";
 import { ServerForm } from "@/Components/admin/servers/server-form";
-import type { ServerNetwork } from "@/Components/admin/servers/types";
+import type { OwnCell, ServerNetwork } from "@/Components/admin/servers/types";
 
-type Props = { networks: ServerNetwork[]; canAssignLeaders: boolean };
+type Props = { networks: ServerNetwork[]; canAssignLeaders: boolean; leadsNetwork: boolean; ownCell: OwnCell | null };
 
-export default function Servidores({ networks, canAssignLeaders }: Props) {
+export default function Servidores({ networks, canAssignLeaders, leadsNetwork, ownCell }: Props) {
   const [networkId, setNetworkId] = useState(networks[0]?.id ?? "");
   const network = networks.find((item) => item.id === networkId) ?? networks[0];
-  const leadsNetwork = networks.some((item) => item.can_open);
 
   return (
     <AdminLayout>
@@ -26,6 +26,7 @@ export default function Servidores({ networks, canAssignLeaders }: Props) {
           }
           aside={<Hierarchy />}
         />
+        {ownCell && <div className="mt-6 max-w-4xl"><OwnCellPanel own={ownCell} /></div>}
         {networks.length > 1 && (
           <div className="mt-7 flex flex-wrap items-center gap-2">
             {networks.map((item) => (

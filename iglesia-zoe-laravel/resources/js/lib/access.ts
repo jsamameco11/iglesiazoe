@@ -2,10 +2,13 @@ import { usePage } from "@inertiajs/react";
 
 export type Permission =
   | "reports.submit"
+  | "reports.delegate"
   | "reports.weekly"
   | "reports.all"
   | "offerings.weekly"
+  | "cells.own"
   | "servers.create"
+  | "servers.children"
   | "cells.manage"
   | "themes.manage"
   | "design.manage"

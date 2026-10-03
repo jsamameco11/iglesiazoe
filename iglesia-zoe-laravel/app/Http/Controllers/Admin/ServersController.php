@@ -13,6 +13,7 @@ use App\Models\Network;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -50,18 +51,46 @@ class ServersController extends Controller
     {
         $network = $this->find(Network::class, $request->input('network_id'));
         if (! $network || ! CellScope::for($request->user())->canOpenServerIn($network->id)) {
-            return response()->json(['error' => 'Solo el Servidor de Red de esta red puede abrir servidores.'], 403);
+            return response()->json(['error' => 'No tienes permiso para abrir servidores en esta red. El superadministrador lo activa en Equipo y accesos.'], 403);
         }
         [$cell, $account] = $open->handle($network, null, $this->serverData($request), $request->user());
 
         return $this->done($this->created($cell, $account));
     }
 
+    public function storeOwnCell(Request $request, OpenServer $open): JsonResponse
+    {
+        $user = $request->user();
+        $scope = CellScope::for($user);
+        if (! $scope->canOpenOwnCell()) {
+            $cell = $scope->ownCell();
+
+            return $cell
+                ? response()->json(['error' => "Ya tienes tu célula {$cell->code}."], 422)
+                : response()->json(['error' => 'Solo el Servidor de Red con permiso para abrir su propia célula puede hacerlo.'], 403);
+        }
+        $data = $request->validate([
+            'meeting_day' => ['nullable', Rule::in(Cell::MEETING_DAYS)],
+            'meeting_time' => ['nullable', 'date_format:H:i'],
+        ], [
+            'meeting_day.in' => 'Elige un día de la lista.',
+            'meeting_time.date_format' => 'La hora no es válida.',
+        ]);
+        $cell = DB::transaction(function () use ($open, $scope, $user, $data) {
+            [$cell] = $open->handle($scope->network, null, ['leader_name' => $user->name, ...$data], $user);
+            $user->cells()->syncWithoutDetaching([$cell->id]);
+
+            return $cell;
+        });
+
+        return $this->done("Tu célula {$cell->code} está lista. Ya puedes subir su informe desde «Subir informe».");
+    }
+
     public function storeChild(Request $request, OpenServer $open): JsonResponse
     {
         $parent = $this->find(Cell::class, $request->input('parent_id'));
         if (! $parent || ! CellScope::for($request->user())->canAddChildTo($parent)) {
-            return response()->json(['error' => 'Solo puedes añadir servidores hijo a un servidor a tu cargo.'], 403);
+            return response()->json(['error' => 'No puedes añadir servidores hijo a este servidor. Necesitas el permiso «Crear servidores hijo» y que el servidor esté a tu cargo.'], 403);
         }
         [$cell, $account] = $open->handle($parent->network, $parent, $this->serverData($request), $request->user());
 

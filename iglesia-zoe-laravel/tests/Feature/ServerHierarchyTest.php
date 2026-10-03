@@ -6,6 +6,8 @@ use App\Domain\Access\Permissions;
 use App\Domain\Shared\Enums\Role;
 use App\Models\Cell;
 use App\Models\Network;
+use App\Models\Report;
+use App\Models\ReportAttendance;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia;
@@ -40,6 +42,121 @@ class ServerHierarchyTest extends TestCase
         $this->assertSame(['red'], $leader->admin_types);
         $this->assertSame($this->networkA->id, $leader->network_id);
         $this->assertTrue(Permissions::has($leader, 'servers.create'));
+        $this->assertTrue(Permissions::has($leader, 'servers.children'));
+        $this->assertTrue(Permissions::has($leader, 'cells.own'));
+        $this->assertFalse(Permissions::has($leader, 'reports.delegate'));
+    }
+
+    public function test_servidor_de_red_opens_his_own_cell_once(): void
+    {
+        $this->cell($this->networkA, 1);
+        $leader = $this->networkLeader($this->networkA);
+
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/mi-celula', ['meeting_day' => 'Jueves', 'meeting_time' => '20:00'])
+            ->assertOk();
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/mi-celula', [])
+            ->assertUnprocessable();
+
+        $cell = Cell::query()->where('code', '02A')->firstOrFail();
+        $this->assertNull($cell->parent_id);
+        $this->assertSame($leader->name, $cell->leader_name);
+        $this->assertTrue($leader->fresh()->cells->contains($cell));
+        $this->actingAs($leader)
+            ->get(self::SITE.'/admin/servidores')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('ownCell.cell.code', '02A')
+                ->where('ownCell.can_open', false));
+        $this->actingAs($leader)
+            ->get(self::SITE.'/portal/informe')
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('cells', 1)->where('cells.0.code', '02A'));
+    }
+
+    public function test_servidor_de_red_without_the_function_does_not_open_his_own_cell(): void
+    {
+        $leader = $this->networkLeader($this->networkA, permissions: array_diff(Permissions::forTypes(['red']), ['cells.own']));
+
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/mi-celula', [])
+            ->assertForbidden();
+        $this->actingAs($leader)
+            ->get(self::SITE.'/admin/servidores')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('ownCell', null));
+        $this->assertSame(0, Cell::query()->count());
+    }
+
+    public function test_superadmin_turns_off_opening_servidores_and_servidores_hijo(): void
+    {
+        $root = $this->cell($this->networkA, 1);
+        $noServers = $this->networkLeader($this->networkA, 'red.sin.servidores', array_diff(Permissions::forTypes(['red']), ['servers.create']));
+        $noChildren = $this->networkLeader($this->networkA, 'red.sin.hijos', array_diff(Permissions::forTypes(['red']), ['servers.children']));
+
+        $this->actingAs($noServers)
+            ->postJson(self::SITE.'/admin/servidores', ['network_id' => $this->networkA->id, 'leader_name' => 'Nuevo'])
+            ->assertForbidden();
+        $this->actingAs($noServers)
+            ->postJson(self::SITE.'/admin/servidores/hijo', ['parent_id' => $root->id, 'leader_name' => 'Hijo'])
+            ->assertOk();
+        $this->actingAs($noChildren)
+            ->postJson(self::SITE.'/admin/servidores/hijo', ['parent_id' => $root->id, 'leader_name' => 'Otro hijo'])
+            ->assertForbidden();
+        $this->actingAs($noChildren)
+            ->postJson(self::SITE.'/admin/servidores', ['network_id' => $this->networkA->id, 'leader_name' => 'Nuevo'])
+            ->assertOk();
+        $this->actingAs($noChildren)
+            ->get(self::SITE.'/admin/servidores')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('networks.0.can_open', true)
+                ->where('networks.0.servers.0.can_add_child', false));
+
+        $this->assertEqualsCanonicalizing(['01A', '0101A', '02A'], Cell::query()->pluck('code')->all());
+    }
+
+    public function test_servidor_de_red_files_other_reports_only_when_the_superadmin_allows_it(): void
+    {
+        $other = $this->cell($this->networkA, 1);
+        $leader = $this->networkLeader($this->networkA);
+        $own = $this->cell($this->networkA, 2);
+        $leader->cells()->attach($own->id);
+        $query = fn (Cell $cell) => self::SITE.'/portal/informe/cargar?'.http_build_query(['cell_id' => $cell->id, 'year' => 2026, 'week' => 40]);
+
+        $this->actingAs($leader)->getJson($query($own))->assertOk();
+        $this->actingAs($leader)->getJson($query($other))->assertForbidden();
+
+        $leader->update(['permissions' => [...$leader->permissions, 'reports.delegate']]);
+        $this->actingAs($leader->fresh())->getJson($query($other))->assertOk();
+        $this->actingAs($leader->fresh())
+            ->get(self::SITE.'/portal/informe')
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('cells', 2));
+    }
+
+    public function test_weekly_follow_up_shows_offering_and_tithes_to_the_servidor_de_red_only(): void
+    {
+        $cell = $this->cell($this->networkA, 1);
+        $report = Report::query()->create(['cell_id' => $cell->id, 'year' => 2026, 'week' => 40, 'met' => true, 'offering' => 50, 'salvations' => 2, 'families' => 3]);
+        ReportAttendance::query()->create(['report_id' => $report->id, 'member_name' => 'Ana', 'attended' => true, 'tithe' => 20]);
+        ReportAttendance::query()->create(['report_id' => $report->id, 'member_name' => 'Luis', 'attended' => true, 'tithe' => 15.5]);
+        $url = self::SITE.'/portal/seguimiento?year=2026&week=40';
+
+        $this->actingAs($this->networkLeader($this->networkA))
+            ->get($url)
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('Portal/Seguimiento')
+                ->where('showMoney', true)
+                ->where('rows.0.status', 'met')
+                ->where('rows.0.attendance', 2)
+                ->where('rows.0.offering', fn ($value) => (float) $value === 50.0)
+                ->where('rows.0.tithes', fn ($value) => (float) $value === 35.5)
+                ->where('totals.offering', fn ($value) => (float) $value === 50.0)
+                ->where('totals.tithes', fn ($value) => (float) $value === 35.5)
+                ->where('totals.reports', 1));
+        $this->actingAs($this->cellServer($cell, Permissions::SERVER_ACCOUNT))
+            ->get($url)
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('showMoney', false)
+                ->where('rows.0.offering', null)
+                ->where('totals.tithes', null));
     }
 
     public function test_only_the_superadmin_assigns_a_servidor_de_red(): void
@@ -143,9 +260,9 @@ class ServerHierarchyTest extends TestCase
         return $this->user('super', Role::Superadmin, [], []);
     }
 
-    private function networkLeader(Network $network, string $username = 'red.lider'): User
+    private function networkLeader(Network $network, string $username = 'red.lider', ?array $permissions = null): User
     {
-        return $this->user($username, Role::Admin, ['red'], Permissions::forTypes(['red']), $network);
+        return $this->user($username, Role::Admin, ['red'], array_values($permissions ?? Permissions::forTypes(['red'])), $network);
     }
 
     private function cellServer(Cell $cell, array $permissions): User

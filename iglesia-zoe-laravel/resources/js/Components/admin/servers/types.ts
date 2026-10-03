@@ -12,6 +12,7 @@ export type ServerNode = {
   meeting_day: string | null;
   meeting_time: string | null;
   active: boolean;
+  own: boolean;
   accounts: ServerAccount[];
   can_add_child: boolean;
   can_give_account: boolean;
@@ -30,6 +31,13 @@ export type ServerNetwork = {
   next_code: string | null;
   servers: ServerNode[];
   totals: { servers: number; children: number };
+};
+
+export type OwnCell = {
+  network_code: string;
+  can_open: boolean;
+  next_code: string | null;
+  cell: { code: string; leader_name: string | null; meeting_day: string | null; meeting_time: string | null } | null;
 };
 
 export const levels: Record<ServerLevel, { label: string; tone: string; account: string }> = {
