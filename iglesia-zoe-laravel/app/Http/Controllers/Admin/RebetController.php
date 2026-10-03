@@ -20,7 +20,7 @@ class RebetController extends GameContentController
                 'id' => $theme->id,
                 'name' => $theme->name,
                 'active' => $theme->active,
-                'questions' => $theme->questions_count,
+                'count' => $theme->questions_count,
             ]),
             'questions' => RebetQuestion::query()->orderBy('created_at')->get()->map->full(),
             'difficulties' => RebetQuestion::DIFFICULTIES,

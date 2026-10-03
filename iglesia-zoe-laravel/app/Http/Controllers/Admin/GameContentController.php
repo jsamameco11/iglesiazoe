@@ -60,12 +60,14 @@ abstract class GameContentController extends Controller
     }
 
     /**
-     * The non-empty lines of a list field, trimmed.
+     * The non-empty lines of a list field, trimmed: either an array of inputs or one text with a line per item.
      *
      * @return list<string>
      */
     protected function lines(mixed $values): array
     {
-        return array_values(array_filter(array_map(fn ($value) => is_string($value) ? trim($value) : '', (array) $values), fn (string $value) => $value !== ''));
+        $values = is_string($values) ? preg_split('/\R/u', $values) : (array) $values;
+
+        return array_values(array_filter(array_map(fn ($value) => is_string($value) ? trim($value) : '', $values), fn (string $value) => $value !== ''));
     }
 }
