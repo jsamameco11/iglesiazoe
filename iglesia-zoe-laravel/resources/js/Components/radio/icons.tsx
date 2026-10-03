@@ -10,6 +10,25 @@ export function PlayIcon({ className = "h-7 w-7" }: Props) {
   );
 }
 
+export function PauseIcon({ className = "h-6 w-6" }: Props) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <rect x="6" y="5" width="4.2" height="14" rx="1.4" fill="currentColor" />
+      <rect x="13.8" y="5" width="4.2" height="14" rx="1.4" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Jump back or forward a few seconds; the number is drawn inside the arrow. */
+export function SkipIcon({ seconds, forward = false, className = "h-8 w-8" }: Props & { seconds: number; forward?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} {...base} strokeWidth={1.5}>
+      <path d={forward ? "M20 12a8 8 0 1 1-2.34-5.66M20 3.8v3.6h-3.6" : "M4 12a8 8 0 1 0 2.34-5.66M4 3.8v3.6h3.6"} />
+      <text x="12" y="15.4" textAnchor="middle" fontSize="8.5" fontWeight="700" fill="currentColor" stroke="none">{seconds}</text>
+    </svg>
+  );
+}
+
 export function StopIcon({ className = "h-6 w-6" }: Props) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden>

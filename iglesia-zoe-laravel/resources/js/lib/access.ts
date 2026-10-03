@@ -22,6 +22,7 @@ export type Permission =
   | "radio.console"
   | "radio.schedule"
   | "radio.library"
+  | "radio.episodes"
   | "radio.settings"
   | "studies.students"
   | "studies.grades"

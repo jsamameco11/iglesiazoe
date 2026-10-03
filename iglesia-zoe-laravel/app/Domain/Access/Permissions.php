@@ -29,6 +29,7 @@ class Permissions
         'radio.console' => ['group' => 'Radio', 'title' => 'Consola en vivo', 'text' => 'Sale al aire con el micrófono, maneja el mezclador y la música de fondo, arma y usa la botonera de efectos y los reproductores simultáneos.'],
         'radio.schedule' => ['group' => 'Radio', 'title' => 'Programación', 'text' => 'Arma la línea de tiempo de cada día con la pista principal y las capas encima, elige la música continua y copia la parrilla a otros días.'],
         'radio.library' => ['group' => 'Radio', 'title' => 'Biblioteca de audio', 'text' => 'Sube, edita y elimina canciones, anuncios, efectos y programas grabados. Subir un audio no lo pone al aire.'],
+        'radio.episodes' => ['group' => 'Radio', 'title' => 'Episodios', 'text' => 'Publica programas grabados como episodios en la página de la radio, con carátula, título y una descripción corta, para que la gente los escuche cuando quiera.'],
         'radio.settings' => ['group' => 'Radio', 'title' => 'Ajustes de la radio', 'text' => 'Nombre y lema de la emisora, radio al aire o fuera del aire, niveles de la mezcla, empalme entre canciones y transmisión externa.'],
         'studies.students' => ['group' => 'Estudios · Ruta del Servidor', 'title' => 'Estudiantes y niveles', 'text' => 'Crea, edita y desactiva las cuentas de los estudiantes, cambia sus claves, los ubica en su nivel y define fechas y horario de cada nivel.'],
         'studies.grades' => ['group' => 'Estudios · Ruta del Servidor', 'title' => 'Notas', 'text' => 'Crea las evaluaciones de cada nivel y registra las notas de los estudiantes.'],
@@ -44,7 +45,7 @@ class Permissions
 
     public const STUDIES = ['studies.students', 'studies.grades', 'studies.board'];
 
-    public const RADIO = ['radio.console', 'radio.schedule', 'radio.library', 'radio.settings'];
+    public const RADIO = ['radio.console', 'radio.schedule', 'radio.library', 'radio.episodes', 'radio.settings'];
 
     public const TYPES = [
         'red' => [

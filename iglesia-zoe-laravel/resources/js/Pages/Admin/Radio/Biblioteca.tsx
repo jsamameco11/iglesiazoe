@@ -1,15 +1,16 @@
-import { router } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { KindTag, RadioHeader, readDuration } from "@/Components/radio/admin-ui";
+import { AUDIO_ACCEPT, COVER_ACCEPT, KindTag, RadioHeader, postWithProgress, readDuration } from "@/Components/radio/admin-ui";
 import { Notice, Stat, button, ghost, input, useAction } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { csrf, send, type ActionResult } from "@/lib/actions";
+import { can, usePanelUser } from "@/lib/access";
+import { send } from "@/lib/actions";
 import { duration, longDuration, type RadioTrack } from "@/lib/radio";
 import "../../../../css/radio.css";
 
 type Kind = RadioTrack["kind"];
 
-type Props = { tracks: RadioTrack[]; kinds: Record<Kind, string>; maxMb: number };
+type Props = { tracks: RadioTrack[]; kinds: Record<Kind, string>; maxMb: number; maxDescription: number };
 
 type Upload = {
   key: string;
@@ -22,36 +23,18 @@ type Upload = {
   progress: number;
   status: "ready" | "reading" | "uploading" | "done" | "error";
   error?: string;
+  /** Also publish it on /radio as an episode, with this description and cover. */
+  episode: boolean;
+  description: string;
+  cover: File | null;
 };
 
-const ACCEPT = ".mp3,.m4a,.aac,.ogg,.oga,.opus,.wav,.webm,.flac,audio/*";
+const LIBRARY = "/admin/radio/biblioteca";
 
 /** Spoken audio lowers the music by default when it plays on top of it. */
 const duckFor = (kind: Kind) => kind === "anuncio" || kind === "programa";
 
-function upload(data: FormData, onProgress: (value: number) => void) {
-  return new Promise<ActionResult>((resolve) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/admin/radio/biblioteca");
-    xhr.setRequestHeader("X-CSRF-TOKEN", csrf());
-    xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
-    xhr.setRequestHeader("Accept", "application/json");
-    xhr.upload.onprogress = (event) => event.lengthComputable && onProgress(event.loaded / event.total);
-    xhr.onload = () => {
-      let body: ActionResult = {};
-      try {
-        body = JSON.parse(xhr.responseText);
-      } catch {
-        /* non-JSON error page */
-      }
-      if (xhr.status === 413) resolve({ error: "El archivo es demasiado grande para el servidor." });
-      else if (xhr.status >= 400 && !body.error) resolve({ error: body.message ? String(body.message) : "No se pudo subir el audio." });
-      else resolve(body);
-    };
-    xhr.onerror = () => resolve({ error: "Se cortó la conexión mientras subía el audio." });
-    xhr.send(data);
-  });
-}
+const upload = (data: FormData, onProgress?: (value: number) => void) => postWithProgress(LIBRARY, data, onProgress);
 
 function cleanTitle(name: string) {
   return name
@@ -67,7 +50,8 @@ function guessArtist(title: string): [string, string] {
   return parts.length === 2 ? [parts[1].trim(), parts[0].trim()] : [title, ""];
 }
 
-export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
+export default function Biblioteca({ tracks, kinds, maxMb, maxDescription }: Props) {
+  const canEpisodes = can(usePanelUser(), "radio.episodes");
   const [tab, setTab] = useState<Kind | "">("");
   const [query, setQuery] = useState("");
   const [queue, setQueue] = useState<Upload[]>([]);
@@ -105,6 +89,9 @@ export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
         progress: 0,
         status: tooBig ? "error" : "reading",
         error: tooBig ? `Pesa más de ${maxMb} MB. Expórtalo en MP3 (128–192 kbps).` : undefined,
+        episode: false,
+        description: "",
+        cover: null,
       };
     });
     setQueue((list) => [...list, ...fresh]);
@@ -129,6 +116,11 @@ export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
       data.set("duration", String(item.duration));
       data.set("duck", item.duck ? "1" : "0");
       data.set("audio", item.file);
+      if (canEpisodes && item.episode) {
+        data.set("episode", "1");
+        data.set("episode_description", item.description);
+        if (item.cover) data.set("episode_cover", item.cover);
+      }
       const result = await upload(data, (progress) => patch(item.key, { progress }));
       if (result.error) patch(item.key, { status: "error", error: result.error });
       else {
@@ -201,7 +193,7 @@ export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
             <input
               ref={picker}
               type="file"
-              accept={ACCEPT}
+              accept={AUDIO_ACCEPT}
               multiple
               hidden
               onChange={(event) => {
@@ -217,7 +209,7 @@ export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
             {queue.map((item) => (
               <div key={item.key} className="grid gap-2 rounded-2xl border border-line bg-white p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_10rem_auto_auto] md:items-center">
                 <input value={item.title} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { title: event.target.value })} className={`${input} !mt-0`} placeholder="Título" maxLength={160} />
-                <input value={item.artist} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { artist: event.target.value })} className={`${input} !mt-0`} placeholder="Artista (opcional)" maxLength={120} />
+                <input value={item.artist} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { artist: event.target.value })} className={`${input} !mt-0`} placeholder={item.kind === "programa" ? "Programa o locutor (opcional)" : "Artista (opcional)"} maxLength={120} />
                 <select value={item.kind} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { kind: event.target.value as Kind, duck: duckFor(event.target.value as Kind) })} className={`${input} !mt-0`}>
                   {kindList.map((kind) => (
                     <option key={kind} value={kind}>{kinds[kind]}</option>
@@ -238,6 +230,36 @@ export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
                     </button>
                   )}
                 </div>
+                {canEpisodes ? (
+                  <div className="md:col-span-5">
+                    <label className="inline-flex items-center gap-2 text-[13px] font-semibold">
+                      <input type="checkbox" checked={item.episode} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { episode: event.target.checked })} />
+                      Publicar también como episodio en la página de la radio
+                    </label>
+                    {item.episode ? (
+                      <div className="mt-2 grid gap-3 rounded-xl bg-paper p-3 md:grid-cols-[minmax(0,1fr)_16rem]">
+                        <label className="text-xs font-semibold text-muted">
+                          Descripción corta del programa
+                          <textarea
+                            value={item.description}
+                            disabled={item.status === "uploading"}
+                            onChange={(event) => patch(item.key, { description: event.target.value })}
+                            maxLength={maxDescription}
+                            rows={2}
+                            placeholder="De qué trata este programa, en una o dos frases."
+                            className={`${input} resize-none`}
+                          />
+                          <span className="mt-1 block text-right text-[11px] font-normal tabular-nums">{item.description.length}/{maxDescription}</span>
+                        </label>
+                        <label className="text-xs font-semibold text-muted">
+                          Carátula (opcional)
+                          <input type="file" accept={COVER_ACCEPT} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { cover: event.target.files?.[0] ?? null })} className={`${input} file:mr-3 file:rounded-full file:border-0 file:bg-paper file:px-3 file:py-1 file:text-xs file:font-semibold`} />
+                          <span className="mt-1 block text-[11px] font-normal">JPG, PNG o WEBP cuadrada · hasta 8 MB</span>
+                        </label>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 {item.status === "error" ? <p className="text-xs font-medium text-red-700 md:col-span-5">{item.file.name}: {item.error}</p> : null}
                 {item.status === "reading" ? <p className="text-xs text-muted md:col-span-5">Leyendo la duración…</p> : null}
               </div>
@@ -279,6 +301,7 @@ export default function Biblioteca({ tracks, kinds, maxMb }: Props) {
                 track={track}
                 kinds={kinds}
                 maxMb={maxMb}
+                canEpisodes={canEpisodes}
                 playing={playing === track.id}
                 editing={editing === track.id}
                 onPlay={() => togglePlay(track)}
@@ -296,6 +319,7 @@ function TrackRow({
   track,
   kinds,
   maxMb,
+  canEpisodes,
   playing,
   editing,
   onPlay,
@@ -304,6 +328,7 @@ function TrackRow({
   track: RadioTrack;
   kinds: Record<Kind, string>;
   maxMb: number;
+  canEpisodes: boolean;
   playing: boolean;
   editing: boolean;
   onPlay: () => void;
@@ -334,7 +359,7 @@ function TrackRow({
       data.set("duration", String(seconds));
     }
     run(
-      () => upload(data, () => undefined).then((response) => {
+      () => upload(data).then((response) => {
         if (response.reload) router.reload({ only: ["tracks"] });
         return response;
       }),
@@ -347,7 +372,7 @@ function TrackRow({
   }
 
   function remove() {
-    const extra = track.upcoming ? ` También se quitará de ${track.upcoming} bloque(s) programados.` : "";
+    const extra = `${track.upcoming ? ` También se quitará de ${track.upcoming} bloque(s) programados.` : ""}${track.episodes ? " Su episodio dejará de verse en la página de la radio." : ""}`;
     if (!window.confirm(`¿Eliminar «${track.title}» de la biblioteca?${extra}`)) return;
     run(() => send("/admin/radio/biblioteca/eliminar", { id: track.id }));
   }
@@ -391,6 +416,13 @@ function TrackRow({
           ) : null}
           {track.duck ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">Baja la música</span> : null}
           {!track.active ? <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">Desactivado</span> : null}
+          {track.episodes ? (
+            <span className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-800">Episodio publicado</span>
+          ) : canEpisodes ? (
+            <Link href={`/admin/radio/episodios?audio=${track.id}`} className="rounded-full px-3 py-1.5 text-xs font-semibold text-blue-800 transition hover:bg-blue-50">
+              Guardar como episodio
+            </Link>
+          ) : null}
           <button type="button" onClick={onEdit} className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted transition hover:bg-paper hover:text-ink">{editing ? "Cerrar" : "Editar"}</button>
           <button type="button" disabled={pending} onClick={remove} className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50">Eliminar</button>
         </div>
@@ -415,7 +447,7 @@ function TrackRow({
           </label>
           <label className="text-xs font-semibold text-muted">
             Reemplazar archivo (opcional)
-            <input type="file" name="audio" accept={ACCEPT} onChange={(event) => setFile(event.target.files?.[0] ?? null)} className={`${input} file:mr-3 file:rounded-full file:border-0 file:bg-paper file:px-3 file:py-1 file:text-xs file:font-semibold`} />
+            <input type="file" name="audio" accept={AUDIO_ACCEPT} onChange={(event) => setFile(event.target.files?.[0] ?? null)} className={`${input} file:mr-3 file:rounded-full file:border-0 file:bg-paper file:px-3 file:py-1 file:text-xs file:font-semibold`} />
           </label>
           <div className="flex flex-wrap gap-5 md:col-span-2">
             <label className="flex items-center gap-2 text-sm">

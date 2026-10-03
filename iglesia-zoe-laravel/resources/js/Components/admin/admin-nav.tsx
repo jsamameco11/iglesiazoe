@@ -55,6 +55,7 @@ const groups: { title: string; items: Item[] }[] = [
       { href: "/admin/radio", label: "Consola en vivo", needs: ["radio.console"] },
       { href: "/admin/radio/programacion", label: "Programación", needs: ["radio.schedule"] },
       { href: "/admin/radio/biblioteca", label: "Biblioteca de audio", needs: ["radio.library"] },
+      { href: "/admin/radio/episodios", label: "Episodios", needs: ["radio.episodes"] },
       { href: "/admin/radio/ajustes", label: "Ajustes de la radio", needs: ["radio.settings"] },
     ],
   },

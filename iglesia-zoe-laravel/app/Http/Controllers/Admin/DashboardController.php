@@ -53,7 +53,7 @@ class DashboardController extends Controller
 
         if ($reports) {
             $total = $cellIds === null ? $counts['activeCells'] : count($cellIds);
-            $cards[] = ['label' => 'Informes de esta semana', 'value' => "{$counts['sent']} / $total", 'href' => $can('reports.all') ? '/admin/informes' : '/portal/seguimiento', 'note' => "Semana {$now['week']} ┬À {$now['year']}", 'accent' => 'bg-blush'];
+            $cards[] = ['label' => 'Informes de esta semana', 'value' => "{$counts['sent']} / $total", 'href' => $can('reports.all') ? '/admin/informes' : '/portal/seguimiento', 'note' => "Semana {$now['week']} · {$now['year']}", 'accent' => 'bg-blush'];
         }
         if ($user->isSuperadmin()) {
             $month = Finance::summary(Period::currentMonth());
@@ -78,7 +78,7 @@ class DashboardController extends Controller
         }
         if ($can('themes.manage') || $can('content.manage')) {
             $latest = Theme::query()->where('active', true)->orderByDesc('theme_date')->first();
-            $cards[] = ['label' => 'Temas de c├®lula', 'value' => (string) $counts['themes'], 'href' => '/admin/temas', 'note' => $latest ? '├Ültimo: '.$latest->title : 'A├║n no hay temas', 'accent' => 'bg-blush'];
+            $cards[] = ['label' => 'Temas de célula', 'value' => (string) $counts['themes'], 'href' => '/admin/temas', 'note' => $latest ? 'Último: '.$latest->title : 'Aún no hay temas', 'accent' => 'bg-blush'];
         }
         if ($can('studies.students') || $can('studies.grades') || $can('studies.board')) {
             $students = StudyStudent::query()->where('status', 'cursando')->count();
@@ -91,7 +91,7 @@ class DashboardController extends Controller
                 'label' => Inbox::KINDS[$kind]['title'],
                 'value' => (string) $count,
                 'href' => Inbox::url($kind),
-                'note' => $count === 1 ? 'Nueva desde tu ├║ltima revisi├│n' : 'Nuevas desde tu ├║ltima revisi├│n',
+                'note' => $count === 1 ? 'Nueva desde tu última revisión' : 'Nuevas desde tu última revisión',
                 'accent' => $inboxAccents[$kind],
             ];
         }
