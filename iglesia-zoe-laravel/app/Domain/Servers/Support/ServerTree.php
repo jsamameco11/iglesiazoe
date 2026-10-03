@@ -52,6 +52,35 @@ final class ServerTree
         return [
             'networks' => $networks->map(fn (Network $network) => $this->network($network, $leaders->get($network->id, collect())))->values(),
             'canAssignLeaders' => Permissions::isSuperadmin($this->scope->user),
+            'leadsNetwork' => $this->scope->leadsNetwork(),
+            'ownCell' => $this->ownCell(),
+        ];
+    }
+
+    /** «Mi célula» card of a Servidor de Red: the cell he leads, or the form to open it. */
+    private function ownCell(): ?array
+    {
+        $user = $this->scope->user;
+        $network = $this->scope->network;
+        if (Permissions::isSuperadmin($user) || ! $this->scope->leadsNetwork() || ! $network) {
+            return null;
+        }
+        $cell = $this->scope->ownCell();
+        $canOpen = $this->scope->canOpenOwnCell();
+        if (! $cell && ! $canOpen) {
+            return null;
+        }
+
+        return [
+            'network_code' => $network->code,
+            'can_open' => $canOpen,
+            'next_code' => $canOpen ? CellCodes::root($network->code, OpenServer::nextNumber($network, null)) : null,
+            'cell' => $cell ? [
+                'code' => $cell->code,
+                'leader_name' => $cell->leader_name,
+                'meeting_day' => $cell->meeting_day,
+                'meeting_time' => $cell->meeting_time ? substr($cell->meeting_time, 0, 5) : null,
+            ] : null,
         ];
     }
 
@@ -96,6 +125,7 @@ final class ServerTree
             'meeting_day' => $cell->meeting_day,
             'meeting_time' => $cell->meeting_time ? substr($cell->meeting_time, 0, 5) : null,
             'active' => $cell->active,
+            'own' => in_array($cell->id, $this->scope->own, true),
             'accounts' => $accounts,
             'can_add_child' => $canAddChild,
             'can_give_account' => $accounts->isEmpty() && $this->scope->oversees($cell),

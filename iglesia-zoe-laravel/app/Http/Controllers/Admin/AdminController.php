@@ -45,7 +45,8 @@ class AdminController extends Controller
         $cards = [];
         $reports = $can('reports.submit') || $can('reports.weekly') || $can('reports.all');
         $cellIds = $reports ? $scope->viewCellIds() : null;
-        $tree = $can('servers.create') ? $scope->treeCellIds() : null;
+        $servers = Permissions::any($user, Permissions::SERVER_TREE);
+        $tree = $servers ? $scope->treeCellIds() : null;
         $monthRange = [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()];
         $mine = fn () => Expense::query()->where('user_id', $user->id)->whereBetween('spent_on', $monthRange);
 
@@ -55,7 +56,7 @@ class AdminController extends Controller
             'activeCells' => $reports && $cellIds === null ? Cell::query()->where('active', true) : null,
             'users' => $user->isSuperadmin() ? User::query()->where('role', '!=', Role::Student->value) : null,
             'myExpenses' => ! $user->isSuperadmin() && $can('expenses.manage') ? $mine() : null,
-            'cells' => $can('servers.create') ? Cell::query()->where('active', true)->when($tree !== null, fn ($query) => $query->whereIn('id', $tree ?: [CellScope::NONE])) : null,
+            'cells' => $servers ? Cell::query()->where('active', true)->when($tree !== null, fn ($query) => $query->whereIn('id', $tree ?: [CellScope::NONE])) : null,
             'themes' => $can('themes.manage') || $can('content.manage') ? Theme::query()->where('active', true) : null,
         ]));
         $unread = Inbox::unread($user);
@@ -72,7 +73,7 @@ class AdminController extends Controller
         } elseif ($can('expenses.manage')) {
             $cards[] = ['label' => 'Mis gastos del mes', 'value' => Finance::money((float) $mine()->sum('amount')), 'href' => '/admin/gastos', 'note' => $counts['myExpenses'].' compras registradas', 'accent' => 'bg-amber'];
         }
-        if ($can('servers.create')) {
+        if ($servers) {
             $note = match (true) {
                 $tree === null => 'Todas las redes',
                 $scope->leadsNetwork() && $scope->network !== null => "Red {$scope->network->code}",

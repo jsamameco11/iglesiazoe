@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Domain\Access\CellScope;
+use App\Domain\Access\Permissions;
 use App\Domain\Media\Support\MediaLibrary;
 use App\Domain\Reports\Support\WeekCalendar;
 use App\Http\Controllers\Controller;
@@ -31,6 +32,7 @@ class PortalController extends Controller
             'cells' => $this->cellsFor($request),
             'year' => $current['year'],
             'week' => $current['week'],
+            'canOpenOwnCell' => CellScope::for($request->user())->canOpenOwnCell(),
         ]);
     }
 
@@ -222,9 +224,11 @@ class PortalController extends Controller
                 ->orderBy('code')->get()
             : collect();
         $reports = Report::query()->with('attendance')->where('year', $year)->where('week', $week)->whereIn('cell_id', $cells->pluck('id'))->get()->keyBy('cell_id');
-        $ordered = $this->orderCells($cells);
-        $rows = $ordered->map(function ($cell) use ($reports) {
+        $showMoney = Permissions::isSuperadmin($user) || Permissions::has($user, 'offerings.weekly');
+        $rows = $this->orderCells($cells)->map(function ($cell) use ($reports, $showMoney) {
             $report = $reports->get($cell->id);
+            $offering = round((float) ($report?->offering ?? 0), 2);
+            $tithes = round((float) ($report?->attendance->sum('tithe') ?? 0), 2);
 
             return [
                 'id' => $cell->id,
@@ -234,7 +238,9 @@ class PortalController extends Controller
                 'attendance' => $report ? $report->attendance->where('attended', true)->count() : 0,
                 'salvations' => $report?->salvations ?? 0,
                 'families' => $report?->families ?? 0,
-                'status' => $report ? ($report->met ? 'Se reunió' : 'No se reunió') : 'Sin informe',
+                'offering' => $showMoney ? $offering : null,
+                'tithes' => $showMoney ? $tithes : null,
+                'status' => $report ? ($report->met ? 'met' : 'not_met') : 'missing',
             ];
         });
 
@@ -243,11 +249,16 @@ class PortalController extends Controller
             'network' => $network,
             'rows' => $rows,
             'totals' => [
+                'cells' => $rows->count(),
+                'reports' => $rows->where('status', '!=', 'missing')->count(),
+                'met' => $rows->where('status', 'met')->count(),
                 'attendance' => $rows->sum('attendance'),
                 'salvations' => $rows->sum('salvations'),
                 'families' => $rows->sum('families'),
-                'reports' => $rows->where('status', '!=', 'Sin informe')->count(),
+                'offering' => $showMoney ? round($rows->sum('offering'), 2) : null,
+                'tithes' => $showMoney ? round($rows->sum('tithes'), 2) : null,
             ],
+            'showMoney' => $showMoney,
             'filters' => ['year' => $year, 'week' => $week],
             'staff' => $staff,
             'weeks' => WeekCalendar::weeksOfYear($year),

@@ -10,7 +10,7 @@ const shortcuts: { href: string; label: string; text: string; needs: Permission[
   { href: "/portal/seguimiento", label: "Reporte semanal", text: "Cómo va tu red esta semana.", needs: ["reports.weekly", "reports.all"] },
   { href: "/admin/informes", label: "Reportes de servidores", text: "Filtra por semana, mes o año.", needs: ["reports.all"] },
   { href: "/admin/ofrendas", label: "Ofrendas por semana", text: "Lo recibido por cada célula.", needs: ["offerings.weekly"] },
-  { href: "/admin/servidores", label: "Servidores", text: "Servidor de Red, servidores y servidores hijo.", needs: ["servers.create"] },
+  { href: "/admin/servidores", label: "Servidores", text: "Servidor de Red, servidores y servidores hijo.", needs: ["servers.create", "servers.children", "cells.own"] },
   { href: "/admin/temas", label: "Publicar tema", text: "Sube el material de la semana.", needs: ["themes.manage", "content.manage"] },
   { href: "/portal/temas", label: "Temas publicados", text: "Lo que ven los servidores.", needs: ["themes.manage"] },
   { href: "/admin/diseno", label: "Diseño de la página", text: "Colores, tipografías y tamaños.", needs: ["design.manage"] },

@@ -29,7 +29,7 @@ class AccessMatrixTest extends TestCase
         '/admin/informes' => ['reports.all'],
         '/admin/ofrendas' => ['offerings.weekly'],
         '/portal/historial' => ['reports.submit', 'reports.all'],
-        '/admin/servidores' => ['servers.create'],
+        '/admin/servidores' => Permissions::SERVER_TREE,
         '/admin/celulas' => ['cells.manage'],
         '/portal/temas' => ['reports.submit', 'themes.manage'],
         '/admin/temas' => ['themes.manage', 'content.manage'],
