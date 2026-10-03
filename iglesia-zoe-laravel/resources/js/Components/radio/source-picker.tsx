@@ -146,13 +146,15 @@ export function SourcePicker({
 
   if (studio) {
     return (
-      <div className="grid gap-1.5">
-        <div className="grid gap-1.5 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
-          {sourceSwitch}
-          {isList ? listSelect : <p className="truncate text-[11.5px] text-white/50" title={RANDOM_HINT}>{RANDOM_HINT}.</p>}
-          {isList ? orderSwitch : null}
-        </div>
-        {noLists}
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        {sourceSwitch}
+        {isList ? <div className="w-[13rem] max-w-full">{listSelect}</div> : null}
+        {isList ? orderSwitch : null}
+        {playlists.length ? null : (
+          <a href="/admin/radio/listas" className="text-[11px] font-semibold text-white/50 transition hover:text-white" title="Aún no tienes listas: crea una en Biblioteca › Listas para elegirla aquí">
+            + Crear lista
+          </a>
+        )}
       </div>
     );
   }
