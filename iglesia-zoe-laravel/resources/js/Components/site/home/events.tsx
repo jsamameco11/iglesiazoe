@@ -1,7 +1,7 @@
 import { Link } from "@inertiajs/react";
 import { Rise } from "@/Components/motion/rise";
 import { EventSlider } from "@/Components/site/event-slider";
-import { SectionHead } from "@/Components/site/home/section";
+import { SectionHead } from "@/Components/site/section";
 import { readCopy } from "@/lib/copy";
 import type { MediaAsset } from "@/lib/media";
 import type { ChurchEvent, SiteSettings } from "@/lib/types";

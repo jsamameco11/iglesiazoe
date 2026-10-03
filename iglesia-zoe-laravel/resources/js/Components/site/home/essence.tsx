@@ -1,5 +1,5 @@
 import { Rise } from "@/Components/motion/rise";
-import { Paragraphs, SectionHead } from "@/Components/site/home/section";
+import { Paragraphs, SectionHead } from "@/Components/site/section";
 import type { SiteSettings } from "@/lib/types";
 import { section } from "@/lib/design";
 import { useSitePages } from "@/lib/site-pages";

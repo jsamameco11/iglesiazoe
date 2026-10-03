@@ -1,6 +1,6 @@
 import { Link } from "@inertiajs/react";
 import { Rise } from "@/Components/motion/rise";
-import { ClassroomPreview } from "@/Components/site/classroom-preview";
+import { ClassroomPreview } from "@/Components/classroom/preview";
 import { LeadTitle } from "@/Components/site/lead-title";
 import { MediaView, PageBand } from "@/Components/site/media-view";
 import { PageIntro } from "@/Components/site/page-intro";

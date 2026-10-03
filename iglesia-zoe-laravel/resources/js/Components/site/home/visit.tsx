@@ -1,5 +1,5 @@
 import { Rise } from "@/Components/motion/rise";
-import { SectionHead } from "@/Components/site/home/section";
+import { SectionHead } from "@/Components/site/section";
 import { IconClock, IconPin } from "@/Components/site/icons";
 import { VisitForm } from "@/Components/site/visit-form";
 import { mapEmbedUrl } from "@/lib/contact";

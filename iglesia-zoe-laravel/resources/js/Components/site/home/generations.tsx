@@ -1,6 +1,6 @@
 import { Link } from "@inertiajs/react";
 import { Rise } from "@/Components/motion/rise";
-import { SectionHead } from "@/Components/site/home/section";
+import { SectionHead } from "@/Components/site/section";
 import { MinistryCards } from "@/Components/site/ministry-cards";
 import { readCopy } from "@/lib/copy";
 import type { ResolvedMedia } from "@/lib/media";

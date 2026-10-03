@@ -1,6 +1,6 @@
 import { Link, useForm } from "@inertiajs/react";
 import { Rise } from "@/Components/motion/rise";
-import { ClassroomPreview } from "@/Components/site/classroom-preview";
+import { ClassroomPreview } from "@/Components/classroom/preview";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { talkUrlOf } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";

@@ -1,6 +1,6 @@
 import { Link } from "@inertiajs/react";
 import { Rise } from "@/Components/motion/rise";
-import { Paragraphs, SectionHead } from "@/Components/site/home/section";
+import { Paragraphs, SectionHead } from "@/Components/site/section";
 import { MediaView } from "@/Components/site/media-view";
 import type { MediaAsset } from "@/lib/media";
 import type { SiteSettings } from "@/lib/types";
