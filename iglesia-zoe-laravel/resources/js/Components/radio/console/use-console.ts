@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Broadcaster, ProgramPlayer, ServerClock, postForm, type RadioConfig, type RadioLayer, type RadioState } from "@/lib/radio";
+import { BEDS, Broadcaster, ProgramPlayer, ServerClock, postForm, type RadioConfig, type RadioLayer, type RadioState, type RadioTrack } from "@/lib/radio";
 
 export type ConsoleLive = {
   session: string | null;
@@ -19,6 +19,11 @@ export type Notice = { tone: "error" | "info"; text: string } | null;
 
 /** Microphone of this console: level, music bed while talking, self monitoring, input device and voice processing. */
 export type MicSettings = { level: number; autoBed: boolean; selfMonitor: boolean; deviceId: string; processing: boolean };
+
+export type PlayOptions = { volume?: number; duck?: boolean; fadeIn?: number; fadeOut?: number; loop?: boolean };
+
+/** A stretch of this console's voice on air, for the timeline. */
+export type TalkSpan = { start: number; end: number | null };
 
 type Signal = Snapshot & { pending: string[]; answers: { id: string; answer: string }[]; alive: string[] };
 
@@ -48,6 +53,8 @@ export function useConsole(initial: Snapshot, host: string) {
   const [talking, setTalking] = useState(false);
   const [hostName, setHostName] = useState(initial.live.host || host);
   const [busy, setBusy] = useState(false);
+  const [blend, setBlend] = useState(3);
+  const [talks, setTalks] = useState<TalkSpan[]>([]);
   const [, force] = useState(0);
 
   const apply = useCallback((data: Snapshot, broadcast = false) => {
@@ -135,16 +142,16 @@ export function useConsole(initial: Snapshot, host: string) {
   /** Plays, stops or adjusts a sound on top of the program and tells connected listeners right away. */
   const layerAction = useCallback(
     async (payload: Record<string, string>) => {
-      const data = (await postForm("/admin/radio/capa", payload)) as Snapshot & { ok?: boolean; error?: string; layer?: RadioLayer; stopped?: string[] };
+      const data = (await postForm("/admin/radio/capa", payload)) as Snapshot & { ok?: boolean; error?: string; layer?: RadioLayer; stopped?: string[]; faded?: RadioLayer[] };
       if (data.error) {
         setNotice({ tone: "error", text: data.error });
         return null;
       }
-      if (data.layer) {
-        const layer = { ...data.layer, source: "live" as const };
+      [...(data.faded ?? []), ...(data.layer ? [data.layer] : [])].forEach((item) => {
+        const layer = { ...item, source: "live" as const };
         player.current?.pushLayer(layer);
         caster.current?.broadcast({ t: "layer", layer });
-      }
+      });
       if (data.stopped?.length) {
         player.current?.dropLayers(data.stopped);
         caster.current?.broadcast({ t: "stop", ids: data.stopped });
@@ -153,6 +160,43 @@ export function useConsole(initial: Snapshot, host: string) {
       return data;
     },
     [apply],
+  );
+
+  /** Plays a library audio on a lane; on a lane that already sounds, a fade in crossfades with it. */
+  const play = useCallback(
+    (track: RadioTrack, lane: string, options: PlayOptions = {}) =>
+      layerAction({
+        action: "play",
+        id: track.id,
+        lane,
+        volume: String(options.volume ?? 100),
+        duck: options.duck === undefined ? "" : options.duck ? "1" : "0",
+        fade_in: String(options.fadeIn ?? 0),
+        fade_out: String(options.fadeOut ?? 0),
+        loop: options.loop ? "1" : "0",
+      }),
+    [layerAction],
+  );
+
+  /**
+   * A sound dropped or sent to a lane with the console crossfade: beds loop and fade in and
+   * out; a player that is already sounding crossfades into the new audio; pads just fire.
+   */
+  const drop = useCallback(
+    (track: RadioTrack, lane: string) => {
+      const bed = (BEDS as readonly string[]).includes(lane);
+      const at = serverClock.now();
+      const sounding = lane !== "pad" && state.layers.some((layer) => layer.source === "live" && layer.lane === lane && !layer.fading && layer.start <= at && at < layer.end);
+      return play(track, lane, { fadeIn: bed || sounding ? blend : 0, fadeOut: bed ? blend : 0, loop: bed });
+    },
+    [play, state.layers, blend, serverClock],
+  );
+
+  /** Stops a layer, a lane or every console sound: cut at once, or faded out over some seconds. */
+  const stop = useCallback(
+    (target: { lane?: string; layer?: string }, seconds = 0) =>
+      layerAction({ action: "stop", ...(target.lane ? { lane: target.lane } : {}), ...(target.layer ? { layer: target.layer } : {}), ...(seconds > 0 ? { fade: String(seconds) } : {}) }),
+    [layerAction],
   );
 
   async function toggleMonitor() {
@@ -214,6 +258,8 @@ export function useConsole(initial: Snapshot, host: string) {
     caster.current?.setTalking(false);
     setTalking(false);
     await liveAction({ action: "stop" }, false);
+    const at = serverClock.now();
+    setTalks((list) => list.map((span) => (span.end === null ? { ...span, end: at } : span)));
     caster.current?.dropAll();
     caster.current?.closeMic();
     setMicOpen(false);
@@ -225,6 +271,8 @@ export function useConsole(initial: Snapshot, host: string) {
     const next = !talking;
     caster.current?.setTalking(next);
     setTalking(next);
+    const at = serverClock.now();
+    setTalks((list) => (next ? [...list.slice(-30), { start: at, end: null }] : list.map((span) => (span.end === null ? { ...span, end: at } : span))));
     await liveAction(mic.autoBed ? { action: "mix", mic: next ? "1" : "0", bed: next ? "1" : "0" } : { action: "mix", mic: next ? "1" : "0" });
   }
 
@@ -256,6 +304,12 @@ export function useConsole(initial: Snapshot, host: string) {
     caster,
     liveAction,
     layerAction,
+    play,
+    drop,
+    stop,
+    blend,
+    setBlend,
+    talks,
     toggleMonitor,
     changeMonitorLevel,
     openMic,
