@@ -88,15 +88,15 @@ export function GlobalPanel({ draft, fonts, categories }: { draft: Draft; fonts:
 
       <Group title="Menú de navegación" text="Enlaces de la barra superior y opciones que se despliegan de ellos. Sin cambios, el menú conserva su aspecto original.">
         <div className="space-y-5">
-          <RoleField label="Tipografía" value={nav.font} fallback="text" onChange={(font) => draft.setNav({ font })} />
+          <RoleField label="Tipografía" value={nav.font} fallback="text" original="Original (Inter Tight)" onChange={(font) => draft.setNav({ font })} />
           <div className="space-y-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">Enlaces del menú</p>
-            <RangeField label="Tamaño" value={nav.size} fallback={15} min={12} max={19} step={0.5} format={px} onChange={(size) => draft.setNav({ size })} />
+            <RangeField label="Tamaño" value={nav.size} fallback={16} min={12} max={19} step={0.5} format={px} onChange={(size) => draft.setNav({ size })} />
             <SelectField<number> label="Grosor" value={nav.weight} options={navWeights} placeholder="Original (Media)" onChange={(weight) => draft.setNav({ weight })} />
           </div>
           <div className="space-y-4 border-t border-line pt-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">Opciones desplegables</p>
-            <RangeField label="Tamaño" value={nav.dropSize} fallback={14} min={12} max={18} step={0.5} format={px} onChange={(dropSize) => draft.setNav({ dropSize })} />
+            <RangeField label="Tamaño" value={nav.dropSize} fallback={15} min={12} max={18} step={0.5} format={px} onChange={(dropSize) => draft.setNav({ dropSize })} />
             <SelectField<number> label="Grosor" value={nav.dropWeight} options={navWeights} placeholder="Original (Normal)" onChange={(dropWeight) => draft.setNav({ dropWeight })} />
           </div>
           <div className="border-t border-line pt-4">

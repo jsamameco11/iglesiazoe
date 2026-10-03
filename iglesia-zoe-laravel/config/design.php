@@ -57,6 +57,7 @@ return [
         ['name' => 'Cinzel Decorative', 'slug' => 'cinzel-decorative', 'kind' => 'serif', 'category' => 'titular'],
         ['name' => 'Forum', 'slug' => 'forum', 'kind' => 'serif', 'category' => 'titular'],
         ['name' => 'Inter', 'slug' => 'inter', 'kind' => 'sans', 'category' => 'sans', 'local' => true],
+        ['name' => 'Inter Tight', 'slug' => 'inter-tight', 'kind' => 'sans', 'category' => 'sans', 'local' => true],
         ['name' => 'DM Sans', 'slug' => 'dm-sans', 'kind' => 'sans', 'category' => 'sans'],
         ['name' => 'Manrope', 'slug' => 'manrope', 'kind' => 'sans', 'category' => 'sans'],
         ['name' => 'Plus Jakarta Sans', 'slug' => 'plus-jakarta-sans', 'kind' => 'sans', 'category' => 'sans'],
