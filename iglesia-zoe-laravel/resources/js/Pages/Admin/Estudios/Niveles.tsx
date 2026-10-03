@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Field, Pill, RecordForm, STUDY_KICKER } from "@/Components/admin/study-ui";
+import { Field, Pill, RecordForm } from "@/Components/admin/record-ui";
+import { STUDY_KICKER } from "@/Components/admin/study-ui";
 import { PageHeader, button, ghost, input } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { classLine, formatStudyDate, plural, scheduleLabel, type StudyLevel } from "@/lib/studies";

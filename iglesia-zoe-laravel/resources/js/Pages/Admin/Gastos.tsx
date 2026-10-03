@@ -4,13 +4,14 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { Notice, PageHeader, Panel, button, input, useAction } from "@/Components/admin/ui";
 import { send } from "@/lib/actions";
 import { money } from "@/lib/access";
+import { limaDate } from "@/lib/dates";
 
 export type ExpenseRow = { id: string; spent_on: string; category: string; detail: string; amount: number; by: string; receipt: string | null; is_pdf: boolean };
 
 export default function Gastos({ month, categories, all, total, rows }: { month: string; categories: string[]; all: boolean; total: string; rows: ExpenseRow[] }) {
   const [preview, setPreview] = useState<string | null>(null);
   const { result, setResult, pending, run } = useAction();
-  const today = new Date().toLocaleDateString("en-CA");
+  const today = limaDate();
 
   function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

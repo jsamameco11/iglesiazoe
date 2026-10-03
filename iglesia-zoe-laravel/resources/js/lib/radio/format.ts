@@ -1,3 +1,7 @@
+import { LIMA, limaDate } from "@/lib/dates";
+
+export { limaDate };
+
 /** Short name for tight spots (decks, pads): the title cut at a word boundary. */
 export function shortTitle(title: string, max = 26) {
   const clean = title.trim();
@@ -7,10 +11,8 @@ export function shortTitle(title: string, max = 26) {
   return `${(space > max * 0.55 ? cut.slice(0, space) : cut).replace(/[\s,.;:–-]+$/, "")}…`;
 }
 
-const TZ = "America/Lima";
-
 export function clock(ms: number, seconds = false) {
-  return new Date(ms).toLocaleTimeString("es-PE", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: seconds ? "2-digit" : undefined, hour12: false });
+  return new Date(ms).toLocaleTimeString("es-PE", { timeZone: LIMA, hour: "2-digit", minute: "2-digit", second: seconds ? "2-digit" : undefined, hour12: false });
 }
 
 export function duration(seconds: number) {
@@ -30,13 +32,9 @@ export function longDuration(seconds: number) {
   return m ? `${h} h ${m} min` : `${h} h`;
 }
 
-export function limaDate(ms: number) {
-  return new Date(ms).toLocaleDateString("en-CA", { timeZone: TZ });
-}
-
 /** Calendar day of an episode, like «2 oct 2026». */
 export function longDate(date: string) {
-  return new Date(`${date}T12:00:00-05:00`).toLocaleDateString("es-PE", { timeZone: TZ, day: "numeric", month: "short", year: "numeric" });
+  return new Date(`${date}T12:00:00-05:00`).toLocaleDateString("es-PE", { timeZone: LIMA, day: "numeric", month: "short", year: "numeric" });
 }
 
 export const DAY_MS = 86400000;
@@ -58,5 +56,5 @@ export function dayLabel(date: string, today?: string) {
     tomorrow.setDate(tomorrow.getDate() + 1);
     if (limaDate(tomorrow.getTime()) === date) return "Mañana";
   }
-  return value.toLocaleDateString("es-PE", { timeZone: TZ, weekday: "short", day: "numeric", month: "short" });
+  return value.toLocaleDateString("es-PE", { timeZone: LIMA, weekday: "short", day: "numeric", month: "short" });
 }

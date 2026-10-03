@@ -1,3 +1,5 @@
+import { fold } from "@/lib/text";
+
 type NextService = {
   live: boolean;
   label: string;
@@ -5,7 +7,7 @@ type NextService = {
 };
 
 function clockFromText(text: string, fallbackHour: number) {
-  const raw = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const raw = fold(text);
   const match = raw.match(/(\d{1,2})(?::(\d{2}))?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?/);
   if (!match) return { hour: fallbackHour, minute: 0 };
   let hour = Number(match[1]);

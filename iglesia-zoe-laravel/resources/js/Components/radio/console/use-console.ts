@@ -1,6 +1,6 @@
 import { router } from "@inertiajs/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BEDS, Broadcaster, ProgramPlayer, ServerClock, postForm, type Autopilot, type LiveMode, type RadioConfig, type RadioLayer, type RadioState, type RadioTrack, type RadioUpcoming } from "@/lib/radio";
+import { BEDS, Broadcaster, ProgramPlayer, postForm, useServerClock, type Autopilot, type LiveMode, type RadioConfig, type RadioLayer, type RadioState, type RadioTrack, type RadioUpcoming } from "@/lib/radio";
 
 export type ConsoleLive = {
   session: string | null;
@@ -36,9 +36,7 @@ type Signal = Snapshot & { pending: string[]; answers: { id: string; answer: str
  * monitor player, the microphone broadcaster and the actions that change what is on air.
  */
 export function useConsole(initial: Snapshot, host: string) {
-  const clockRef = useRef<ServerClock | null>(null);
-  clockRef.current ??= new ServerClock();
-  const serverClock = clockRef.current;
+  const serverClock = useServerClock();
   const player = useRef<ProgramPlayer | null>(null);
   const caster = useRef<Broadcaster | null>(null);
   caster.current ??= new Broadcaster();

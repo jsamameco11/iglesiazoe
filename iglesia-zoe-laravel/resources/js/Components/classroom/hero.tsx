@@ -2,6 +2,7 @@ import { classLine, formatClassTime, formatStudyDate, scheduleLabel, type StudyL
 import type { Student } from "./types";
 import { useNow } from "./hooks";
 import { useSitePages } from "@/lib/site-pages";
+import { LIMA, limaDate } from "@/lib/dates";
 
 export function Hero({ student, level }: { student: Student; level: StudyLevel | null }) {
   const now = useNow();
@@ -59,10 +60,8 @@ export function Hero({ student, level }: { student: Student; level: StudyLevel |
   );
 }
 
-const LIMA = "America/Lima";
-
 function limaDay(ms: number) {
-  return Date.parse(new Date(ms).toLocaleDateString("en-CA", { timeZone: LIMA }));
+  return Date.parse(limaDate(ms));
 }
 
 function countdown(next: Date, now: number, classTime: string) {

@@ -1,7 +1,7 @@
 import { router } from "@inertiajs/react";
 import { useState } from "react";
-import { GAMES_KICKER, IconButton, Pill, RecordTools } from "@/Components/admin/game-ui";
-import { EmptyState, Field, RecordForm } from "@/Components/admin/study-ui";
+import { GAMES_KICKER, IconButton, RecordTools } from "@/Components/admin/game-ui";
+import { EmptyState, Field, Pill, RecordForm } from "@/Components/admin/record-ui";
 import { PageHeader, Panel, Stat, ghost, input } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useSiteUrl } from "@/lib/access";

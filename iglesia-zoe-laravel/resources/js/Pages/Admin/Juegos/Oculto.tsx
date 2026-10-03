@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { GAMES_KICKER, Pager, Pill, RecordTools, SearchBar, ThemesPanel, plain, usePages, type AdminTheme } from "@/Components/admin/game-ui";
-import { EmptyState, Field, RecordForm } from "@/Components/admin/study-ui";
+import { GAMES_KICKER, Pager, RecordTools, SearchBar, ThemesPanel, usePages, type AdminTheme } from "@/Components/admin/game-ui";
+import { EmptyState, Field, Pill, RecordForm } from "@/Components/admin/record-ui";
 import { PageHeader, Stat, button, ghost, input } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useSiteUrl } from "@/lib/access";
+import { fold } from "@/lib/text";
 
 type Word = { id: string; category_id: string; word: string; description: string | null; reference: string | null; clues: string[]; active: boolean };
 
@@ -19,12 +20,12 @@ export default function Oculto({ themes, words }: Props) {
   const themeName = useMemo(() => Object.fromEntries(themes.map((item) => [item.id, item.name])), [themes]);
 
   const filtered = useMemo(() => {
-    const needle = plain(search.trim());
+    const needle = fold(search.trim());
     return words.filter(
       (item) =>
         (!theme || item.category_id === theme) &&
         (!state || (state === "active" ? item.active : !item.active)) &&
-        (!needle || plain([item.word, item.description, item.reference, ...item.clues].join(" ")).includes(needle)),
+        (!needle || fold([item.word, item.description, item.reference, ...item.clues].join(" ")).includes(needle)),
     );
   }, [words, theme, state, search]);
   const pages = usePages(filtered, 24);

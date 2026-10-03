@@ -1,13 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { SelectField, type SelectOption } from "@/Components/ui/select-field";
+import { useMemo, useRef, useState, type FormEvent } from "react";
+import { MARITAL, PhoneField, SEXES, useCountryDial } from "@/Components/site/person-fields";
+import { SelectField } from "@/Components/ui/select-field";
 import { submitBaptism } from "@/lib/actions";
 import { useCopy } from "@/lib/copy";
-import { Flag } from "@/Components/site/icons";
-import { geo, type GeoCountry } from "@/lib/geo";
 import { digits } from "@/lib/text";
 
-const SEXES = ["Masculino", "Femenino"];
-const MARITAL = ["Soltero(a)", "Casado(a)", "Conviviente", "Divorciado(a)", "Separado(a)", "Viudo(a)"];
 const DEFAULT_COUNTRY = "PE";
 
 type BaptismEventOption = { id: string; event_date: string | null; location: string | null };
@@ -33,8 +30,6 @@ export function BaptismForm({
 }) {
   const t = useCopy();
   const form = useRef<HTMLFormElement>(null);
-  const [countries, setCountries] = useState<GeoCountry[]>([]);
-  const [loadingCountries, setLoadingCountries] = useState(true);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -42,9 +37,7 @@ export function BaptismForm({
   const [age, setAge] = useState("");
   const [marital, setMarital] = useState("");
   const [country, setCountry] = useState(DEFAULT_COUNTRY);
-  const [dialKey, setDialKey] = useState(`${DEFAULT_COUNTRY}:51`);
-  const [dialTouched, setDialTouched] = useState(false);
-  const dial = dialKey.split(":")[1] ?? "";
+  const dial = useCountryDial(country);
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [eventId, setEventId] = useState(events[0]?.id ?? "");
@@ -54,34 +47,6 @@ export function BaptismForm({
   const [status, setStatus] = useState<{ ok?: boolean; error?: string }>({});
   const [pending, setPending] = useState(false);
 
-  const countryMeta = countries.find((item) => item.code === country);
-
-  useEffect(() => {
-    geo
-      .countries()
-      .then(setCountries)
-      .catch(() => setStatus({ error: "No pudimos cargar la lista de países. Recarga la página." }))
-      .finally(() => setLoadingCountries(false));
-  }, []);
-
-  useEffect(() => {
-    if (!dialTouched && countryMeta) setDialKey(`${countryMeta.code}:${countryMeta.dial}`);
-  }, [countryMeta, dialTouched]);
-
-  const countryOptions = useMemo<SelectOption[]>(
-    () => countries.map((item) => ({ value: item.code, label: item.name, prefix: <Flag code={item.code} /> })),
-    [countries],
-  );
-  const dialOptions = useMemo<SelectOption[]>(
-    () =>
-      countries.map((item) => ({
-        value: `${item.code}:${item.dial}`,
-        label: `+${item.dial}`,
-        hint: item.name,
-        prefix: <Flag code={item.code} />,
-      })),
-    [countries],
-  );
   const eventOptions = useMemo(() => events.map((event) => ({ value: event.id, label: eventLabel(event, fallback) })), [events, fallback]);
 
   const clearError = (key: keyof Errors) => setErrors((current) => (current[key] ? { ...current, [key]: undefined } : current));
@@ -128,7 +93,7 @@ export function BaptismForm({
     data.set("age", age);
     data.set("marital_status", marital);
     data.set("country_code", country);
-    data.set("phone_code", dial);
+    data.set("phone_code", dial.dial);
     data.set("phone", phone);
     data.set("email", email.trim());
     if (eventId) data.set("event_id", eventId);
@@ -148,7 +113,7 @@ export function BaptismForm({
   return (
     <form ref={form} onSubmit={onSubmit} noValidate className="visit-form">
       {status.ok && <p className="visit-note is-ok">{t("baptism.thanks")}</p>}
-      {status.error && <p className="visit-note is-error">{status.error}</p>}
+      {(status.error || dial.error) && <p className="visit-note is-error">{status.error || dial.error}</p>}
 
       <div className="visit-row cols-2">
         <label className="visit-label">
@@ -227,54 +192,28 @@ export function BaptismForm({
         <SelectField
           label={t("forms.country")}
           value={country}
-          options={countryOptions}
-          loading={loadingCountries}
+          options={dial.countryOptions}
+          loading={dial.loading}
           onChange={(value) => {
             setCountry(value);
-            setDialTouched(false);
+            dial.followCountry();
             clearError("country");
           }}
           error={errors.country}
           searchable
         />
-        <div className="visit-label">
-          <span className="text-sm">{t("forms.phone")}</span>
-          <div className="visit-phone">
-            <SelectField
-              label="Código"
-              value={dialKey}
-              options={dialOptions}
-              loading={loadingCountries}
-              onChange={(value) => {
-                setDialKey(value);
-                setDialTouched(true);
-              }}
-              renderValue={(option) => (
-                <>
-                  {option.prefix}
-                  {option.label}
-                </>
-              )}
-              searchable
-              compact
-              className="visit-dial"
-            />
-            <input
-              className={input}
-              value={phone}
-              onChange={(event) => {
-                setPhone(digits(event.target.value, 15));
-                clearError("phone");
-              }}
-              inputMode="tel"
-              autoComplete="tel-national"
-              placeholder={t("forms.phonePlaceholder")}
-              aria-label="Número de teléfono"
-              aria-invalid={errors.phone ? true : undefined}
-            />
-          </div>
-          {errors.phone && <span className="select-field-error">{errors.phone}</span>}
-        </div>
+        <PhoneField
+          label={t("forms.phone")}
+          numberLabel="Número de teléfono"
+          placeholder={t("forms.phonePlaceholder")}
+          dial={dial}
+          phone={phone}
+          onPhone={(value) => {
+            setPhone(value);
+            clearError("phone");
+          }}
+          error={errors.phone}
+        />
       </div>
 
       <label className="visit-label">

@@ -6,7 +6,6 @@ set -euo pipefail
 
 APP_DIR=/opt/iglesia-zoe-app
 ARCHIVE=/tmp/iglesia-zoe-laravel.tgz
-NEXT_DIR=/opt/backups/iglesia-zoe-next-20260930
 STAGING=/opt/iglesia-zoe-app-new
 
 echo "==> Extracting Laravel"
@@ -206,13 +205,6 @@ echo "==> Restart PHP-FPM and Apache"
 systemctl restart php8.3-fpm
 apache2ctl configtest
 systemctl reload apache2
-
-echo "==> Remove old Next.js service"
-systemctl stop iglesia-zoe.service || true
-systemctl disable iglesia-zoe.service || true
-rm -f /etc/systemd/system/iglesia-zoe.service
-systemctl daemon-reload || true
-systemctl reset-failed iglesia-zoe.service || true
 
 echo "==> Health checks"
 sleep 1

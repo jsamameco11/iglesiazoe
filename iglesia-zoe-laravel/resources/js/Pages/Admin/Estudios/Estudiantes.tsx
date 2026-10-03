@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Field, LevelSelect, Pill, RecordForm, STUDY_KICKER, EmptyState } from "@/Components/admin/study-ui";
+import { EmptyState, Field, Pill, RecordForm } from "@/Components/admin/record-ui";
+import { LevelSelect, STUDY_KICKER } from "@/Components/admin/study-ui";
 import { PageHeader, Stat, button, ghost, input } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
 import type { LevelOption } from "@/lib/studies";

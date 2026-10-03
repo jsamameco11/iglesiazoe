@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
-import { GAMES_KICKER, Pager, Pill, RecordTools, SearchBar, ThemesPanel, plain, usePages, type AdminTheme } from "@/Components/admin/game-ui";
-import { EmptyState, Field, RecordForm } from "@/Components/admin/study-ui";
+import { GAMES_KICKER, Pager, RecordTools, SearchBar, ThemesPanel, usePages, type AdminTheme } from "@/Components/admin/game-ui";
+import { EmptyState, Field, Pill, RecordForm } from "@/Components/admin/record-ui";
 import { PageHeader, Stat, button, ghost, input } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { useSiteUrl } from "@/lib/access";
+import { fold } from "@/lib/text";
 
 type Question = {
   id: string;
@@ -38,12 +39,12 @@ export default function Rebet({ themes, questions, difficulties }: Props) {
   const themeName = useMemo(() => Object.fromEntries(themes.map((item) => [item.id, item.name])), [themes]);
 
   const filtered = useMemo(() => {
-    const needle = plain(search.trim());
+    const needle = fold(search.trim());
     return questions.filter(
       (item) =>
         (!theme || item.category_id === theme) &&
         (!difficulty || item.difficulty === difficulty) &&
-        (!needle || plain([item.question, item.reference, ...item.options].join(" ")).includes(needle)),
+        (!needle || fold([item.question, item.reference, ...item.options].join(" ")).includes(needle)),
     );
   }, [questions, theme, difficulty, search]);
   const pages = usePages(filtered, 15);

@@ -4,18 +4,16 @@ import { MinistryCarousel } from "@/Components/site/ministry-carousel";
 import { PageIntro } from "@/Components/site/page-intro";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
-import type { Ministry, SiteSettings } from "@/lib/types";
+import type { Ministry } from "@/lib/types";
 import { useSitePages } from "@/lib/site-pages";
 
 export default function Ministry({
   ministry,
   mediaOverrides,
-  settings,
   skin,
 }: {
   ministry: Ministry;
   mediaOverrides: Record<string, MediaAsset>;
-  settings: SiteSettings;
   skin: "aire" | "marea";
 }) {
   const pages = useSitePages();

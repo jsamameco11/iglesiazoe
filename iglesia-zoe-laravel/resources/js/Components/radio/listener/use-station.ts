@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ProgramPlayer, ServerClock, VoiceLink, newListenerId, type RadioState } from "@/lib/radio";
+import { csrf } from "@/lib/actions";
+import { ProgramPlayer, VoiceLink, newListenerId, useServerClock, type RadioState } from "@/lib/radio";
 
 /** Listener engine: polls the station, follows its clock, mixes the program and the live voice. */
 export function useStation(initial: RadioState) {
-  const clockRef = useRef<ServerClock | null>(null);
-  clockRef.current ??= new ServerClock();
-  const serverClock = clockRef.current;
+  const serverClock = useServerClock();
   const player = useRef<ProgramPlayer | null>(null);
   const voice = useRef<VoiceLink | null>(null);
   const stream = useRef<HTMLAudioElement | null>(null);
@@ -96,7 +95,7 @@ export function useStation(initial: RadioState) {
   const beacon = useCallback((path: string, fields: Record<string, string> = {}) => {
     const body = new FormData();
     body.set("oyente", listener);
-    body.set("_token", document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "");
+    body.set("_token", csrf());
     Object.entries(fields).forEach(([key, value]) => body.set(key, value));
     navigator.sendBeacon?.(path, body);
   }, [listener]);
