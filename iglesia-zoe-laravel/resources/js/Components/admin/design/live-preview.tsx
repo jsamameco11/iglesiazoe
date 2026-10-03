@@ -19,20 +19,24 @@ export function LivePreview({
   section,
   mode = "section",
   text = null,
+  footer = false,
   refresh = 0,
   onSections,
   onPick,
   onPickText,
+  onPickFooter,
 }: {
   page: DesignPage;
   design: Design;
   section: string | null;
   mode?: PickMode;
   text?: string | null;
+  footer?: boolean;
   refresh?: number;
   onSections: (sections: SectionInfo[]) => void;
   onPick: (section: string) => void;
   onPickText?: (text: TextPick) => void;
+  onPickFooter?: () => void;
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [device, setDevice] = useState<Device>("desktop");
@@ -41,8 +45,8 @@ export function LivePreview({
   const version = reloads + refresh;
   const src = page.url ? previewUrl(page.url) : "";
   const origin = src ? new URL(src).origin : "";
-  const latest = useRef({ onSections, onPick, onPickText });
-  latest.current = { onSections, onPick, onPickText };
+  const latest = useRef({ onSections, onPick, onPickText, onPickFooter });
+  latest.current = { onSections, onPick, onPickText, onPickFooter };
 
   const post = (message: EditorMessage) => frame.current?.contentWindow?.postMessage(message, origin);
 
@@ -60,6 +64,7 @@ export function LivePreview({
       }
       if (event.data?.type === "zoe:pick") latest.current.onPick(event.data.section);
       if (event.data?.type === "zoe:pickText") latest.current.onPickText?.(event.data.text);
+      if (event.data?.type === "zoe:pickFooter") latest.current.onPickFooter?.();
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -80,6 +85,10 @@ export function LivePreview({
   useEffect(() => {
     if (ready) post({ type: "zoe:text", path: text });
   }, [ready, text]);
+
+  useEffect(() => {
+    if (ready) post({ type: "zoe:footer", show: footer });
+  }, [ready, footer]);
 
   return (
     <div className="flex h-full min-h-[70vh] flex-col overflow-hidden rounded-[1.6rem] border border-line bg-[#e9e6e1] shadow-[0_24px_60px_-40px_rgba(42,39,36,0.45)]">

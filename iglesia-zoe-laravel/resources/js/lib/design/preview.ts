@@ -14,8 +14,16 @@ export type EditorMessage =
   | { type: "zoe:design"; design: Design }
   | { type: "zoe:focus"; section: string | null }
   | { type: "zoe:mode"; mode: PickMode }
-  | { type: "zoe:text"; path: string | null };
-export type PageMessage = { type: "zoe:ready"; page: string; sections: SectionInfo[] } | { type: "zoe:pick"; section: string } | { type: "zoe:pickText"; text: TextPick };
+  | { type: "zoe:text"; path: string | null }
+  | { type: "zoe:footer"; show: boolean };
+export type PageMessage =
+  | { type: "zoe:ready"; page: string; sections: SectionInfo[] }
+  | { type: "zoe:pick"; section: string }
+  | { type: "zoe:pickText"; text: TextPick }
+  | { type: "zoe:pickFooter" };
+
+/** The footer is shared by every page, so the preview edits it as a whole and never as a band or a text of one page. */
+const FOOTER = "[data-site-footer]";
 
 const BLUE = "#2563eb";
 
@@ -25,6 +33,9 @@ html:not([data-design-mode="text"]) [data-section]:hover { outline-color: color-
 html:not([data-design-mode="text"]) [data-section][data-design-picked] { outline: 3px solid ${BLUE}; }
 html[data-design-mode="text"] [data-design-hover] { cursor: pointer; outline: 2px dashed color-mix(in srgb, ${BLUE} 70%, transparent) !important; outline-offset: 3px !important; }
 html[data-design-mode="text"] [data-design-text-picked] { outline: 3px solid ${BLUE} !important; outline-offset: 3px !important; }
+html:not([data-design-mode="text"]) [data-site-footer] { cursor: pointer; outline: 2px dashed transparent; outline-offset: -4px; transition: outline-color 0.15s ease; }
+html:not([data-design-mode="text"]) [data-site-footer]:hover { outline-color: color-mix(in srgb, ${BLUE} 55%, transparent); }
+[data-site-footer][data-design-footer-picked] { outline: 3px solid ${BLUE} !important; outline-offset: -4px; }
 `;
 
 /** Elements that read as one text: clicking a word inside picks the whole heading, paragraph, link or button. */
@@ -80,6 +91,7 @@ function listen() {
     }
     if (data?.type === "zoe:focus") focusSection(data.section, true);
     if (data?.type === "zoe:mode") setMode(data.mode);
+    if (data?.type === "zoe:footer") focusFooter(data.show);
     if (data?.type === "zoe:text" && data.path !== pickedText) {
       pickedText = data.path;
       const text = focusText(data.path, true);
@@ -92,6 +104,7 @@ function listen() {
       event.preventDefault();
       event.stopPropagation();
       if (mode === "text") return pickText(event.target as Element | null);
+      if ((event.target as Element | null)?.closest?.(FOOTER)) return postToEditor({ type: "zoe:pickFooter" });
       const zone = (event.target as Element | null)?.closest?.("[data-section]");
       const key = zone?.getAttribute("data-section");
       if (!key) return;
@@ -127,6 +140,13 @@ function focusSection(key: string | null, scroll: boolean) {
   if (scroll) zone.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+function focusFooter(show: boolean) {
+  const footer = document.querySelector(FOOTER);
+  if (!footer) return;
+  footer.toggleAttribute("data-design-footer-picked", show);
+  if (show) window.scrollTo({ top: footer.getBoundingClientRect().top + window.scrollY - 72, behavior: "smooth" });
+}
+
 function focusText(path: string | null, scroll: boolean) {
   document.querySelectorAll("[data-design-text-picked]").forEach((el) => el.removeAttribute("data-design-text-picked"));
   const selector = path ? textSelector(path) : "";
@@ -149,7 +169,7 @@ function ownText(el: Element) {
 /** The text a click or hover lands on, or null when it lands on a photo, an icon or an empty box. */
 function textAt(target: Element | null): HTMLElement | null {
   const root = document.querySelector("[data-design-page]");
-  if (!target || !root?.contains(target) || target === root) return null;
+  if (!target || !root?.contains(target) || target === root || target.closest(FOOTER)) return null;
   const block = target.closest<HTMLElement>(TEXT_BLOCKS);
   if (block && root.contains(block) && block !== root) {
     if (block.matches(CONTAINERS) && block.querySelector(RICH)) return null;
