@@ -48,7 +48,7 @@ export function ServerCard({ server }: { server: ServerNode }) {
 function ServerRow({ server }: { server: ServerNode }) {
   const [giving, setGiving] = useState(false);
   const schedule = [server.meeting_day, server.meeting_time].filter(Boolean).join(" · ") || "Horario por definir";
-  const main = server.level === "servidor";
+  const main = server.level !== "hijo";
 
   return (
     <div>
@@ -64,7 +64,7 @@ function ServerRow({ server }: { server: ServerNode }) {
             </div>
             <p className="mt-0.5 text-xs text-muted">
               {schedule}
-              {main && ` · ${server.totals.children} ${server.totals.children === 1 ? "servidor hijo" : "servidores hijo"}`}
+              {server.level === "servidor" && ` · ${server.totals.children} ${server.totals.children === 1 ? "servidor hijo" : "servidores hijo"}`}
             </p>
           </div>
         </div>

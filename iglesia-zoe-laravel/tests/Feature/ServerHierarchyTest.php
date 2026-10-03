@@ -47,16 +47,88 @@ class ServerHierarchyTest extends TestCase
         $this->assertFalse(Permissions::has($leader, 'reports.delegate'));
     }
 
+    public function test_servidor_de_red_holds_his_cell_under_the_network_letter(): void
+    {
+        $leader = $this->networkLeader($this->networkA);
+        $this->actingAs($leader)
+            ->get(self::SITE.'/admin/servidores')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('ownCell.choices.network', 'A')
+                ->where('ownCell.choices.numbered', '01A'));
+
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/mi-celula', ['kind' => 'network', 'meeting_day' => 'Jueves', 'meeting_time' => '20:00'])
+            ->assertOk();
+
+        $cell = Cell::query()->where('code', 'A')->firstOrFail();
+        $this->assertTrue($cell->isNetworkCell());
+        $this->assertTrue($leader->fresh()->cells->contains($cell));
+        $this->actingAs($leader)
+            ->get(self::SITE.'/admin/servidores')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('ownCell.cell.code', 'A')
+                ->where('networks.0.servers.0.code', 'A')
+                ->where('networks.0.servers.0.level', 'red')
+                ->where('networks.0.servers.0.can_add_child', false)
+                ->where('networks.0.servers.0.can_give_account', false)
+                ->where('networks.0.totals.servers', 0));
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores', ['network_id' => $this->networkA->id, 'leader_name' => 'Primer servidor'])
+            ->assertOk();
+        $this->assertTrue(Cell::query()->where('code', '01A')->exists());
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/hijo', ['parent_id' => $cell->id, 'leader_name' => 'Hijo'])
+            ->assertForbidden();
+        $this->actingAs($leader)
+            ->get(self::SITE.'/portal/informe')
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('cells', 1)->where('cells.0.code', 'A'));
+
+        $second = $this->networkLeader($this->networkA, 'red.segundo');
+        $this->actingAs($second)
+            ->get(self::SITE.'/admin/servidores')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('ownCell.choices.network', null));
+        $this->actingAs($second)
+            ->postJson(self::SITE.'/admin/servidores/mi-celula', ['kind' => 'network'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('kind');
+    }
+
+    public function test_servidor_de_red_takes_a_cell_of_his_network_without_an_account(): void
+    {
+        $free = $this->cell($this->networkA, 1);
+        $taken = $this->cell($this->networkA, 2);
+        $this->cellServer($taken, Permissions::SERVER_ACCOUNT);
+        $foreign = $this->cell($this->networkB, 1);
+        $leader = $this->networkLeader($this->networkA);
+
+        $this->actingAs($leader)
+            ->get(self::SITE.'/admin/servidores')
+            ->assertInertia(fn (AssertableInertia $page) => $page->has('ownCell.choices.free', 1)->where('ownCell.choices.free.0.code', '01A'));
+        foreach ([$taken, $foreign] as $cell) {
+            $this->actingAs($leader)
+                ->postJson(self::SITE.'/admin/servidores/mi-celula', ['kind' => 'existing', 'cell_id' => $cell->id])
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('cell_id');
+        }
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/mi-celula', ['kind' => 'existing', 'cell_id' => $free->id])
+            ->assertOk();
+
+        $this->assertSame($leader->name, $free->fresh()->leader_name);
+        $this->assertTrue($leader->fresh()->cells->contains($free));
+        $this->assertSame(3, Cell::query()->count());
+    }
+
     public function test_servidor_de_red_opens_his_own_cell_once(): void
     {
         $this->cell($this->networkA, 1);
         $leader = $this->networkLeader($this->networkA);
 
         $this->actingAs($leader)
-            ->postJson(self::SITE.'/admin/servidores/mi-celula', ['meeting_day' => 'Jueves', 'meeting_time' => '20:00'])
+            ->postJson(self::SITE.'/admin/servidores/mi-celula', ['kind' => 'numbered', 'meeting_day' => 'Jueves', 'meeting_time' => '20:00'])
             ->assertOk();
         $this->actingAs($leader)
-            ->postJson(self::SITE.'/admin/servidores/mi-celula', [])
+            ->postJson(self::SITE.'/admin/servidores/mi-celula', ['kind' => 'network'])
             ->assertUnprocessable();
 
         $cell = Cell::query()->where('code', '02A')->firstOrFail();
