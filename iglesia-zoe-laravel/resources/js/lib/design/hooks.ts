@@ -6,7 +6,7 @@ import { backdropVideos, designAttributes, designCss } from "./styles";
 import type { ArtRule, Design } from "./types";
 
 /** The design in force: the published one, or the editor's draft inside the live preview. */
-export function useDesign(): Design | undefined {
+function useDesign(): Design | undefined {
   const stored = (usePage().props as { design?: Design }).design;
   const draft = useSyncExternalStore(subscribeDraft, getDraft, () => null);
   return draft ?? stored;

@@ -2,14 +2,16 @@
 
 use App\Domain\Access\Permissions;
 use App\Domain\Inbox\Inbox;
-use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\BaptismsController;
 use App\Http\Controllers\Admin\CellsController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DesignController;
 use App\Http\Controllers\Admin\DevotionalsController;
 use App\Http\Controllers\Admin\ExpensesController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GalleriesController;
 use App\Http\Controllers\Admin\InboxController;
+use App\Http\Controllers\Admin\MinistriesController;
 use App\Http\Controllers\Admin\NoticeController;
 use App\Http\Controllers\Admin\RadioConsoleController;
 use App\Http\Controllers\Admin\RadioLibraryController;
@@ -17,9 +19,13 @@ use App\Http\Controllers\Admin\RadioScheduleController;
 use App\Http\Controllers\Admin\RadioSettingsController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SectionsController;
+use App\Http\Controllers\Admin\SermonsController;
 use App\Http\Controllers\Admin\ServersController;
+use App\Http\Controllers\Admin\SiteContentController;
+use App\Http\Controllers\Admin\SiteMediaController;
 use App\Http\Controllers\Admin\StudiesController;
 use App\Http\Controllers\Admin\TeamController;
+use App\Http\Controllers\Admin\ThemesController;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
 use Illuminate\Support\Facades\Route;
@@ -27,21 +33,21 @@ use Illuminate\Support\Facades\Route;
 $can = fn (string ...$permissions) => EnsurePermission::class.':'.implode(',', $permissions);
 
 Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(function () use ($can) {
-    Route::get('/', [AdminController::class, 'dashboard'])->name('admin.home');
+    Route::get('/', [DashboardController::class, 'dashboard'])->name('admin.home');
 
     Route::middleware($can('content.manage'))->group(function () {
-        Route::get('/contenido', [AdminController::class, 'contenido']);
-        Route::get('/textos', [AdminController::class, 'textos']);
-        Route::post('/textos', [AdminController::class, 'saveTexts']);
-        Route::get('/ministerios', [AdminController::class, 'ministerios']);
-        Route::post('/ministerios', [AdminController::class, 'saveMinistry']);
-        Route::post('/ministerios/orden', [AdminController::class, 'moveMinistry']);
-        Route::post('/ministerios/eliminar', [AdminController::class, 'deleteMinistry']);
-        Route::get('/predicas', [AdminController::class, 'predicas']);
-        Route::post('/predicas', [AdminController::class, 'saveSermon']);
-        Route::post('/predicas/eliminar', [AdminController::class, 'deleteSermon']);
-        Route::get('/bautismos', [AdminController::class, 'bautismos']);
-        Route::post('/bautismos', [AdminController::class, 'saveBaptism']);
+        Route::get('/contenido', [SiteContentController::class, 'contenido']);
+        Route::get('/textos', [SiteContentController::class, 'textos']);
+        Route::post('/textos', [SiteContentController::class, 'saveTexts']);
+        Route::get('/ministerios', [MinistriesController::class, 'ministerios']);
+        Route::post('/ministerios', [MinistriesController::class, 'saveMinistry']);
+        Route::post('/ministerios/orden', [MinistriesController::class, 'moveMinistry']);
+        Route::post('/ministerios/eliminar', [MinistriesController::class, 'deleteMinistry']);
+        Route::get('/predicas', [SermonsController::class, 'predicas']);
+        Route::post('/predicas', [SermonsController::class, 'saveSermon']);
+        Route::post('/predicas/eliminar', [SermonsController::class, 'deleteSermon']);
+        Route::get('/bautismos', [BaptismsController::class, 'bautismos']);
+        Route::post('/bautismos', [BaptismsController::class, 'saveBaptism']);
         Route::get('/recursos', [SectionsController::class, 'recursos']);
         Route::post('/recursos', [SectionsController::class, 'saveTeaching']);
         Route::post('/recursos/eliminar', [SectionsController::class, 'deleteTeaching']);
@@ -138,16 +144,16 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
     Route::redirect('/bandeja', '/admin/formularios');
 
     Route::middleware($can('themes.manage', 'content.manage'))->group(function () {
-        Route::get('/temas', [AdminController::class, 'temas']);
-        Route::post('/temas', [AdminController::class, 'uploadTheme']);
-        Route::post('/temas/ocultar', [AdminController::class, 'hideTheme']);
+        Route::get('/temas', [ThemesController::class, 'temas']);
+        Route::post('/temas', [ThemesController::class, 'uploadTheme']);
+        Route::post('/temas/ocultar', [ThemesController::class, 'hideTheme']);
     });
-    Route::post('/contenido', [AdminController::class, 'saveSettings'])->middleware($can('content.manage', 'generosity.manage'));
-    Route::get('/generosidad', [AdminController::class, 'generosidad'])->middleware($can('generosity.manage'));
+    Route::post('/contenido', [SiteContentController::class, 'saveSettings'])->middleware($can('content.manage', 'generosity.manage'));
+    Route::get('/generosidad', [SiteContentController::class, 'generosidad'])->middleware($can('generosity.manage'));
 
     Route::middleware($can('media.manage'))->group(function () {
-        Route::get('/medios', [AdminController::class, 'medios']);
-        Route::post('/medios', [AdminController::class, 'saveMedia']);
+        Route::get('/medios', [SiteMediaController::class, 'medios']);
+        Route::post('/medios', [SiteMediaController::class, 'saveMedia']);
     });
 
     Route::middleware($can('notices.manage'))->group(function () {
@@ -168,7 +174,8 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::post('/servidores/hijo', [ServersController::class, 'storeChild'])->middleware($can('servers.children'));
         Route::post('/servidores/mi-celula', [ServersController::class, 'storeOwnCell'])->middleware($can('cells.own'));
         Route::post('/servidores/cuenta', [ServersController::class, 'storeAccount'])->middleware($can('servers.create', 'servers.children'));
-        Route::post('/servidores/red', [ServersController::class, 'storeNetworkServer'])->middleware(EnsureRole::class.':superadmin');
+        Route::post('/servidores/red', [ServersController::class, 'storeNetworkServer'])->middleware($can('servers.network'));
+        Route::post('/servidores/red/actualizar', [ServersController::class, 'updateNetworkServer'])->middleware($can('servers.network'));
     });
 
     Route::middleware($can('cells.manage'))->group(function () {

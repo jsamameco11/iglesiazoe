@@ -2,7 +2,7 @@ import { WEEKDAYS } from "./next-service";
 
 const MONTHS = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Set", "Oct", "Nov", "Dic"];
 
-export type WeekOption = {
+type WeekOption = {
   week: number;
   start: string;
   end: string;

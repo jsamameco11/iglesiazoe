@@ -3,6 +3,7 @@
 namespace App\Domain\Auth\Actions;
 
 use App\Domain\Access\Permissions;
+use App\Domain\Access\Support\Credentials;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
@@ -12,7 +13,7 @@ class AuthenticateLeader
     public function attempt(string $username, string $password): ?User
     {
         $login = trim($username);
-        $email = str_contains($login, '@') ? strtolower($login) : strtolower($login).'@lideres.iglesiacristianazoe.pe';
+        $email = str_contains($login, '@') ? strtolower($login) : Credentials::leaderEmail($login);
 
         $user = User::query()
             ->where(function ($query) use ($login, $email) {

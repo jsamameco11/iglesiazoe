@@ -10,7 +10,6 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -67,20 +66,20 @@ class ExpensesController extends Controller
             'receipt_path' => $path,
         ]);
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Gasto registrado.']);
+        return $this->saved('Gasto registrado.');
     }
 
     public function destroy(Request $request): JsonResponse
     {
         $id = (string) $request->input('id');
-        $expense = Str::isUuid($id) ? Expense::query()->find($id) : null;
+        $expense = $this->find(Expense::class, $id);
         if (! $expense || (! $request->user()->isSuperadmin() && $expense->user_id !== $request->user()->id)) {
-            return response()->json(['error' => 'No puedes eliminar este gasto.'], 403);
+            return $this->fail('No puedes eliminar este gasto.', 403);
         }
         MediaLibrary::deletePrivate($expense->receipt_path);
         $expense->delete();
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Gasto eliminado.']);
+        return $this->saved('Gasto eliminado.');
     }
 
     public function receipt(Request $request, string $id): RedirectResponse|StreamedResponse

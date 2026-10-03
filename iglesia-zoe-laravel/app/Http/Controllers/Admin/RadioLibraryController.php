@@ -40,7 +40,7 @@ class RadioLibraryController extends RadioController
     {
         $existing = $this->find(RadioTrack::class, $request->input('id'));
         if ($request->filled('id') && ! $existing) {
-            return response()->json(['error' => 'Ese audio ya no existe. Recarga la página.'], 404);
+            return $this->fail('Ese audio ya no existe. Recarga la página.', 404);
         }
 
         $validator = Validator::make($request->all(), [
@@ -57,13 +57,13 @@ class RadioLibraryController extends RadioController
             'max' => 'El campo :attribute es demasiado largo.',
         ], ['title' => 'título', 'artist' => 'artista', 'kind' => 'tipo', 'duration' => 'duración']);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
         $data = $validator->validated();
 
         $file = $request->file('audio');
         if (! $existing && ! $file instanceof UploadedFile) {
-            return response()->json(['error' => 'Elige el archivo de audio.'], 422);
+            return $this->fail('Elige el archivo de audio.');
         }
 
         $payload = [
@@ -81,13 +81,13 @@ class RadioLibraryController extends RadioController
             $ext = strtolower($file->getClientOriginalExtension());
             $mime = (string) $file->getMimeType();
             if (! $file->isValid() || ! in_array($ext, self::AUDIO_TYPES, true) || ! preg_match('#^(audio/|video/(mp4|webm|ogg)|application/(ogg|octet-stream))#', $mime)) {
-                return response()->json(['error' => 'El archivo debe ser de audio: MP3, M4A, AAC, OGG, OPUS, WAV, WEBM o FLAC.'], 422);
+                return $this->fail('El archivo debe ser de audio: MP3, M4A, AAC, OGG, OPUS, WAV, WEBM o FLAC.');
             }
             if ($file->getSize() > self::MAX_AUDIO_MB * 1024 * 1024) {
-                return response()->json(['error' => 'El audio pesa más de '.self::MAX_AUDIO_MB.' MB. Expórtalo en MP3 (128–192 kbps).'], 422);
+                return $this->fail('El audio pesa más de '.self::MAX_AUDIO_MB.' MB. Expórtalo en MP3 (128–192 kbps).');
             }
             if (! isset($data['duration'])) {
-                return response()->json(['error' => 'No pudimos leer la duración del audio. Prueba con otro archivo.'], 422);
+                return $this->fail('No pudimos leer la duración del audio. Prueba con otro archivo.');
             }
             $payload['file_path'] = MediaLibrary::storePublic($file, 'radio/'.$data['kind'], $ext);
             $payload['duration'] = round((float) $data['duration'], 2);
@@ -105,9 +105,9 @@ class RadioLibraryController extends RadioController
         }
         Station::flush();
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $existing
+        return $this->saved($existing
             ? 'Audio actualizado.'
-            : 'Audio guardado en la biblioteca. No suena hasta que lo programes o lo lances desde la consola.']);
+            : 'Audio guardado en la biblioteca. No suena hasta que lo programes o lo lances desde la consola.');
     }
 
     public function destroy(Request $request): JsonResponse
@@ -119,6 +119,6 @@ class RadioLibraryController extends RadioController
             Station::flush();
         }
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Audio eliminado de la biblioteca y de la programación.']);
+        return $this->saved('Audio eliminado de la biblioteca y de la programación.');
     }
 }

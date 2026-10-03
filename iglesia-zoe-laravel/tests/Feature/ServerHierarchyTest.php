@@ -10,6 +10,7 @@ use App\Models\Report;
 use App\Models\ReportAttendance;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
@@ -231,11 +232,112 @@ class ServerHierarchyTest extends TestCase
                 ->where('totals.tithes', null));
     }
 
-    public function test_only_the_superadmin_assigns_a_servidor_de_red(): void
+    public function test_assigning_a_servidor_de_red_needs_the_network_function(): void
     {
-        $this->actingAs($this->networkLeader($this->networkA))
+        $leader = $this->networkLeader($this->networkA);
+        $this->actingAs($leader)
             ->postJson(self::SITE.'/admin/servidores/red', ['network_id' => $this->networkA->id, 'name' => 'Otro', 'username' => 'otro.red', 'password' => 'secreto1'])
             ->assertForbidden();
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/red/actualizar', ['id' => $leader->id, 'name' => 'Cambio', 'username' => $leader->username, 'active' => true])
+            ->assertForbidden();
+        $this->actingAs($leader)
+            ->get(self::SITE.'/admin/servidores')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('networks.0.can_manage_leaders', false));
+    }
+
+    public function test_a_network_has_at_most_two_active_servidores_de_red(): void
+    {
+        $super = $this->superadmin();
+        $assign = fn (string $username, ?Network $network = null) => $this->actingAs($super)->postJson(self::ADMIN.'/admin/servidores/red', ['network_id' => ($network ?? $this->networkA)->id, 'name' => ucfirst($username), 'username' => $username, 'password' => 'secreto1']);
+
+        $assign('red.uno')->assertOk();
+        $assign('red.dos')->assertOk();
+        $assign('red.tres')->assertUnprocessable()->assertJsonValidationErrors('network_id');
+        $this->assertFalse(User::query()->where('username', 'red.tres')->exists());
+
+        $first = User::query()->where('username', 'red.uno')->firstOrFail();
+        $edit = fn (User $leader, bool $active) => $this->actingAs($super)->postJson(self::ADMIN.'/admin/servidores/red/actualizar', ['id' => $leader->id, 'name' => $leader->name, 'username' => $leader->username, 'active' => $active]);
+        $edit($first, false)->assertOk();
+        $assign('red.tres')->assertOk();
+        $edit($first, true)->assertUnprocessable()->assertJsonValidationErrors('network_id');
+        $this->assertFalse($first->fresh()->active);
+
+        $this->actingAs($super)
+            ->get(self::ADMIN.'/admin/servidores')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->where('leaderLimit', 2)
+                ->has('networks.0.leaders', 3)
+                ->where('networks.0.can_manage_leaders', true));
+        $assign('red.otra.red', $this->networkB)->assertOk();
+    }
+
+    public function test_an_administrator_with_the_function_manages_servidores_de_red(): void
+    {
+        $admin = $this->user('coordinador', Role::Admin, [], ['servers.network']);
+        $this->actingAs($admin)
+            ->postJson(self::ADMIN.'/admin/servidores/red', ['network_id' => $this->networkB->id, 'name' => 'Rosa Red', 'username' => 'rosa.red', 'password' => 'secreto1'])
+            ->assertOk();
+        $leader = User::query()->where('username', 'rosa.red')->firstOrFail();
+
+        $this->actingAs($admin)
+            ->postJson(self::ADMIN.'/admin/servidores/red/actualizar', ['id' => $leader->id, 'name' => 'Rosa María', 'username' => '45678912', 'password' => 'nueva123', 'active' => true])
+            ->assertOk();
+        $leader->refresh();
+        $this->assertSame('Rosa María', $leader->name);
+        $this->assertSame('45678912', $leader->username);
+        $this->assertSame('45678912', $leader->dni);
+        $this->assertTrue(Hash::check('nueva123', $leader->password));
+        $this->assertSame(['red'], $leader->admin_types);
+
+        $this->actingAs($admin)
+            ->postJson(self::ADMIN.'/admin/servidores/red/actualizar', ['id' => $admin->id, 'name' => 'Yo', 'username' => 'coordinador', 'active' => true])
+            ->assertNotFound();
+        $this->actingAs($admin)
+            ->postJson(self::ADMIN.'/admin/servidores/red/actualizar', ['id' => $leader->id, 'name' => 'Rosa', 'username' => 'coordinador', 'active' => true])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('username');
+    }
+
+    public function test_a_servidor_de_red_with_the_function_stays_inside_his_network(): void
+    {
+        $leader = $this->networkLeader($this->networkA, permissions: [...Permissions::forTypes(['red']), 'servers.network']);
+        $other = $this->networkLeader($this->networkB, 'red.b');
+
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/red', ['network_id' => $this->networkB->id, 'name' => 'Intruso', 'username' => 'intruso', 'password' => 'secreto1'])
+            ->assertForbidden();
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/red/actualizar', ['id' => $other->id, 'name' => 'Cambio', 'username' => 'red.b', 'active' => false])
+            ->assertForbidden();
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/red/actualizar', ['id' => $leader->id, 'name' => $leader->name, 'username' => $leader->username, 'active' => false])
+            ->assertUnprocessable();
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/red', ['network_id' => $this->networkA->id, 'name' => 'Compañero', 'username' => 'red.companero', 'password' => 'secreto1'])
+            ->assertOk();
+        $this->assertTrue($other->fresh()->active);
+        $this->assertTrue($leader->fresh()->active);
+    }
+
+    public function test_equipo_y_accesos_respects_the_limit_of_servidores_de_red(): void
+    {
+        $this->networkLeader($this->networkA, 'red.uno');
+        $this->networkLeader($this->networkA, 'red.dos');
+        $admin = $this->user('apoyo', Role::Admin, ['visuales'], Permissions::forTypes(['visuales']));
+        $super = $this->superadmin();
+
+        $this->actingAs($super)
+            ->postJson(self::ADMIN.'/admin/equipo', ['name' => 'Tercero', 'username' => 'red.tres', 'password' => 'secreto1', 'types' => ['red'], 'network_code' => 'A'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('network_id');
+        $this->actingAs($super)
+            ->postJson(self::ADMIN.'/admin/equipo/actualizar', ['id' => $admin->id, 'name' => 'Apoyo', 'types' => ['red', 'visuales'], 'network_code' => 'A', 'active' => true])
+            ->assertUnprocessable();
+        $this->actingAs($super)
+            ->postJson(self::ADMIN.'/admin/equipo/actualizar', ['id' => $admin->id, 'name' => 'Apoyo', 'types' => ['red', 'visuales'], 'network_code' => 'B', 'active' => true])
+            ->assertOk();
+        $this->assertSame(['red', 'visuales'], $admin->fresh()->admin_types);
     }
 
     public function test_servidor_de_red_opens_servidores_only_in_its_network(): void

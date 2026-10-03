@@ -1,6 +1,7 @@
 import { router } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import { enablePush, isIos, PUSH_CHANGED, pushPermission, setMuted, syncPush, useInboxShared, type PushState } from "@/lib/inbox";
+import { BellIcon } from "@/Components/ui/icons";
 import type { ActionResult } from "@/lib/actions";
 
 const DISMISSED = "zoe:push-prompt-dismissed";
@@ -33,16 +34,6 @@ function usePushDevice(publicKey: string | null) {
   }
 
   return { state, active, enable };
-}
-
-function BellIcon({ off = false }: { off?: boolean }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px] shrink-0" aria-hidden="true">
-      <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-      {off && <path d="M3 3l18 18" />}
-    </svg>
-  );
 }
 
 /** Slim banner across the panel until this device receives the notifications. */

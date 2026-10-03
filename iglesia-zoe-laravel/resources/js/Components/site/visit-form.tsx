@@ -2,7 +2,9 @@ import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "rea
 import { SelectField, type SelectOption } from "@/Components/ui/select-field";
 import { submitVisit } from "@/lib/actions";
 import { useCopy } from "@/lib/copy";
-import { citiesOf, cityName, districtsOf, flagUrl, geo, type GeoCountry, type GeoTree } from "@/lib/geo";
+import { Flag } from "@/Components/site/icons";
+import { citiesOf, cityName, districtsOf, geo, type GeoCountry, type GeoTree } from "@/lib/geo";
+import { digits } from "@/lib/text";
 
 const SEXES = ["Masculino", "Femenino"];
 const MARITAL = ["Soltero(a)", "Casado(a)", "Conviviente", "Divorciado(a)", "Separado(a)", "Viudo(a)"];
@@ -11,14 +13,6 @@ const DEFAULT_DIAL = "PE:51";
 type Errors = Partial<Record<"first_name" | "last_name" | "phone" | "email" | "sex" | "age" | "marital_status" | "service", string>>;
 
 const input = "visit-input";
-
-function Flag({ code }: { code: string }) {
-  return <img src={flagUrl(code)} alt="" width={20} height={14} loading="lazy" className="visit-flag" />;
-}
-
-function digits(value: string, max: number) {
-  return value.replace(/\D/g, "").slice(0, max);
-}
 
 export function VisitForm({
   cta = "Quiero visitarlos",

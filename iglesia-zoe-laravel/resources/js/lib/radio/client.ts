@@ -1,3 +1,5 @@
+import { csrf } from "@/lib/actions";
+
 export function newListenerId() {
   const key = "zoe-radio-listener";
   try {
@@ -16,10 +18,6 @@ export function newListenerId() {
     /* storage blocked */
   }
   return id;
-}
-
-function csrf() {
-  return document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
 }
 
 export async function postForm(url: string, data: Record<string, string>) {

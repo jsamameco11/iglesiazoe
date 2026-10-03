@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useRef, useState, type RefObject } from "react";
+import { BellIcon } from "@/Components/ui/icons";
 
 export type NoticePoint = { title: string; text: string };
 
@@ -40,15 +41,6 @@ function updatedLabel(value?: string | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
   return `Actualizado el ${date.toLocaleDateString("es-PE", { day: "numeric", month: "long" })}`;
-}
-
-function BellIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="h-[18px] w-[18px]" aria-hidden="true">
-      <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-    </svg>
-  );
 }
 
 export function NoticeCard({

@@ -2,7 +2,7 @@ export type ServerLevel = "red" | "servidor" | "hijo";
 
 export type ServerAccount = { username: string; name: string; active: boolean };
 
-export type NetworkLeader = { id: string; name: string; username: string; active: boolean };
+export type NetworkLeader = { id: string; name: string; username: string; active: boolean; me: boolean };
 
 export type ServerNode = {
   id: string;
@@ -27,6 +27,7 @@ export type ServerNetwork = {
   code: string;
   name: string;
   leaders: NetworkLeader[];
+  can_manage_leaders: boolean;
   can_open: boolean;
   next_code: string | null;
   servers: ServerNode[];

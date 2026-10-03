@@ -1,5 +1,5 @@
 import { Link, usePage } from "@inertiajs/react";
-import { can, type PanelUser, type Permission } from "@/lib/access";
+import { can, SERVER_TREE, type PanelUser, type Permission } from "@/lib/access";
 import { useInboxShared, useUnread, type InboxKind } from "@/lib/inbox";
 
 type Item = { href: string; label: string; needs: (Permission | "superadmin")[] | null; inbox?: InboxKind };
@@ -23,7 +23,7 @@ const groups: { title: string; items: Item[] }[] = [
       { href: "/admin/informes", label: "Reportes de servidores", needs: ["reports.all"] },
       { href: "/admin/ofrendas", label: "Ofrendas por semana", needs: ["offerings.weekly"] },
       { href: "/portal/historial", label: "Historial", needs: ["reports.submit", "reports.all"] },
-      { href: "/admin/servidores", label: "Servidores", needs: ["servers.create", "servers.children", "cells.own"] },
+      { href: "/admin/servidores", label: "Servidores", needs: SERVER_TREE },
       { href: "/admin/celulas", label: "Células e integrantes", needs: ["cells.manage"] },
       { href: "/portal/temas", label: "Temas de célula", needs: ["reports.submit", "themes.manage"] },
       { href: "/admin/temas", label: "Publicar temas", needs: ["themes.manage", "content.manage"] },

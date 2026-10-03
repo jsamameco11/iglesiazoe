@@ -37,18 +37,18 @@ class RadioScheduleController extends RadioController
         $mode = $request->input('mode');
         $layer = $this->layerFrom($request);
         if (! $date || ! in_array($mode, ['end', 'at', 'now'], true) || $layer === null) {
-            return response()->json(['error' => 'Elige el día, la pista y cuándo debe sonar.'], 422);
+            return $this->fail('Elige el día, la pista y cuándo debe sonar.');
         }
 
         $blocks = $this->blocksFrom($request, $layer);
         if (is_string($blocks)) {
-            return response()->json(['error' => $blocks], 422);
+            return $this->fail($blocks);
         }
 
         if ($mode === 'now' && $layer === RadioSlot::MAIN) {
             Schedule::insertNow($blocks);
 
-            return response()->json(['ok' => true, 'reload' => true, 'message' => 'Al aire ahora. La programación siguiente se corrió para darle espacio.']);
+            return $this->saved('Al aire ahora. La programación siguiente se corrió para darle espacio.');
         }
 
         $now = Station::nowMs();
@@ -58,37 +58,37 @@ class RadioScheduleController extends RadioController
             default => Schedule::at($date, (string) $request->input('time')),
         };
         if ($start === null) {
-            return response()->json(['error' => 'Escribe la hora de inicio (por ejemplo 18:30 o 18:30:15).'], 422);
+            return $this->fail('Escribe la hora de inicio (por ejemplo 18:30 o 18:30:15).');
         }
         if ($start < $now - 1000) {
             if ($mode === 'end' && $date === Station::today()) {
                 $start = $now + 3000;
             } else {
-                return response()->json(['error' => 'Esa hora ya pasó. Elige una hora futura o usa «Al aire ahora».'], 422);
+                return $this->fail('Esa hora ya pasó. Elige una hora futura o usa «Al aire ahora».');
             }
         }
 
         $end = $start + Schedule::length($blocks);
         if ($conflict = Schedule::conflict($start, $end, $layer)) {
-            return response()->json(['error' => $this->conflictMessage($conflict).' Elige otra hora, otra capa o mueve ese bloque.'], 422);
+            return $this->fail($this->conflictMessage($conflict).' Elige otra hora, otra capa o mueve ese bloque.');
         }
         Schedule::place($blocks, $start);
         $count = count($blocks);
         $where = $layer === RadioSlot::MAIN ? '' : ' en la '.RadioSlot::layerLabel($layer);
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => ($count === 1 ? 'Bloque programado' : $count.' bloques programados').$where.' de '.Schedule::clock($start).' a '.Schedule::clock($end).'.']);
+        return $this->saved(($count === 1 ? 'Bloque programado' : $count.' bloques programados').$where.' de '.Schedule::clock($start).' a '.Schedule::clock($end).'.');
     }
 
     public function update(Request $request): JsonResponse
     {
         $slot = $this->find(RadioSlot::class, $request->input('id'));
         if (! $slot) {
-            return response()->json(['error' => 'Ese bloque ya no existe. Recarga la página.'], 404);
+            return $this->fail('Ese bloque ya no existe. Recarga la página.', 404);
         }
         $date = Schedule::date($request->input('date')) ?? $slot->starts_at->setTimezone(Station::TZ)->toDateString();
         $start = $request->filled('time') ? Schedule::at($date, (string) $request->input('time')) : $slot->starts_at->getTimestampMs();
         if ($start === null) {
-            return response()->json(['error' => 'Escribe una hora válida (por ejemplo 18:30 o 18:30:15).'], 422);
+            return $this->fail('Escribe una hora válida (por ejemplo 18:30 o 18:30:15).');
         }
 
         $data = ['starts_at' => Schedule::utc($start)];
@@ -100,14 +100,14 @@ class RadioScheduleController extends RadioController
         if ($slot->kind === RadioSlot::LIVE) {
             $minutes = (float) $request->input('minutes', $slot->duration / 60);
             if ($minutes < 1 || $minutes > Station::MAX_BLOCK / 60) {
-                return response()->json(['error' => 'Un bloque en vivo dura entre 1 minuto y 6 horas.'], 422);
+                return $this->fail('Un bloque en vivo dura entre 1 minuto y 6 horas.');
             }
             $data['duration'] = round($minutes * 60, 2);
             $data['bed'] = $request->boolean('bed');
         } else {
             $layer = $request->has('layer') ? $this->layerFrom($request) : $slot->layer;
             if ($layer === null) {
-                return response()->json(['error' => 'Elige una pista válida.'], 422);
+                return $this->fail('Elige una pista válida.');
             }
             $data['layer'] = $layer;
             $data['duck'] = $layer !== RadioSlot::MAIN && $request->boolean('duck', $slot->duck);
@@ -116,12 +116,12 @@ class RadioScheduleController extends RadioController
 
         $end = $start + (int) round(($data['duration'] ?? $slot->duration) * 1000);
         if ($conflict = Schedule::conflict($start, $end, $data['layer'] ?? $slot->layer, $slot->id)) {
-            return response()->json(['error' => $this->conflictMessage($conflict).' Elige otra hora.'], 422);
+            return $this->fail($this->conflictMessage($conflict).' Elige otra hora.');
         }
         $slot->update($data);
         Station::flush();
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Bloque actualizado.']);
+        return $this->saved('Bloque actualizado.');
     }
 
     public function destroy(Request $request): JsonResponse
@@ -129,20 +129,20 @@ class RadioScheduleController extends RadioController
         $this->find(RadioSlot::class, $request->input('id'))?->delete();
         Station::flush();
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Bloque quitado de la programación.']);
+        return $this->saved('Bloque quitado de la programación.');
     }
 
     public function clear(Request $request): JsonResponse
     {
         $date = Schedule::date($request->input('date'));
         if (! $date) {
-            return response()->json(['error' => 'Elige un día.'], 422);
+            return $this->fail('Elige un día.');
         }
         [$from, $to] = Station::dayBounds($date);
         $removed = RadioSlot::query()->where('starts_at', '>=', Schedule::utc(max($from, Station::nowMs())))->where('starts_at', '<', Schedule::utc($to))->delete();
         Station::flush();
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $removed ? "Se quitaron {$removed} bloques del día." : 'No había bloques por quitar.']);
+        return $this->saved($removed ? "Se quitaron {$removed} bloques del día." : 'No había bloques por quitar.');
     }
 
     public function copy(Request $request): JsonResponse
@@ -151,10 +151,10 @@ class RadioScheduleController extends RadioController
         $targets = collect((array) $request->input('targets', []))->map(fn ($value) => Schedule::date($value))->filter()
             ->reject(fn ($value) => $value === $date || $value < Station::today())->unique()->values()->all();
         if (! $date || ! $targets) {
-            return response()->json(['error' => 'Elige uno o más días futuros para copiar la programación.'], 422);
+            return $this->fail('Elige uno o más días futuros para copiar la programación.');
         }
         if (count($targets) > 31) {
-            return response()->json(['error' => 'Copia hasta 31 días a la vez.'], 422);
+            return $this->fail('Copia hasta 31 días a la vez.');
         }
         [$copied, $skipped] = Schedule::copyDay($date, $targets, $request->boolean('replace'));
         $message = "Se copiaron {$copied} bloques a ".count($targets).' día(s).';
@@ -162,21 +162,21 @@ class RadioScheduleController extends RadioController
             $message .= " {$skipped} no se copiaron porque se cruzaban con bloques ya programados.";
         }
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $message]);
+        return $this->saved($message);
     }
 
     /** Chooses the songs of the continuous music that fills the gaps of the main program. */
     public function rotation(Request $request): JsonResponse
     {
-        $ids = collect((array) $request->input('tracks', []))->filter(fn ($id) => is_string($id) && preg_match('/^[0-9a-f-]{36}$/i', $id))->unique()->values()->all();
+        $ids = $this->uuids($request->input('tracks'))->unique()->values()->all();
         $music = RadioTrack::query()->where('kind', 'musica')->where('active', true);
         (clone $music)->whereIn('id', $ids)->update(['rotation' => true]);
         (clone $music)->whereNotIn('id', $ids)->update(['rotation' => false]);
         Station::flush();
         $count = (clone $music)->where('rotation', true)->count();
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => $count
+        return $this->saved($count
             ? "Música continua: {$count} ".($count === 1 ? 'canción' : 'canciones').' en rotación.'
-            : 'Música continua vacía: los huecos de la programación quedarán en silencio.']);
+            : 'Música continua vacía: los huecos de la programación quedarán en silencio.');
     }
 }

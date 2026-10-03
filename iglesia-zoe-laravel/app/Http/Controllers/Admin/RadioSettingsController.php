@@ -47,7 +47,7 @@ class RadioSettingsController extends RadioController
             'max_voice' => 'oyentes de voz',
         ]);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
         $data = $validator->validated();
         $levels = ['bed_level', 'fx_level', 'duck_level', 'crossfade', 'max_voice'];
@@ -58,6 +58,6 @@ class RadioSettingsController extends RadioController
             'autofill' => $request->boolean('autofill'),
         ]);
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Ajustes de la radio guardados.']);
+        return $this->saved('Ajustes de la radio guardados.');
     }
 }

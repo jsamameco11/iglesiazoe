@@ -50,7 +50,7 @@ class RadioConsoleController extends RadioController
         } elseif ($action === 'mix') {
             $session = Station::live()['session'];
             if ($request->boolean('mic') && ! $session) {
-                return response()->json(['error' => 'Abre la transmisión en vivo para hablar al aire.'], 409);
+                return $this->fail('Abre la transmisión en vivo para hablar al aire.', 409);
             }
             if ($session) {
                 Station::heartbeat();
@@ -65,7 +65,7 @@ class RadioConsoleController extends RadioController
                 'host' => $request->filled('host') ? mb_substr(trim((string) $request->input('host')), 0, 80) : null,
             ], fn ($value) => $value !== null));
         } else {
-            return response()->json(['error' => 'Acción desconocida.'], 422);
+            return $this->fail('Acción desconocida.');
         }
 
         return response()->json(['ok' => true, ...$this->snapshot()]);
@@ -77,13 +77,13 @@ class RadioConsoleController extends RadioController
         $action = $request->input('action');
         $lane = $request->input('lane');
         if ($lane !== null && ! in_array($lane, Station::LANES, true)) {
-            return response()->json(['error' => 'Ese reproductor no existe.'], 422);
+            return $this->fail('Ese reproductor no existe.');
         }
 
         if ($action === 'play') {
             $track = $this->find(RadioTrack::class, $request->input('id'));
             if (! $track || ! $track->active) {
-                return response()->json(['error' => 'Ese audio ya no está en la biblioteca.'], 404);
+                return $this->fail('Ese audio ya no está en la biblioteca.', 404);
             }
             $duck = $request->has('duck') && $request->input('duck') !== '' ? $request->boolean('duck') : $track->duck;
             $layer = Station::playLayer(
@@ -116,15 +116,15 @@ class RadioConsoleController extends RadioController
             return response()->json(['ok' => $layer !== null, 'layer' => $layer, ...$this->snapshot()]);
         }
 
-        return response()->json(['error' => 'Acción desconocida.'], 422);
+        return $this->fail('Acción desconocida.');
     }
 
     /** Saves which library audios fill the pad bank, in order. */
     public function pads(Request $request): JsonResponse
     {
-        $ids = collect((array) $request->input('tracks', []))->filter(fn ($id) => is_string($id) && preg_match('/^[0-9a-f-]{36}$/i', $id))->unique()->values();
+        $ids = $this->uuids($request->input('tracks'))->unique()->values();
         if ($ids->count() > Station::MAX_PADS) {
-            return response()->json(['error' => 'La botonera tiene hasta '.Station::MAX_PADS.' botones.'], 422);
+            return $this->fail('La botonera tiene hasta '.Station::MAX_PADS.' botones.');
         }
         $known = RadioTrack::query()->whereIn('id', $ids)->pluck('id')->all();
         Station::saveConfig(['pads' => $ids->filter(fn ($id) => in_array($id, $known, true))->values()->all()]);
@@ -137,11 +137,11 @@ class RadioConsoleController extends RadioController
     {
         $blocks = $this->blocksFrom($request, RadioSlot::MAIN);
         if (is_string($blocks)) {
-            return response()->json(['error' => $blocks], 422);
+            return $this->fail($blocks);
         }
         Schedule::insertNow($blocks);
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Al aire ahora. La programación siguiente se corrió para darle espacio.']);
+        return $this->saved('Al aire ahora. La programación siguiente se corrió para darle espacio.');
     }
 
     /** Console heartbeat: live state, the program, and the WebRTC handshakes to serve. */
@@ -168,7 +168,7 @@ class RadioConsoleController extends RadioController
         $sdp = $request->input('sdp');
         $id = $request->input('id');
         if (! $session || ! is_string($id) || ! is_string($sdp) || strlen($sdp) > self::MAX_SDP) {
-            return response()->json(['error' => 'La transmisión no está abierta.'], 409);
+            return $this->fail('La transmisión no está abierta.', 409);
         }
 
         return response()->json(['ok' => Signal::offer($session, $id, $sdp)]);

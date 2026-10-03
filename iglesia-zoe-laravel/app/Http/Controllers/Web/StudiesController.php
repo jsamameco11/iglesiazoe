@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Domain\Access\Permissions;
+use App\Domain\Access\Support\Credentials;
 use App\Domain\Auth\Actions\AuthenticateLeader;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Actions\ResolveSiteSkin;
@@ -91,13 +92,13 @@ class StudiesController extends Controller
         $current = (string) $request->input('current');
         $password = (string) $request->input('password');
         if (! Hash::check($current, $user->password)) {
-            return response()->json(['error' => 'Tu clave actual no es correcta.'], 422);
+            return $this->fail('Tu clave actual no es correcta.');
         }
-        if (mb_strlen($password) < 6) {
-            return response()->json(['error' => 'La nueva clave debe tener al menos 6 caracteres.'], 422);
+        if (! Credentials::validPassword($password)) {
+            return $this->fail('La nueva clave debe tener al menos '.Credentials::MIN_PASSWORD.' caracteres.');
         }
         if ($password !== (string) $request->input('confirm')) {
-            return response()->json(['error' => 'Las dos claves nuevas no coinciden.'], 422);
+            return $this->fail('Las dos claves nuevas no coinciden.');
         }
         $user->password = $password;
         $user->save();

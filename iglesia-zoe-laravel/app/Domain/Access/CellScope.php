@@ -49,7 +49,7 @@ class CellScope
         if (Permissions::isSuperadmin($this->user)) {
             return true;
         }
-        $types = Permissions::cleanTypes(is_array($this->user->admin_types) ? $this->user->admin_types : []);
+        $types = Permissions::typesOf($this->user);
 
         return in_array('red', $types, true) || (! $this->own && ! in_array('celula', $types, true));
     }

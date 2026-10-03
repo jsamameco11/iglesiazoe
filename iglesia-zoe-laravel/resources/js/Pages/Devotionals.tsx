@@ -8,12 +8,9 @@ import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { Devotional, SiteSettings } from "@/lib/types";
+import { fold } from "@/lib/text";
 import { formatSermonDate } from "@/lib/youtube";
 import { section } from "@/lib/design";
-
-function normalize(value: string) {
-  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-}
 
 export default function Devotionals({
   devotionals,
@@ -31,8 +28,8 @@ export default function Devotionals({
   const [query, setQuery] = useState("");
   const [latest, ...archive] = devotionals;
   const shown = useMemo(() => {
-    const needle = normalize(query.trim());
-    return needle ? archive.filter((item) => normalize(`${item.title} ${item.verse_ref ?? ""} ${item.excerpt}`).includes(needle)) : archive;
+    const needle = fold(query.trim());
+    return needle ? archive.filter((item) => fold(`${item.title} ${item.verse_ref ?? ""} ${item.excerpt}`).includes(needle)) : archive;
   }, [archive, query]);
 
   return (

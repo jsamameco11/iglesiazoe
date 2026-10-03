@@ -42,7 +42,7 @@ class PortalController extends Controller
         $year = (int) $request->query('year');
         $week = (int) $request->query('week');
         if (! $this->canSubmit($request, $cellId)) {
-            return response()->json(['error' => 'Esta célula no está asignada a tu cuenta.'], 403);
+            return $this->fail('Esta célula no está asignada a tu cuenta.', 403);
         }
         $cell = Cell::query()->find($cellId);
         $report = Report::query()->with(['attendance', 'photos'])->where('cell_id', $cellId)->where('year', $year)->where('week', $week)->first();
@@ -80,13 +80,13 @@ class PortalController extends Controller
         $week = (int) $request->input('week');
         $met = $request->input('met') === 'si';
         if (! $cellId || ! $year || ! $week) {
-            return response()->json(['error' => 'Selecciona año, semana y célula.'], 422);
+            return $this->fail('Selecciona año, semana y célula.');
         }
         if (! $this->canSubmit($request, $cellId)) {
-            return response()->json(['error' => 'Esta célula no está asignada a tu cuenta.'], 403);
+            return $this->fail('Esta célula no está asignada a tu cuenta.', 403);
         }
         if (! $met && ! trim((string) $request->input('reason'))) {
-            return response()->json(['error' => 'Indica el motivo por el que no se reunieron.'], 422);
+            return $this->fail('Indica el motivo por el que no se reunieron.');
         }
 
         $report = Report::query()->updateOrCreate(
@@ -129,8 +129,8 @@ class PortalController extends Controller
                 ]);
             }
             foreach ($request->file('photos', []) as $file) {
-                $ext = $file?->isValid() ? strtolower((string) $file->guessExtension()) : '';
-                if (! in_array($ext, self::PHOTO_TYPES, true)) {
+                $ext = MediaLibrary::extension($file, self::PHOTO_TYPES);
+                if (! $ext) {
                     continue;
                 }
                 $path = MediaLibrary::storePrivate($file, 'informes/'.$report->year.'/'.$report->id, $ext);
@@ -145,10 +145,10 @@ class PortalController extends Controller
     {
         $name = trim((string) $request->input('full_name'));
         if (strlen($name) < 3) {
-            return response()->json(['error' => 'Escribe el nombre del integrante.'], 422);
+            return $this->fail('Escribe el nombre del integrante.');
         }
         if (! $this->canSubmit($request, (string) $request->input('cell_id'))) {
-            return response()->json(['error' => 'Esta célula no está asignada a tu cuenta.'], 403);
+            return $this->fail('Esta célula no está asignada a tu cuenta.', 403);
         }
         CellMember::query()->create([
             'cell_id' => $request->input('cell_id'),

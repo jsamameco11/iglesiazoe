@@ -7,14 +7,11 @@ import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { SiteSettings, Teaching, TeachingKind } from "@/lib/types";
+import { fold } from "@/lib/text";
 import { formatSermonDate } from "@/lib/youtube";
 import { section } from "@/lib/design";
 
 type Filter = "all" | TeachingKind;
-
-function normalize(value: string) {
-  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
-}
 
 function TeachingCard({ item, t }: { item: Teaching; t: (key: CopyKey) => string }) {
   const video = item.youtube_id ? `https://www.youtube.com/watch?v=${item.youtube_id}` : null;
@@ -66,9 +63,9 @@ export default function Teachings({
     [teachings],
   );
   const shown = useMemo(() => {
-    const needle = normalize(query.trim());
+    const needle = fold(query.trim());
     return teachings.filter(
-      (item) => (filter === "all" || item.kind === filter) && (!needle || normalize(`${item.title} ${item.summary ?? ""}`).includes(needle)),
+      (item) => (filter === "all" || item.kind === filter) && (!needle || fold(`${item.title} ${item.summary ?? ""}`).includes(needle)),
     );
   }, [teachings, filter, query]);
 

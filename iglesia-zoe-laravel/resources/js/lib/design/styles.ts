@@ -60,11 +60,11 @@ const face = (role?: FontRole) => (role && ROLES.includes(role) ? `var(--face-${
 const number = (value: unknown, min: number, max: number) => (typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : undefined);
 
 /** Only files uploaded to the site's own library can be painted as a background. */
-export const MEDIA_PATH = /^\/media\/[A-Za-z0-9][A-Za-z0-9/_.-]*\.(jpe?g|png|webp|gif|avif|mp4|webm|mov)$/i;
+const MEDIA_PATH = /^\/media\/[A-Za-z0-9][A-Za-z0-9/_.-]*\.(jpe?g|png|webp|gif|avif|mp4|webm|mov)$/i;
 const media = (value?: string) => (value && MEDIA_PATH.test(value) && !value.includes("..") ? value : "");
 
 /** Translucent layer of the overlay color on top of a picture or video. */
-export function tint(rule: Backdrop) {
+function tint(rule: Backdrop) {
   const amount = number(rule.overlay, 0, 0.85);
   return amount ? `color-mix(in srgb, ${color(rule.overlayColor) || "#000000"} ${Math.round(amount * 100)}%, transparent)` : "";
 }

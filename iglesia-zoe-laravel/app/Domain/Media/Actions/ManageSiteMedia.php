@@ -120,9 +120,7 @@ class ManageSiteMedia
 
     private function extension(UploadedFile $file, string $kind): ?string
     {
-        $ext = $file->isValid() ? strtolower((string) $file->guessExtension()) : '';
-
-        return in_array($ext, self::ALLOWED[$kind] ?? [], true) ? $ext : null;
+        return MediaLibrary::extension($file, self::ALLOWED[$kind] ?? []);
     }
 
     private function store(UploadedFile $file, string $id, string $kind): string

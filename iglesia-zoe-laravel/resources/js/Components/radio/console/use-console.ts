@@ -15,15 +15,15 @@ export type ConsoleLive = {
 
 export type Snapshot = { radio: RadioState; live: ConsoleLive; voice: number; config: RadioConfig };
 
-export type Notice = { tone: "error" | "info"; text: string } | null;
+type Notice = { tone: "error" | "info"; text: string } | null;
 
 /** Microphone of this console: level, music bed while talking, self monitoring, input device and voice processing. */
-export type MicSettings = { level: number; autoBed: boolean; selfMonitor: boolean; deviceId: string; processing: boolean };
+type MicSettings = { level: number; autoBed: boolean; selfMonitor: boolean; deviceId: string; processing: boolean };
 
-export type PlayOptions = { volume?: number; duck?: boolean; fadeIn?: number; fadeOut?: number; loop?: boolean };
+type PlayOptions = { volume?: number; duck?: boolean; fadeIn?: number; fadeOut?: number; loop?: boolean };
 
 /** A stretch of this console's voice on air, for the timeline. */
-export type TalkSpan = { start: number; end: number | null };
+type TalkSpan = { start: number; end: number | null };
 
 type Signal = Snapshot & { pending: string[]; answers: { id: string; answer: string }[]; alive: string[] };
 

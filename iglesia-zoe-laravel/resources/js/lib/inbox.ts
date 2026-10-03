@@ -4,7 +4,7 @@ import { send, type ActionResult } from "@/lib/actions";
 
 export type InboxKind = "visitas" | "bautismos" | "oraciones" | "servidores";
 
-export type InboxShared = {
+type InboxShared = {
   unread: Partial<Record<InboxKind, number>>;
   push: { publicKey: string | null; muted: boolean; canMute: boolean };
 } | null;

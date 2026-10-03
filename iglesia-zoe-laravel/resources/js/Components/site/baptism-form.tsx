@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { SelectField, type SelectOption } from "@/Components/ui/select-field";
 import { submitBaptism } from "@/lib/actions";
 import { useCopy } from "@/lib/copy";
-import { flagUrl, geo, type GeoCountry } from "@/lib/geo";
+import { Flag } from "@/Components/site/icons";
+import { geo, type GeoCountry } from "@/lib/geo";
+import { digits } from "@/lib/text";
 
 const SEXES = ["Masculino", "Femenino"];
 const MARITAL = ["Soltero(a)", "Casado(a)", "Conviviente", "Divorciado(a)", "Separado(a)", "Viudo(a)"];
@@ -12,14 +14,6 @@ type BaptismEventOption = { id: string; event_date: string | null; location: str
 type Errors = Partial<Record<"first_name" | "last_name" | "sex" | "age" | "marital_status" | "country" | "phone" | "email", string>>;
 
 const input = "visit-input";
-
-function Flag({ code }: { code: string }) {
-  return <img src={flagUrl(code)} alt="" width={20} height={14} loading="lazy" className="visit-flag" />;
-}
-
-function digits(value: string, max: number) {
-  return value.replace(/\D/g, "").slice(0, max);
-}
 
 function eventLabel(event: BaptismEventOption, fallback: string) {
   const date = event.event_date

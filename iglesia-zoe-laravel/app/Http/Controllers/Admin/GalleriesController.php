@@ -3,15 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Media\Support\MediaLibrary;
+use App\Domain\Shared\Support\Slug;
 use App\Http\Controllers\Controller;
 use App\Models\ServiceGallery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -38,9 +37,9 @@ class GalleriesController extends Controller
 
     public function save(Request $request): JsonResponse
     {
-        $existing = $this->find($request->input('id'));
+        $existing = $this->find(ServiceGallery::class, $request->input('id'));
         if ($request->filled('id') && ! $existing) {
-            return response()->json(['error' => 'Ese álbum ya no existe. Recarga la página.'], 404);
+            return $this->fail('Ese álbum ya no existe. Recarga la página.', 404);
         }
 
         $validator = Validator::make($request->all(), [
@@ -60,7 +59,7 @@ class GalleriesController extends Controller
             'summary' => 'descripción',
         ]);
         if ($validator->fails()) {
-            return response()->json(['error' => $validator->errors()->first()], 422);
+            return $this->fail($validator->errors()->first());
         }
 
         $data = $validator->validated();
@@ -74,7 +73,7 @@ class GalleriesController extends Controller
         ];
         $renamed = ! $existing || $existing->title !== $payload['title'] || $existing->service_date?->toDateString() !== $payload['service_date'];
         if ($renamed) {
-            $payload['slug'] = $this->uniqueSlug($payload['title'].' '.$date->format('d-m-Y'), $existing?->id);
+            $payload['slug'] = Slug::unique(ServiceGallery::class, $payload['title'].' '.$date->format('d-m-Y'), 'culto', ignore: $existing?->id);
         }
 
         $gallery = $existing ? tap($existing)->update($payload) : ServiceGallery::query()->create([...$payload, 'photos' => []]);
@@ -88,17 +87,17 @@ class GalleriesController extends Controller
 
     public function upload(Request $request): JsonResponse
     {
-        $gallery = $this->find($request->input('id'));
+        $gallery = $this->find(ServiceGallery::class, $request->input('id'));
         if (! $gallery) {
-            return response()->json(['error' => 'Ese álbum ya no existe. Recarga la página.'], 404);
+            return $this->fail('Ese álbum ya no existe. Recarga la página.', 404);
         }
         $photo = $request->file('photo');
-        $ext = $photo instanceof UploadedFile && $photo->isValid() ? strtolower((string) $photo->guessExtension()) : '';
-        if (! in_array($ext, self::IMAGE_TYPES, true) || $photo->getSize() > 12 * 1024 * 1024) {
-            return response()->json(['error' => 'Cada foto debe ser JPG, PNG o WEBP de hasta 12 MB.'], 422);
+        $ext = MediaLibrary::extension($photo, self::IMAGE_TYPES);
+        if (! $ext || $photo->getSize() > 12 * 1024 * 1024) {
+            return $this->fail('Cada foto debe ser JPG, PNG o WEBP de hasta 12 MB.');
         }
         if (count($gallery->photoList()) >= ServiceGallery::MAX_PHOTOS) {
-            return response()->json(['error' => 'Este álbum ya tiene '.ServiceGallery::MAX_PHOTOS.' fotos. Crea otro álbum para el resto.'], 422);
+            return $this->fail('Este álbum ya tiene '.ServiceGallery::MAX_PHOTOS.' fotos. Crea otro álbum para el resto.');
         }
 
         $path = MediaLibrary::storePublic($photo, 'galeria/'.$gallery->service_date->format('Y'), $ext);
@@ -115,30 +114,30 @@ class GalleriesController extends Controller
 
     public function removePhoto(Request $request): JsonResponse
     {
-        $gallery = $this->find($request->input('id'));
+        $gallery = $this->find(ServiceGallery::class, $request->input('id'));
         $path = (string) $request->input('path');
         if ($gallery && in_array($path, $gallery->photoList(), true)) {
             $gallery->update(['photos' => array_values(array_diff($gallery->photoList(), [$path]))]);
             MediaLibrary::deletePublic($path);
         }
 
-        return response()->json(['ok' => true, 'reload' => true]);
+        return $this->saved();
     }
 
     public function cover(Request $request): JsonResponse
     {
-        $gallery = $this->find($request->input('id'));
+        $gallery = $this->find(ServiceGallery::class, $request->input('id'));
         $path = (string) $request->input('path');
         if ($gallery && in_array($path, $gallery->photoList(), true)) {
             $gallery->update(['photos' => [$path, ...array_values(array_diff($gallery->photoList(), [$path]))]]);
         }
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Portada actualizada.']);
+        return $this->saved('Portada actualizada.');
     }
 
     public function destroy(Request $request): JsonResponse
     {
-        $gallery = $this->find($request->input('id'));
+        $gallery = $this->find(ServiceGallery::class, $request->input('id'));
         if ($gallery) {
             foreach ($gallery->photoList() as $path) {
                 MediaLibrary::deletePublic($path);
@@ -146,22 +145,6 @@ class GalleriesController extends Controller
             $gallery->delete();
         }
 
-        return response()->json(['ok' => true, 'reload' => true, 'message' => 'Álbum eliminado.']);
-    }
-
-    private function find(mixed $id): ?ServiceGallery
-    {
-        return is_string($id) && preg_match('/^[0-9a-f-]{36}$/i', $id) ? ServiceGallery::query()->find($id) : null;
-    }
-
-    private function uniqueSlug(string $text, ?string $ignore): string
-    {
-        $base = Str::limit(Str::slug($text), 120, '') ?: 'culto';
-        $slug = $base;
-        for ($n = 2; ServiceGallery::query()->where('slug', $slug)->when($ignore, fn ($query) => $query->whereKeyNot($ignore))->exists(); $n++) {
-            $slug = $base.'-'.$n;
-        }
-
-        return $slug;
+        return $this->saved('Álbum eliminado.');
     }
 }

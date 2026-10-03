@@ -1,6 +1,6 @@
 import { router } from "@inertiajs/react";
 
-function csrf() {
+export function csrf() {
   return document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "";
 }
 

@@ -16,7 +16,7 @@ export type MediaAsset = {
   feather?: number;
 };
 
-export type MediaSlotMeta = {
+type MediaSlotMeta = {
   id: string;
   group: string;
   label: string;

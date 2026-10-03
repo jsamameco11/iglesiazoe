@@ -9,7 +9,6 @@ use App\Models\CellMember;
 use App\Models\Network;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -49,7 +48,7 @@ class CellsController extends Controller
             'active' => $request->boolean('active'),
         ]);
 
-        return response()->json(['ok' => true, 'reload' => true]);
+        return $this->saved();
     }
 
     public function addMember(Request $request): JsonResponse
@@ -60,7 +59,7 @@ class CellsController extends Controller
         }
         $name = trim((string) $request->input('full_name'));
         if ($name === '') {
-            return response()->json(['error' => 'Escribe el nombre del integrante.'], 422);
+            return $this->fail('Escribe el nombre del integrante.');
         }
         CellMember::query()->create([
             'cell_id' => $cell->id,
@@ -69,30 +68,30 @@ class CellsController extends Controller
             'active' => true,
         ]);
 
-        return response()->json(['ok' => true, 'reload' => true]);
+        return $this->saved();
     }
 
     public function removeMember(Request $request): JsonResponse
     {
         $id = (string) $request->input('id');
-        $member = Str::isUuid($id) ? CellMember::query()->find($id) : null;
+        $member = $this->find(CellMember::class, $id);
         if (! $member || ! $this->reachable($request, $member->cell_id)) {
             return $this->outside();
         }
         $member->update(['active' => false]);
 
-        return response()->json(['ok' => true, 'reload' => true]);
+        return $this->saved();
     }
 
     private function reachable(Request $request, mixed $id): ?Cell
     {
-        $cell = is_string($id) && Str::isUuid($id) ? Cell::query()->find($id) : null;
+        $cell = $this->find(Cell::class, $id);
 
         return $cell && CellScope::for($request->user())->reaches($cell) ? $cell : null;
     }
 
     private function outside(): JsonResponse
     {
-        return response()->json(['error' => 'Esa célula no está a tu cargo.'], 403);
+        return $this->fail('Esa célula no está a tu cargo.', 403);
     }
 }

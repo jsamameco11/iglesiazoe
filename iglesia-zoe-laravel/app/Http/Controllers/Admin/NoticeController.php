@@ -53,18 +53,18 @@ class NoticeController extends Controller
             ->values();
 
         if ($points->isEmpty()) {
-            return response()->json(['error' => 'Agrega al menos un punto a las indicaciones.'], 422);
+            return $this->fail('Agrega al menos un punto a las indicaciones.');
         }
         if ($points->count() > self::MAX_POINTS) {
-            return response()->json(['error' => 'Puedes publicar hasta '.self::MAX_POINTS.' puntos.'], 422);
+            return $this->fail('Puedes publicar hasta '.self::MAX_POINTS.' puntos.');
         }
         foreach ($points as $index => $point) {
             $number = $index + 1;
             if ($point['title'] === '') {
-                return response()->json(['error' => "El punto $number necesita un título."], 422);
+                return $this->fail("El punto $number necesita un título.");
             }
             if (mb_strlen($point['title']) > 120 || mb_strlen($point['text']) > 700) {
-                return response()->json(['error' => "El punto $number es demasiado largo (título hasta 120 y detalle hasta 700 caracteres)."], 422);
+                return $this->fail("El punto $number es demasiado largo (título hasta 120 y detalle hasta 700 caracteres).");
             }
         }
 

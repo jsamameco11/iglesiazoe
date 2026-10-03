@@ -59,6 +59,24 @@ final class MediaLibrary
         return $key;
     }
 
+    /**
+     * Real type of an upload, read from its content, when it is one of $allowed.
+     * Word and PowerPoint files read as zip archives, so for them the file name decides.
+     */
+    public static function extension(mixed $file, array $allowed): ?string
+    {
+        if (! $file instanceof UploadedFile || ! $file->isValid()) {
+            return null;
+        }
+        $extension = strtolower((string) $file->guessExtension());
+        $named = strtolower($file->getClientOriginalExtension());
+        if (in_array($extension, ['', 'zip', 'bin'], true) && in_array($named, ['doc', 'docx', 'ppt', 'pptx'], true)) {
+            $extension = $named;
+        }
+
+        return in_array($extension, $allowed, true) ? $extension : null;
+    }
+
     /** Key behind a "/media/..." site path, or null when the value points elsewhere. */
     public static function keyOf(?string $path): ?string
     {

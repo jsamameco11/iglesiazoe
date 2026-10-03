@@ -12,17 +12,6 @@ use Illuminate\Http\Request;
 /** Shared helpers of the radio areas (console, schedule, library and settings), each behind its own permission. */
 abstract class RadioController extends Controller
 {
-    /**
-     * @template T of \Illuminate\Database\Eloquent\Model
-     *
-     * @param  class-string<T>  $model
-     * @return T|null
-     */
-    protected function find(string $model, mixed $id): mixed
-    {
-        return is_string($id) && preg_match('/^[0-9a-f-]{36}$/i', $id) ? $model::query()->find($id) : null;
-    }
-
     /** Requested timeline layer, or null when it does not exist. */
     protected function layerFrom(Request $request): ?int
     {
@@ -64,7 +53,7 @@ abstract class RadioController extends Controller
             ]];
         }
 
-        $ids = collect((array) $request->input('tracks', []))->filter(fn ($id) => is_string($id) && preg_match('/^[0-9a-f-]{36}$/i', $id))->values();
+        $ids = $this->uuids($request->input('tracks'));
         if ($ids->isEmpty()) {
             return 'Elige al menos un audio de la biblioteca.';
         }
