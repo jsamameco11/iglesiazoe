@@ -78,8 +78,7 @@ class RadioTest extends TestCase
         $this->assertFalse($track->rotation);
         $this->assertFalse($track->duck);
         $this->assertStringStartsWith('/media/radio/musica/', $track->file_path);
-        auth()->logout();
-        $this->getJson(self::SITE.'/radio/estado')->assertOk()->assertJsonPath('queue', []);
+        $this->assertSame('library', Station::autopilot()['level'], 'It is not added to the continuous music: it only sounds as the last resort, when the radio has no other music.');
 
         $this->actingAs($admin)->post(self::ADMIN.'/admin/radio/biblioteca', [
             'title' => 'Retiro de jóvenes',
@@ -332,20 +331,21 @@ class RadioTest extends TestCase
     {
         $admin = $this->admin('visuales', ['visuales']);
         $song = RadioTrack::query()->create(['kind' => 'musica', 'title' => 'Sublime gracia', 'file_path' => '/media/radio/musica/sublime.mp3', 'duration' => 200, 'active' => true]);
+        $this->track('En rotación', 'musica', 180);
         $spot = $this->track('Cuña', 'anuncio', 30, false);
         $this->assertFalse($song->fresh()->rotation);
-        $this->assertSame([], Station::state()['queue']);
+        $this->assertNotContains($song->id, array_column(Station::state()['queue'], 'track'));
 
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/biblioteca/rotacion', ['id' => $song->id, 'on' => '1'])->assertOk()->assertJsonPath('ok', true);
         $this->assertTrue($song->fresh()->rotation);
-        $this->assertSame($song->id, Station::state()['queue'][0]['track']);
+        $this->assertContains($song->id, array_column(Station::state()['queue'], 'track'));
 
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/biblioteca/rotacion', ['id' => $spot->id, 'on' => '1'])->assertStatus(422);
         $this->assertFalse($spot->fresh()->rotation);
 
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/biblioteca/rotacion', ['id' => $song->id, 'on' => '0'])->assertOk();
         $this->assertFalse($song->fresh()->rotation);
-        $this->assertSame([], Station::state()['queue']);
+        $this->assertNotContains($song->id, array_column(Station::state()['queue'], 'track'));
     }
 
     public function test_the_console_stops_a_repeating_song_and_pauses_the_continuous_music(): void

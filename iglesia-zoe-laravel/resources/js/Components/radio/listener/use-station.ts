@@ -51,6 +51,7 @@ export function useStation(initial: RadioState) {
     if (playingRef.current && !next.stream) follow(next.live.url ?? null);
     const engine = player.current;
     if (engine) {
+      engine.setReserve(next.fallback ?? []);
       engine.setQueue(next.queue);
       if (next.live.rev >= rev.current) {
         rev.current = next.live.rev;
@@ -92,12 +93,15 @@ export function useStation(initial: RadioState) {
     };
   }, [playing, poll]);
 
-  const leave = useCallback(() => {
+  const beacon = useCallback((path: string, fields: Record<string, string> = {}) => {
     const body = new FormData();
     body.set("oyente", listener);
     body.set("_token", document.querySelector('meta[name="csrf-token"]')?.getAttribute("content") || "");
-    navigator.sendBeacon?.("/radio/salir", body);
+    Object.entries(fields).forEach(([key, value]) => body.set(key, value));
+    navigator.sendBeacon?.(path, body);
   }, [listener]);
+
+  const leave = useCallback(() => beacon("/radio/salir"), [beacon]);
 
   useEffect(() => {
     const onHide = () => playingRef.current && leave();
@@ -134,6 +138,7 @@ export function useStation(initial: RadioState) {
       if (!player.current) {
         player.current = new ProgramPlayer(serverClock);
         player.current.onBlocked = () => setBlocked(true);
+        player.current.onFailure = (item) => item.track && beacon("/radio/fallo", { track: item.track });
       }
       if (!voice.current) {
         voice.current = new VoiceLink(listener);
@@ -150,6 +155,7 @@ export function useStation(initial: RadioState) {
       await Promise.all([player.current.start(), voice.current.unlock()]);
       player.current.setVolume(volume);
       voice.current.setVolume(volume);
+      player.current.setReserve(state.fallback ?? []);
       player.current.setQueue(state.queue);
       player.current.setMix(state.mix);
       player.current.setLayers(state.layers);
@@ -158,7 +164,7 @@ export function useStation(initial: RadioState) {
     }
     playingRef.current = true;
     setPlaying(true);
-  }, [follow, leave, listener, serverClock, state.layers, state.live.url, state.mix, state.queue, state.stream, volume]);
+  }, [beacon, follow, leave, listener, serverClock, state.fallback, state.layers, state.live.url, state.mix, state.queue, state.stream, volume]);
 
   const setVolume = useCallback((value: number) => {
     setVolumeState(value);

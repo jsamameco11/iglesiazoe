@@ -77,6 +77,7 @@ export function useConsole(initial: Snapshot, host: string) {
       heldRef.current = holding;
     }
     setVoice(data.voice);
+    player.current?.setReserve(data.radio.fallback ?? []);
     player.current?.setQueue(data.radio.queue);
     player.current?.setMix(data.radio.mix);
     player.current?.setLayers(data.radio.layers);
@@ -223,6 +224,7 @@ export function useConsole(initial: Snapshot, host: string) {
     player.current ??= new ProgramPlayer(serverClock);
     await player.current.start();
     player.current.setVolume(monitorLevel);
+    player.current.setReserve(state.fallback ?? []);
     player.current.setQueue(state.queue);
     player.current.setMix(state.mix);
     player.current.setLayers(state.layers);

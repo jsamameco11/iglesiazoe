@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Web;
 
+use App\Domain\Radio\RadioHealth;
 use App\Domain\Radio\Signal;
 use App\Domain\Radio\Station;
 use App\Domain\Site\Actions\LoadPublicSite;
@@ -9,9 +10,11 @@ use App\Domain\Site\Actions\ResolveSiteSkin;
 use App\Http\Controllers\Controller;
 use App\Models\RadioEpisode;
 use App\Models\RadioSpotifyPlaylist;
+use App\Models\RadioTrack;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -81,6 +84,20 @@ class RadioController extends Controller
         return Signal::answer($id, $request->input('session'), $sdp)
             ? response()->json(['ok' => true])
             : $this->fail('La conexión expiró. Volvemos a intentarlo.', 409);
+    }
+
+    /** A listener's player could not play an audio: the station checks it (see RadioHealth). */
+    public function failed(Request $request): JsonResponse
+    {
+        $id = $this->listenerId($request->input('oyente'));
+        $trackId = $request->input('track');
+        $track = $id && is_string($trackId) && Str::isUuid($trackId) ? RadioTrack::query()->find($trackId) : null;
+        if (! $track) {
+            return $this->fail('Ese audio no está en la radio.', 404);
+        }
+        RadioHealth::report($track, (string) $request->ip());
+
+        return response()->json(['ok' => true], 202);
     }
 
     public function leave(Request $request): JsonResponse

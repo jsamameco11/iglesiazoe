@@ -1,8 +1,41 @@
 import { useRef } from "react";
 import { input } from "@/Components/admin/ui";
-import { longDuration, type RadioPlaylist } from "@/lib/radio";
+import { longDuration, type Autopilot, type RadioPlaylist } from "@/lib/radio";
 
-const RANDOM_HINT = "Mezcla las canciones de todas tus listas y de la música continua, sin repetir hasta completar la vuelta";
+const RANDOM_HINT = "Mezcla las canciones de todas tus listas y de la música continua, sin repetir hasta completar la vuelta; si no hay, toda la biblioteca";
+
+/** What the operator should know when the automatic music is on a fallback, or files left the air. */
+function fallbackMessages(autopilot: Autopilot) {
+  const messages: string[] = [];
+  if (autopilot.level === "lists" && autopilot.playlist) {
+    messages.push("La lista elegida no tiene canciones disponibles: suena el respaldo con todas tus listas en aleatorio.");
+  } else if (autopilot.level === "library") {
+    messages.push("Tus listas no tienen canciones disponibles: suenan canciones de toda la biblioteca en aleatorio.");
+  } else if (autopilot.level === "none") {
+    messages.push("No hay canciones disponibles: los espacios libres quedan en silencio. Sube música en Biblioteca.");
+  }
+  const broken = autopilot.broken ?? 0;
+  if (broken > 0) {
+    messages.push(`${broken} ${broken === 1 ? "audio salió" : "audios salieron"} del aire porque su archivo no se pudo reproducir. Revísalos en Biblioteca y vuelve a subirlos.`);
+  }
+  return messages;
+}
+
+/** Warns when the automatic music sounds from a fallback level or audios were taken off the air. */
+export function FallbackNotice({ autopilot, studio = false }: { autopilot: Autopilot; studio?: boolean }) {
+  const messages = fallbackMessages(autopilot);
+  if (!messages.length) return null;
+  return (
+    <div
+      role="status"
+      className={studio ? "rounded-md border border-amber-400/30 bg-amber-400/10 px-2.5 py-1.5 text-[11.5px] leading-4 text-amber-100" : "rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] leading-5 text-amber-900"}
+    >
+      {messages.map((message) => (
+        <p key={message}>{message}</p>
+      ))}
+    </div>
+  );
+}
 
 /** What the automatic music continues with, in words: «Lista «Alabanza» · en orden» or «Canciones aleatorias». */
 export function sourceLabel(playlists: RadioPlaylist[], playlist: string, shuffle: boolean) {

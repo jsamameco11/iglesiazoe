@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Notice, button, useAction } from "@/Components/admin/ui";
-import { SourcePicker, sourceLabel } from "@/Components/radio/source-picker";
+import { FallbackNotice, SourcePicker, sourceLabel } from "@/Components/radio/source-picker";
 import { send } from "@/lib/actions";
 import type { Autopilot, RadioPlaylist } from "@/lib/radio";
 
@@ -20,7 +20,11 @@ export function AutopilotPanel({ autopilot, playlists }: { autopilot: Autopilot;
       </p>
       <p className="mt-1 text-[12.5px] leading-5 text-muted">
         Suena en todos los espacios libres y cuando un bloque en vivo no tiene a nadie conectado. Los periodos de «Música automática» usan su propia lista.
+        Si una fuente falla, sigue sola con todas tus listas y, si tampoco hay, con toda la biblioteca en aleatorio.
       </p>
+      <div className="mt-2 empty:hidden">
+        <FallbackNotice autopilot={autopilot} />
+      </div>
       <div className="mt-3">
         <SourcePicker playlists={playlists} playlist={playlist} shuffle={shuffle} onPlaylist={setPlaylist} onShuffle={setShuffle} />
       </div>

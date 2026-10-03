@@ -12,7 +12,8 @@ use Illuminate\Support\Str;
  * The automatic music: what plays when nobody is on air and nothing is scheduled.
  *
  * A source is one playlist or every playlist together (plus the songs marked for the
- * continuous music). Each cycle plays every song of the source once, without repeating;
+ * continuous music); when it has nothing playable the music falls back along the chain of
+ * resolve(), down to every song of the library. Each cycle plays every song of the source once, without repeating;
  * shuffled sources draw a new order for every cycle (never starting with the song that
  * closed the previous one), ordered sources follow the playlist. The order depends only
  * on where the music started, so every listener hears the same song.
@@ -22,28 +23,84 @@ final class Autopilot
     /** Name of the source without a playlist: every song of the radio, shuffled. */
     public const RANDOM = 'Canciones aleatorias';
 
+    /** Levels of the fallback chain: the chosen playlist, every list, every song of the library. */
+    public const PLAYLIST = 'playlist';
+
+    public const LISTS = 'lists';
+
+    public const LIBRARY = 'library';
+
+    public const NONE = 'none';
+
     private const GENERATION_KEY = 'radio.autopilot.generation';
 
     /** Songs this short are jingles, not music. */
     private const MIN_SECONDS = 5;
 
+    /** Songs every listener keeps at hand to cover a file that fails or a server that stops answering. */
+    private const RESERVE = 8;
+
     /**
      * Songs of a source with their length and the step to the next one (the length minus the
-     * crossfade, never more than a third of the song). A missing or empty playlist falls back
-     * to every list, so the radio never goes silent because a list was emptied.
+     * crossfade, never more than a third of the song).
      *
      * @return list<array{id: string, kind: string, title: string, artist: ?string, src: string, ms: int, step: int}>
      */
     public static function songs(?string $playlist, int $crossfadeMs): array
     {
-        $generation = Cache::rememberForever(self::GENERATION_KEY, fn () => Str::random(8));
-        $load = fn (?string $id) => Cache::remember(
-            "radio.autopilot.{$generation}.".($id ?? 'all').".{$crossfadeMs}",
-            600,
-            fn () => self::load($id)->map(fn (RadioTrack $track) => self::song($track, $crossfadeMs))->all(),
-        );
+        return self::resolve($playlist, true, $crossfadeMs)['songs'];
+    }
 
-        return ($playlist !== null ? $load($playlist) : []) ?: $load(null);
+    /**
+     * What the automatic music really plays: the first level of the chain with a playable song.
+     * The chosen playlist; when it is missing, empty or every song of it is unplayable, every
+     * list together (and the songs marked for the continuous music); when there is none, every
+     * song of the library. Only songs that pass every check sound: active, music, long enough
+     * and with a healthy file (see RadioHealth). The fallback levels are always shuffled.
+     *
+     * @return array{level: string, shuffle: bool, songs: list<array<string, mixed>>}
+     */
+    public static function resolve(?string $playlist, bool $shuffle, int $crossfadeMs): array
+    {
+        $chain = $playlist !== null ? [[self::PLAYLIST, $playlist]] : [];
+        foreach ([...$chain, [self::LISTS, self::LISTS], [self::LIBRARY, self::LIBRARY]] as [$level, $source]) {
+            $songs = self::cached($source, $crossfadeMs);
+            if ($songs) {
+                return ['level' => $level, 'shuffle' => $level === self::PLAYLIST ? $shuffle : true, 'songs' => $songs];
+            }
+        }
+
+        return ['level' => self::NONE, 'shuffle' => true, 'songs' => []];
+    }
+
+    /**
+     * Songs of the whole library for the listeners' players to fall back on, a new pick every hour.
+     *
+     * @return list<array{id: string, title: string, artist: ?string, src: string, ms: int}>
+     */
+    public static function reserve(int $now): array
+    {
+        $songs = self::shuffled(self::cached(self::LIBRARY, 0), 'reserve:'.intdiv($now, 3600000));
+
+        return array_map(fn (array $song) => [
+            'id' => $song['id'], 'title' => $song['title'], 'artist' => $song['artist'], 'src' => $song['src'], 'ms' => $song['ms'],
+        ], array_slice($songs, 0, self::RESERVE));
+    }
+
+    /**
+     * Playable songs of a playlist id, of every list (LISTS) or of the whole library (LIBRARY).
+     *
+     * @return list<array{id: string, kind: string, title: string, artist: ?string, src: string, ms: int, step: int}>
+     */
+    private static function cached(string $source, int $crossfadeMs): array
+    {
+        $generation = Cache::rememberForever(self::GENERATION_KEY, fn () => Str::random(8));
+
+        return Cache::remember(
+            "radio.autopilot.{$generation}.{$source}.{$crossfadeMs}",
+            600,
+            fn () => self::load($source)->map(fn (RadioTrack $track) => self::song($track, $crossfadeMs))->all(),
+        );
     }
 
     /** Called whenever the library, a playlist or the crossfade changes. */
@@ -143,13 +200,19 @@ final class Autopilot
     }
 
     /** @return Collection<int, RadioTrack> */
-    private static function load(?string $playlist): Collection
+    private static function load(string $source): Collection
     {
         $playable = fn ($query) => $query->where('radio_tracks.kind', 'musica')->where('radio_tracks.active', true)
-            ->where('radio_tracks.duration', '>=', self::MIN_SECONDS);
+            ->where('radio_tracks.duration', '>=', self::MIN_SECONDS)
+            ->whereNull('radio_tracks.file_problem')
+            ->whereNotNull('radio_tracks.file_path')->where('radio_tracks.file_path', '!=', '');
 
-        if ($playlist !== null) {
-            $list = RadioPlaylist::query()->find($playlist);
+        if ($source === self::LIBRARY) {
+            return $playable(RadioTrack::query())->orderBy('id')->get();
+        }
+
+        if ($source !== self::LISTS) {
+            $list = RadioPlaylist::query()->find($source);
 
             return $list ? $playable($list->tracks())->get() : collect();
         }

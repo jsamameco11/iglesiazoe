@@ -170,13 +170,17 @@ final class Station
     public static function autopilot(?array $config = null): array
     {
         $config ??= self::config();
+        $shuffle = $config['auto_playlist'] === null || $config['auto_shuffle'];
 
         return [
             'playlist' => $config['auto_playlist'],
-            'shuffle' => $config['auto_playlist'] === null || $config['auto_shuffle'],
+            'shuffle' => $shuffle,
             'label' => Autopilot::label($config['auto_playlist']),
             'since' => (int) $config['auto_since'],
             'paused' => ! $config['autofill'],
+            // Level of the fallback chain that really sounds, and audios off the air because of their file.
+            'level' => Autopilot::resolve($config['auto_playlist'], $shuffle, (int) round($config['crossfade'] * 1000))['level'],
+            'broken' => RadioHealth::brokenCount(),
         ];
     }
 
@@ -508,7 +512,7 @@ final class Station
             ->where('starts_at', '>=', CarbonImmutable::createFromTimestampMs($now - self::MAX_BLOCK * 1000))
             ->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($now + self::LAYER_LOOKAHEAD))
             ->orderBy('starts_at')->get()
-            ->filter(fn (RadioSlot $slot) => $slot->track?->active && $slot->endsAt()->getTimestampMs() > $now);
+            ->filter(fn (RadioSlot $slot) => self::playable($slot->track) && $slot->endsAt()->getTimestampMs() > $now);
 
         foreach ($scheduled as $slot) {
             $layers[] = [
@@ -548,6 +552,7 @@ final class Station
         $config = self::config();
         $live = self::live();
         self::settleHold();
+        RadioHealth::sweepSoon();
         $now = self::nowMs();
         $onAir = (bool) $config['on_air'];
         [$previous, $queue] = $onAir ? self::program($now) : [null, []];
@@ -565,6 +570,8 @@ final class Station
             'stream' => $config['stream_url'] ?: null,
             'previous' => $previous,
             'queue' => $queue,
+            // Healthy songs the player falls back on when a file fails or the server stops answering (none when silence is intended).
+            'fallback' => $onAir && $config['autofill'] ? Autopilot::reserve($now) : [],
             'layers' => $onAir ? self::layers($live, $now) : [],
             'next_show' => $next ? ['title' => $next->title, 'kind' => $next->kind, 'start' => $next->starts_at->getTimestampMs()] : null,
             'live' => [
@@ -659,8 +666,14 @@ final class Station
             ->orderBy('starts_at')
             ->get()
             ->filter(fn (RadioSlot $slot) => $slot->endsAt()->getTimestampMs() > $from
-                && (in_array($slot->kind, [RadioSlot::LIVE, RadioSlot::AUTO], true) || ($slot->track && $slot->track->active)))
+                && (in_array($slot->kind, [RadioSlot::LIVE, RadioSlot::AUTO], true) || self::playable($slot->track)))
             ->values();
+    }
+
+    /** A scheduled audio sounds only when it is active and its file is healthy; otherwise the music fills its time. */
+    private static function playable(?RadioTrack $track): bool
+    {
+        return $track !== null && $track->active && $track->file_problem === null && (string) $track->file_path !== '';
     }
 
     /**
@@ -762,15 +775,17 @@ final class Station
                 return [self::block('a'.$slot->id, 'relleno', $slot->title, $begin, $finish, $entry['start'])];
             }
 
-            return Autopilot::fill(Autopilot::songs($slot->radio_playlist_id, $crossfade), $slot->shuffle, $entry['anchor'], $begin, $finish, $limit, ['block' => $slot->title]);
+            $source = Autopilot::resolve($slot->radio_playlist_id, (bool) $slot->shuffle, $crossfade);
+
+            return Autopilot::fill($source['songs'], $source['shuffle'], $entry['anchor'], $begin, $finish, $limit, ['block' => $slot->title]);
         }
 
         if ($entry['type'] === 'cut') {
             $window = $entry['window'];
             if ($window['bed']) {
-                $songs = Autopilot::songs($config['auto_playlist'], $crossfade);
-                if ($songs) {
-                    return Autopilot::fill($songs, (bool) $config['auto_shuffle'], $window['start'], $begin, $finish, $limit, ['kind' => 'vivo', 'bed' => true, 'block' => $window['title']]);
+                $source = Autopilot::resolve($config['auto_playlist'], (bool) $config['auto_shuffle'], $crossfade);
+                if ($source['songs']) {
+                    return Autopilot::fill($source['songs'], $source['shuffle'], $window['start'], $begin, $finish, $limit, ['kind' => 'vivo', 'bed' => true, 'block' => $window['title']]);
                 }
             }
 
@@ -822,8 +837,8 @@ final class Station
 
         $items = [];
         foreach ($parts as [$start, $end, $source]) {
-            $songs = Autopilot::songs($source['playlist'] ?? null, $crossfade);
-            array_push($items, ...Autopilot::fill($songs, (bool) ($source['shuffle'] ?? true), $start, max($start, $from), $end, $limit - count($items)));
+            $resolved = Autopilot::resolve($source['playlist'] ?? null, (bool) ($source['shuffle'] ?? true), $crossfade);
+            array_push($items, ...Autopilot::fill($resolved['songs'], $resolved['shuffle'], $start, max($start, $from), $end, $limit - count($items)));
         }
 
         return $items;

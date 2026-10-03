@@ -32,7 +32,19 @@ class RadioTrack extends UuidModel
             'rotation' => 'boolean',
             'duck' => 'boolean',
             'active' => 'boolean',
+            'file_checked_at' => 'datetime',
+            'file_problem_at' => 'datetime',
         ];
+    }
+
+    /** A new file starts with a clean health record (see RadioHealth). */
+    protected static function booted(): void
+    {
+        static::saving(function (RadioTrack $track) {
+            if ($track->exists && $track->isDirty('file_path')) {
+                $track->forceFill(['file_checked_at' => null, 'file_problem' => null, 'file_problem_at' => null]);
+            }
+        });
     }
 
     public function slots(): HasMany
@@ -57,6 +69,7 @@ class RadioTrack extends UuidModel
             'rotation' => $this->rotation,
             'duck' => $this->duck,
             'active' => $this->active,
+            'problem' => $this->file_problem,
         ];
     }
 }
