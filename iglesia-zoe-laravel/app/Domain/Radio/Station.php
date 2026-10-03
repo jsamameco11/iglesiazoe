@@ -21,6 +21,10 @@ use Illuminate\Support\Str;
  * way to the live signal only while the host is connected (see LiveSwitch). On top of it
  * sound the layers: overlay blocks of the timeline and the pads and players fired from the
  * console, which may lower the music while they play.
+ *
+ * The live transmission always wins: while the console is on air or the music is cut for the
+ * live signal, scheduled audios of the main program wait instead of starting, and when the
+ * transmission ends they play one after another (see Schedule::releaseHeld).
  */
 final class Station
 {
@@ -36,6 +40,9 @@ final class Station
 
     /** Longest fade in, fade out or crossfade of a console layer, in seconds. */
     public const MAX_FADE = 12;
+
+    /** How long before a scheduled block the console warns about it, in ms. */
+    public const ALERT_AHEAD = 15 * 60000;
 
     public const DEFAULTS = [
         'name' => 'Radio Zoe',
@@ -76,6 +83,8 @@ final class Station
         'layers' => [],
         'window' => null,
         'skip' => null,
+        // Since when scheduled audios wait for the live transmission (null when nothing is on air live).
+        'hold' => null,
         'rev' => 0,
     ];
 
@@ -139,6 +148,7 @@ final class Station
      */
     public static function switchAutopilot(?string $playlist, bool $shuffle, bool $immediately = false): int
     {
+        $shuffle = $playlist === null || $shuffle;
         $config = self::config();
         $now = self::nowMs();
         $current = $immediately ? null : collect(self::program($now)[1])->filter(fn (array $item) => $item['start'] <= $now)->last();
@@ -163,7 +173,7 @@ final class Station
 
         return [
             'playlist' => $config['auto_playlist'],
-            'shuffle' => (bool) $config['auto_shuffle'],
+            'shuffle' => $config['auto_playlist'] === null || $config['auto_shuffle'],
             'label' => Autopilot::label($config['auto_playlist']),
             'since' => (int) $config['auto_since'],
             'paused' => ! $config['autofill'],
@@ -202,10 +212,71 @@ final class Station
             $live = self::storedLive();
             $next = array_replace($live, $change($live));
             $next['rev'] = $live['rev'] + 1;
+            if ($next['hold'] === null && self::holding($next)) {
+                $next['hold'] = self::nowMs();
+            }
             Cache::forever(self::LIVE_KEY, $next);
 
             return $next;
         });
+    }
+
+    /** Whether the live transmission is on: the console session is open or the music is cut for the live signal. */
+    public static function holding(array $live): bool
+    {
+        return $live['session'] !== null || LiveSwitch::isOpen($live['window'], self::nowMs());
+    }
+
+    /** Once the live transmission is over, the scheduled audios that waited for it go on air. */
+    public static function settleHold(): void
+    {
+        $live = self::storedLive();
+        if ($live['hold'] === null || self::holding($live)) {
+            return;
+        }
+        $since = null;
+        self::updateLive(function (array $live) use (&$since) {
+            if ($live['hold'] === null || self::holding($live)) {
+                return [];
+            }
+            $since = (int) $live['hold'];
+
+            return ['hold' => null];
+        });
+        if ($since !== null) {
+            Schedule::releaseHeld($since, self::nowMs());
+        }
+    }
+
+    /**
+     * Blocks of the main program the console warns about: those starting within ALERT_AHEAD
+     * and the audios waiting for the live transmission to end (`held`).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function upcoming(int $now): array
+    {
+        $hold = self::storedLive()['hold'];
+
+        return RadioSlot::query()->with(['track', 'playlist'])->where('layer', RadioSlot::MAIN)
+            ->where('starts_at', '>=', CarbonImmutable::createFromTimestampMs($hold ?? $now))
+            ->where('starts_at', '<=', CarbonImmutable::createFromTimestampMs($now + self::ALERT_AHEAD))
+            ->orderBy('starts_at')->get()
+            ->map(function (RadioSlot $slot) use ($hold, $now) {
+                $held = $hold !== null && self::waits($slot, $hold);
+                if ($slot->starts_at->getTimestampMs() <= $now && ! $held) {
+                    return null;
+                }
+
+                return [...Schedule::payload($slot), 'held' => $held];
+            })
+            ->filter()->values()->all();
+    }
+
+    /** Scheduled audios (not live blocks nor automatic periods) that start during the hold wait for it. */
+    private static function waits(RadioSlot $slot, int $hold): bool
+    {
+        return ! in_array($slot->kind, [RadioSlot::LIVE, RadioSlot::AUTO], true) && $slot->starts_at->getTimestampMs() >= $hold;
     }
 
     public static function startLive(string $host): array
@@ -394,16 +465,17 @@ final class Station
     {
         $config = self::config();
         $window = $expand ? LiveSwitch::window($config, self::live(), self::nowMs()) : null;
+        $hold = $expand ? self::storedLive()['hold'] : null;
         $items = [];
         $cursor = $from;
         $anchor = null;
 
-        foreach (self::entries(self::slotsBetween($from, $to), $window, $expand) as $entry) {
+        foreach (self::entries(self::slotsBetween($from, $to), $window, $expand, $hold) as $entry) {
             if ($entry['end'] <= $cursor) {
                 continue;
             }
             if ($entry['start'] > $cursor) {
-                $anchor ??= $cursor === $from ? self::anchorBefore($from, $window) : $cursor;
+                $anchor ??= $cursor === $from ? self::anchorBefore($from, $window, $hold) : $cursor;
                 array_push($items, ...self::gap($config, $anchor, $cursor, min($entry['start'], $to), $expand, $limit - count($items)));
             }
             array_push($items, ...self::entryItems($entry, $config, max($entry['start'], $cursor), min($entry['end'], $to), $expand, $limit - count($items)));
@@ -415,7 +487,7 @@ final class Station
         }
 
         if ($cursor < $to && count($items) < $limit) {
-            $anchor ??= self::anchorBefore($from, $window);
+            $anchor ??= self::anchorBefore($from, $window, $hold);
             array_push($items, ...self::gap($config, $cursor === $from ? $anchor : $cursor, $cursor, $to, $expand, $limit - count($items)));
         }
 
@@ -475,6 +547,7 @@ final class Station
     {
         $config = self::config();
         $live = self::live();
+        self::settleHold();
         $now = self::nowMs();
         $onAir = (bool) $config['on_air'];
         [$previous, $queue] = $onAir ? self::program($now) : [null, []];
@@ -593,16 +666,17 @@ final class Station
     /**
      * The main program as entries of what sounds: scheduled blocks, automatic periods and the
      * live cut, which overrides whatever was scheduled under it. Live blocks only sound while
-     * the cut holds them, so outside it they are gaps the music fills. Back-to-back periods of
-     * the same playlist play as one, so a long period does not restart at each block.
+     * the cut holds them, so outside it they are gaps the music fills. Audios waiting for the
+     * live transmission ($hold) are left out until it ends. Back-to-back periods of the same
+     * playlist play as one, so a long period does not restart at each block.
      *
      * @return list<array{type: string, start: int, end: int, anchor: int, slot: ?RadioSlot, window: ?array}>
      */
-    private static function entries(Collection $slots, ?array $window, bool $expand): array
+    private static function entries(Collection $slots, ?array $window, bool $expand, ?int $hold = null): array
     {
         $entries = [];
         foreach ($slots as $slot) {
-            if ($expand && $slot->kind === RadioSlot::LIVE) {
+            if ($expand && ($slot->kind === RadioSlot::LIVE || ($hold !== null && self::waits($slot, $hold)))) {
                 continue;
             }
             $start = $slot->starts_at->getTimestampMs();
@@ -708,11 +782,14 @@ final class Station
 
     /**
      * Where the gap that contains $at began: the end of the block before it (live blocks only
-     * count through the cut, since the music plays across them when nobody is on air).
+     * count through the cut, since the music plays across them when nobody is on air; audios
+     * waiting for the live transmission do not count either, since they have not played).
      */
-    private static function anchorBefore(int $at, ?array $window): int
+    private static function anchorBefore(int $at, ?array $window, ?int $hold = null): int
     {
         $previous = RadioSlot::query()->where('layer', RadioSlot::MAIN)->where('kind', '!=', RadioSlot::LIVE)
+            ->when($hold !== null, fn ($query) => $query->where(fn ($query) => $query->where('kind', RadioSlot::AUTO)
+                ->orWhere('starts_at', '<', CarbonImmutable::createFromTimestampMs($hold))))
             ->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($at))->orderByDesc('starts_at')->first();
         $ends = array_filter(
             [$previous?->endsAt()->getTimestampMs(), $window['end'] ?? null],

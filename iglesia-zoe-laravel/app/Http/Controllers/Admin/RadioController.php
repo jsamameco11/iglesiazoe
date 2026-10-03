@@ -72,7 +72,7 @@ abstract class RadioController extends Controller
         return Schedule::trackBlocks($tracks, $note, $layer, $duck, (int) $request->input('volume', 100));
     }
 
-    /** Requested playlist: the list, null for «Todas las listas», or false when it no longer exists. */
+    /** Requested playlist: the list, null for random songs, or false when it no longer exists. */
     protected function playlistFrom(Request $request): RadioPlaylist|false|null
     {
         $id = $request->input('playlist');
@@ -94,7 +94,7 @@ abstract class RadioController extends Controller
     protected function switchedMessage(?RadioPlaylist $playlist, bool $shuffle, bool $immediately = false): string
     {
         $since = Station::switchAutopilot($playlist?->id, $shuffle, $immediately);
-        $what = '«'.($playlist?->name ?? 'Todas las listas').'» '.($shuffle ? 'en aleatorio' : 'en orden');
+        $what = $playlist ? 'lista «'.$playlist->name.'» '.($shuffle ? 'en aleatorio' : 'en orden') : 'canciones aleatorias';
 
         return $since > Station::nowMs() + 1000
             ? "Música automática: {$what}. Empieza a las ".Schedule::clock($since).', cuando termine la canción que suena.'

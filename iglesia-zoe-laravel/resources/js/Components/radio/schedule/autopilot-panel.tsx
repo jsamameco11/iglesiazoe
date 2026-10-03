@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Notice, button, useAction } from "@/Components/admin/ui";
-import { SourcePicker } from "@/Components/radio/source-picker";
+import { SourcePicker, sourceLabel } from "@/Components/radio/source-picker";
 import { send } from "@/lib/actions";
 import type { Autopilot, RadioPlaylist } from "@/lib/radio";
 
@@ -15,7 +15,7 @@ export function AutopilotPanel({ autopilot, playlists }: { autopilot: Autopilot;
     <section className="rounded-[1.6rem] border border-line bg-card p-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">Piloto automático · 24/7</p>
       <p className="mt-2 text-sm font-semibold">
-        {autopilot.label} · {autopilot.shuffle ? "aleatorio" : "en orden"}
+        Ahora: {sourceLabel(playlists, autopilot.playlist ?? "", autopilot.shuffle)}
         {autopilot.paused ? <span className="ml-2 text-xs font-semibold text-amber-700">en pausa desde la consola</span> : null}
       </p>
       <p className="mt-1 text-[12.5px] leading-5 text-muted">
@@ -33,13 +33,8 @@ export function AutopilotPanel({ autopilot, playlists }: { autopilot: Autopilot;
         onClick={() => run(() => send("/admin/radio/programacion/piloto", { playlist, shuffle: shuffle ? "1" : "0" }))}
         className={`${button} mt-2 w-full`}
       >
-        {pending ? "Guardando…" : "Usar esta música"}
+        {pending ? "Guardando…" : changed ? `Continuar con: ${sourceLabel(playlists, playlist, shuffle)}` : "Ya suena esta música"}
       </button>
-      {playlists.length === 0 ? (
-        <p className="mt-3 text-[12px] text-muted">
-          Aún no hay listas. <a href="/admin/radio/listas" className="font-semibold text-ink underline">Crea tus listas</a> para elegir qué suena.
-        </p>
-      ) : null}
     </section>
   );
 }

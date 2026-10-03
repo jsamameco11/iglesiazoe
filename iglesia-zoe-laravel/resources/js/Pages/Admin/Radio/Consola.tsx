@@ -8,6 +8,7 @@ import { PadBank, addPad } from "@/Components/radio/console/pad-bank";
 import { SoundBrowser } from "@/Components/radio/console/sound-browser";
 import { SwitchPanel } from "@/Components/radio/console/switch-panel";
 import { LaunchNow, TodayList } from "@/Components/radio/console/today";
+import { UpcomingBubble } from "@/Components/radio/console/upcoming-bubble";
 import { useConsole, type Snapshot } from "@/Components/radio/console/use-console";
 import { HeadphonesIcon, MicIcon, UsersIcon } from "@/Components/radio/icons";
 import AdminLayout from "@/Layouts/AdminLayout";
@@ -23,10 +24,11 @@ type Props = Snapshot & {
   playlists: RadioPlaylist[];
 };
 
-export default function Consola({ radio, live, voice, config, autopilot, pads: initialPads, library, day, host, playlists }: Props) {
-  const api = useConsole({ radio, live, voice, config, autopilot }, host);
+export default function Consola({ radio, live, voice, config, autopilot, upcoming, pads: initialPads, library, day, host, playlists }: Props) {
+  const api = useConsole({ radio, live, voice, config, autopilot, upcoming }, host);
   const { notice, setNotice, now, state } = api;
   const [pads, setPads] = useState(initialPads);
+  const [alert, setAlert] = useState<string | null>(null);
   const session = api.live.session;
   const caster = api.caster.current;
   const current = state.queue.find((item) => item.start <= now && now < item.end) ?? null;
@@ -102,7 +104,7 @@ export default function Consola({ radio, live, voice, config, autopilot, pads: i
 
         <div className="mt-2 grid gap-2 xl:grid-cols-[16rem_minmax(0,1fr)]">
           <SoundBrowser api={api} library={library} onPad={onPad} />
-          <LiveTimeline api={api} library={library} />
+          <LiveTimeline api={api} library={library} onAlert={setAlert} />
         </div>
 
         <div className="mt-2 grid gap-2 2xl:grid-cols-[auto_minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-cols-[auto_minmax(0,1fr)]">
@@ -116,8 +118,9 @@ export default function Consola({ radio, live, voice, config, autopilot, pads: i
         <div className="mt-2 grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
           <LivePanel api={api} />
           <LaunchNow api={api} library={library} />
-          <TodayList day={day} now={now} autofill={api.config.autofill} />
+          <TodayList day={day} now={now} autofill={api.config.autofill} upcoming={api.upcoming} onAlert={setAlert} />
         </div>
+        <UpcomingBubble api={api} openId={alert} onOpen={setAlert} />
       </div>
     </AdminLayout>
   );

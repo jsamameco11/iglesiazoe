@@ -91,11 +91,11 @@ class RadioPlaylistsController extends RadioController
             $playlist->delete();
         });
         if (Station::config()['auto_playlist'] === $playlist->id) {
-            Station::switchAutopilot(null, (bool) Station::config()['auto_shuffle']);
+            Station::switchAutopilot(null, true);
         }
         Station::flush();
 
-        return $this->saved('Lista eliminada. Donde sonaba, ahora suenan todas las listas.');
+        return $this->saved('Lista eliminada. Donde sonaba, ahora suenan canciones aleatorias.');
     }
 
     /** Automatic periods show the name of their list. */

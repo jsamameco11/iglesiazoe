@@ -123,7 +123,7 @@ class RadioScheduleController extends RadioController
             if ($seconds < 60 || $seconds > Station::MAX_BLOCK) {
                 return $this->fail('Al editar, un periodo dura entre 1 minuto y 6 horas. Para uno más largo, quítalo y prográmalo de nuevo.');
             }
-            $shuffle = $request->boolean('shuffle', $slot->shuffle);
+            $shuffle = $playlist === null || $request->boolean('shuffle', $slot->shuffle);
             $data = [
                 ...$data,
                 'duration' => round($seconds, 2),
@@ -263,7 +263,7 @@ class RadioScheduleController extends RadioController
         $note = mb_substr(trim((string) $request->input('note', '')), 0, 240) ?: null;
         Schedule::place(Schedule::autoBlocks($playlist, $shuffle, $seconds, $note), $start);
 
-        return $this->saved('Música automática de '.Schedule::clock($start).' a '.Schedule::clock($until).': «'
-            .($playlist?->name ?? 'Todas las listas').'», '.($shuffle ? 'en aleatorio sin repetir' : 'en orden').'.');
+        return $this->saved('Música automática de '.Schedule::clock($start).' a '.Schedule::clock($until).': '
+            .($playlist ? 'lista «'.$playlist->name.'», '.($shuffle ? 'en aleatorio sin repetir' : 'en orden') : 'canciones aleatorias').'.');
     }
 }

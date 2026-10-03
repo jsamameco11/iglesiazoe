@@ -6,13 +6,14 @@ import { EpisodeDeck } from "@/Components/radio/listener/episode-deck";
 import { EpisodeList } from "@/Components/radio/listener/episode-list";
 import { LiveDeck } from "@/Components/radio/listener/live-deck";
 import { ProgramList } from "@/Components/radio/listener/program-list";
+import { SpotifyShelf } from "@/Components/radio/listener/spotify-shelf";
 import { useEpisode } from "@/Components/radio/listener/use-episode";
 import { useStation } from "@/Components/radio/listener/use-station";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import { section, useArt } from "@/lib/design";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
-import { KIND_LABEL, clock, dayLabel, type RadioEpisode, type RadioItem, type RadioState } from "@/lib/radio";
+import { KIND_LABEL, clock, dayLabel, type RadioEpisode, type RadioItem, type RadioSpotifyPlaylist, type RadioState } from "@/lib/radio";
 import type { SiteSettings } from "@/lib/types";
 import "../../css/radio.css";
 
@@ -22,12 +23,14 @@ export default function Radio({
   radio,
   program,
   episodes,
+  spotify = [],
   settings,
   mediaOverrides,
 }: {
   radio: RadioState;
   program: ProgramDay[];
   episodes: RadioEpisode[];
+  spotify?: RadioSpotifyPlaylist[];
   settings: SiteSettings;
   mediaOverrides: Record<string, MediaAsset>;
 }) {
@@ -91,6 +94,8 @@ export default function Radio({
 
       <div className="page-wrap">
         <EpisodeList episodes={episodes} current={player.episode?.id ?? null} playing={player.playing} onPlay={playEpisode} t={t} />
+
+        <SpotifyShelf playlists={spotify} t={t} />
 
         {upcoming.length ? (
           <section {...section("next", "Lo que viene")} className="mt-24">

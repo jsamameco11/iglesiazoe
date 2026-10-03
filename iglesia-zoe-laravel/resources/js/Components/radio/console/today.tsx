@@ -3,7 +3,7 @@ import { useState } from "react";
 import { KindTag } from "@/Components/radio/admin-ui";
 import { DuckIcon } from "@/Components/radio/icons";
 import { send } from "@/lib/actions";
-import { KIND_LABEL, clock, duration, layerLabel, type RadioBlock, type RadioTrack } from "@/lib/radio";
+import { KIND_LABEL, clock, duration, layerLabel, type RadioBlock, type RadioTrack, type RadioUpcoming } from "@/lib/radio";
 import type { ConsoleApi } from "./use-console";
 
 /** «Al aire ahora»: replaces what plays on the main program right away. */
@@ -36,8 +36,8 @@ export function LaunchNow({ api, library }: { api: ConsoleApi; library: RadioTra
   );
 }
 
-/** Today's timeline on every layer, with the block on air highlighted. */
-export function TodayList({ day, now, autofill }: { day: RadioBlock[]; now: number; autofill: boolean }) {
+/** Today's timeline on every layer, with the block on air highlighted and the coming ones in red. */
+export function TodayList({ day, now, autofill, upcoming, onAlert }: { day: RadioBlock[]; now: number; autofill: boolean; upcoming: RadioUpcoming[]; onAlert: (id: string) => void }) {
   return (
     <div className="cx-panel">
       <div className="cx-head">
@@ -47,14 +47,24 @@ export function TodayList({ day, now, autofill }: { day: RadioBlock[]; now: numb
       {day.length ? (
         <ul className="mt-1.5 max-h-52 divide-y divide-white/5 overflow-y-auto pr-1">
           {day.map((block) => {
-            const isNow = block.start <= now && now < block.end;
+            const alert = upcoming.find((item) => item.id === block.id);
+            const isNow = !alert?.held && block.start <= now && now < block.end;
             return (
-              <li key={block.id} className={`flex items-center gap-2 rounded-md px-1.5 py-1 text-[12px] ${isNow ? "bg-white/10" : block.end < now ? "opacity-40" : ""}`}>
+              <li
+                key={block.id}
+                className={`flex items-center gap-2 rounded-md px-1.5 py-1 text-[12px] ${alert ? "cursor-pointer bg-red-500/15 ring-1 ring-red-500/40" : isNow ? "bg-white/10" : block.end < now ? "opacity-40" : ""}`}
+                {...(alert ? { onClick: () => onAlert(alert.id), title: "Ver el aviso y reprogramar" } : {})}
+              >
                 <span className="w-[6.5rem] shrink-0 font-mono text-[10.5px] tabular-nums text-white/55">{clock(block.start)} – {clock(block.end)}</span>
                 <span className="today-lane" data-layer={block.layer}>{block.layer ? layerLabel(block.layer) : "Principal"}</span>
                 <span className="min-w-0 flex-1 truncate text-white/85">{block.title}</span>
                 {block.layer && block.duck ? <DuckIcon className="h-3.5 w-3.5 shrink-0 text-amber-300" /> : null}
                 {isNow ? <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-300">Ahora</span> : null}
+                {alert ? (
+                  <span className="shrink-0 font-mono text-[10px] font-bold tabular-nums text-red-300">
+                    {alert.held ? "tras el vivo" : `en ${duration(Math.max(0, alert.start - now) / 1000)}`}
+                  </span>
+                ) : null}
                 <KindTag kind={block.kind} />
               </li>
             );

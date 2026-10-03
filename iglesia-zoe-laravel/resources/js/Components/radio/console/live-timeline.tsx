@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { StopIcon } from "@/Components/radio/icons";
 import { send } from "@/lib/actions";
-import { BEDS, FADES, PLAYERS, clock, duration, laneLabel, shortTitle, type RadioItem, type RadioTrack } from "@/lib/radio";
+import { ALERT_AHEAD, BEDS, FADES, PLAYERS, clock, duration, laneLabel, shortTitle, type RadioItem, type RadioTrack } from "@/lib/radio";
 import { useTrackDrop } from "./drag";
 import type { ConsoleApi } from "./use-console";
 
@@ -27,9 +27,17 @@ type Clip = {
   duck?: boolean;
   fading?: boolean;
   layer?: string;
+  /** A scheduled block the console warns about; `held` waits for the live transmission. */
+  alert?: string;
+  held?: boolean;
 };
 
 type Row = { id: string; label: string; hint: string; clips: Clip[]; lane?: string };
+
+/** Left offset and width over the lanes (right of the lane heads) for a share of the window. */
+function overLanes(from: number, to: number) {
+  return { left: `calc(var(--cx-head) + (100% - var(--cx-head)) * ${from})`, width: `calc((100% - var(--cx-head)) * ${Math.max(0, to - from)})` };
+}
 
 /** Overlapping clips of a row go to stacked sub-lanes, like A/B rolls. */
 function stack(clips: Clip[]) {
@@ -67,8 +75,8 @@ function programClips(previous: RadioItem | null, queue: RadioItem[], now: numbe
  * scheduled overlays, the background beds, the players, the pad bank and the voice. Audios
  * dropped on a live lane play right away with the console crossfade.
  */
-export function LiveTimeline({ api, library }: { api: ConsoleApi; library: RadioTrack[] }) {
-  const { state, now, blend, setBlend, talks, talking } = api;
+export function LiveTimeline({ api, library, onAlert }: { api: ConsoleApi; library: RadioTrack[]; onAlert: (id: string) => void }) {
+  const { state, now, blend, setBlend, talks, talking, upcoming } = api;
   const [zoom, setZoom] = useState(1);
   const { span, tick } = ZOOMS[zoom];
   const from = now - span * PLAYHEAD;
@@ -93,7 +101,17 @@ export function LiveTimeline({ api, library }: { api: ConsoleApi; library: Radio
         layer: layer.id,
       }));
 
+  const alertClips: Clip[] = upcoming.map((block) => {
+    const start = block.held ? Math.max(now, block.start) : block.start;
+    return { id: `alert-${block.id}`, title: block.title, kind: "alerta", start, end: start + block.duration * 1000, fadeIn: 0, fadeOut: 0, alert: block.id, held: block.held };
+  });
+  const share = (ms: number) => Math.min(1, Math.max(0, (ms - from) / span));
+  const ahead = upcoming.filter((block) => !block.held);
+  const beyond = ahead.filter((block) => block.start >= to);
+  const held = upcoming.filter((block) => block.held).length;
+
   const rows: Row[] = [
+    ...(upcoming.length ? [{ id: "alert", label: "Programado", hint: "", clips: alertClips }] : []),
     { id: "main", label: "Programa", hint: "Suelta aquí para ponerlo al aire ya", clips: programClips(state.previous, state.queue, now), lane: "main" },
     {
       id: "sched",
@@ -122,6 +140,12 @@ export function LiveTimeline({ api, library }: { api: ConsoleApi; library: Radio
           <p className="studio-label">Línea de tiempo en vivo</p>
           {talking ? <span className="cx-badge" data-tone="red">Mic</span> : null}
           {liveCount ? <span className="cx-badge">{liveCount} en capas</span> : null}
+          {ahead.length ? (
+            <button type="button" onClick={() => onAlert(ahead[0].id)} className="cx-badge" data-tone="red" title={`«${ahead[0].title}» a las ${clock(ahead[0].start)}`}>
+              Programado en {duration(Math.max(0, ahead[0].start - now) / 1000)}
+            </button>
+          ) : null}
+          {held ? <span className="cx-badge" data-tone="red" title="Sonará cuando termine la transmisión en vivo">{held} en espera del vivo</span> : null}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="cx-seg" role="group" aria-label="Zoom">
@@ -152,16 +176,33 @@ export function LiveTimeline({ api, library }: { api: ConsoleApi; library: Radio
             <span className="cx-now-label" style={{ left: `${PLAYHEAD * 100}%` }}>{clock(now, true)}</span>
           </div>
         </div>
+        {ahead.map((block) => {
+          const zoneFrom = share(block.start - ALERT_AHEAD);
+          const zoneTo = share(block.start);
+          return (
+            <span key={block.id}>
+              {zoneTo > zoneFrom ? <span className="cx-alert-zone" style={overLanes(zoneFrom, zoneTo)} aria-hidden /> : null}
+              {block.start >= from && block.start < to ? (
+                <span className="cx-alert-mark" style={{ left: overLanes(zoneTo, zoneTo).left }} title={`«${block.title}» · ${clock(block.start)}`} aria-hidden />
+              ) : null}
+            </span>
+          );
+        })}
         {rows.map((row) => (
-          <TimelineRow key={row.id} row={row} api={api} library={library} x={x} now={now} />
+          <TimelineRow key={row.id} row={row} api={api} library={library} x={x} now={now} onAlert={onAlert} />
         ))}
+        {beyond.length ? (
+          <button type="button" onClick={() => onAlert(beyond[0].id)} className="cx-alert-edge" title={`«${beyond[0].title}» a las ${clock(beyond[0].start)}`}>
+            {shortTitle(beyond[0].title, 24)} · {clock(beyond[0].start)} →
+          </button>
+        ) : null}
         <div className="cx-playhead" style={{ left: `calc(var(--cx-head) + (100% - var(--cx-head)) * ${PLAYHEAD})` }} aria-hidden />
       </div>
     </div>
   );
 }
 
-function TimelineRow({ row, api, library, x, now }: { row: Row; api: ConsoleApi; library: RadioTrack[]; x: (ms: number) => number; now: number }) {
+function TimelineRow({ row, api, library, x, now, onAlert }: { row: Row; api: ConsoleApi; library: RadioTrack[]; x: (ms: number) => number; now: number; onAlert: (id: string) => void }) {
   const { placed, lanes } = stack(row.clips);
   const drop = useTrackDrop(library, (track) => {
     if (!row.lane) return;
@@ -202,14 +243,22 @@ function TimelineRow({ row, api, library, x, now }: { row: Row; api: ConsoleApi;
               data-kind={clip.kind}
               data-playing={playing || undefined}
               data-fading={clip.fading || undefined}
+              data-held={clip.held || undefined}
               style={{ left: `${left}%`, width: `${width}%`, top: `${(index / lanes) * 100}%`, height: `${100 / lanes}%` }}
-              title={`${clip.title} · ${clock(clip.start, true)}${clip.loop ? " · en bucle" : ` – ${clock(clip.end, true)}`}`}
+              title={
+                clip.held
+                  ? `${clip.title} · en espera: suena cuando termine la transmisión en vivo`
+                  : `${clip.title} · ${clock(clip.start, true)}${clip.loop ? " · en bucle" : ` – ${clock(clip.end, true)}`}`
+              }
+              {...(clip.alert ? { role: "button", tabIndex: 0, onClick: () => onAlert(clip.alert!), onKeyDown: (event: KeyboardEvent) => event.key === "Enter" && onAlert(clip.alert!) } : {})}
             >
               {clip.fadeIn > 0 ? <span className="cx-fade" data-dir="in" style={{ width: `${Math.min(100, (clip.fadeIn / length) * 100)}%` }} /> : null}
               {clip.fadeOut > 0 && !clip.loop ? <span className="cx-fade" data-dir="out" style={{ width: `${Math.min(100, (clip.fadeOut / length) * 100)}%` }} /> : null}
               <span className="cx-clip-body" style={{ marginLeft: left < 0 ? `${Math.min(95, (-left / width) * 100)}%` : 0 }}>
-                <span className="truncate">{clip.loop ? "⟲ " : ""}{shortTitle(clip.title, 40)}</span>
-                {playing && !clip.loop && clip.kind !== "voz" ? <span className="cx-clip-time">-{duration((clip.end - now) / 1000)}</span> : null}
+                <span className="truncate">{clip.held ? "⏸ " : clip.loop ? "⟲ " : ""}{shortTitle(clip.title, 40)}</span>
+                {clip.alert && !clip.held && clip.start > now ? <span className="cx-clip-time">en {duration((clip.start - now) / 1000)}</span> : null}
+                {clip.held ? <span className="cx-clip-time">tras el vivo</span> : null}
+                {playing && !clip.loop && clip.kind !== "voz" && !clip.alert ? <span className="cx-clip-time">-{duration((clip.end - now) / 1000)}</span> : null}
               </span>
               {clip.layer && playing && !clip.fading ? (
                 <span className="cx-clip-tools">
