@@ -40,9 +40,15 @@ export function SwitchPanel({ api, day, playlists }: { api: ConsoleApi; day: Rad
       ? `«${block.title}» está programado hasta las ${clock(block.end)}: ${external ? "cuando la señal externa responda" : "al abrir la transmisión"} se corta la música sola. Mientras tanto suena el piloto automático.`
       : `Suena el piloto automático: ${current}${autopilot.since > now ? ` (empieza a las ${clock(autopilot.since)})` : ""}.`;
 
+  const chip = cut
+    ? `En vivo desde ${span ? clock(span.start) : "--"}${span?.end ? ` · vuelve ${clock(span.end)}` : ""}`
+    : block && auto
+      ? `Vivo programado hasta ${clock(block.end)}`
+      : null;
+
   return (
     <div className="cx-panel mt-2" data-live={cut || undefined}>
-      <div className="grid gap-3 lg:grid-cols-[auto_minmax(0,1fr)_auto] lg:items-center">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex flex-wrap items-center gap-2">
           <p className="studio-label">En vivo</p>
           <div className="cx-seg" role="radiogroup" aria-label="Modo del vivo">
@@ -62,12 +68,27 @@ export function SwitchPanel({ api, day, playlists }: { api: ConsoleApi; day: Rad
           </span>
         </div>
 
-        <p className={`text-[12px] leading-5 ${cut ? "text-red-200" : "text-white/65"}`}>
-          {cut ? <span className="mr-1.5 inline-block h-2 w-2 animate-pulse rounded-full bg-red-500 align-middle" /> : null}
-          {status}
-        </p>
+        <span className="hidden h-5 w-px bg-white/10 xl:block" aria-hidden />
 
-        <div className="flex flex-wrap items-center gap-1.5 lg:justify-end">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <p className="studio-label" title={chip ? undefined : status}>
+            {cut ? "Al volver sigue" : "Sigue en automático"}
+          </p>
+          <SourcePicker studio playlists={playlists} playlist={playlist} shuffle={shuffle} onPlaylist={setPlaylist} onShuffle={setShuffle} />
+          {!cut && changed ? (
+            <button type="button" disabled={busy} onClick={() => act(() => api.switchSource(playlist, shuffle))} className="cx-btn !py-1.5" data-tone="blue" title="Se aplica cuando termine la canción que suena">
+              Aplicar al terminar la canción
+            </button>
+          ) : null}
+        </div>
+
+        <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">
+          {chip ? (
+            <span className={`cx-stat min-w-0 ${cut ? "!bg-red-500/15 !text-red-100" : "!text-amber-100"}`} title={status}>
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${cut ? "animate-pulse bg-red-500" : "bg-amber-400"}`} />
+              <span className="truncate">{chip}</span>
+            </span>
+          ) : null}
           {cut ? (
             <button
               type="button"
@@ -94,21 +115,8 @@ export function SwitchPanel({ api, day, playlists }: { api: ConsoleApi; day: Rad
         </div>
       </div>
 
-      <div className="mt-2.5 grid gap-2 border-t border-white/5 pt-2.5 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-        <div>
-          <p className="studio-label mb-1">
-            {cut ? "Al volver del vivo sigue" : "Sigue en automático"} · <span className="normal-case tracking-normal text-white/80">{changed ? chosen : current}</span>
-          </p>
-          <SourcePicker studio playlists={playlists} playlist={playlist} shuffle={shuffle} onPlaylist={setPlaylist} onShuffle={setShuffle} />
-          <div className="mt-1.5 empty:hidden">
-            <FallbackNotice studio autopilot={autopilot} />
-          </div>
-        </div>
-        {cut ? null : (
-          <button type="button" disabled={busy || !changed} onClick={() => act(() => api.switchSource(playlist, shuffle))} className="cx-btn !py-2" data-tone="blue" title="Se aplica cuando termine la canción que suena">
-            {changed ? "Aplicar al terminar la canción" : "Ya está sonando"}
-          </button>
-        )}
+      <div className="mt-2 empty:hidden">
+        <FallbackNotice studio autopilot={autopilot} />
       </div>
     </div>
   );
