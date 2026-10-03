@@ -36,11 +36,14 @@ export function keepSiteFresh(initial: Page) {
     }
   };
 
-  router.on("navigate", (event) => {
-    page = event.detail.page as Page;
+  const track = (next: Page) => {
+    page = next;
     latest = Math.max(latest, versionOf(page));
     refresh();
-  });
+  };
+  // Reloads replace the history entry and only fire «success»; history restores only fire «navigate».
+  router.on("success", (event) => track(event.detail.page as Page));
+  router.on("navigate", (event) => track(event.detail.page as Page));
   document.addEventListener("visibilitychange", () => void check());
   window.addEventListener("focus", () => void check());
   window.addEventListener("popstate", () => void check(true));
