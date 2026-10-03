@@ -323,8 +323,9 @@ export class ProgramPlayer {
     el.crossOrigin = "anonymous";
     el.preload = "auto";
     el.src = layer.src;
+    el.loop = Boolean(layer.loop);
     const gain = ctx.createGain();
-    gain.gain.value = layer.volume / 100;
+    gain.gain.value = this.envelope(layer, this.clock.now());
     const source = ctx.createMediaElementSource(el);
     source.connect(gain).connect(this.fxBus!);
     const voice: Voice = { layer, el, gain, source, started: false, done: false };
@@ -335,24 +336,46 @@ export class ProgramPlayer {
     return voice;
   }
 
+  /** Volume of a layer at a moment: its level shaped by the fade in after the start and the fade out before the end. */
+  private envelope(layer: RadioLayer, at: number) {
+    const fadeIn = (layer.fade_in ?? 0) * 1000;
+    const fadeOut = (layer.fade_out ?? 0) * 1000;
+    const into = fadeIn > 0 ? Math.min(1, Math.max(0, (at - layer.start) / fadeIn)) : 1;
+    const left = fadeOut > 0 ? Math.min(1, Math.max(0, (layer.end - at) / fadeOut)) : 1;
+    return (layer.volume / 100) * into * left;
+  }
+
+  /** Where the file should be: a looped layer wraps around its length. */
+  private position(layer: RadioLayer, el: HTMLAudioElement, at: number) {
+    const elapsed = Math.max(0, (at - layer.start) / 1000);
+    const span = layer.loop ? (layer.length ?? 0) / 1000 || el.duration : 0;
+    return span > 0 && Number.isFinite(span) ? elapsed % span : elapsed;
+  }
+
   /** Effects start from the beginning when their time comes; long layers follow the clock like the program. */
   private follow(voice: Voice, now: number) {
     const { layer, el, gain } = voice;
-    gain.gain.setTargetAtTime(layer.volume / 100, this.ctx!.currentTime, 0.06);
+    const t = this.ctx!.currentTime;
+    gain.gain.cancelScheduledValues(t);
+    gain.gain.setValueAtTime(gain.gain.value, t);
+    gain.gain.linearRampToValueAtTime(this.envelope(layer, now + 450), t + 0.45);
     if (now < layer.start - 60) return;
     const short = layer.end - layer.start <= SHORT_LAYER;
-    const expected = (now - layer.start) / 1000;
     if (!voice.started) {
       voice.started = true;
       const begin = () => {
-        if (!short) el.currentTime = Math.max(0, (this.clock.now() - layer.start) / 1000);
+        if (!short) el.currentTime = this.position(layer, el, this.clock.now());
         void el.play().catch(() => this.onBlocked?.());
       };
       if (el.readyState >= 1) begin();
       else el.addEventListener("loadedmetadata", begin, { once: true });
       return;
     }
-    if (!short && el.readyState >= 2 && !el.seeking && Math.abs(el.currentTime - expected) > 1.5) el.currentTime = Math.max(0, expected);
+    if (short || el.readyState < 2 || el.seeking) return;
+    const expected = this.position(layer, el, now);
+    let drift = Math.abs(el.currentTime - expected);
+    if (layer.loop && Number.isFinite(el.duration)) drift = Math.min(drift, el.duration - drift);
+    if (drift > 1.5) el.currentTime = expected;
   }
 
   private release(id: string, seconds: number) {

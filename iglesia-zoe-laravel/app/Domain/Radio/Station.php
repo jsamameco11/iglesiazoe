@@ -27,10 +27,13 @@ final class Station
     /** Longest block the timeline accepts, in seconds. */
     public const MAX_BLOCK = 6 * 3600;
 
-    /** Console lanes: the pad bank plays many sounds at once, each player one at a time. */
-    public const LANES = ['pad', 'A', 'B', 'C'];
+    /** Console lanes: the pad bank plays many sounds at once; each player (A–C) and background bed (F1, F2) one at a time. */
+    public const LANES = ['pad', 'A', 'B', 'C', 'F1', 'F2'];
 
     public const MAX_PADS = 16;
+
+    /** Longest fade in, fade out or crossfade of a console layer, in seconds. */
+    public const MAX_FADE = 12;
 
     public const DEFAULTS = [
         'name' => 'Radio Zoe',
@@ -181,10 +184,16 @@ final class Station
         Cache::put(self::OPERATOR_KEY, CarbonImmutable::now()->getTimestamp(), 3600);
     }
 
-    /** Puts a library audio on air on top of the program: a pad, or one of the players (replacing what it played). */
-    public static function playLayer(RadioTrack $track, string $lane, int $volume, bool $duck): array
+    /**
+     * Puts a library audio on air on top of the program: a pad, or one of the players or beds.
+     * What the lane played stops at once, or fades out over the new fade in (a crossfade).
+     * A looped layer repeats until it is stopped.
+     */
+    public static function playLayer(RadioTrack $track, string $lane, int $volume, bool $duck, float $fadeIn = 0, float $fadeOut = 0, bool $loop = false): array
     {
         $now = self::nowMs();
+        $length = (int) round($track->duration * 1000);
+        $fadeIn = self::fade($fadeIn);
         $layer = [
             'id' => Str::lower(Str::random(12)),
             'lane' => $lane,
@@ -193,13 +202,24 @@ final class Station
             'kind' => $track->kind,
             'src' => $track->file_path,
             'start' => $now,
-            'end' => $now + (int) round($track->duration * 1000),
+            'end' => $now + ($loop ? self::MAX_BLOCK * 1000 : $length),
             'volume' => max(0, min(100, $volume)),
             'duck' => $duck,
+            'fade_in' => $fadeIn,
+            'fade_out' => self::fade($fadeOut),
+            'loop' => $loop,
+            'length' => $length,
         ];
 
-        self::updateLive(function (array $live) use ($layer, $lane, $now) {
-            $layers = array_filter(self::sounding($live['layers'], $now), fn (array $item) => $lane === 'pad' || $item['lane'] !== $lane);
+        self::updateLive(function (array $live) use ($layer, $lane, $now, $fadeIn) {
+            $layers = [];
+            foreach (self::sounding($live['layers'], $now) as $item) {
+                if ($lane === 'pad' || $item['lane'] !== $lane) {
+                    $layers[] = $item;
+                } elseif ($fadeIn > 0) {
+                    $layers[] = self::fadeAway($item, $now, $fadeIn);
+                }
+            }
             if ($lane === 'pad') {
                 $pads = array_keys(array_filter($layers, fn (array $item) => $item['lane'] === 'pad'));
                 foreach (array_slice($pads, 0, max(0, count($pads) - self::PADS_AT_ONCE + 1)) as $key) {
@@ -232,6 +252,45 @@ final class Station
         });
 
         return $stopped;
+    }
+
+    /**
+     * Fades console layers out instead of cutting them: one by id, every sound of a lane, or all of them.
+     *
+     * @return list<array<string, mixed>> the layers as they now end
+     */
+    public static function fadeLayers(?string $lane, ?string $id, float $seconds): array
+    {
+        $faded = [];
+        $seconds = max(0.5, self::fade($seconds));
+        self::updateLive(function (array $live) use ($lane, $id, $seconds, &$faded) {
+            $now = self::nowMs();
+            $layers = [];
+            foreach (self::sounding($live['layers'], $now) as $layer) {
+                $match = $id !== null ? $layer['id'] === $id : ($lane === null || $layer['lane'] === $lane);
+                if ($match) {
+                    $layer = self::fadeAway($layer, $now, $seconds);
+                    $faded[] = $layer;
+                }
+                $layers[] = $layer;
+            }
+
+            return ['layers' => $layers];
+        });
+
+        return $faded;
+    }
+
+    private static function fadeAway(array $layer, int $now, float $seconds): array
+    {
+        $end = min($layer['end'], $now + (int) round($seconds * 1000));
+
+        return [...$layer, 'end' => $end, 'fade_out' => round(($end - $now) / 1000, 1), 'fading' => true];
+    }
+
+    private static function fade(float $seconds): float
+    {
+        return round(max(0, min(self::MAX_FADE, $seconds)), 1);
     }
 
     public static function updateLayer(string $id, int $volume, bool $duck): ?array

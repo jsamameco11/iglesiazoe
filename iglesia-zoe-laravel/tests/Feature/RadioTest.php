@@ -262,6 +262,37 @@ class RadioTest extends TestCase
         $this->getJson(self::SITE.'/radio/estado')->assertJsonPath('layers', []);
     }
 
+    public function test_background_beds_loop_and_change_with_a_crossfade(): void
+    {
+        $admin = $this->admin('visuales', ['visuales']);
+        $pad = $this->track('Pad suave', 'musica', 40, false);
+        $other = $this->track('Pad cálido', 'musica', 50, false);
+
+        $first = $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/capa', ['action' => 'play', 'id' => $pad->id, 'lane' => 'F1', 'volume' => 60, 'loop' => '1', 'fade_in' => 3, 'fade_out' => 3])
+            ->assertOk()->json('layer');
+        $this->assertTrue($first['loop']);
+        $this->assertEquals(3, $first['fade_in']);
+        $this->assertSame(40000, $first['length']);
+        $this->assertGreaterThan($first['start'] + 3600 * 1000, $first['end']);
+
+        $second = $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/capa', ['action' => 'play', 'id' => $other->id, 'lane' => 'F1', 'loop' => '1', 'fade_in' => 5])
+            ->assertOk()->json('layer');
+
+        auth()->logout();
+        $layers = collect($this->getJson(self::SITE.'/radio/estado')->json('layers'))->keyBy('id');
+        $this->assertTrue($layers[$first['id']]['fading']);
+        $this->assertSame($second['start'] + 5000, $layers[$first['id']]['end']);
+        $this->assertArrayNotHasKey('fading', $layers[$second['id']]);
+
+        $faded = $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/capa', ['action' => 'stop', 'lane' => 'F1', 'fade' => 2])
+            ->assertOk()->json('faded');
+        $this->assertContains($second['id'], array_column($faded, 'id'));
+
+        CarbonImmutable::setTestNow(CarbonImmutable::now()->addSeconds(6));
+        auth()->logout();
+        $this->getJson(self::SITE.'/radio/estado')->assertJsonPath('layers', []);
+    }
+
     public function test_the_console_goes_live_and_connects_a_listener_through_the_handshake(): void
     {
         $admin = $this->admin('visuales', ['visuales']);

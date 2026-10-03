@@ -28,6 +28,14 @@ export type RadioLayer = {
   volume: number;
   duck: boolean;
   source: "live" | "schedule";
+  /** Seconds of fade in after `start` and of fade out before `end`. */
+  fade_in?: number;
+  fade_out?: number;
+  /** Repeats until stopped; `length` is one pass, in ms. */
+  loop?: boolean;
+  length?: number;
+  /** Fading out after a stop or a crossfade. */
+  fading?: boolean;
 };
 
 export type RadioMix = { music: number; fx: number; bed: number; duck: number };
@@ -125,8 +133,15 @@ export function layerLabel(layer: number) {
 /** Console players that sound at the same time as the program. */
 export const PLAYERS = ["A", "B", "C"] as const;
 
+/** Background beds: looped sounds under the voice, changed with a crossfade. */
+export const BEDS = ["F1", "F2"] as const;
+
+/** Fade and crossfade choices of the console, in seconds. */
+export const FADES = [0, 1, 2, 3, 5, 8, 12] as const;
+
 export function laneLabel(lane: string) {
   if (lane === "pad") return "Botonera";
   if ((PLAYERS as readonly string[]).includes(lane)) return `Reproductor ${lane}`;
+  if ((BEDS as readonly string[]).includes(lane)) return `Fondo ${lane.slice(1)}`;
   return layerLabel(Number(lane));
 }

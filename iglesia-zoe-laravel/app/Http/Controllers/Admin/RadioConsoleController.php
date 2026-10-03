@@ -71,7 +71,7 @@ class RadioConsoleController extends RadioController
         return response()->json(['ok' => true, ...$this->snapshot()]);
     }
 
-    /** Pads and players: play a library audio on top of the program, stop it or change its volume. */
+    /** Pads, players and beds: play a library audio on top of the program, stop or fade it out, or change its volume. */
     public function layer(Request $request): JsonResponse
     {
         $action = $request->input('action');
@@ -86,13 +86,27 @@ class RadioConsoleController extends RadioController
                 return response()->json(['error' => 'Ese audio ya no está en la biblioteca.'], 404);
             }
             $duck = $request->has('duck') && $request->input('duck') !== '' ? $request->boolean('duck') : $track->duck;
-            $layer = Station::playLayer($track, $lane ?? 'pad', (int) $request->input('volume', 100), $duck);
+            $layer = Station::playLayer(
+                $track,
+                $lane ?? 'pad',
+                (int) $request->input('volume', 100),
+                $duck,
+                (float) $request->input('fade_in', 0),
+                (float) $request->input('fade_out', 0),
+                $request->boolean('loop'),
+            );
 
             return response()->json(['ok' => true, 'layer' => $layer, ...$this->snapshot()]);
         }
         if ($action === 'stop') {
             $id = $request->input('layer');
-            $stopped = Station::stopLayers($lane, is_string($id) ? $id : null);
+            $id = is_string($id) ? $id : null;
+            if ((float) $request->input('fade', 0) > 0) {
+                $faded = Station::fadeLayers($lane, $id, (float) $request->input('fade'));
+
+                return response()->json(['ok' => true, 'faded' => $faded, ...$this->snapshot()]);
+            }
+            $stopped = Station::stopLayers($lane, $id);
 
             return response()->json(['ok' => true, 'stopped' => $stopped, ...$this->snapshot()]);
         }

@@ -3,17 +3,26 @@ import { useEffect, useMemo, useState } from "react";
 import { DuckIcon, StopIcon } from "@/Components/radio/icons";
 import { send } from "@/lib/actions";
 import { KIND_LABEL, duration, shortTitle, type RadioTrack } from "@/lib/radio";
+import { useTrackDrop } from "./drag";
 import type { ConsoleApi } from "./use-console";
 
 const MAX_PADS = 16;
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
 
+/** Saves the pad bank with one more audio at the end; returns the error to show, if any. */
+export async function addPad(pads: RadioTrack[], track: RadioTrack): Promise<{ pads?: RadioTrack[]; error?: string }> {
+  if (pads.some((pad) => pad.id === track.id)) return { error: `«${track.title}» ya está en la botonera.` };
+  if (pads.length >= MAX_PADS) return { error: `La botonera tiene hasta ${MAX_PADS} botones.` };
+  const result = await send("/admin/radio/botonera", { tracks: [...pads.map((pad) => pad.id), track.id] });
+  return result.error ? { error: result.error } : { pads: (result.pads as RadioTrack[]) ?? [] };
+}
+
 /** The effects bank: one button per chosen audio, played on top of the program for every listener. */
-export function PadBank({ api, initial, library }: { api: ConsoleApi; initial: RadioTrack[]; library: RadioTrack[] }) {
+export function PadBank({ api, pads, setPads, library, onAdd }: { api: ConsoleApi; pads: RadioTrack[]; setPads: (pads: RadioTrack[]) => void; library: RadioTrack[]; onAdd: (track: RadioTrack) => void }) {
   const { state, now, layerAction } = api;
-  const [pads, setPads] = useState(initial);
   const [picking, setPicking] = useState(false);
+  const drop = useTrackDrop(library, onAdd);
   const [fired, setFired] = useState<string | null>(null);
   const sounding = state.layers.filter((layer) => layer.lane === "pad" && layer.start <= now && now < layer.end);
 
@@ -38,19 +47,20 @@ export function PadBank({ api, initial, library }: { api: ConsoleApi; initial: R
   });
 
   return (
-    <div className="studio-panel">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="studio-label">Efectos · botonera</p>
-        <div className="flex gap-2">
-          <button type="button" onClick={() => setPicking(true)} className="studio-btn !w-auto !py-1.5" data-on="blue">Elegir efectos</button>
-          <button type="button" disabled={!sounding.length} onClick={() => layerAction({ action: "stop", lane: "pad" })} className="studio-btn !w-auto !py-1.5">
-            <StopIcon className="h-3 w-3" /> Detener
+    <div className="cx-panel" {...drop}>
+      <div className="cx-head">
+        <p className="studio-label">Botonera · {pads.length}/{MAX_PADS}</p>
+        <div className="flex gap-1">
+          <button type="button" onClick={() => setPicking(true)} className="cx-btn" data-tone="blue">Editar</button>
+          <button type="button" disabled={!sounding.length} onClick={() => api.stop({ lane: "pad" }, 1)} className="cx-btn" data-tone="amber">Fundir</button>
+          <button type="button" disabled={!sounding.length} onClick={() => layerAction({ action: "stop", lane: "pad" })} className="cx-btn" data-tone="red" aria-label="Cortar la botonera">
+            <StopIcon className="h-2.5 w-2.5" />
           </button>
         </div>
       </div>
 
       {pads.length ? (
-        <div className="studio-pads mt-3">
+        <div className="cx-pads mt-2">
           {pads.map((pad, index) => {
             const playing = sounding.filter((layer) => layer.track_id === pad.id).at(-1);
             return (
@@ -64,13 +74,13 @@ export function PadBank({ api, initial, library }: { api: ConsoleApi; initial: R
                 data-playing={playing ? "" : undefined}
                 title={pad.title}
               >
-                <span className="flex items-start justify-between gap-2">
-                  <span className="line-clamp-2 text-sm font-semibold leading-tight">{shortTitle(pad.title, 30)}</span>
+                <span className="flex items-start justify-between gap-1">
+                  <span className="line-clamp-2 text-[11.5px] font-semibold leading-tight">{shortTitle(pad.title, 26)}</span>
                   {index < KEYS.length ? <kbd className="pad-key">{KEYS[index]}</kbd> : null}
                 </span>
-                <span className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">
-                  {KIND_LABEL[pad.kind]} · {playing ? `-${duration((playing.end - now) / 1000)}` : duration(pad.duration)}
-                  {pad.duck ? <DuckIcon className="h-3 w-3" /> : null}
+                <span className="flex items-center gap-1 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-white/60">
+                  {playing ? `-${duration((playing.end - now) / 1000)}` : `${KIND_LABEL[pad.kind]} · ${duration(pad.duration)}`}
+                  {pad.duck ? <DuckIcon className="h-2.5 w-2.5" /> : null}
                 </span>
                 {playing ? <span className="pad-bar" style={{ width: `${Math.min(100, ((now - playing.start) / Math.max(1, playing.end - playing.start)) * 100)}%` }} /> : null}
               </button>
@@ -78,13 +88,11 @@ export function PadBank({ api, initial, library }: { api: ConsoleApi; initial: R
           })}
         </div>
       ) : (
-        <p className="mt-3 rounded-xl border border-dashed border-white/15 px-4 py-6 text-center text-sm text-white/45">
-          La botonera está vacía. Usa «Elegir efectos» para poner tus efectos, cortinas y anuncios a un clic.
+        <p className="mt-2 rounded-lg border border-dashed border-white/15 px-3 py-5 text-center text-xs text-white/45">
+          Suelta aquí sonidos de la biblioteca o usa «Editar» para armar tu botonera.
         </p>
       )}
-      <p className="mt-3 text-[11px] leading-4 text-white/40">
-        Suenan encima de la música para todos. Teclas 1–0 para los diez primeros. <DuckIcon className="inline h-3 w-3" /> baja la música mientras suena.
-      </p>
+      <p className="mt-2 text-[10.5px] leading-4 text-white/35">Teclas 1–0 · suelta un sonido aquí para agregarlo.</p>
 
       {picking ? <PadPicker library={library} chosen={pads} onClose={() => setPicking(false)} onSaved={setPads} /> : null}
     </div>
