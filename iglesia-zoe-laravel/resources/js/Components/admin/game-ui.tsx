@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Field, Pill, RecordForm } from "@/Components/admin/study-ui";
+import { Field, RecordForm } from "@/Components/admin/record-ui";
 import { Notice, Panel, input, useAction } from "@/Components/admin/ui";
 import { send } from "@/lib/actions";
 
@@ -178,11 +178,4 @@ export function Pager({ page, pages, from, to, total, setPage }: { page: number;
       </div>
     </div>
   );
-}
-
-export { Pill };
-
-/** Lowercase text without accents, for forgiving searches. */
-export function plain(text: string | null | undefined) {
-  return (text ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }

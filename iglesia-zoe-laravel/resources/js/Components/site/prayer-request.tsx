@@ -1,12 +1,12 @@
 import { usePage } from "@inertiajs/react";
 import { useRef, useState, useTransition, type FormEvent } from "react";
+import { MARITAL } from "@/Components/site/person-fields";
 import { SelectField } from "@/Components/ui/select-field";
 import { submitPrayer } from "@/lib/actions";
 import { useCopy } from "@/lib/copy";
 import type { SiteSettings } from "@/lib/types";
 
 const MAX = 2000;
-const MARITAL = ["Soltero(a)", "Casado(a)", "Conviviente", "Divorciado(a)", "Separado(a)", "Viudo(a)"];
 
 type Errors = Partial<Record<"first_name" | "last_name" | "age" | "marital_status" | "email" | "request", string>>;
 

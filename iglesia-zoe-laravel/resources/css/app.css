@@ -373,16 +373,6 @@ body {
 .hero-bleed-media {
   border-radius: 0 !important;
 }
-.service-chip-split {
-  position: absolute;
-  right: 2.5rem;
-  bottom: 2.5rem;
-  z-index: 4;
-}
-.service-chip-split .service-chip {
-  margin-top: 0;
-  width: 21.75rem;
-}
 @media (min-width: 768px) {
   .hero-copy {
     padding: 6rem 3.5rem 2.5rem;
@@ -406,8 +396,7 @@ body {
   }
 }
 
-.hero-bleed-media,
-.hero-split-media {
+.hero-bleed-media {
   position: absolute;
   inset: 0;
   display: block;
@@ -415,17 +404,6 @@ body {
   height: 100%;
   object-fit: cover;
   object-position: center;
-}
-
-.hero-split {
-  background: var(--paper);
-}
-
-.hero-split-pane {
-  position: relative;
-  overflow: hidden;
-  background: var(--ink);
-  will-change: opacity;
 }
 
 .lg\:clip-left {
@@ -442,17 +420,6 @@ body {
   .lg\:clip-right {
     clip-path: inset(0 0 0 50%);
   }
-}
-
-.luz-figure {
-  margin: 0;
-}
-
-.luz-figure .shot,
-.luz-figure .shot img,
-.luz-figure .shot video,
-.luz-figure .frame {
-  border-radius: 0.75rem;
 }
 
 .skin-switch {
@@ -818,12 +785,13 @@ body {
   display: flex;
   align-items: center;
   width: 13.5rem;
-  height: 1.75rem;
+  min-height: 1.82rem;
   border-radius: 999px;
   padding: 0 0.85rem;
   font-size: var(--nav-drop-size, 14px);
   font-weight: var(--nav-drop-weight, 400);
-  line-height: 1;
+  /* Room for descenders (g, j, p): the label truncates, so its box clips whatever falls outside the line. */
+  line-height: 1.25;
   color: color-mix(in srgb, var(--ink) 88%, transparent);
   background: color-mix(in srgb, var(--card) 78%, transparent);
   -webkit-backdrop-filter: blur(12px) saturate(1.3);

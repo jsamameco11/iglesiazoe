@@ -48,7 +48,7 @@ function usePastHero() {
   const [past, setPast] = useState(false);
 
   useEffect(() => {
-    const hero = document.querySelector<HTMLElement>(".hero-bleed, .hero-split");
+    const hero = document.querySelector<HTMLElement>(".hero-bleed");
     if (!hero) {
       setPast(true);
       return;

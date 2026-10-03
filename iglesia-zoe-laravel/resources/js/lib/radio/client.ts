@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { csrf } from "@/lib/actions";
 
 export function newListenerId() {
@@ -48,4 +49,11 @@ export class ServerClock {
   now() {
     return Date.now() + this.offset;
   }
+}
+
+/** One ServerClock per component, created on the first render and kept while it lives. */
+export function useServerClock() {
+  const clock = useRef<ServerClock | null>(null);
+  clock.current ??= new ServerClock();
+  return clock.current;
 }

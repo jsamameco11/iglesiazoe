@@ -1,12 +1,9 @@
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { fold } from "@/lib/text";
 
 export type SelectOption = { value: string; label: string; prefix?: ReactNode; hint?: string };
 
 const RENDER_LIMIT = 250;
-
-function fold(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-}
 
 export function SelectField({
   label,

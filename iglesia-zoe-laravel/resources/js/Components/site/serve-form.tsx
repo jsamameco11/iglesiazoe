@@ -1,10 +1,10 @@
 import { useRef, useState, useTransition, type FormEvent } from "react";
+import { MARITAL } from "@/Components/site/person-fields";
 import { SelectField } from "@/Components/ui/select-field";
 import { submitServe } from "@/lib/actions";
 import { useCopy } from "@/lib/copy";
 import type { ServeArea } from "@/lib/types";
 
-const MARITAL = ["Soltero(a)", "Casado(a)", "Conviviente", "Divorciado(a)", "Separado(a)", "Viudo(a)"];
 const MAX_NOTES = 800;
 
 type Field = "serve_area_id" | "first_name" | "last_name" | "age" | "marital_status" | "phone" | "email";

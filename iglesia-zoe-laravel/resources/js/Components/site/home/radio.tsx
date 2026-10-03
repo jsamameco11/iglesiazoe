@@ -1,10 +1,10 @@
 import { Link } from "@inertiajs/react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Rise } from "@/Components/motion/rise";
 import { HeadphonesIcon, MicIcon, PlayIcon, UsersIcon } from "@/Components/radio/icons";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import type { MediaAsset } from "@/lib/media";
-import { KIND_LABEL, ServerClock, clock, currentItem, dayLabel, duration, limaDate, type RadioState } from "@/lib/radio";
+import { KIND_LABEL, clock, currentItem, dayLabel, duration, limaDate, useServerClock, type RadioState } from "@/lib/radio";
 import type { SiteSettings } from "@/lib/types";
 import "../../../../css/radio.css";
 import { section } from "@/lib/design";
@@ -13,9 +13,7 @@ const BARS = 36;
 
 /** Station snapshot for the home page: refreshed every 30 s while the tab is visible, without joining as a listener. */
 function useRadioSnapshot(initial: RadioState) {
-  const clockRef = useRef<ServerClock | null>(null);
-  clockRef.current ??= new ServerClock();
-  const serverClock = clockRef.current;
+  const serverClock = useServerClock();
   const [state, setState] = useState(initial);
   const [now, setNow] = useState(initial.now);
 

@@ -1,6 +1,7 @@
 import { Link } from "@inertiajs/react";
 import { useState, type FormEvent } from "react";
-import { EmptyState, Field, Pill, STUDY_KICKER } from "@/Components/admin/study-ui";
+import { EmptyState, Field, Pill } from "@/Components/admin/record-ui";
+import { STUDY_KICKER } from "@/Components/admin/study-ui";
 import { Notice, PageHeader, Panel, button, ghost, input, useAction } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { can, usePanelUser } from "@/lib/access";

@@ -1,14 +1,10 @@
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
+import { MARITAL, PhoneField, SEXES, useCountryDial } from "@/Components/site/person-fields";
 import { SelectField, type SelectOption } from "@/Components/ui/select-field";
 import { submitVisit } from "@/lib/actions";
 import { useCopy } from "@/lib/copy";
-import { Flag } from "@/Components/site/icons";
-import { citiesOf, cityName, districtsOf, geo, type GeoCountry, type GeoTree } from "@/lib/geo";
+import { citiesOf, cityName, districtsOf, geo, type GeoTree } from "@/lib/geo";
 import { digits } from "@/lib/text";
-
-const SEXES = ["Masculino", "Femenino"];
-const MARITAL = ["Soltero(a)", "Casado(a)", "Conviviente", "Divorciado(a)", "Separado(a)", "Viudo(a)"];
-const DEFAULT_DIAL = "PE:51";
 
 type Errors = Partial<Record<"first_name" | "last_name" | "phone" | "email" | "sex" | "age" | "marital_status" | "service", string>>;
 
@@ -26,15 +22,11 @@ export function VisitForm({
   const t = useCopy();
   const id = useId();
   const form = useRef<HTMLFormElement>(null);
-  const [countries, setCountries] = useState<GeoCountry[]>([]);
   const [tree, setTree] = useState<GeoTree>([]);
-  const [loading, setLoading] = useState({ countries: true, tree: false });
+  const [loadingTree, setLoadingTree] = useState(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [dialKey, setDialKey] = useState(DEFAULT_DIAL);
-  const [dialTouched, setDialTouched] = useState(false);
-  const dial = dialKey.split(":")[1] ?? "";
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [sex, setSex] = useState("");
@@ -45,24 +37,16 @@ export function VisitForm({
   const [region, setRegion] = useState("");
   const [city, setCity] = useState("");
   const [district, setDistrict] = useState("");
+  const dial = useCountryDial(country);
 
   const [errors, setErrors] = useState<Errors>({});
   const [status, setStatus] = useState<{ ok?: boolean; error?: string }>({});
   const [pending, setPending] = useState(false);
 
-  const countryMeta = countries.find((item) => item.code === country);
-  const labels = countryMeta?.labels ?? ["Estado o departamento", "Provincia o ciudad", "Distrito"];
+  const labels = dial.countryMeta?.labels ?? ["Estado o departamento", "Provincia o ciudad", "Distrito"];
   const hasCity = labels.length > 1;
   const hasDistrict = labels.length > 2;
   const services = useMemo(() => [sunday, wednesday].filter(Boolean), [sunday, wednesday]);
-
-  useEffect(() => {
-    geo
-      .countries()
-      .then(setCountries)
-      .catch(() => setStatus({ error: "No pudimos cargar la lista de países. Recarga la página." }))
-      .finally(() => setLoading((state) => ({ ...state, countries: false })));
-  }, []);
 
   useEffect(() => {
     setTree([]);
@@ -70,36 +54,19 @@ export function VisitForm({
     setCity("");
     setDistrict("");
     if (!country) return;
-    setLoading((state) => ({ ...state, tree: true }));
+    setLoadingTree(true);
     let alive = true;
     geo
       .tree(country)
       .then((rows) => alive && setTree(rows))
       .catch(() => alive && setStatus({ error: "No pudimos cargar la lista de lugares. Recarga la página." }))
-      .finally(() => alive && setLoading((state) => ({ ...state, tree: false })));
+      .finally(() => alive && setLoadingTree(false));
     return () => {
       alive = false;
     };
   }, [country]);
 
-  useEffect(() => {
-    if (!dialTouched && countryMeta) setDialKey(`${countryMeta.code}:${countryMeta.dial}`);
-  }, [countryMeta, dialTouched]);
-
-  const countryOptions = useMemo<SelectOption[]>(
-    () => [{ value: "", label: "Prefiero no indicarlo" }, ...countries.map((item) => ({ value: item.code, label: item.name, prefix: <Flag code={item.code} /> }))],
-    [countries],
-  );
-  const dialOptions = useMemo<SelectOption[]>(
-    () =>
-      countries.map((item) => ({
-        value: `${item.code}:${item.dial}`,
-        label: `+${item.dial}`,
-        hint: item.name,
-        prefix: <Flag code={item.code} />,
-      })),
-    [countries],
-  );
+  const countryOptions = useMemo<SelectOption[]>(() => [{ value: "", label: "Prefiero no indicarlo" }, ...dial.countryOptions], [dial.countryOptions]);
   const cities = useMemo(() => (region && hasCity ? citiesOf(tree, region) : []), [tree, region, hasCity]);
   const regionOptions = useMemo(() => tree.map(([name]) => ({ value: name, label: name })), [tree]);
   const cityOptions = useMemo(() => cities.map((item) => ({ value: cityName(item), label: cityName(item) })), [cities]);
@@ -134,8 +101,7 @@ export function VisitForm({
     setMarital("");
     setService("");
     setCountry("");
-    setDialKey(DEFAULT_DIAL);
-    setDialTouched(false);
+    dial.reset();
   };
 
   const onSubmit = async (event: FormEvent) => {
@@ -151,7 +117,7 @@ export function VisitForm({
     const data = new FormData();
     data.set("first_name", firstName.trim());
     data.set("last_name", lastName.trim());
-    data.set("phone_code", dial);
+    data.set("phone_code", dial.dial);
     data.set("phone", phone);
     data.set("email", email.trim());
     data.set("sex", sex);
@@ -181,9 +147,9 @@ export function VisitForm({
           {t("visit.thanks")}
         </p>
       )}
-      {status.error && (
+      {(status.error || dial.error) && (
         <p className="visit-note is-error" role="alert">
-          {status.error}
+          {status.error || dial.error}
         </p>
       )}
 
@@ -221,44 +187,18 @@ export function VisitForm({
       </div>
 
       <div className="visit-row cols-2">
-        <div className="visit-label">
-          <span className="text-sm">{t("visit.mobile")}</span>
-          <div className="visit-phone">
-            <SelectField
-              label="Código"
-              value={dialKey}
-              options={dialOptions}
-              loading={loading.countries}
-              onChange={(value) => {
-                setDialKey(value);
-                setDialTouched(true);
-              }}
-              renderValue={(option) => (
-                <>
-                  {option.prefix}
-                  {option.label}
-                </>
-              )}
-              searchable
-              compact
-              className="visit-dial"
-            />
-            <input
-              className={input}
-              value={phone}
-              onChange={(event) => {
-                setPhone(digits(event.target.value, 15));
-                clearError("phone");
-              }}
-              inputMode="tel"
-              autoComplete="tel-national"
-              placeholder={t("forms.phonePlaceholder")}
-              aria-label="Número de celular"
-              aria-invalid={errors.phone ? true : undefined}
-            />
-          </div>
-          {errors.phone && <span className="select-field-error">{errors.phone}</span>}
-        </div>
+        <PhoneField
+          label={t("visit.mobile")}
+          numberLabel="Número de celular"
+          placeholder={t("forms.phonePlaceholder")}
+          dial={dial}
+          phone={phone}
+          onPhone={(value) => {
+            setPhone(value);
+            clearError("phone");
+          }}
+          error={errors.phone}
+        />
         <label className="visit-label">
           <span className="text-sm">
             {t("forms.email")} <span className="select-field-optional">{t("forms.optional")}</span>
@@ -353,10 +293,10 @@ export function VisitForm({
             label={t("forms.country")}
             value={country}
             options={countryOptions}
-            loading={loading.countries}
+            loading={dial.loading}
             onChange={(value) => {
               setCountry(value);
-              setDialTouched(false);
+              dial.followCountry();
             }}
             searchable
           />
@@ -365,7 +305,7 @@ export function VisitForm({
               label={labels[0]}
               value={region}
               options={regionOptions}
-              loading={loading.tree}
+              loading={loadingTree}
               onChange={(value) => {
                 setRegion(value);
                 setCity("");

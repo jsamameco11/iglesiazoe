@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { button, ghost, input, Notice, PageHeader, Panel, Stat, useAction } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { hideTheme, uploadTheme } from "@/lib/actions";
+import { limaDate } from "@/lib/dates";
 import type { Theme } from "@/lib/types";
 
 const MAX_MB = 25;
@@ -15,7 +16,7 @@ export default function Temas({ themes, accept }: { themes: Theme[]; accept: str
   const form = useRef<HTMLFormElement>(null);
   const [fileName, setFileName] = useState("");
   const { result, setResult, pending, run } = useAction();
-  const today = new Date().toLocaleDateString("en-CA");
+  const today = limaDate();
   const thisMonth = themes.filter((theme) => theme.theme_date.slice(0, 7) === today.slice(0, 7)).length;
   const next = [...themes].filter((theme) => theme.theme_date >= today).sort((a, b) => a.theme_date.localeCompare(b.theme_date))[0];
 
