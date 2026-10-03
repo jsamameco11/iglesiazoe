@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { EmptyState, Field, Pill, STUDY_KICKER } from "@/Components/admin/study-ui";
 import { Notice, PageHeader, Panel, button, ghost, input, useAction } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
+import { can, usePanelUser } from "@/lib/access";
 import { send } from "@/lib/actions";
 import { classLine, scheduleLabel, type StudyLevel } from "@/lib/studies";
 
@@ -28,6 +29,7 @@ function parse(value: string) {
 }
 
 export default function Notas({ levels, level, assessments, students, maxScore }: Props) {
+  const manages = can(usePanelUser(), "studies.students");
   return (
     <AdminLayout>
       <PageHeader
@@ -60,14 +62,21 @@ export default function Notas({ levels, level, assessments, students, maxScore }
           ) : students.length ? null : (
             <div className="mt-6">
               <EmptyState>
-                Aún no hay estudiantes en {level.name}. Ubícalos en este nivel desde{" "}
-                <Link href="/admin/estudios/estudiantes" className="font-semibold text-ink underline underline-offset-4">Estudiantes</Link>.
+                Aún no hay estudiantes en {level.name}.{" "}
+                {manages ? (
+                  <>
+                    Ubícalos en este nivel desde{" "}
+                    <Link href="/admin/estudios/estudiantes" className="font-semibold text-ink underline underline-offset-4">Estudiantes</Link>.
+                  </>
+                ) : (
+                  "Pide a quien administra los estudiantes que los ubique en este nivel."
+                )}
               </EmptyState>
             </div>
           )}
         </>
       ) : (
-        <div className="mt-6"><EmptyState>Primero crea un nivel en Niveles y horarios.</EmptyState></div>
+        <div className="mt-6"><EmptyState>{manages ? "Primero crea un nivel en Niveles y horarios." : "Todavía no hay niveles creados."}</EmptyState></div>
       )}
     </AdminLayout>
   );

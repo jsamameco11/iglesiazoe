@@ -2,6 +2,8 @@
 
 namespace App\Domain\Site\Design;
 
+use App\Domain\Media\Support\MediaLibrary;
+
 /**
  * Turns whatever the editor (or an older saved version) sends into a design the site can trust:
  * known fonts, #rrggbb colors, clamped scales, known pages and illustrations only.
@@ -13,6 +15,24 @@ class NormalizeDesign
     private const SECTION_LIMIT = 40;
 
     private const KEY = '/^[a-z0-9][a-z0-9-]{0,39}$/';
+
+    public const IMAGES = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'];
+
+    public const VIDEOS = ['mp4', 'webm', 'mov'];
+
+    /** Numeric fields of a page or band: [min, max, step]. */
+    private const RANGES = [
+        'gradient' => [0, 360, 1],
+        'imageX' => [0, 100, 1],
+        'imageY' => [0, 100, 1],
+        'overlay' => [0, 0.85, 0.05],
+        'titleWeight' => [100, 900, 100],
+        'textWeight' => [100, 900, 100],
+        'titleLeading' => [0.8, 1.8, 0.05],
+        'textLeading' => [1.1, 2.4, 0.05],
+        'titleTracking' => [-0.06, 0.3, 0.005],
+        'textTracking' => [-0.03, 0.2, 0.005],
+    ];
 
     public static function run(array $input): array
     {
@@ -103,10 +123,8 @@ class NormalizeDesign
             'textFont' => $rule['textFont'] ?? self::roleOf($rule['text'] ?? null, $fonts),
             'hidden' => false,
         ]);
-        foreach (['subtitle', 'text_size'] as $key) {
-            if (($value = self::scale($rule[$key] ?? null)) !== null) {
-                $clean[$key] = $value;
-            }
+        if (($subtitle = self::scale($rule['subtitle'] ?? null)) !== null) {
+            $clean['subtitle'] = $subtitle;
         }
         $sections = [];
         foreach (is_array($rule['sections'] ?? null) ? $rule['sections'] : [] as $key => $section) {
@@ -127,7 +145,7 @@ class NormalizeDesign
     private static function sectionRule(array $rule): array
     {
         $clean = [];
-        foreach (['background', 'titleColor', 'textColor', 'accentColor'] as $key) {
+        foreach (['background', 'background2', 'overlayColor', 'titleColor', 'textColor', 'accentColor'] as $key) {
             if ($color = self::color($rule[$key] ?? null)) {
                 $clean[$key] = $color;
             }
@@ -137,14 +155,56 @@ class NormalizeDesign
                 $clean[$key] = $rule[$key];
             }
         }
-        if (($title = self::scale($rule['title'] ?? null)) !== null) {
-            $clean['title'] = $title;
+        foreach (['title', 'text_size'] as $key) {
+            if (($value = self::scale($rule[$key] ?? null)) !== null) {
+                $clean[$key] = $value;
+            }
         }
-        if (($rule['hidden'] ?? false) === true) {
-            $clean['hidden'] = true;
+        foreach (['image' => self::IMAGES, 'video' => self::VIDEOS] as $key => $extensions) {
+            if ($path = self::mediaPath($rule[$key] ?? null, $extensions)) {
+                $clean[$key] = $path;
+            }
+        }
+        if (in_array($rule['imageFit'] ?? null, ['cover', 'contain', 'repeat'], true)) {
+            $clean['imageFit'] = $rule['imageFit'];
+        }
+        foreach (self::RANGES as $key => [$min, $max, $step]) {
+            if (is_numeric($rule[$key] ?? null)) {
+                $value = round(max($min, min($max, (float) $rule[$key])) / $step) * $step;
+                $clean[$key] = is_int($step) ? (int) $value : round($value, 3);
+            }
+        }
+        foreach (['fixed', 'titleUpper', 'titleItalic', 'hidden'] as $key) {
+            if (($rule[$key] ?? false) === true) {
+                $clean[$key] = true;
+            }
         }
 
         return $clean;
+    }
+
+    /** Every library file a design paints as a background. */
+    public static function files(array $design): array
+    {
+        $files = [];
+        foreach ($design['pages'] ?? [] as $page) {
+            foreach ([$page, ...array_values($page['sections'] ?? [])] as $rule) {
+                foreach (['image', 'video'] as $key) {
+                    if (is_string($rule[$key] ?? null)) {
+                        $files[] = $rule[$key];
+                    }
+                }
+            }
+        }
+
+        return array_values(array_unique($files));
+    }
+
+    private static function mediaPath(mixed $value, array $extensions): string
+    {
+        $key = is_string($value) ? MediaLibrary::keyOf($value) : null;
+
+        return $key && in_array(strtolower(pathinfo($key, PATHINFO_EXTENSION)), $extensions, true) ? $value : '';
     }
 
     private static function art(array $input): array

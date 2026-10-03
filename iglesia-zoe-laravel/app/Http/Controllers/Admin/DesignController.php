@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Auth\Support\Entrance;
+use App\Domain\Media\Support\MediaLibrary;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Design\NormalizeDesign;
 use App\Http\Controllers\Controller;
@@ -11,15 +12,19 @@ use App\Models\ServiceGallery;
 use App\Models\SiteSetting;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class DesignController extends Controller
 {
+    private const FOLDER = 'medios/diseno';
+
     public function index(): Response
     {
         return Inertia::render('Admin/Diseno', [
             'stored' => LoadPublicSite::design(),
+            'mediaOverrides' => LoadPublicSite::mediaOverrides(),
             'fonts' => collect(config('design.fonts'))->map(fn ($font) => [...$font, 'local' => (bool) ($font['local'] ?? false)])->values(),
             'pages' => $this->pages(),
             'art' => collect(config('design.art'))->map(fn ($spec, $key) => [
@@ -39,18 +44,73 @@ class DesignController extends Controller
         if (! is_array($input)) {
             return response()->json(['error' => 'No se pudo leer el diseño.'], 422);
         }
+        $before = NormalizeDesign::files($this->published());
         $design = NormalizeDesign::run($input);
         SiteSetting::query()->updateOrCreate(['key' => 'design'], ['value' => $design, 'updated_at' => now()]);
+        $this->forget(array_diff($before, NormalizeDesign::files($design)));
+        $this->sweep(NormalizeDesign::files($design));
 
         return response()->json(['ok' => true, 'message' => 'Diseño publicado en la web.', 'design' => $design]);
     }
 
     public function reset(): JsonResponse
     {
+        $files = NormalizeDesign::files($this->published());
         SiteSetting::query()->where('key', 'design')->delete();
         LoadPublicSite::flush();
+        $this->forget($files);
 
         return response()->json(['ok' => true, 'reload' => true, 'message' => 'Se restauró el diseño original.']);
+    }
+
+    /** Uploads a picture, GIF or video for a page or band background; it shows on the site once the design is published. */
+    public function upload(Request $request): JsonResponse
+    {
+        $file = $request->file('file');
+        $extension = $file instanceof UploadedFile && $file->isValid() ? strtolower((string) $file->guessExtension()) : '';
+        $kind = in_array($extension, NormalizeDesign::IMAGES, true) ? 'image' : (in_array($extension, NormalizeDesign::VIDEOS, true) ? 'video' : null);
+        if (! $kind) {
+            return response()->json(['error' => 'Sube una imagen (JPG, PNG, WebP, GIF o AVIF) o un video (MP4, WebM o MOV).'], 422);
+        }
+        $limit = $kind === 'video' ? 60 : 12;
+        if ($file->getSize() > $limit * 1024 * 1024) {
+            return response()->json(['error' => ($kind === 'video' ? 'El video' : 'La imagen').' pesa más de '.$limit.' MB.'], 422);
+        }
+
+        return response()->json(['ok' => true, 'kind' => $kind, 'src' => MediaLibrary::storePublic($file, self::FOLDER, $extension)]);
+    }
+
+    private function published(): array
+    {
+        $stored = SiteSetting::query()->where('key', 'design')->first()?->value;
+
+        return is_array($stored) ? $stored : [];
+    }
+
+    /** Uploads left behind by discarded drafts; a day of grace keeps files another open editor may still publish. */
+    private function sweep(array $keep): void
+    {
+        try {
+            $disk = MediaLibrary::publicDisk();
+            $limit = now()->subDay()->getTimestamp();
+            foreach ($disk->files(self::FOLDER) as $key) {
+                if (! in_array(MediaLibrary::PUBLIC_PREFIX.$key, $keep, true) && $disk->lastModified($key) < $limit) {
+                    $disk->delete($key);
+                }
+            }
+        } catch (\Throwable $error) {
+            report($error);
+        }
+    }
+
+    /** Deletes background files the design no longer uses; files of the photo library stay. */
+    private function forget(array $files): void
+    {
+        foreach ($files as $file) {
+            if (str_starts_with((string) MediaLibrary::keyOf($file), self::FOLDER.'/')) {
+                MediaLibrary::deletePublic($file);
+            }
+        }
     }
 
     /** Editable pages with the address the live preview opens; detail pages use their first published item. */

@@ -13,21 +13,49 @@ export type FontRole = "heading" | "text" | "accent";
 export type FontKind = "serif" | "sans" | "round";
 export type FontOption = { name: string; slug: string; kind: FontKind; local?: boolean };
 
-/** Look of one section of a page; every field is optional and falls back to the page. */
-export type SectionRule = {
+export type BackdropFit = "cover" | "contain" | "repeat";
+
+/** Background of a whole page (the screen) or of one band: color, gradient, picture or GIF, video and a tint on top. */
+export type Backdrop = {
   background?: string;
+  background2?: string;
+  gradient?: number;
+  image?: string;
+  video?: string;
+  imageFit?: BackdropFit;
+  imageX?: number;
+  imageY?: number;
+  fixed?: boolean;
+  overlay?: number;
+  overlayColor?: string;
+};
+
+/** Fine typography of titles and paragraphs. Tracking is in em. */
+export type Typography = {
+  titleWeight?: number;
+  textWeight?: number;
+  titleLeading?: number;
+  textLeading?: number;
+  titleTracking?: number;
+  textTracking?: number;
+  titleUpper?: boolean;
+  titleItalic?: boolean;
+};
+
+/** Look of one section of a page; every field is optional and falls back to the page. */
+export type SectionRule = Backdrop & Typography & {
   titleColor?: string;
   textColor?: string;
   accentColor?: string;
   titleFont?: FontRole;
   textFont?: FontRole;
   title?: number;
+  text_size?: number;
   hidden?: boolean;
 };
 
 export type PageRule = Omit<SectionRule, "hidden"> & {
   subtitle?: number;
-  text_size?: number;
   sections?: Record<string, SectionRule>;
 };
 

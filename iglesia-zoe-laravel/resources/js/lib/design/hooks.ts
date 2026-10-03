@@ -2,7 +2,7 @@ import { usePage } from "@inertiajs/react";
 import { useEffect, useSyncExternalStore } from "react";
 import { fontHref } from "./fonts";
 import { collectSections, getDraft, isPreview, postToEditor, PREVIEW_CSS, subscribeDraft } from "./preview";
-import { designAttributes, designCss } from "./styles";
+import { backdropVideos, designAttributes, designCss } from "./styles";
 import type { ArtRule, Design } from "./types";
 
 /** The design in force: the published one, or the editor's draft inside the live preview. */
@@ -60,6 +60,41 @@ function useArtSpeed(art: Design["art"] | undefined) {
   }, [speeds]);
 }
 
+/** Plays the video backgrounds behind the page or its bands, muted and looping, under a tint layer. */
+function useBackdropVideos(design: Design | undefined, page: string, url: string) {
+  const videos = JSON.stringify(backdropVideos(design, page));
+  useEffect(() => {
+    const list = JSON.parse(videos) as ReturnType<typeof backdropVideos>;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const cleanups: (() => void)[] = [];
+    list.forEach((item) => {
+      const host = document.querySelector<HTMLElement>(item.section ? `[data-design-page] [data-section="${CSS.escape(item.section)}"]` : "[data-design-page]");
+      if (!host) return;
+      const layer = document.createElement("div");
+      layer.setAttribute("data-design-video", "");
+      layer.setAttribute("aria-hidden", "true");
+      layer.style.cssText = `position:${item.fixed ? "fixed" : "absolute"};inset:0;z-index:-1;overflow:hidden;pointer-events:none`;
+      const video = document.createElement("video");
+      Object.assign(video, { src: item.src, muted: true, loop: true, playsInline: true, autoplay: !still, preload: still ? "metadata" : "auto" });
+      video.style.cssText = "width:100%;height:100%;object-fit:cover";
+      layer.appendChild(video);
+      if (item.tint) {
+        const shade = document.createElement("span");
+        shade.style.cssText = `position:absolute;inset:0;background:${item.tint}`;
+        layer.appendChild(shade);
+      }
+      const staticHost = getComputedStyle(host).position === "static";
+      if (staticHost) host.style.position = "relative";
+      host.prepend(layer);
+      cleanups.push(() => {
+        layer.remove();
+        if (staticHost) host.style.position = "";
+      });
+    });
+    return () => cleanups.forEach((cleanup) => cleanup());
+  }, [videos, url]);
+}
+
 function usePreviewBridge(page: string, preview: boolean) {
   useEffect(() => {
     if (!preview) return;
@@ -84,6 +119,7 @@ export function useSiteDesign() {
   useHeadNode("zoe-design-rules", "style", designCss(design, page.component, preview) + (preview ? PREVIEW_CSS : ""));
   useHeadNode("zoe-site-fonts", "link", preview && design ? fontHref(Object.values(design.fonts)) : design?.fontHref || "");
   useArtSpeed(design?.art);
+  useBackdropVideos(design, page.component, page.url);
   usePreviewBridge(page.component, preview);
 
   return { style, attrs };

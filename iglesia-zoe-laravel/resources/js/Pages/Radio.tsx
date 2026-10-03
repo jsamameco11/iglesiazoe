@@ -7,7 +7,7 @@ import { ProgramList } from "@/Components/radio/listener/program-list";
 import { useStation } from "@/Components/radio/listener/use-station";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
-import { section } from "@/lib/design";
+import { section, useArt } from "@/lib/design";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import { KIND_LABEL, clock, currentItem, dayLabel, duration, limaDate, type RadioItem, type RadioState } from "@/lib/radio";
 import type { SiteSettings } from "@/lib/types";
@@ -29,6 +29,7 @@ export default function Radio({
   const t = (key: CopyKey) => readCopy(settings, key);
   const media = resolveMedia(mediaOverrides);
   const station = useStation(radio);
+  const bars = useArt("radio");
   const { state, now, playing, volume, voice, blocked } = station;
   const item = currentItem(state.queue, now);
   const upcoming = state.queue.filter((entry) => entry.start > now).slice(0, 3);
@@ -88,7 +89,7 @@ export default function Radio({
                 )}
               </div>
 
-              <Visualizer analyser={station.analyser} active={playing} className="radio-viz" />
+              <Visualizer analyser={station.analyser} active={playing} className="radio-viz" speed={bars.speed} still={bars.still} />
 
               {item ? (
                 <div className="mt-4">

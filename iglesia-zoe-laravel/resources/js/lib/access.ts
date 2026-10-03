@@ -19,6 +19,7 @@ export type Permission =
   | "radio.schedule"
   | "radio.library"
   | "radio.settings"
+  | "studies.students"
   | "studies.grades"
   | "studies.board"
   | "expenses.manage"

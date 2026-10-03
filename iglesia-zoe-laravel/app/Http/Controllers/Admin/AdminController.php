@@ -89,9 +89,10 @@ class AdminController extends Controller
             $latest = Theme::query()->where('active', true)->orderByDesc('theme_date')->first();
             $cards[] = ['label' => 'Temas de célula', 'value' => (string) $counts['themes'], 'href' => '/admin/temas', 'note' => $latest ? 'Último: '.$latest->title : 'Aún no hay temas', 'accent' => 'bg-blush'];
         }
-        if ($can('studies.grades') || $can('studies.board')) {
+        if ($can('studies.students') || $can('studies.grades') || $can('studies.board')) {
             $students = StudyStudent::query()->where('status', 'cursando')->count();
-            $cards[] = ['label' => 'Ruta del Servidor', 'value' => $students.' '.($students === 1 ? 'estudiante' : 'estudiantes'), 'href' => $can('studies.grades') ? '/admin/estudios' : '/admin/estudios/avisos', 'note' => 'Cursando un nivel ahora', 'accent' => 'bg-sky'];
+            $href = $can('studies.students') ? '/admin/estudios' : ($can('studies.grades') ? '/admin/estudios/notas' : '/admin/estudios/avisos');
+            $cards[] = ['label' => 'Ruta del Servidor', 'value' => $students.' '.($students === 1 ? 'estudiante' : 'estudiantes'), 'href' => $href, 'note' => 'Cursando un nivel ahora', 'accent' => 'bg-sky'];
         }
         $inboxAccents = ['visitas' => 'bg-dusk', 'bautismos' => 'bg-clay', 'oraciones' => 'bg-sky', 'servidores' => 'bg-sage'];
         foreach ($unread as $kind => $count) {
