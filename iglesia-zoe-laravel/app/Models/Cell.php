@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Servers\ServerLevel;
 use App\Domain\Shared\Models\UuidModel;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -12,12 +13,21 @@ class Cell extends UuidModel
     public const MEETING_DAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
     protected $fillable = [
-        'network_id', 'parent_id', 'number', 'code', 'leader_name', 'assistant_name',
+        'network_id', 'parent_id', 'level', 'number', 'code', 'leader_name', 'assistant_name',
         'host_name', 'address', 'meeting_day', 'meeting_time', 'active',
     ];
 
     /** Number of the cell a Servidor de Red leads under the network letter alone (H). */
     public const NETWORK_NUMBER = 0;
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $cell) {
+            if (! $cell->exists || $cell->isDirty(['parent_id', 'number'])) {
+                $cell->level = ServerLevel::compute($cell)->value;
+            }
+        });
+    }
 
     protected function casts(): array
     {

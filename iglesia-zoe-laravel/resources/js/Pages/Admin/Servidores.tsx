@@ -3,9 +3,10 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { PageHeader, Panel } from "@/Components/admin/ui";
 import { NetworkLeaders } from "@/Components/admin/servers/network-leaders";
 import { OwnCellPanel } from "@/Components/admin/servers/own-cell";
-import { LevelBadge, ServerCard } from "@/Components/admin/servers/server-card";
+import { ServerCard } from "@/Components/admin/servers/server-card";
 import { ServerForm } from "@/Components/admin/servers/server-form";
-import type { OwnCell, ServerNetwork } from "@/Components/admin/servers/types";
+import { countOf, type OwnCell, type ServerNetwork } from "@/Components/admin/servers/types";
+import { CellCodeLegend } from "@/Components/ui/cell-code";
 
 type Props = { networks: ServerNetwork[]; leaderLimit: number; leadsNetwork: boolean; ownCell: OwnCell | null };
 
@@ -18,13 +19,13 @@ export default function Servidores({ networks, leaderLimit, leadsNetwork, ownCel
       <div className="pb-16">
         <PageHeader
           kicker="Células"
-          title={leadsNetwork ? "Servidores" : "Mis servidores hijo"}
+          title={leadsNetwork ? "Servidores" : "Mi célula"}
           text={
             leadsNetwork
-              ? `Cada red tiene su Servidor de Red (${leaderLimit} como máximo). Debajo de él están los servidores, y cada servidor tiene sus servidores hijo. Al crear a alguien puedes darle su cuenta para que suba sus informes.`
-              : "Tu célula y los servidores hijo a tu cargo. Añade un servidor hijo desde tu tarjeta y, si quieres, dale su cuenta para que suba sus informes."
+              ? `Cada red tiene su Servidor de Red (${leaderLimit} como máximo). Debajo están los Servidores Base, cada Base tiene sus servidores hijo y cada hijo sus servidores subhijo. Cada código es una célula: el número del hijo va sobre fondo naranja y el del subhijo sobre fondo marrón. Solo el Servidor de Red y los administradores con la función crean servidores.`
+              : "Tu célula y las que están debajo de ella. Los servidores de célula no crean servidores: los abre el Servidor de Red."
           }
-          aside={<Hierarchy />}
+          aside={<CellCodeLegend network={network?.code ?? "H"} />}
         />
         {ownCell && <div className="mt-6 max-w-4xl"><OwnCellPanel own={ownCell} /></div>}
         {networks.length > 1 && (
@@ -53,19 +54,18 @@ export default function Servidores({ networks, leaderLimit, leadsNetwork, ownCel
 }
 
 function NetworkView({ network, leaderLimit }: { network: ServerNetwork; leaderLimit: number }) {
+  const totals = [countOf(network.totals.servers, "servidor"), countOf(network.totals.children, "hijo"), countOf(network.totals.grandchildren, "subhijo")].join(" · ");
+
   return (
     <div className={`mt-6 grid gap-6 ${network.can_open ? "xl:grid-cols-[minmax(0,1.35fr)_minmax(0,0.65fr)]" : "max-w-4xl"}`}>
       <div className="space-y-6">
         <NetworkLeaders network={network} limit={leaderLimit} />
-        <Panel
-          title={`Servidores de la Red ${network.code}`}
-          text={`${network.totals.servers} ${network.totals.servers === 1 ? "servidor" : "servidores"} · ${network.totals.children} ${network.totals.children === 1 ? "servidor hijo" : "servidores hijo"}`}
-        >
+        <Panel title={`Servidores de la Red ${network.code}`} text={totals}>
           <div className="space-y-4">
             {network.servers.map((server) => <ServerCard key={server.id} server={server} />)}
             {!network.servers.length && (
               <p className="rounded-2xl border border-dashed border-line px-5 py-10 text-center text-sm text-muted">
-                {network.can_open ? "Esta red todavía no tiene servidores. Crea el primero con el formulario." : "Esta red todavía no tiene servidores."}
+                {network.can_open ? "Esta red todavía no tiene Servidores Base. Crea el primero con el formulario." : "Esta red todavía no tiene servidores."}
               </p>
             )}
           </div>
@@ -75,33 +75,14 @@ function NetworkView({ network, leaderLimit }: { network: ServerNetwork; leaderL
         <div className="xl:sticky xl:top-6 xl:self-start">
           <ServerForm
             level="servidor"
-            title={`Nuevo servidor · Red ${network.code}`}
-            text={`Se crea la célula ${network.next_code}. Sus servidores hijo se añaden desde su tarjeta.`}
+            title={`Nuevo Servidor Base · Red ${network.code}`}
+            text={`Se crea la célula ${network.next_code}. Sus servidores hijo y subhijo se añaden desde su tarjeta.`}
             url="/admin/servidores"
             hidden={{ network_id: network.id }}
-            submitLabel="Crear servidor"
+            submitLabel="Crear Servidor Base"
           />
         </div>
       )}
     </div>
-  );
-}
-
-function Hierarchy() {
-  const steps = [
-    { level: "red" as const, example: "Red A" },
-    { level: "servidor" as const, example: "01A" },
-    { level: "hijo" as const, example: "0101A" },
-  ];
-  return (
-    <ol className="flex flex-wrap items-center gap-2 rounded-2xl border border-line bg-white px-4 py-3">
-      {steps.map((step, index) => (
-        <li key={step.level} className="flex items-center gap-2">
-          {index > 0 && <span className="text-muted">→</span>}
-          <LevelBadge level={step.level} />
-          <span className="text-[11px] text-muted">{step.example}</span>
-        </li>
-      ))}
-    </ol>
   );
 }

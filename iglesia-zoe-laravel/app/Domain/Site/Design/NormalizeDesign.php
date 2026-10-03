@@ -14,7 +14,17 @@ class NormalizeDesign
 
     private const SECTION_LIMIT = 40;
 
+    private const TEXT_LIMIT = 80;
+
     private const KEY = '/^[a-z0-9][a-z0-9-]{0,39}$/';
+
+    /** Where one text sits: its band ("~" for the page itself), then its place among the children at each level. */
+    public const TEXT_PATH = '/^(~|[a-z0-9][a-z0-9-]{0,39}):[1-9][0-9]{0,2}(\.[1-9][0-9]{0,2}){0,15}$/';
+
+    private const ALIGNS = ['left', 'center', 'right'];
+
+    /** How an inline text (a link, a word) becomes its own line so it can be aligned. */
+    private const BOXES = ['block', 'flex', 'grid'];
 
     public const IMAGES = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif'];
 
@@ -64,10 +74,12 @@ class NormalizeDesign
         ];
     }
 
-    /** Stylesheet URL for the chosen families that do not ship with the site. */
+    /** Stylesheet URL for the chosen families that do not ship with the site, including those of single texts. */
     public static function fontHref(array $design): string
     {
+        $texts = collect($design['pages'] ?? [])->flatMap(fn ($page) => is_array($page['texts'] ?? null) ? array_column($page['texts'], 'font') : []);
         $slugs = collect($design['fonts'] ?? [])
+            ->concat($texts)
             ->reject(fn ($font) => ! is_array($font) || ($font['local'] ?? false))
             ->map(fn ($font) => $font['slug'].':400,400i,500,600,700')
             ->unique()
@@ -168,8 +180,64 @@ class NormalizeDesign
         if ($sections) {
             $clean['sections'] = $sections;
         }
+        if ($texts = self::texts($rule['texts'] ?? null)) {
+            $clean['texts'] = $texts;
+        }
 
         return $clean;
+    }
+
+    /**
+     * Looks of single texts picked in the preview: any catalog font (or one of the three site roles),
+     * a size factor, alignment, weight and italics. Unchanged texts keep the page's look.
+     *
+     * @return array<string, array{font?: string|array{name: string, slug: string, kind: string, local: bool}, size?: float, align?: string, box?: string, weight?: int, italic?: true, label?: string}>
+     */
+    private static function texts(mixed $input): array
+    {
+        if (! is_array($input)) {
+            return [];
+        }
+        $catalog = collect(config('design.fonts'))->keyBy('name');
+        $texts = [];
+        foreach ($input as $path => $rule) {
+            if (count($texts) >= self::TEXT_LIMIT) {
+                break;
+            }
+            if (! is_string($path) || ! preg_match(self::TEXT_PATH, $path) || ! is_array($rule)) {
+                continue;
+            }
+            $clean = [];
+            $font = $rule['font'] ?? null;
+            $name = is_array($font) ? ($font['name'] ?? null) : $font;
+            if (in_array($font, self::ROLES, true)) {
+                $clean['font'] = $font;
+            } elseif (is_string($name) && $catalog->has($name)) {
+                $clean['font'] = self::font($catalog->get($name));
+            }
+            if (is_numeric($rule['size'] ?? null) && ($size = round(round(max(0.5, min(2.5, (float) $rule['size'])) / 0.05) * 0.05, 2)) !== 1.0) {
+                $clean['size'] = $size;
+            }
+            if (in_array($rule['align'] ?? null, self::ALIGNS, true)) {
+                $clean['align'] = $rule['align'];
+                if (in_array($rule['box'] ?? null, self::BOXES, true)) {
+                    $clean['box'] = $rule['box'];
+                }
+            }
+            if (is_numeric($rule['weight'] ?? null)) {
+                $clean['weight'] = (int) (round(max(100, min(900, (float) $rule['weight'])) / 100) * 100);
+            }
+            if (($rule['italic'] ?? false) === true) {
+                $clean['italic'] = true;
+            }
+            if (! $clean) {
+                continue;
+            }
+            $label = is_string($rule['label'] ?? null) ? trim(preg_replace('/\s+/u', ' ', strip_tags($rule['label']))) : '';
+            $texts[$path] = $label !== '' ? [...$clean, 'label' => mb_substr($label, 0, 80)] : $clean;
+        }
+
+        return $texts;
     }
 
     private static function sectionRule(array $rule): array

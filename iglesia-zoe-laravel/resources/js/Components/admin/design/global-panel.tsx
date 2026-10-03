@@ -1,6 +1,6 @@
-import { useEffect } from "react";
-import { fontHref, fontRoles, fontStack, zoePalette, type Design, type FontOption, type Palette } from "@/lib/design";
+import { fontRoles, fontStack, zoePalette, type Design, type FontCategory, type FontOption, type Palette } from "@/lib/design";
 import { Choice, ColorField, RangeField, RoleField, ScaleField, SelectField } from "./fields";
+import { FontPicker } from "./font-picker";
 import type { Draft } from "./use-draft";
 
 const presets: { name: string; palette: Palette }[] = [
@@ -19,12 +19,6 @@ const paletteFields: { key: keyof Palette; label: string; text: string }[] = [
   { key: "stone", label: "Arena", text: "Bloques de apoyo" },
   { key: "clay", label: "Terracota", text: "Secciones cálidas" },
   { key: "line", label: "Líneas", text: "Bordes y separadores" },
-];
-
-const kinds: { key: FontOption["kind"]; label: string }[] = [
-  { key: "serif", label: "Con serifa" },
-  { key: "sans", label: "Sin serifa" },
-  { key: "round", label: "Redondeadas" },
 ];
 
 const navWeights = [
@@ -49,16 +43,9 @@ function Group({ title, text, children }: { title: string; text: string; childre
   );
 }
 
-export function GlobalPanel({ draft, fonts }: { draft: Draft; fonts: FontOption[] }) {
+export function GlobalPanel({ draft, fonts, categories }: { draft: Draft; fonts: FontOption[]; categories: FontCategory[] }) {
   const { design } = draft;
   const nav = design.nav ?? {};
-
-  useEffect(() => {
-    const id = "zoe-design-catalog";
-    if (document.getElementById(id)) return;
-    const link = Object.assign(document.createElement("link"), { id, rel: "stylesheet", href: fontHref(fonts) });
-    document.head.appendChild(link);
-  }, [fonts]);
 
   return (
     <div className="space-y-6">
@@ -83,28 +70,15 @@ export function GlobalPanel({ draft, fonts }: { draft: Draft; fonts: FontOption[
         </div>
       </Group>
 
-      <Group title="Tipografías" text="La web usa solo tres: una para títulos, otra para textos y otra para acentos. Cada página y sección elige cuál de las tres usa.">
+      <Group title="Tipografías" text={`Por defecto la web usa tres: una para títulos, otra para textos y otra para acentos. Elige cada una entre ${fonts.length} tipografías ordenadas en ${categories.length} categorías. ¿Un texto puntual con otra letra? Usa la pestaña «Textos».`}>
         <div className="space-y-3">
           {fontRoles.map((role) => (
-            <div key={role.key} className="rounded-2xl border border-line bg-white p-3.5">
-              <label className="block text-xs font-semibold text-muted">
-                {role.label} <span className="font-normal">· {role.text}</span>
-                <select
-                  value={design.fonts[role.key].name}
-                  onChange={(event) => {
-                    const font = fonts.find((item) => item.name === event.target.value);
-                    if (font) draft.setFont(role.key, font);
-                  }}
-                  className="mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink/40"
-                >
-                  {kinds.map((kind) => (
-                    <optgroup key={kind.key} label={kind.label}>
-                      {fonts.filter((font) => font.kind === kind.key).map((font) => <option key={font.name} value={font.name}>{font.name}{font.local ? " · incluida" : ""}</option>)}
-                    </optgroup>
-                  ))}
-                </select>
-              </label>
-              <p className={`mt-3 leading-tight text-ink ${role.key === "heading" ? "text-2xl font-semibold" : role.key === "accent" ? "text-xs font-semibold tracking-[0.18em]" : "text-sm"}`} style={{ fontFamily: fontStack(design.fonts[role.key]) }}>
+            <div key={role.key} className="space-y-2.5 rounded-2xl border border-line bg-paper/40 p-3">
+              <p className="text-xs font-semibold text-ink">
+                {role.label} <span className="font-normal text-muted">· {role.text}</span>
+              </p>
+              <FontPicker fonts={fonts} categories={categories} current={design.fonts[role.key]} sample={samples[role.key]} onPick={(font) => draft.setFont(role.key, font)} />
+              <p className={`px-1 leading-tight text-ink ${role.key === "heading" ? "text-2xl font-semibold" : role.key === "accent" ? "text-xs font-semibold tracking-[0.18em]" : "text-sm"}`} style={{ fontFamily: fontStack(design.fonts[role.key]) }}>
                 {samples[role.key]}
               </p>
             </div>

@@ -1,6 +1,7 @@
 import { Link, router } from "@inertiajs/react";
 import PortalLayout from "@/Layouts/PortalLayout";
 import { FormEvent } from "react";
+import { CellCode } from "@/Components/ui/cell-code";
 
 type Row = {
   id: string;
@@ -55,7 +56,7 @@ export default function Historial({
             {rows.map((row, index) => (
               <tr key={row.id} className="border-t border-line">
                 <td className="px-4 py-3">{index + 1}</td>
-                <td className="px-4 py-3">{row.code}</td>
+                <td className="px-4 py-3"><CellCode code={row.code} /></td>
                 <td className="px-4 py-3">{row.met ? row.theme_title || "Reunión" : "No se reunió"}</td>
                 <td className="px-4 py-3">{row.meeting_date || `${row.year} · semana ${row.week}`}</td>
                 <td className="px-4 py-3">{row.attended}</td>

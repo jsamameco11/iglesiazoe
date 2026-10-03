@@ -25,6 +25,11 @@ class DesignController extends Controller
             'stored' => LoadPublicSite::design(),
             'mediaOverrides' => LoadPublicSite::mediaOverrides(),
             'fonts' => collect(config('design.fonts'))->map(fn ($font) => [...$font, 'local' => (bool) ($font['local'] ?? false)])->values(),
+            'fontCategories' => collect(config('design.font_categories'))->map(fn ($category, $key) => [
+                'key' => $key,
+                ...$category,
+                'count' => collect(config('design.fonts'))->where('category', $key)->count(),
+            ])->values(),
             'pages' => $this->pages(),
             'art' => collect(config('design.art'))->map(fn ($spec, $key) => [
                 'key' => $key,

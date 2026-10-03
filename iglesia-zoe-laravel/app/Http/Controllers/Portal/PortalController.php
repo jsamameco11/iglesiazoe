@@ -6,6 +6,7 @@ use App\Domain\Access\CellScope;
 use App\Domain\Access\Permissions;
 use App\Domain\Media\Support\MediaLibrary;
 use App\Domain\Reports\Support\WeekCalendar;
+use App\Domain\Servers\ServerLevel;
 use App\Http\Controllers\Controller;
 use App\Models\Cell;
 use App\Models\CellMember;
@@ -234,6 +235,7 @@ class PortalController extends Controller
                 'id' => $cell->id,
                 'code' => $cell->code,
                 'parent_id' => $cell->parent_id,
+                'level' => ServerLevel::ofCell($cell)->value,
                 'leader_name' => $cell->leader_name,
                 'attendance' => $report ? $report->attendance->where('attended', true)->count() : 0,
                 'salvations' => $report?->salvations ?? 0,
@@ -291,14 +293,19 @@ class PortalController extends Controller
         return $ids === null || in_array($cellId, $ids, true);
     }
 
+    /** Each cell followed by its hijos and their subhijos; a cell whose parent is out of view leads its own branch. */
     private function orderCells($cells)
     {
-        $roots = $cells->whereNull('parent_id')->sortBy(['number', 'code']);
+        $ids = $cells->pluck('id')->flip();
+        $byParent = $cells->groupBy(fn ($cell) => $cell->parent_id && $ids->has($cell->parent_id) ? $cell->parent_id : '');
         $result = collect();
-        foreach ($roots as $root) {
-            $result->push($root);
-            $result = $result->merge($cells->where('parent_id', $root->id)->sortBy('number'));
-        }
+        $walk = function (string $key) use (&$walk, $byParent, $result) {
+            foreach ($byParent->get($key, collect())->sortBy(['number', 'code']) as $cell) {
+                $result->push($cell);
+                $walk($cell->id);
+            }
+        };
+        $walk('');
 
         return $result->values();
     }

@@ -2,14 +2,15 @@
 
 namespace App\Domain\Access;
 
+use App\Domain\Servers\ServerLevel;
 use App\Models\Cell;
 use App\Models\Network;
 use App\Models\User;
 
 /**
  * What part of the cell structure an account reaches. A Servidor de Red works
- * on its whole network; a servidor works on its own cell and its servidores
- * hijo; a servidor hijo works on its own cell only.
+ * on its whole network; a Servidor Base, hijo or subhijo works on its own cell
+ * and follows the cells below it.
  */
 class CellScope
 {
@@ -142,24 +143,24 @@ class CellScope
             && $this->ownCell() === null;
     }
 
-    /** The Servidor de Red oversees every cell of its network; a servidor oversees its servidores hijo. */
+    /**
+     * Only network-level accounts (Servidor de Red, administrators, the
+     * superadmin) work on servers; cell servers never open nor manage them.
+     */
     public function oversees(Cell $cell): bool
     {
-        return $this->leadsNetwork()
-            ? $this->managesNetwork($cell->network_id)
-            : $cell->parent_id !== null && in_array($cell->parent_id, $this->own, true);
+        return $this->leadsNetwork() && $this->managesNetwork($cell->network_id);
     }
 
     /**
-     * Servidores hijo hang from a servidor's cell, never from another servidor
-     * hijo nor from the Servidor de Red's own network cell (A).
+     * Servidores hijo hang from a Servidor Base and servidores subhijo from a
+     * servidor hijo; a subhijo and the Servidor de Red's own cell (A) have none.
      */
     public function canAddChildTo(Cell $parent): bool
     {
         return Permissions::has($this->user, 'servers.children')
-            && $parent->parent_id === null
-            && ! $parent->isNetworkCell()
-            && ($this->oversees($parent) || in_array($parent->id, $this->own, true));
+            && ServerLevel::ofCell($parent)->child() !== null
+            && $this->oversees($parent);
     }
 
     public function reaches(Cell $cell): bool
@@ -178,11 +179,19 @@ class CellScope
         return $this->networkCells ??= Cell::query()->where('network_id', $this->network->id)->pluck('id')->all();
     }
 
+    /** The user's own cells and every cell below them: hijos and subhijos. */
     private function ownTree(): array
     {
-        return $this->ownTree ??= array_values(array_unique([
-            ...$this->own,
-            ...Cell::query()->whereIn('parent_id', $this->own ?: [self::NONE])->pluck('id')->all(),
-        ]));
+        if ($this->ownTree !== null) {
+            return $this->ownTree;
+        }
+        $tree = $this->own;
+        $level = $this->own;
+        for ($depth = 0; $level && $depth < 3; $depth++) {
+            $level = array_values(array_diff(Cell::query()->whereIn('parent_id', $level)->pluck('id')->all(), $tree));
+            $tree = [...$tree, ...$level];
+        }
+
+        return $this->ownTree = array_values(array_unique($tree));
     }
 }

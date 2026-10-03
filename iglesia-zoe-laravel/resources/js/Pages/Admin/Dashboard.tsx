@@ -1,5 +1,6 @@
 import { Link } from "@inertiajs/react";
 import AdminLayout from "@/Layouts/AdminLayout";
+import { CellCode } from "@/Components/ui/cell-code";
 import { can, SERVER_TREE, usePanelUser, type Permission } from "@/lib/access";
 
 type Card = { label: string; value: string; href: string; note: string; accent: string };
@@ -10,7 +11,7 @@ const shortcuts: { href: string; label: string; text: string; needs: Permission[
   { href: "/portal/seguimiento", label: "Reporte semanal", text: "Cómo va tu red esta semana.", needs: ["reports.weekly", "reports.all"] },
   { href: "/admin/informes", label: "Reportes de servidores", text: "Filtra por semana, mes o año.", needs: ["reports.all"] },
   { href: "/admin/ofrendas", label: "Ofrendas por semana", text: "Lo recibido por cada célula.", needs: ["offerings.weekly"] },
-  { href: "/admin/servidores", label: "Servidores", text: "Servidor de Red, servidores y servidores hijo.", needs: SERVER_TREE },
+  { href: "/admin/servidores", label: "Servidores", text: "Servidor de Red, Servidores Base, hijo y subhijo.", needs: SERVER_TREE },
   { href: "/admin/temas", label: "Publicar tema", text: "Sube el material de la semana.", needs: ["themes.manage", "content.manage"] },
   { href: "/portal/temas", label: "Temas publicados", text: "Lo que ven los servidores.", needs: ["themes.manage"] },
   { href: "/admin/diseno", label: "Diseño de la página", text: "Colores, tipografías y tamaños.", needs: ["design.manage"] },
@@ -80,7 +81,7 @@ export default function Dashboard({ cards, recent, name }: { cards: Card[]; rece
                 {recent.map((row) => (
                   <div key={row.id} className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">{row.code || "Sin célula"} · {row.met ? row.theme_title || "Tema sin título" : "No se reunió"}</p>
+                      <p className="truncate text-sm font-semibold">{row.code ? <CellCode code={row.code} /> : "Sin célula"} · {row.met ? row.theme_title || "Tema sin título" : "No se reunió"}</p>
                       <p className="mt-1 text-xs text-muted">Semana {row.week} · {row.year}</p>
                     </div>
                     <p className="shrink-0 text-right text-xs text-muted"><span className="block text-sm font-semibold text-ink">{row.photos}</span>fotos</p>

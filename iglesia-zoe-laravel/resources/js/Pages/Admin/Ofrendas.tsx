@@ -1,5 +1,6 @@
 import AdminLayout from "@/Layouts/AdminLayout";
 import { PageHeader, Panel, PeriodFilter } from "@/Components/admin/ui";
+import { CellCode } from "@/Components/ui/cell-code";
 import { money } from "@/lib/access";
 
 type Row = { code: string; network: string; leader: string | null; status: string; offering: number | null };
@@ -27,7 +28,7 @@ export default function Ofrendas({ filters, label, weeks, rows, weekTotal }: { f
                   <tbody>
                     {list.map((row) => (
                       <tr key={row.code} className="border-t border-line first:border-0">
-                        <td className="py-2.5 font-semibold">{row.code}</td>
+                        <td className="py-2.5"><CellCode code={row.code} /></td>
                         <td className="py-2.5 text-muted">{row.leader || "—"}</td>
                         <td className="py-2.5"><span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${row.status === "Se reunió" ? "bg-mist text-[#3d6248]" : row.status === "No se reunió" ? "bg-blush text-[#8a4a33]" : "bg-paper text-muted"}`}>{row.status}</span></td>
                         <td className="py-2.5 text-right font-semibold">{row.offering === null ? "—" : money(row.offering)}</td>

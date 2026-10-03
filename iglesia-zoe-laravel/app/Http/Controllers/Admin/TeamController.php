@@ -41,6 +41,7 @@ class TeamController extends Controller
                 'network_code' => $user->network?->code,
                 'cells' => $user->cells->pluck('code')->sort()->values(),
                 'serve_areas' => Inbox::serveAreasOf($user) ?? [],
+                'area' => $user->area,
                 'active' => $user->active !== false,
                 'label' => Permissions::label($user),
                 'created_at' => optional($user->created_at)->toDateString(),
@@ -58,7 +59,10 @@ class TeamController extends Controller
             'permissions' => (array) $request->input('permissions', []),
             'network_id' => $this->networkId($request),
         ], $request->user());
-        $user->update(['serve_areas' => $this->serveAreas($request, $user->permissions ?? [])]);
+        $user->update([
+            'serve_areas' => $this->serveAreas($request, $user->permissions ?? []),
+            'area' => $this->area($request, $user->admin_types ?? []),
+        ]);
         $this->syncCells($user, (string) $request->input('cells'));
 
         return $this->saved("Cuenta {$user->username} creada.");
@@ -84,6 +88,7 @@ class TeamController extends Controller
             'admin_types' => $types,
             'permissions' => $permissions,
             'serve_areas' => $this->serveAreas($request, $permissions),
+            'area' => $this->area($request, $types),
             'network_id' => $networkId,
             'active' => $active,
         ]);
@@ -130,6 +135,14 @@ class TeamController extends Controller
         $areas = ServeArea::query()->whereIn('id', $chosen)->pluck('id')->map(fn ($id) => (string) $id)->values()->all();
 
         return $areas ?: null;
+    }
+
+    /** The area a Director de Área leads; other types keep none. */
+    private function area(Request $request, array $types): ?string
+    {
+        $area = mb_substr(trim((string) $request->input('area')), 0, 80);
+
+        return in_array('director', $types, true) && $area !== '' ? $area : null;
     }
 
     private function networkId(Request $request): ?string

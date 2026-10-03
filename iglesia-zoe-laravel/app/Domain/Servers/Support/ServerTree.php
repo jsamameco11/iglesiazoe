@@ -14,12 +14,14 @@ use App\Models\User;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-/** Builds, network by network, the Servidor de Red → servidores → servidores hijo tree a user can see. */
+/** Builds, network by network, the Servidor de Red → Base → hijo → subhijo tree a user can see. */
 final class ServerTree
 {
     private Collection $byParent;
 
     private Collection $accounts;
+
+    private Collection $levels;
 
     private function __construct(private readonly CellScope $scope) {}
 
@@ -41,6 +43,7 @@ final class ServerTree
             ->get(['id', 'code', 'name']);
 
         $visible = $cells->pluck('id')->flip();
+        $this->levels = $cells->groupBy('network_id')->map(fn (Collection $group) => $group->countBy(fn (Cell $cell) => ServerLevel::ofCell($cell)->value));
         $this->byParent = $cells->groupBy(fn (Cell $cell) => $cell->parent_id && $visible->has($cell->parent_id) ? $cell->parent_id : 'top:'.$cell->network_id);
         $this->accounts = DB::table('user_cells')
             ->join('users', 'users.id', '=', 'user_cells.user_id')
@@ -89,6 +92,7 @@ final class ServerTree
     {
         $servers = $this->children('top:'.$network->id);
         $canOpen = $this->scope->canOpenServerIn($network->id);
+        $levels = $this->levels->get($network->id, collect());
 
         return [
             'id' => $network->id,
@@ -100,8 +104,9 @@ final class ServerTree
             'next_code' => $canOpen ? CellCodes::root($network->code, OpenServer::nextNumber($network, null)) : null,
             'servers' => $servers,
             'totals' => [
-                'servers' => $servers->where('level', ServerLevel::Servidor->value)->count(),
-                'children' => $servers->sum(fn (array $node) => $node['totals']['children']) + $servers->where('level', ServerLevel::Hijo->value)->count(),
+                'servers' => $levels->get(ServerLevel::Servidor->value, 0),
+                'children' => $levels->get(ServerLevel::Hijo->value, 0),
+                'grandchildren' => $levels->get(ServerLevel::Subhijo->value, 0),
             ],
         ];
     }
@@ -118,11 +123,13 @@ final class ServerTree
             ->map(fn ($row) => ['username' => $row->username, 'name' => $row->name, 'active' => (bool) $row->active])
             ->values();
         $canAddChild = $this->scope->canAddChildTo($cell);
+        $level = ServerLevel::ofCell($cell);
 
         return [
             'id' => $cell->id,
             'code' => $cell->code,
-            'level' => ServerLevel::ofCell($cell)->value,
+            'level' => $level->value,
+            'child_level' => $level->child()?->value,
             'leader_name' => $cell->leader_name,
             'meeting_day' => $cell->meeting_day,
             'meeting_time' => $cell->meeting_time ? substr($cell->meeting_time, 0, 5) : null,
@@ -134,7 +141,7 @@ final class ServerTree
             'next_child_code' => $canAddChild ? CellCodes::daughter($cell->code, $children->max(fn (array $child) => $child['number']) + 1) : null,
             'number' => $cell->number,
             'children' => $children,
-            'totals' => ['children' => $children->count()],
+            'totals' => ['children' => $children->count(), 'descendants' => $children->count() + $children->sum(fn (array $child) => $child['totals']['descendants'])],
         ];
     }
 

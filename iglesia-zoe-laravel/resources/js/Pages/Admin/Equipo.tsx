@@ -14,6 +14,7 @@ type Account = {
   network_code: string | null;
   cells: string[];
   serve_areas: string[];
+  area: string | null;
   active: boolean;
   label: string;
   created_at: string | null;
@@ -27,6 +28,7 @@ const typeTone: Record<AdminType, string> = {
   red: "bg-sky text-[#28516b]",
   visuales: "bg-blush text-[#8a4a33]",
   celula: "bg-mist text-[#3d6248]",
+  director: "bg-clay text-clay-deep",
   atmosfera: "bg-amber/60 text-[#7a5418]",
   voluntarios: "bg-sage text-[#4b4a2c]",
   temas: "bg-orange/15 text-orange-deep",
@@ -100,6 +102,7 @@ function CreateAccount({ catalog, networks, cells, serveAreas }: { catalog: Cata
           <label className="text-xs font-semibold text-muted">Clave inicial<input name="password" type="text" required minLength={6} className={input} placeholder="Mínimo 6 caracteres" autoComplete="new-password" /></label>
         </div>
         <AccessEditor catalog={catalog} types={types} permissions={permissions} onChange={(nextTypes, nextPermissions) => { setTypes(nextTypes); setPermissions(nextPermissions); }} />
+        {types.includes("director") && <DirectorArea serveAreas={serveAreas} />}
         {permissions.includes("inbox.serve") && <ServeAreaPicker areas={serveAreas} value={areas} onChange={setAreas} />}
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-xs font-semibold text-muted">Red (opcional)
@@ -159,7 +162,10 @@ function AccountCard({ account, catalog, networks, serveAreas, isMe }: { account
             <h3 className="text-base font-semibold tracking-[-0.02em]">{account.name}</h3>
             {account.superadmin && <span className="rounded-full bg-ink px-2.5 py-1 text-[10.5px] font-semibold text-white">SUPERADMI</span>}
             {account.types.map((type) => (
-              <span key={type} className={`rounded-full px-2.5 py-1 text-[10.5px] font-semibold ${typeTone[type]}`}>{catalog.types.find((item) => item.key === type)?.label}</span>
+              <span key={type} className={`rounded-full px-2.5 py-1 text-[10.5px] font-semibold ${typeTone[type]}`}>
+                {catalog.types.find((item) => item.key === type)?.label}
+                {type === "director" && account.area ? ` · ${account.area}` : ""}
+              </span>
             ))}
             {!account.active && <span className="rounded-full bg-red-50 px-2.5 py-1 text-[10.5px] font-semibold text-red-700">Desactivada</span>}
           </div>
@@ -190,6 +196,7 @@ function AccountCard({ account, catalog, networks, serveAreas, isMe }: { account
         <form onSubmit={save} className="mt-5 space-y-4 border-t border-line pt-5">
           <label className="block text-xs font-semibold text-muted">Nombre<input name="name" defaultValue={account.name} className={input} /></label>
           <AccessEditor catalog={catalog} types={types} permissions={permissions} onChange={(nextTypes, nextPermissions) => { setTypes(nextTypes); setPermissions(nextPermissions); }} />
+          {types.includes("director") && <DirectorArea serveAreas={serveAreas} defaultValue={account.area ?? ""} />}
           {permissions.includes("inbox.serve") && <ServeAreaPicker areas={serveAreas} value={areas} onChange={setAreas} />}
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="text-xs font-semibold text-muted">Red
@@ -239,6 +246,24 @@ function ServeAreaPicker({ areas, value, onChange }: { areas: ServeArea[]; value
   );
 }
 
+function DirectorArea({ serveAreas, defaultValue = "" }: { serveAreas: ServeArea[]; defaultValue?: string }) {
+  return (
+    <div className="rounded-2xl border border-line bg-white p-4">
+      <label className="block text-xs font-semibold text-muted">
+        Área que dirige
+        <input name="area" defaultValue={defaultValue} maxLength={80} list="zoe-director-areas" className={input} placeholder="Ej. Alabanza, Niños, Multimedia" autoComplete="off" />
+      </label>
+      <datalist id="zoe-director-areas">{serveAreas.map((area) => <option key={area.id} value={area.name} />)}</datalist>
+      <p className="mt-2 text-[11.5px] leading-4 text-muted">Aparece junto a su cargo: «Director de Área · Alabanza». Sus funciones son solo las que marques arriba.</p>
+    </div>
+  );
+}
+
+/** A cell server (Base, hijo or subhijo) alone never opens servers. */
+function cellServerOnly(types: AdminType[]) {
+  return types.length === 1 && types[0] === "celula";
+}
+
 function exclusiveType(catalog: Catalog, types: AdminType[]) {
   return types.length === 1 ? catalog.types.find((item) => item.key === types[0] && item.exclusive) : undefined;
 }
@@ -251,7 +276,8 @@ function withTypes(catalog: Catalog, previousTypes: AdminType[], current: Permis
   const before = fromTypes(previousTypes);
   const after = fromTypes(nextTypes);
   const kept = current.filter((permission) => !before.has(permission) || after.has(permission) || catalog.defaults.includes(permission));
-  return catalog.permissions.map((item) => item.key).filter((key) => kept.includes(key) || after.has(key));
+  const locked = cellServerOnly(nextTypes) ? catalog.networkOnly : [];
+  return catalog.permissions.map((item) => item.key).filter((key) => (kept.includes(key) || after.has(key)) && !locked.includes(key));
 }
 
 function AccessEditor({
@@ -267,6 +293,7 @@ function AccessEditor({
 }) {
   const groups = [...new Set(catalog.permissions.map((item) => item.group))];
   const exclusive = exclusiveType(catalog, types);
+  const locked = cellServerOnly(types) ? catalog.networkOnly : [];
 
   function toggleType(type: AdminType) {
     const isExclusive = catalog.types.some((item) => item.key === type && item.exclusive);
@@ -278,7 +305,7 @@ function AccessEditor({
   }
 
   function togglePermission(permission: Permission) {
-    if (exclusive) return;
+    if (exclusive || locked.includes(permission)) return;
     onChange(types, permissions.includes(permission) ? permissions.filter((item) => item !== permission) : [...permissions, permission]);
   }
 
@@ -311,19 +338,26 @@ function AccessEditor({
       </div>
       <div className="rounded-2xl border border-line bg-white p-4">
         <p className="text-xs font-semibold text-muted">
-          {exclusive ? `${exclusive.label} es un acceso único: solo tendrá esta función.` : "Funciones exactas · ajusta lo que necesites"}
+          {exclusive
+            ? `${exclusive.label} es un acceso único: solo tendrá esta función.`
+            : locked.length
+              ? "Funciones exactas · un servidor de célula (Base, hijo o subhijo) no crea servidores"
+              : "Funciones exactas · ajusta lo que necesites"}
         </p>
         <div className={`mt-3 grid gap-4 md:grid-cols-3 ${exclusive ? "pointer-events-none opacity-60" : ""}`}>
           {groups.map((group) => (
             <div key={group}>
               <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-orange-deep">{group}</p>
               <div className="mt-2 space-y-1.5">
-                {catalog.permissions.filter((item) => item.group === group).map((item) => (
-                  <label key={item.key} title={item.text} className="flex cursor-pointer items-start gap-2 text-[13px] leading-5">
-                    <input type="checkbox" checked={permissions.includes(item.key)} onChange={() => togglePermission(item.key)} className="mt-0.5 h-4 w-4 shrink-0 accent-ink" />
-                    <span>{item.title}{catalog.defaults.includes(item.key) && <span className="ml-1 text-[10px] text-muted">(por defecto)</span>}</span>
-                  </label>
-                ))}
+                {catalog.permissions.filter((item) => item.group === group).map((item) => {
+                  const off = locked.includes(item.key);
+                  return (
+                    <label key={item.key} title={off ? "Los servidores de célula no crean servidores: solo el Servidor de Red y los administradores." : item.text} className={`flex items-start gap-2 text-[13px] leading-5 ${off ? "cursor-not-allowed opacity-45" : "cursor-pointer"}`}>
+                      <input type="checkbox" checked={!off && permissions.includes(item.key)} disabled={off} onChange={() => togglePermission(item.key)} className="mt-0.5 h-4 w-4 shrink-0 accent-ink" />
+                      <span>{item.title}{catalog.defaults.includes(item.key) && <span className="ml-1 text-[10px] text-muted">(por defecto)</span>}</span>
+                    </label>
+                  );
+                })}
               </div>
             </div>
           ))}

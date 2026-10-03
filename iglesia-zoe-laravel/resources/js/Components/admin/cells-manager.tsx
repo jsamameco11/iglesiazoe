@@ -1,10 +1,15 @@
 import { useState, useTransition } from "react";
 import { Link } from "@inertiajs/react";
+import { CellCode, type CellLevel } from "@/Components/ui/cell-code";
 import { addMember, removeMember, saveCell } from "@/lib/actions";
 import { WEEKDAYS } from "@/lib/next-service";
 import type { Cell, Member } from "@/lib/types";
 
 const field = "rounded-xl border border-line bg-white px-3 py-2 text-sm";
+
+const levelName: Record<CellLevel, string> = { red: "Servidor de Red", servidor: "Servidor Base", hijo: "Servidor hijo", subhijo: "Servidor subhijo" };
+
+const levelAt = (code: string, depth: number): CellLevel => (depth >= 2 ? "subhijo" : depth === 1 ? "hijo" : /^\d/.test(code) ? "servidor" : "red");
 
 export function CellsManager({ networks, cells, members }: { networks: { id: string; code: string; name: string }[]; cells: Cell[]; members: Member[] }) {
   const [networkId, setNetworkId] = useState(networks[0]?.id ?? "");
@@ -46,8 +51,8 @@ export function CellsManager({ networks, cells, members }: { networks: { id: str
         {ordered.map(({ cell, depth }) => (
           <details key={cell.id} className="rounded-[1.5rem] border border-line bg-card p-4" style={{ marginLeft: depth * 24 }}>
             <summary className="cursor-pointer text-base font-semibold tracking-[-0.02em]">
-              {cell.code} · {cell.leader_name || "Sin servidor"}
-              <span className="ml-2 text-xs font-normal text-muted">{cell.parent_id ? "Servidor hijo" : "Servidor"}{cell.active ? "" : " · inactiva"}</span>
+              <CellCode code={cell.code} level={levelAt(cell.code, depth)} /> · {cell.leader_name || "Sin servidor"}
+              <span className="ml-2 text-xs font-normal text-muted">{levelName[levelAt(cell.code, depth)]}{cell.active ? "" : " · inactiva"}</span>
             </summary>
             <form action={(data) => run(() => saveCell(data))} className="mt-4 grid gap-3 md:grid-cols-2">
               <input type="hidden" name="id" value={cell.id} />

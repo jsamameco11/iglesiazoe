@@ -359,60 +359,84 @@ class ServerHierarchyTest extends TestCase
         $this->assertSame(Permissions::clean(Permissions::SERVER_ACCOUNT), $account->permissions);
     }
 
-    public function test_servidor_adds_servidores_hijo_only_under_its_own_cell(): void
+    public function test_cell_servers_never_open_servers(): void
     {
-        $own = $this->cell($this->networkA, 1);
-        $other = $this->cell($this->networkA, 2);
-        $servidor = $this->cellServer($own, Permissions::SERVER_ACCOUNT);
+        $base = $this->cell($this->networkA, 1);
+        $child = $this->cell($this->networkA, 1, $base);
+        $legacy = $this->cellServer($base, [...Permissions::SERVER_ACCOUNT, 'servers.create', 'servers.children']);
 
-        $this->actingAs($servidor)
-            ->postJson(self::SITE.'/admin/servidores/hijo', ['parent_id' => $own->id, 'leader_name' => 'Hijo Uno', 'username' => 'hijo.uno', 'password' => 'secreto1'])
+        foreach ([$legacy, $this->cellServer($child, Permissions::SERVER_ACCOUNT)] as $server) {
+            $this->actingAs($server)
+                ->postJson(self::SITE.'/admin/servidores/hijo', ['parent_id' => $server->cells->first()->id, 'leader_name' => 'Intento'])
+                ->assertForbidden();
+            $this->actingAs($server)
+                ->postJson(self::SITE.'/admin/servidores', ['network_id' => $this->networkA->id, 'leader_name' => 'Intento'])
+                ->assertForbidden();
+            $this->actingAs($server)
+                ->postJson(self::SITE.'/admin/servidores/cuenta', ['cell_id' => $child->id, 'username' => 'intento.'.$server->id, 'password' => 'secreto1'])
+                ->assertForbidden();
+        }
+        $this->assertSame(2, Cell::query()->count());
+
+        $this->actingAs($this->superadmin())
+            ->postJson(self::ADMIN.'/admin/equipo', ['name' => 'Base', 'username' => 'base.nueva', 'password' => 'secreto1', 'types' => ['celula'], 'permissions' => ['reports.submit', 'servers.create', 'servers.children']])
             ->assertOk();
-        $this->actingAs($servidor)
-            ->postJson(self::SITE.'/admin/servidores/hijo', ['parent_id' => $other->id, 'leader_name' => 'Intruso'])
-            ->assertForbidden();
-        $this->actingAs($servidor)
-            ->postJson(self::SITE.'/admin/servidores', ['network_id' => $this->networkA->id, 'leader_name' => 'Nuevo'])
-            ->assertForbidden();
-
-        $child = Cell::query()->where('code', '0101A')->firstOrFail();
-        $this->assertSame($own->id, $child->parent_id);
-        $this->assertSame(Permissions::clean(Permissions::CHILD_SERVER_ACCOUNT), User::query()->where('username', 'hijo.uno')->firstOrFail()->permissions);
+        $this->assertSame(['reports.submit'], User::query()->where('username', 'base.nueva')->firstOrFail()->permissions);
     }
 
-    public function test_servidores_hijo_cannot_have_servidores_hijo(): void
+    public function test_a_servidor_hijo_gets_servidores_subhijo_and_a_subhijo_none(): void
     {
-        $root = $this->cell($this->networkA, 1);
-        $child = $this->cell($this->networkA, 1, $root);
+        $base = $this->cell($this->networkA, 1);
+        $child = $this->cell($this->networkA, 1, $base);
+        $leader = $this->networkLeader($this->networkA);
 
-        $this->actingAs($this->networkLeader($this->networkA))
-            ->postJson(self::SITE.'/admin/servidores/hijo', ['parent_id' => $child->id, 'leader_name' => 'Nieto'])
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/hijo', ['parent_id' => $child->id, 'leader_name' => 'Primer subhijo'])
+            ->assertOk();
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/hijo', ['parent_id' => $child->id, 'leader_name' => 'Segundo subhijo', 'username' => 'subhijo.dos', 'password' => 'secreto1'])
+            ->assertOk();
+
+        $first = Cell::query()->where('code', '010101A')->firstOrFail();
+        $second = Cell::query()->where('code', '020101A')->firstOrFail();
+        $this->assertSame(['servidor', 'hijo', 'subhijo', 'subhijo'], [$base->fresh()->level, $child->fresh()->level, $first->level, $second->level]);
+        $this->assertSame($child->id, $second->parent_id);
+        $this->assertSame(Permissions::clean(Permissions::SERVER_ACCOUNT), User::query()->where('username', 'subhijo.dos')->firstOrFail()->permissions);
+        $this->actingAs($leader)
+            ->postJson(self::SITE.'/admin/servidores/hijo', ['parent_id' => $second->id, 'leader_name' => 'Demasiado abajo'])
             ->assertForbidden();
-        $this->actingAs($this->cellServer($child, Permissions::CHILD_SERVER_ACCOUNT))
+        $this->actingAs($leader)
             ->get(self::SITE.'/admin/servidores')
-            ->assertRedirect();
-    }
-
-    public function test_servidor_sees_only_its_cell_and_its_servidores_hijo(): void
-    {
-        $own = $this->cell($this->networkA, 1);
-        $this->cell($this->networkA, 1, $own);
-        $this->cell($this->networkA, 2);
-        $this->networkLeader($this->networkA);
-
-        $this->actingAs($this->cellServer($own, Permissions::SERVER_ACCOUNT))
-            ->get(self::SITE.'/admin/servidores')
-            ->assertOk()
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->component('Admin/Servidores')
-                ->has('networks', 1)
-                ->where('networks.0.can_open', false)
-                ->has('networks.0.leaders', 1)
-                ->has('networks.0.servers', 1)
-                ->where('networks.0.servers.0.code', '01A')
-                ->where('networks.0.servers.0.can_add_child', true)
-                ->where('networks.0.servers.0.next_child_code', '0201A')
-                ->where('networks.0.servers.0.children.0.code', '0101A'));
+                ->where('networks.0.totals', ['servers' => 1, 'children' => 1, 'grandchildren' => 2])
+                ->where('networks.0.servers.0.child_level', 'hijo')
+                ->where('networks.0.servers.0.totals.descendants', 3)
+                ->where('networks.0.servers.0.children.0.level', 'hijo')
+                ->where('networks.0.servers.0.children.0.child_level', 'subhijo')
+                ->where('networks.0.servers.0.children.0.next_child_code', '030101A')
+                ->where('networks.0.servers.0.children.0.children.1.code', '020101A')
+                ->where('networks.0.servers.0.children.0.children.1.level', 'subhijo')
+                ->where('networks.0.servers.0.children.0.children.1.can_add_child', false));
+    }
+
+    public function test_a_servidor_base_follows_its_whole_branch_without_the_servidores_page(): void
+    {
+        $base = $this->cell($this->networkA, 1);
+        $child = $this->cell($this->networkA, 1, $base);
+        $this->cell($this->networkA, 2, $child);
+        $this->cell($this->networkA, 2);
+        $server = $this->cellServer($base, Permissions::SERVER_ACCOUNT);
+
+        $this->actingAs($server)->get(self::SITE.'/admin/servidores')->assertRedirect();
+        $this->actingAs($server)
+            ->get(self::SITE.'/portal/seguimiento?year=2026&week=40')
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->has('rows', 3)
+                ->where('rows.0.code', '01A')
+                ->where('rows.1.code', '0101A')
+                ->where('rows.1.level', 'hijo')
+                ->where('rows.2.code', '020101A')
+                ->where('rows.2.level', 'subhijo'));
     }
 
     public function test_servidor_de_red_gives_an_account_to_a_servidor_without_one(): void

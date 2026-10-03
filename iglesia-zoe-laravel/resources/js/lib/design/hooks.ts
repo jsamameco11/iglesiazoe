@@ -1,6 +1,6 @@
 import { usePage } from "@inertiajs/react";
 import { useEffect, useSyncExternalStore } from "react";
-import { fontHref } from "./fonts";
+import { designFonts, fontHref } from "./fonts";
 import { collectSections, getDraft, isPreview, postToEditor, PREVIEW_CSS, subscribeDraft } from "./preview";
 import { backdropVideos, designAttributes, designCss } from "./styles";
 import type { ArtRule, Design } from "./types";
@@ -117,7 +117,7 @@ export function useSiteDesign() {
 
   useRootVars(style);
   useHeadNode("zoe-design-rules", "style", designCss(design, page.component, preview) + (preview ? PREVIEW_CSS : ""));
-  useHeadNode("zoe-site-fonts", "link", preview && design ? fontHref(Object.values(design.fonts)) : design?.fontHref || "");
+  useHeadNode("zoe-site-fonts", "link", preview && design ? fontHref(designFonts(design)) : design?.fontHref || "");
   useArtSpeed(design?.art);
   useBackdropVideos(design, page.component, page.url);
   usePreviewBridge(page.component, preview);
