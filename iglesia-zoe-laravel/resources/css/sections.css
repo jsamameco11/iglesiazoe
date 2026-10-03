@@ -411,21 +411,22 @@
   initial-value: 0px;
 }
 /*
- * Every photo sits on the same baseline. The featured one grows a plate around it (a soft,
- * slightly larger container, no shadow, no border) that drops by its own thickness and covers
- * the edges of the two photos tucked behind it.
+ * Every card, plate included, sits on the same baseline. The featured one grows a plate the
+ * color of the band around it (no shadow, no border): its photo stays centred inside and the
+ * plate cuts a thin, clean gap into the edges of the two photos tucked behind it.
+ * --band is the background chosen in Dise├▒o for the page or the band.
  */
 .serve-rail-card {
   --rail-frame: 0px;
-  --rail-ring: 7px;
+  --rail-ring: 4px;
   --rail-radius: 1.1rem;
   position: absolute;
-  bottom: calc(7% + var(--rail-ring) - var(--rail-frame));
+  bottom: 7%;
   overflow: hidden;
   border: 0;
   padding: var(--rail-frame);
   border-radius: calc(var(--rail-radius) + var(--rail-frame));
-  background: var(--rail-plate, var(--paper));
+  background: var(--band, var(--paper));
   aspect-ratio: 9 / 8;
   transform: translateX(-50%);
   filter: brightness(0.9) saturate(0.92);
@@ -433,7 +434,6 @@
   transition:
     left 0.95s cubic-bezier(0.22, 1, 0.36, 1),
     width 0.95s cubic-bezier(0.22, 1, 0.36, 1),
-    bottom 0.95s cubic-bezier(0.22, 1, 0.36, 1),
     opacity 0.55s ease,
     filter 0.6s ease,
     background-color 0.6s ease,
@@ -454,7 +454,6 @@
 }
 .serve-rail-card[data-offset="0"] {
   --rail-frame: var(--rail-ring);
-  --rail-plate: color-mix(in srgb, var(--ink) 5%, var(--paper));
   filter: none;
 }
 .serve-rail-card[data-offset="0"] img {
@@ -480,7 +479,7 @@
 }
 @media (min-width: 768px) {
   .serve-rail-stage { aspect-ratio: 2.9 / 1; }
-  .serve-rail-card { --rail-ring: 12px; --rail-radius: 1.4rem; }
+  .serve-rail-card { --rail-ring: 7px; --rail-radius: 1.4rem; }
 }
 .serve-rail-caption {
   display: flex;

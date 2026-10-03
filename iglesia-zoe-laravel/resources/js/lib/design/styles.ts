@@ -118,6 +118,7 @@ function typographyCss(at: string, rule: Typography & { text_size?: number }) {
 /** The page as a whole: screen background (gradient, picture, video) and typography. Colors and sizes travel as variables. */
 function pageCss(rule: PageRule) {
   const own = backdropCss(rule, false);
+  if (color(rule.background)) own.push(`--band: ${color(rule.background)}`);
   if (media(rule.video)) own.push("isolation: isolate");
   return [...(own.length ? [`${PAGE} { ${own.join("; ")}; }`] : []), ...typographyCss(PAGE, { ...rule, text_size: undefined })];
 }
@@ -126,6 +127,7 @@ function sectionCss(key: string, rule: SectionRule, preview: boolean) {
   const at = `${PAGE} [data-section="${key}"]`;
   const own: string[] = backdropCss(rule, true);
   const out: string[] = [];
+  if (color(rule.background)) own.push(`--band: ${color(rule.background)}`);
   if (media(rule.video)) own.push("isolation: isolate");
   if (color(rule.accentColor)) own.push(`--accent: ${color(rule.accentColor)}`);
   if (face(rule.titleFont)) own.push(`--font-heading: ${face(rule.titleFont)}`);
