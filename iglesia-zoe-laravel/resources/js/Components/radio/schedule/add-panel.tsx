@@ -26,7 +26,7 @@ export function AddPanel({
   playlists: RadioPlaylist[];
 }) {
   const [type, setType] = useState<"tracks" | "vivo" | "automatica">("tracks");
-  const [playlist, setPlaylist] = useState<string>("");
+  const [playlist, setPlaylist] = useState<string>(playlists[0]?.id ?? "");
   const [shuffle, setShuffle] = useState(true);
   const [layer, setLayer] = useState(0);
   const [mode, setMode] = useState<Mode>("end");

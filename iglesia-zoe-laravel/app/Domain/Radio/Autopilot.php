@@ -19,6 +19,9 @@ use Illuminate\Support\Str;
  */
 final class Autopilot
 {
+    /** Name of the source without a playlist: every song of the radio, shuffled. */
+    public const RANDOM = 'Canciones aleatorias';
+
     private const GENERATION_KEY = 'radio.autopilot.generation';
 
     /** Songs this short are jingles, not music. */
@@ -54,7 +57,7 @@ final class Autopilot
     {
         $name = $playlist !== null ? RadioPlaylist::query()->whereKey($playlist)->value('name') : null;
 
-        return $name ?? 'Todas las listas';
+        return $name ?? self::RANDOM;
     }
 
     /**

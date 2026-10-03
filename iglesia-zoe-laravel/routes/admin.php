@@ -19,6 +19,7 @@ use App\Http\Controllers\Admin\RadioLibraryController;
 use App\Http\Controllers\Admin\RadioPlaylistsController;
 use App\Http\Controllers\Admin\RadioScheduleController;
 use App\Http\Controllers\Admin\RadioSettingsController;
+use App\Http\Controllers\Admin\RadioSpotifyController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SectionsController;
 use App\Http\Controllers\Admin\SermonsController;
@@ -86,6 +87,7 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
             Route::post('/botonera', [RadioConsoleController::class, 'pads']);
             Route::post('/lanzar', [RadioConsoleController::class, 'launch']);
             Route::post('/musica-continua', [RadioConsoleController::class, 'music']);
+            Route::post('/reprogramar', [RadioConsoleController::class, 'reschedule']);
             Route::get('/senal', [RadioConsoleController::class, 'signal']);
             Route::post('/senal/oferta', [RadioConsoleController::class, 'offer']);
         });
@@ -108,6 +110,11 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
             Route::post('/listas', [RadioPlaylistsController::class, 'save']);
             Route::post('/listas/orden', [RadioPlaylistsController::class, 'order']);
             Route::post('/listas/eliminar', [RadioPlaylistsController::class, 'destroy']);
+            Route::get('/spotify', [RadioSpotifyController::class, 'index']);
+            Route::post('/spotify', [RadioSpotifyController::class, 'save']);
+            Route::post('/spotify/buscar', [RadioSpotifyController::class, 'lookup']);
+            Route::post('/spotify/orden', [RadioSpotifyController::class, 'order']);
+            Route::post('/spotify/eliminar', [RadioSpotifyController::class, 'destroy']);
         });
         Route::middleware($can('radio.episodes'))->group(function () {
             Route::get('/episodios', [RadioEpisodesController::class, 'index']);

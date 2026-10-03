@@ -16,7 +16,7 @@ function draftOf(playlist: RadioPlaylist): Draft {
   return { id: playlist.id, name: playlist.name, description: playlist.description ?? "", tracks: playlist.tracks ?? [] };
 }
 
-/** Playlists of the automatic music: songs in order, and the order of the lists for «Todas las listas». */
+/** Playlists of the automatic music: songs in order, and the order of the lists. */
 export default function Listas({ playlists, songs, autopilot }: Props) {
   const [draft, setDraft] = useState<Draft>(() => (playlists[0] ? draftOf(playlists[0]) : blank));
   const [query, setQuery] = useState("");
@@ -75,7 +75,7 @@ export default function Listas({ playlists, songs, autopilot }: Props) {
     <AdminLayout>
       <RadioHeader
         title="Listas de reproducción"
-        text="Agrupa tus canciones en listas (Alabanza, Adoración, Instrumental…). La música automática toca una lista o todas juntas, en aleatorio sin repetir hasta completar cada vuelta o en el orden que les des aquí."
+        text="Agrupa tus canciones en listas (Alabanza, Adoración, Instrumental…). La música automática toca una lista (en aleatorio sin repetir hasta completar cada vuelta, o en el orden que le des aquí) o canciones aleatorias de todas."
       />
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
@@ -113,7 +113,8 @@ export default function Listas({ playlists, songs, autopilot }: Props) {
             )}
           </section>
           <p className="px-2 text-[12px] leading-5 text-muted">
-            Ahora suena en los espacios libres: <strong className="text-ink">{autopilot.label}</strong> · {autopilot.shuffle ? "aleatorio" : "en orden"}. Se cambia en Programación o desde la consola.
+            Ahora suena en los espacios libres: <strong className="text-ink">{autopilot.label}</strong>
+            {autopilot.playlist ? ` · ${autopilot.shuffle ? "aleatorio" : "en orden"}` : ""}. Se cambia en Programación o desde la consola.
           </p>
         </aside>
 

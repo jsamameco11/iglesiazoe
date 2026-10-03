@@ -9,6 +9,7 @@ use App\Domain\Radio\Signal;
 use App\Domain\Radio\Station;
 use App\Models\RadioSlot;
 use App\Models\RadioTrack;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -215,6 +216,48 @@ class RadioConsoleController extends RadioController
         return response()->json(['ok' => true, ...$this->snapshot(), 'message' => $message]);
     }
 
+    /**
+     * Reprograms a block of the main program from the console's warning: a few minutes later
+     * or at another time. While the live transmission lasts, audios still wait for it to end.
+     */
+    public function reschedule(Request $request): JsonResponse
+    {
+        $slot = $this->find(RadioSlot::class, $request->input('id'));
+        if (! $slot || $slot->layer !== RadioSlot::MAIN) {
+            return $this->fail('Ese bloque ya no está en la programación.', 404);
+        }
+        $now = Station::nowMs();
+        $date = Schedule::date($request->input('date')) ?? Station::today();
+        if ($request->input('mode') === 'shift') {
+            $minutes = (int) $request->input('minutes');
+            if ($minutes < 1 || $minutes > 720) {
+                return $this->fail('Corre el bloque entre 1 minuto y 12 horas.');
+            }
+            $start = max($slot->starts_at->getTimestampMs(), $now) + $minutes * 60000;
+        } else {
+            $start = Schedule::at($date, (string) $request->input('time'));
+            if ($start === null) {
+                return $this->fail('Escribe la nueva hora (por ejemplo 18:30).');
+            }
+        }
+        if ($start < $now + 1000) {
+            return $this->fail('Esa hora ya pasó. Elige una hora futura.');
+        }
+        $end = $start + (int) round($slot->duration * 1000);
+        if ($conflict = Schedule::conflict($start, $end, RadioSlot::MAIN, $slot->id)) {
+            return $this->fail($this->conflictMessage($conflict).' Elige otra hora.');
+        }
+        $slot->update(['starts_at' => Schedule::utc($start)]);
+        Station::flush();
+
+        $day = CarbonImmutable::createFromTimestampMs($start)->setTimezone(Station::TZ);
+        $when = 'las '.$day->format('H:i').($day->toDateString() === Station::today() ? '' : ' del '.$day->format('d/m'));
+        $waits = Station::holding(Station::live()) && ! in_array($slot->kind, [RadioSlot::LIVE, RadioSlot::AUTO], true);
+
+        return response()->json(['ok' => true, ...$this->snapshot(), 'message' => '«'.$slot->title.'» quedó para '.$when.'.'
+            .($waits ? ' Si a esa hora sigues en vivo, esperará a que termines la transmisión.' : '')]);
+    }
+
     /** Saves which library audios fill the pad bank, in order. */
     public function pads(Request $request): JsonResponse
     {
@@ -280,6 +323,7 @@ class RadioConsoleController extends RadioController
             'voice' => Station::voiceCount($live['session']),
             'config' => Station::config(),
             'autopilot' => Station::autopilot(),
+            'upcoming' => Station::upcoming(Station::nowMs()),
         ];
     }
 }

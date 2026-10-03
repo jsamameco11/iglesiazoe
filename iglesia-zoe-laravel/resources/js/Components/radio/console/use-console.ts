@@ -1,5 +1,6 @@
+import { router } from "@inertiajs/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BEDS, Broadcaster, ProgramPlayer, ServerClock, postForm, type Autopilot, type LiveMode, type RadioConfig, type RadioLayer, type RadioState, type RadioTrack } from "@/lib/radio";
+import { BEDS, Broadcaster, ProgramPlayer, ServerClock, postForm, type Autopilot, type LiveMode, type RadioConfig, type RadioLayer, type RadioState, type RadioTrack, type RadioUpcoming } from "@/lib/radio";
 
 export type ConsoleLive = {
   session: string | null;
@@ -13,7 +14,10 @@ export type ConsoleLive = {
   rev: number;
 };
 
-export type Snapshot = { radio: RadioState; live: ConsoleLive; voice: number; config: RadioConfig; autopilot: Autopilot };
+export type Snapshot = { radio: RadioState; live: ConsoleLive; voice: number; config: RadioConfig; autopilot: Autopilot; upcoming: RadioUpcoming[] };
+
+/** How to reprogram a block: some minutes later, or at a given time (today unless `date`). */
+export type Reschedule = { mode: "shift"; minutes: number } | { mode: "at"; time: string; date?: string };
 
 type Notice = { tone: "error" | "info"; text: string } | null;
 
@@ -43,6 +47,9 @@ export function useConsole(initial: Snapshot, host: string) {
   const [live, setLive] = useState(initial.live);
   const [config, setConfig] = useState(initial.config);
   const [autopilot, setAutopilot] = useState(initial.autopilot);
+  const [upcoming, setUpcoming] = useState(initial.upcoming ?? []);
+  /** Whether audios were waiting for the live transmission: when they go on air, today's list is reloaded. */
+  const heldRef = useRef(false);
   const [voice, setVoice] = useState(initial.voice);
   const [now, setNow] = useState(initial.radio.now);
   const [notice, setNotice] = useState<Notice>(null);
@@ -63,6 +70,12 @@ export function useConsole(initial: Snapshot, host: string) {
     setLive(data.live);
     setConfig(data.config);
     if (data.autopilot) setAutopilot(data.autopilot);
+    if (data.upcoming) {
+      setUpcoming(data.upcoming);
+      const holding = data.upcoming.some((block) => block.held);
+      if (heldRef.current && !holding) router.reload({ only: ["day"] });
+      heldRef.current = holding;
+    }
     setVoice(data.voice);
     player.current?.setQueue(data.radio.queue);
     player.current?.setMix(data.radio.mix);
@@ -328,11 +341,28 @@ export function useConsole(initial: Snapshot, host: string) {
     await musicAction({ action: "mode", mode });
   }
 
+  /** Moves a scheduled block of the main program; true when it was moved. */
+  async function reschedule(id: string, change: Reschedule) {
+    const payload: Record<string, string> =
+      change.mode === "shift" ? { id, mode: "shift", minutes: String(change.minutes) } : { id, mode: "at", time: change.time, ...(change.date ? { date: change.date } : {}) };
+    const data = (await postForm("/admin/radio/reprogramar", payload)) as Snapshot & { ok?: boolean; error?: string; message?: string };
+    if (data.error) {
+      setNotice({ tone: "error", text: data.error });
+      return false;
+    }
+    apply(data);
+    if (data.message) setNotice({ tone: "info", text: data.message });
+    router.reload({ only: ["day"] });
+    return true;
+  }
+
   return {
     state,
     live,
     config,
     autopilot,
+    upcoming,
+    reschedule,
     switchSource,
     cutMusic,
     resumeMusic,

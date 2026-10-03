@@ -70,6 +70,11 @@ export type Autopilot = { playlist: string | null; shuffle: boolean; label: stri
 
 export type RadioPlaylist = { id: string; name: string; description: string | null; count: number; seconds: number; tracks?: string[] };
 
+/** A Spotify playlist shown on /radio; it plays in Spotify's own player. */
+export type RadioSpotifyPlaylist = { id: string; name: string; description: string | null; cover: string | null; url: string; embed: string };
+
+export type RadioSpotifyPlaylistAdmin = RadioSpotifyPlaylist & { spotify_id: string; published: boolean };
+
 export type RadioState = {
   now: number;
   name: string;
@@ -150,7 +155,7 @@ export type RadioBlock = {
   volume: number;
   duration: number;
   track_id: string | null;
-  /** Automatic-music periods: their playlist (null = every list) and order. */
+  /** Automatic-music periods: their playlist (null = random songs) and order. */
   playlist_id: string | null;
   playlist: string | null;
   shuffle: boolean;
@@ -159,6 +164,12 @@ export type RadioBlock = {
   start: number;
   end: number;
 };
+
+/** A main-program block the console warns about; `held` waits for the live transmission to end. */
+export type RadioUpcoming = RadioBlock & { held: boolean };
+
+/** How long before a scheduled block the console warns about it. */
+export const ALERT_AHEAD = 15 * 60000;
 
 export const KIND_LABEL: Record<RadioKind, string> = {
   musica: "Música",

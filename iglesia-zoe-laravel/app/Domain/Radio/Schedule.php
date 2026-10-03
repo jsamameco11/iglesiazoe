@@ -90,7 +90,7 @@ final class Schedule
             'duration' => $slot->duration,
             'track_id' => $slot->radio_track_id,
             'playlist_id' => $slot->radio_playlist_id,
-            'playlist' => $slot->kind === RadioSlot::AUTO ? ($slot->playlist?->name ?? 'Todas las listas') : null,
+            'playlist' => $slot->kind === RadioSlot::AUTO ? ($slot->playlist?->name ?? Autopilot::RANDOM) : null,
             'shuffle' => $slot->shuffle,
             'src' => $slot->track?->file_path,
             'inactive' => $slot->track !== null && ! $slot->track->active,
@@ -147,12 +147,14 @@ final class Schedule
     /**
      * An automatic-music period of the main layer, split into blocks of at most MAX_BLOCK
      * (they play as one, since back-to-back periods of the same playlist never restart).
+     * Without a playlist it plays random songs.
      *
      * @return list<array<string, mixed>>
      */
     public static function autoBlocks(?RadioPlaylist $playlist, bool $shuffle, int $seconds, ?string $note = null): array
     {
         $blocks = [];
+        $shuffle = $playlist === null || $shuffle;
         $title = self::autoTitle($playlist, $shuffle);
         for ($left = $seconds; $left > 0; $left -= Station::MAX_BLOCK) {
             $blocks[] = [
@@ -173,7 +175,7 @@ final class Schedule
 
     public static function autoTitle(?RadioPlaylist $playlist, bool $shuffle): string
     {
-        return 'Música automática · '.($playlist?->name ?? 'Todas las listas').($shuffle ? ' · aleatorio' : ' · en orden');
+        return 'Música automática · '.($playlist ? $playlist->name.($shuffle ? ' · aleatorio' : ' · en orden') : Autopilot::RANDOM);
     }
 
     public static function length(array $blocks): int
@@ -224,6 +226,72 @@ final class Schedule
             Station::flush();
 
             return $cursor;
+        });
+    }
+
+    /**
+     * When the live transmission ends at $at, the audios of the main program that were due
+     * while it lasted (from $since) go on air one after another: after the block on air if it
+     * is an audio, or cutting the automatic period or live block on air. The blocks that
+     * follow are pushed just enough to make room; automatic periods are shortened instead.
+     *
+     * @return int how many audios were placed
+     */
+    public static function releaseHeld(int $since, int $at): int
+    {
+        return DB::transaction(function () use ($since, $at) {
+            $held = RadioSlot::query()->where('layer', RadioSlot::MAIN)->whereNotIn('kind', [RadioSlot::LIVE, RadioSlot::AUTO])
+                ->where('starts_at', '>=', self::utc($since))->where('starts_at', '<', self::utc($at))
+                ->orderBy('starts_at')->get();
+            if ($held->isEmpty()) {
+                return 0;
+            }
+            $ids = $held->modelKeys();
+            $cursor = $at + 400;
+
+            $tail = null;
+            $current = self::between($cursor, $cursor + 1, null, RadioSlot::MAIN)->first(fn (RadioSlot $slot) => ! in_array($slot->id, $ids, true));
+            if ($current && in_array($current->kind, [RadioSlot::AUTO, RadioSlot::LIVE], true)) {
+                $end = $current->endsAt()->getTimestampMs();
+                $played = ($cursor - $current->starts_at->getTimestampMs()) / 1000;
+                $tail = $current->kind === RadioSlot::AUTO ? [$current->replicate(), $end] : null;
+                $played < 1 ? $current->delete() : $current->update(['duration' => round($played, 2)]);
+            } elseif ($current) {
+                $cursor = $current->endsAt()->getTimestampMs();
+            }
+
+            foreach ($held as $slot) {
+                $slot->update(['starts_at' => self::utc($cursor)]);
+                $cursor = $slot->endsAt()->getTimestampMs();
+            }
+            if ($tail && $tail[1] - $cursor >= 1000) {
+                [$rest, $end] = $tail;
+                $rest->fill(['starts_at' => self::utc($cursor), 'duration' => round(($end - $cursor) / 1000, 2)])->save();
+                $ids[] = $rest->id;
+                $cursor = $end;
+            }
+
+            $following = RadioSlot::query()->where('layer', RadioSlot::MAIN)->whereNotIn('id', $ids)
+                ->where('starts_at', '>=', self::utc($at))->orderBy('starts_at')->get();
+            foreach ($following as $slot) {
+                $start = $slot->starts_at->getTimestampMs();
+                if ($start >= $cursor) {
+                    break;
+                }
+                $end = $slot->endsAt()->getTimestampMs();
+                if ($slot->kind !== RadioSlot::AUTO) {
+                    $slot->update(['starts_at' => self::utc($cursor)]);
+                    $cursor = $slot->endsAt()->getTimestampMs();
+                } elseif ($end - $cursor < 1000) {
+                    $slot->delete();
+                } else {
+                    $slot->update(['starts_at' => self::utc($cursor), 'duration' => round(($end - $cursor) / 1000, 2)]);
+                    $cursor = $end;
+                }
+            }
+            Station::flush();
+
+            return $held->count();
         });
     }
 
