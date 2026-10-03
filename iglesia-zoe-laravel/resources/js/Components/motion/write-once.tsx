@@ -22,8 +22,7 @@ export function WriteOnce({
   useEffect(() => {
     setCount(0);
     setDone(false);
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduce || still || !full) {
+    if (still || !full) {
       setCount(full.length);
       setDone(true);
       return;
