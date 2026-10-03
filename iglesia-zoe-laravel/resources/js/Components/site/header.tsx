@@ -65,6 +65,34 @@ function useNavLinks() {
 }
 
 type MegaItem = { href: string; title: string; note: string | null };
+type PillLink = { href: string; label: string };
+
+const PILL_LABELS: Record<string, string> = {
+  "/ministerios/redes-de-discipulado": "Grupos Celulares",
+};
+
+function usePillDrops() {
+  return (usePage().props as unknown as { skin?: string }).skin === "marea";
+}
+
+function PillDrop({ links, onClose }: { links: PillLink[]; onClose: () => void }) {
+  return (
+    <div className="pill-drop">
+      {links.map((link, index) => (
+        <Link
+          key={link.href}
+          href={link.href}
+          onClick={onClose}
+          onBlur={index === links.length - 1 ? onClose : undefined}
+          className="pill-drop-item"
+          style={{ "--i": index } as React.CSSProperties}
+        >
+          <span className="truncate">{PILL_LABELS[link.href] ?? link.label}</span>
+        </Link>
+      ))}
+    </div>
+  );
+}
 
 function MegaDrop({
   label,
@@ -88,6 +116,7 @@ function MegaDrop({
   active: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const pills = usePillDrops();
   return (
     <div className="relative" onMouseEnter={() => !ghost && setOpen(true)} onMouseLeave={() => setOpen(false)}>
       <Link
@@ -99,7 +128,13 @@ function MegaDrop({
         {label}
         <span className={`text-[8px] transition ${open ? "rotate-180" : ""}`}>▼</span>
       </Link>
-      {!ghost && open && (
+      {!ghost && open && pills && (
+        <PillDrop
+          links={[...items.map((item) => ({ href: item.href, label: item.title })), ...(footer ?? [])]}
+          onClose={() => setOpen(false)}
+        />
+      )}
+      {!ghost && open && !pills && (
         <div className="absolute left-1/2 top-full w-[620px] -translate-x-1/2 pt-4 text-ink">
           <div className="nav-drop overflow-hidden rounded-[1.4rem] border border-black/5 bg-card shadow-[0_30px_80px_rgba(23,24,28,0.12)]">
             <div className="flex items-end justify-between border-b border-black/5 px-6 py-4">
@@ -143,6 +178,7 @@ function MegaDrop({
 
 function NavDrop({ label, href, links, ghost, active }: { label: string; href: string; links: NavLink[]; ghost?: boolean; active: boolean }) {
   const [open, setOpen] = useState(false);
+  const pills = usePillDrops();
   return (
     <div className="relative" onMouseEnter={() => !ghost && setOpen(true)} onMouseLeave={() => setOpen(false)}>
       <Link
@@ -154,7 +190,8 @@ function NavDrop({ label, href, links, ghost, active }: { label: string; href: s
         {label}
         <span className={`text-[8px] transition ${open ? "rotate-180" : ""}`}>▼</span>
       </Link>
-      {!ghost && open && (
+      {!ghost && open && pills && <PillDrop links={links} onClose={() => setOpen(false)} />}
+      {!ghost && open && !pills && (
         <div className="absolute left-1/2 top-full w-[300px] -translate-x-1/2 pt-4 text-ink">
           <div className="nav-drop overflow-hidden rounded-[1.25rem] border border-black/5 bg-card p-2 shadow-[0_24px_60px_rgba(23,24,28,0.14)]">
             {links.map((link) => (
