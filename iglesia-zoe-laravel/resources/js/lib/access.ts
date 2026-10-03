@@ -36,7 +36,7 @@ export type Permission =
 /** Any of these opens the Servidores page (mirrors Permissions::SERVER_TREE). */
 export const SERVER_TREE: Permission[] = ["servers.network", "servers.create", "servers.children", "cells.own"];
 
-export type AdminType = "red" | "visuales" | "celula" | "atmosfera" | "voluntarios" | "temas" | "estudios";
+export type AdminType = "red" | "visuales" | "celula" | "director" | "atmosfera" | "voluntarios" | "temas" | "estudios";
 
 export type PanelUser = {
   id: string;
@@ -51,8 +51,10 @@ export type PanelUser = {
 
 export type Catalog = {
   permissions: { key: Permission; group: string; title: string; text: string }[];
-  types: { key: AdminType; label: string; text: string; permissions: Permission[]; exclusive?: boolean; server: boolean }[];
+  types: { key: AdminType; label: string; text: string; permissions: Permission[]; exclusive?: boolean; area?: boolean; server: boolean }[];
   defaults: Permission[];
+  /** Functions a cell server never holds: only Servidores de Red and administrators open servers. */
+  networkOnly: Permission[];
 };
 
 export function usePanelUser() {

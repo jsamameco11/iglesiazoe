@@ -1,5 +1,6 @@
 import AdminLayout from "@/Layouts/AdminLayout";
 import { PageHeader, PeriodFilter, Stat, input } from "@/Components/admin/ui";
+import { CellCode } from "@/Components/ui/cell-code";
 import { can, money, usePanelUser } from "@/lib/access";
 
 type Photo = { id: string; previewUrl: string; downloadUrl: string; fileName: string };
@@ -83,7 +84,7 @@ export default function Informes({ rows, showMoney, showTithes, filters, label, 
               <div className="grid gap-6 p-6 lg:grid-cols-[1fr_auto]">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-full bg-ink px-3 py-1 text-xs font-semibold text-white">Célula {report.cell_code || "—"}{report.network ? ` · Red ${report.network}` : ""}</span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper px-3 py-1 text-xs font-semibold text-ink">Célula <CellCode code={report.cell_code} />{report.network ? ` · Red ${report.network}` : ""}</span>
                     <span className="rounded-full bg-orange/15 px-3 py-1 text-xs font-semibold text-orange-deep">Semana {report.week} · {report.year}</span>
                     <span className="text-xs text-muted">{report.meeting_date || (report.met ? "Fecha no registrada" : "No se reunió")}</span>
                   </div>

@@ -106,11 +106,13 @@ final class Station
 
     public static function config(): array
     {
-        return Cache::rememberForever(self::CONFIG_KEY, function () {
+        $cached = Cache::rememberForever(self::CONFIG_KEY, function () {
             $stored = SiteSetting::query()->find('radio')?->value;
 
             return array_replace(self::DEFAULTS, is_array($stored) ? array_intersect_key($stored, self::DEFAULTS) : []);
         });
+
+        return array_replace(self::DEFAULTS, is_array($cached) ? array_intersect_key($cached, self::DEFAULTS) : []);
     }
 
     public static function saveConfig(array $values): array

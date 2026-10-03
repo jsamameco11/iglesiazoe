@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { PREVIEW_PARAM, type Design, type DesignPage, type EditorMessage, type PageMessage, type SectionInfo } from "@/lib/design";
+import { PREVIEW_PARAM, type Design, type DesignPage, type EditorMessage, type PageMessage, type PickMode, type SectionInfo, type TextPick } from "@/lib/design";
 import { Choice } from "./fields";
 
 type Device = "desktop" | "tablet" | "phone";
@@ -17,16 +17,22 @@ export function LivePreview({
   page,
   design,
   section,
+  mode = "section",
+  text = null,
   refresh = 0,
   onSections,
   onPick,
+  onPickText,
 }: {
   page: DesignPage;
   design: Design;
   section: string | null;
+  mode?: PickMode;
+  text?: string | null;
   refresh?: number;
   onSections: (sections: SectionInfo[]) => void;
   onPick: (section: string) => void;
+  onPickText?: (text: TextPick) => void;
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [device, setDevice] = useState<Device>("desktop");
@@ -35,8 +41,8 @@ export function LivePreview({
   const version = reloads + refresh;
   const src = page.url ? previewUrl(page.url) : "";
   const origin = src ? new URL(src).origin : "";
-  const latest = useRef({ onSections, onPick });
-  latest.current = { onSections, onPick };
+  const latest = useRef({ onSections, onPick, onPickText });
+  latest.current = { onSections, onPick, onPickText };
 
   const post = (message: EditorMessage) => frame.current?.contentWindow?.postMessage(message, origin);
 
@@ -53,6 +59,7 @@ export function LivePreview({
         latest.current.onSections(event.data.sections);
       }
       if (event.data?.type === "zoe:pick") latest.current.onPick(event.data.section);
+      if (event.data?.type === "zoe:pickText") latest.current.onPickText?.(event.data.text);
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -66,12 +73,20 @@ export function LivePreview({
     if (ready) post({ type: "zoe:focus", section });
   }, [ready, section]);
 
+  useEffect(() => {
+    if (ready) post({ type: "zoe:mode", mode });
+  }, [ready, mode]);
+
+  useEffect(() => {
+    if (ready) post({ type: "zoe:text", path: text });
+  }, [ready, text]);
+
   return (
     <div className="flex h-full min-h-[70vh] flex-col overflow-hidden rounded-[1.6rem] border border-line bg-[#e9e6e1] shadow-[0_24px_60px_-40px_rgba(42,39,36,0.45)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line bg-white px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-2 text-xs text-muted">
           <span className={`h-2 w-2 shrink-0 rounded-full ${ready ? "bg-emerald-500" : "animate-pulse bg-amber-400"}`} />
-          <span className="truncate">{ready ? `Vista previa en vivo · ${page.label}` : "Cargando la página…"}</span>
+          <span className="truncate">{ready ? (mode === "text" ? `Toca un texto para editarlo · ${page.label}` : `Vista previa en vivo · ${page.label}`) : "Cargando la página…"}</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-60">

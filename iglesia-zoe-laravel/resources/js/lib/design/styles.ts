@@ -1,6 +1,6 @@
 import { fontStack } from "./fonts";
 import { hex, paletteStyle, resolvePalette } from "./palette";
-import type { ArtRule, Backdrop, Design, FontRole, PageRule, SectionRule, Typography } from "./types";
+import type { ArtRule, Backdrop, Design, FontRole, PageRule, SectionRule, TextAlign, TextRule, Typography } from "./types";
 
 const TITLES = ":is(h1, h2, h3, h4, h5, h6, .editorial, .headline, .display)";
 const TEXTS = ":is(p, li, dd, dt, blockquote, figcaption, cite, small, label)";
@@ -139,6 +139,44 @@ function sectionCss(key: string, rule: SectionRule, preview: boolean) {
   return [...out, ...typographyCss(at, rule)];
 }
 
+const TEXT_PATH = /^(~|[a-z0-9][a-z0-9-]{0,39}):[1-9][0-9]{0,2}(\.[1-9][0-9]{0,2}){0,15}$/;
+const FONT_NAME = /^[A-Za-z0-9 ]{1,60}$/;
+const BOXES = ["block", "flex", "grid"];
+const ALIGN: Record<TextAlign, string[]> = {
+  left: ["text-align: left", "margin-left: 0", "margin-right: auto"],
+  center: ["text-align: center", "margin-left: auto", "margin-right: auto"],
+  right: ["text-align: right", "margin-left: auto", "margin-right: 0"],
+};
+
+/** Selector of a single text from its path: its band ("~" is the page), then its place among the children at each level. Video layers never count. */
+export function textSelector(path: string) {
+  if (!TEXT_PATH.test(path)) return "";
+  const [band, steps] = path.split(":");
+  const host = band === "~" ? PAGE : `${PAGE} [data-section="${band}"]`;
+  return `${host} ${steps.split(".").map((step) => `> :nth-child(${step} of :not([data-design-video]))`).join(" ")}`;
+}
+
+function textCss(path: string, rule: TextRule, preview: boolean) {
+  const at = textSelector(path);
+  if (!at) return [];
+  const marks = preview ? [`html[data-design-mode="text"] ${at.slice("html ".length)} { outline: 2px dotted color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 3px; }`] : [];
+  const own: string[] = [];
+  const font = rule.font;
+  const family = typeof font === "string" ? face(font) : font && FONT_NAME.test(font.name) ? fontStack(font) : "";
+  const size = number(rule.size, 0.5, 2.5);
+  const weight = number(rule.weight, 100, 900);
+  if (size && size !== 1) own.push(`zoom: ${size}`);
+  if (weight) own.push(`font-weight: ${Math.round(weight / 100) * 100}`);
+  if (rule.italic) own.push("font-style: italic");
+  if (rule.align && ALIGN[rule.align]) {
+    own.push(...ALIGN[rule.align]);
+    if (rule.box && BOXES.includes(rule.box)) own.push(`display: ${rule.box}`, "width: fit-content", "max-width: 100%");
+  }
+  const out = own.length ? [`${at} { ${own.join("; ")}; }`] : [];
+  if (family) out.push(`${at}, ${at} * { font-family: ${family}; }`);
+  return [...out, ...marks];
+}
+
 function artCss(key: string, rule: ArtRule, preview: boolean) {
   const at = `[data-art="${key}"]`;
   const out: string[] = [];
@@ -158,10 +196,11 @@ export function designCss(design: Design | undefined, page: string | undefined, 
   const sections = Object.entries(rule.sections || {})
     .filter(([key]) => KEY.test(key))
     .flatMap(([key, section]) => sectionCss(key, section, preview));
+  const texts = Object.entries(rule.texts || {}).flatMap(([path, text]) => textCss(path, text, preview));
   const art = Object.entries(design.art || {})
     .filter(([key]) => KEY.test(key))
     .flatMap(([key, value]) => artCss(key, value, preview));
-  return [...pageCss(rule), ...sections, ...art].join("\n");
+  return [...pageCss(rule), ...sections, ...texts, ...art].join("\n");
 }
 
 /** Every video background of the page: the screen one first, then one per band. */

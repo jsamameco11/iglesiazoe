@@ -1,15 +1,19 @@
 import { router } from "@inertiajs/react";
 import { FormEvent } from "react";
 import { Stat } from "@/Components/admin/ui";
+import { CellCode, type CellLevel } from "@/Components/ui/cell-code";
 import PortalLayout from "@/Layouts/PortalLayout";
 import { money } from "@/lib/access";
 
 type Network = { id: string; code: string; name: string };
+
+const indent: Record<CellLevel, number> = { red: 0, servidor: 0, hijo: 14, subhijo: 28 };
 type Status = "met" | "not_met" | "missing";
 type Row = {
   id: string;
   code: string;
   parent_id: string | null;
+  level: CellLevel;
   leader_name: string | null;
   attendance: number;
   salvations: number;
@@ -124,7 +128,7 @@ export default function Seguimiento({
             {rows.map((row, index) => (
               <tr key={row.id} className="border-t border-line">
                 <td className={`${cell} text-muted`}>{index + 1}</td>
-                <td className={`${cell} font-semibold`} style={{ paddingLeft: row.parent_id ? 28 : 16 }}>{row.code}</td>
+                <td className={cell} style={{ paddingLeft: 16 + indent[row.level] }}><CellCode code={row.code} level={row.level} /></td>
                 <td className={cell}>{row.leader_name || "—"}</td>
                 <td className={number}>{row.attendance}</td>
                 <td className={number}>{row.salvations}</td>

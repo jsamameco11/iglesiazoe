@@ -9,8 +9,9 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
 /**
- * Opens the cell a server leads: without a parent it is a servidor of the
- * network (01A); under a servidor it is one of its servidores hijo (0101A).
+ * Opens the cell a server leads: without a parent it is a Servidor Base of the
+ * network (01A), under a Servidor Base a servidor hijo (0101A) and under a
+ * servidor hijo a servidor subhijo (020101A).
  */
 final class OpenServer
 {

@@ -1,60 +1,80 @@
 import { useState } from "react";
 import { ghost } from "@/Components/admin/ui";
+import { CellCode } from "@/Components/ui/cell-code";
 import { AccountForm, ServerForm } from "./server-form";
-import { levels, type ServerLevel, type ServerNode } from "./types";
+import { countOf, levels, type ServerLevel, type ServerNode } from "./types";
 
 export function LevelBadge({ level, children }: { level: ServerLevel; children?: React.ReactNode }) {
   return <span className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[10.5px] font-semibold ${levels[level].tone}`}>{children ?? levels[level].label}</span>;
 }
 
-export function ServerCard({ server }: { server: ServerNode }) {
-  const [adding, setAdding] = useState(false);
+/** Branch line under a server, in the color its children's codes use. */
+const branch: Partial<Record<ServerLevel, string>> = {
+  hijo: "border-accent/35",
+  subhijo: "border-clay-deep/35",
+};
 
+export function ServerCard({ server }: { server: ServerNode }) {
   return (
     <article className={`rounded-[1.4rem] border bg-white p-4 md:p-5 ${server.active ? "border-line" : "border-dashed border-line opacity-70"}`}>
+      <ServerBranch server={server} />
+    </article>
+  );
+}
+
+function ServerBranch({ server }: { server: ServerNode }) {
+  const [adding, setAdding] = useState(false);
+  const childLevel = server.child_level;
+
+  return (
+    <div>
       <ServerRow server={server} />
       {server.children.length > 0 && (
-        <ul className="mt-4 space-y-3 border-l-2 border-line pl-4 md:ml-4">
+        <ul className={`mt-4 space-y-3 border-l-2 pl-4 md:ml-4 ${branch[server.children[0].level] ?? "border-line"}`}>
           {server.children.map((child) => (
-            <li key={child.id}>
-              <ServerRow server={child} />
+            <li key={child.id} className={child.active ? "" : "opacity-70"}>
+              <ServerBranch server={child} />
             </li>
           ))}
         </ul>
       )}
-      {server.can_add_child && (
+      {server.can_add_child && childLevel && (
         <div className="mt-4 md:ml-4">
           {adding ? (
             <ServerForm
               inline
-              level="hijo"
-              title={`Nuevo servidor hijo de ${server.code}`}
-              text={`Se crea la célula ${server.next_child_code}.`}
+              level={childLevel}
+              title={`Nuevo ${levels[childLevel].one} de ${server.code}`}
+              text={`Se crea la célula ${server.next_child_code}: su número va delante del código de ${server.code}.`}
               url="/admin/servidores/hijo"
               hidden={{ parent_id: server.id }}
-              submitLabel="Crear servidor hijo"
+              submitLabel={`Crear ${levels[childLevel].one}`}
               onCancel={() => setAdding(false)}
               onDone={() => setAdding(false)}
             />
           ) : (
-            <button type="button" onClick={() => setAdding(true)} className={`${ghost} py-1.5 text-xs`}>+ Añadir servidor hijo</button>
+            <button type="button" onClick={() => setAdding(true)} className={`${ghost} py-1.5 text-xs`}>+ Añadir {levels[childLevel].one}</button>
           )}
         </div>
       )}
-    </article>
+    </div>
   );
 }
 
 function ServerRow({ server }: { server: ServerNode }) {
   const [giving, setGiving] = useState(false);
   const schedule = [server.meeting_day, server.meeting_time].filter(Boolean).join(" · ") || "Horario por definir";
-  const main = server.level !== "hijo";
+  const main = server.level === "servidor" || server.level === "red";
+  const below = server.child_level ? countOf(server.totals.children, server.child_level) : null;
+  const deeper = server.level === "servidor" && server.totals.descendants > server.totals.children ? countOf(server.totals.descendants - server.totals.children, "subhijo") : null;
 
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-start gap-3">
-          <span className={`grid shrink-0 place-items-center rounded-xl font-semibold tracking-[-0.02em] ${main ? "h-11 min-w-11 bg-ink px-2 text-sm text-white" : "h-9 min-w-9 bg-paper px-2 text-xs text-ink"}`}>{server.code}</span>
+          <span className={`grid shrink-0 place-items-center rounded-xl border border-line bg-paper text-ink ${main ? "h-11 min-w-11 px-2.5 text-sm" : "h-9 min-w-9 px-2 text-xs"}`}>
+            <CellCode code={server.code} level={server.level} className="tracking-[-0.01em]" />
+          </span>
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className={`font-semibold tracking-[-0.02em] ${main ? "text-base" : "text-sm"}`}>{server.leader_name || "Sin nombre"}</p>
@@ -64,7 +84,8 @@ function ServerRow({ server }: { server: ServerNode }) {
             </div>
             <p className="mt-0.5 text-xs text-muted">
               {schedule}
-              {server.level === "servidor" && ` · ${server.totals.children} ${server.totals.children === 1 ? "servidor hijo" : "servidores hijo"}`}
+              {below && ` · ${below}`}
+              {deeper && ` · ${deeper}`}
             </p>
           </div>
         </div>

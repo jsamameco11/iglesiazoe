@@ -1,5 +1,6 @@
 
 import { useMemo, useState, useTransition } from "react";
+import { CellCode } from "@/Components/ui/cell-code";
 import { addParticipant, loadInforme, saveReport } from "@/lib/actions";
 import { meetingDateInWeek, weeksOfYear } from "@/lib/weeks";
 import type { Cell, Member, Theme } from "@/lib/types";
@@ -137,7 +138,7 @@ function ReportCard({
   return (
     <form action={submit} className="mt-6 overflow-hidden rounded-[1.5rem] border border-orange/40 bg-card">
       <div className="bg-orange px-6 py-4 text-white">
-        <p className="text-2xl font-light">Cód. Celular: {cell.code}</p>
+        <p className="flex flex-wrap items-center gap-2 text-2xl font-light">Cód. Celular: <span className="rounded-xl bg-white px-2.5 py-0.5 text-xl text-ink"><CellCode code={cell.code} /></span></p>
         <p className="text-sm text-white/80">{weekLabel}</p>
       </div>
       <div className="space-y-6 p-6">

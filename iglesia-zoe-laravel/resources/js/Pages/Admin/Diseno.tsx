@@ -8,30 +8,35 @@ import { Choice } from "@/Components/admin/design/fields";
 import { GlobalPanel } from "@/Components/admin/design/global-panel";
 import { LivePreview } from "@/Components/admin/design/live-preview";
 import { PagePanel } from "@/Components/admin/design/page-panel";
+import { TextPanel } from "@/Components/admin/design/text-panel";
+import { useStylesheet } from "@/Components/admin/design/font-picker";
 import { useDraft } from "@/Components/admin/design/use-draft";
 import { send } from "@/lib/actions";
 import { can, usePanelUser } from "@/lib/access";
-import type { ArtSpec, Design, DesignPage, FontOption, SectionInfo } from "@/lib/design";
+import { designFonts, fontHref, type ArtSpec, type Design, type DesignPage, type FontCategory, type FontOption, type SectionInfo, type TextPick } from "@/lib/design";
 import type { MediaAsset } from "@/lib/media";
 
-type Tab = "global" | "page" | "content" | "art";
+type Tab = "global" | "page" | "text" | "content" | "art";
 
-type Props = { stored: Design; mediaOverrides: Record<string, MediaAsset>; fonts: FontOption[]; pages: DesignPage[]; art: ArtSpec[] };
+type Props = { stored: Design; mediaOverrides: Record<string, MediaAsset>; fonts: FontOption[]; fontCategories: FontCategory[]; pages: DesignPage[]; art: ArtSpec[] };
 
-export default function Diseno({ stored, mediaOverrides, fonts, pages, art }: Props) {
+export default function Diseno({ stored, mediaOverrides, fonts, fontCategories, pages, art }: Props) {
   const user = usePanelUser();
   const draft = useDraft(stored);
   const [tab, setTab] = useState<Tab>("global");
   const [pageKey, setPageKey] = useState(pages[0]?.key ?? "Home");
   const [sections, setSections] = useState<SectionInfo[]>([]);
   const [section, setSection] = useState<string | null>(null);
+  const [text, setText] = useState<TextPick | null>(null);
   const [refresh, setRefresh] = useState(0);
   const { result, setResult, pending, run } = useAction();
   const page = pages.find((item) => item.key === pageKey) ?? pages[0];
+  useStylesheet("zoe-design-chosen", fontHref(designFonts(draft.design)));
 
   function openPage(key: string) {
     setPageKey(key);
     setSection(null);
+    setText(null);
   }
 
   function pick(key: string) {
@@ -54,16 +59,17 @@ export default function Diseno({ stored, mediaOverrides, fonts, pages, art }: Pr
         <PageHeader
           kicker="Página web"
           title="Diseño de la página"
-          text="Elige una página y cambia sus fondos (color, degradado, foto, GIF o video), colores, tipografías, secciones, fotos, textos y animaciones mirando la web real. El diseño no cambia para los visitantes hasta que publiques."
+          text="Elige una página y cambia sus fondos (color, degradado, foto, GIF o video), colores, tipografías, secciones, fotos, textos y animaciones mirando la web real. En «Textos» tocas un texto concreto y le cambias la letra, el tamaño o la alineación. El diseño no cambia para los visitantes hasta que publiques."
           aside={<button type="button" onClick={restore} className={ghost}>Restaurar original</button>}
         />
 
         <div className="mt-6 grid gap-5 xl:grid-cols-[400px_minmax(0,1fr)]">
           <aside className="space-y-4 xl:sticky xl:top-6 xl:max-h-[calc(100vh-8rem)] xl:self-start xl:overflow-y-auto xl:pr-1">
-            <Choice<Tab> value={tab} options={[{ key: "global", label: "Toda la web" }, { key: "page", label: "Página" }, { key: "content", label: "Contenido" }, { key: "art", label: "Ilustraciones" }]} onChange={setTab} />
+            <Choice<Tab> value={tab} options={[{ key: "global", label: "Toda la web" }, { key: "page", label: "Página" }, { key: "text", label: "Textos" }, { key: "content", label: "Contenido" }, { key: "art", label: "Ilustraciones" }]} onChange={setTab} />
             <div className="rounded-[1.6rem] border border-line bg-card p-5">
-              {tab === "global" && <GlobalPanel draft={draft} fonts={fonts} />}
+              {tab === "global" && <GlobalPanel draft={draft} fonts={fonts} categories={fontCategories} />}
               {tab === "page" && page && <PagePanel draft={draft} page={page} sections={sections} section={section} onSection={setSection} />}
+              {tab === "text" && page && <TextPanel draft={draft} page={page} fonts={fonts} categories={fontCategories} pick={text} onPick={setText} />}
               {tab === "content" && page && <ContentPanel key={page.key} page={page} mediaOverrides={mediaOverrides} onSaved={() => setRefresh((value) => value + 1)} />}
               {tab === "art" && <ArtPanel draft={draft} specs={art} pages={pages} onShow={openPage} />}
             </div>
@@ -86,7 +92,19 @@ export default function Diseno({ stored, mediaOverrides, fonts, pages, art }: Pr
                 ))}
               </select>
             </label>
-            {page && <LivePreview page={page} design={draft.design} section={tab === "page" ? section : null} refresh={refresh} onSections={setSections} onPick={pick} />}
+            {page && (
+              <LivePreview
+                page={page}
+                design={draft.design}
+                section={tab === "page" ? section : null}
+                mode={tab === "text" ? "text" : "section"}
+                text={tab === "text" ? text?.path ?? null : null}
+                refresh={refresh}
+                onSections={setSections}
+                onPick={pick}
+                onPickText={setText}
+              />
+            )}
           </div>
         </div>
 

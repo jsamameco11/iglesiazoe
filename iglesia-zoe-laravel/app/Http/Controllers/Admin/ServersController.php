@@ -83,7 +83,7 @@ class ServersController extends Controller
     {
         $network = $this->find(Network::class, $request->input('network_id'));
         if (! $network || ! CellScope::for($request->user())->canOpenServerIn($network->id)) {
-            return $this->fail('No tienes permiso para abrir servidores en esta red. El superadministrador lo activa en Equipo y accesos.', 403);
+            return $this->fail('No tienes permiso para abrir Servidores Base en esta red. El superadministrador lo activa en Equipo y accesos.', 403);
         }
         [$cell, $account] = $open->handle($network, null, $this->serverData($request), $request->user());
 
@@ -121,7 +121,9 @@ class ServersController extends Controller
     {
         $parent = $this->find(Cell::class, $request->input('parent_id'));
         if (! $parent || ! CellScope::for($request->user())->canAddChildTo($parent)) {
-            return $this->fail('No puedes añadir servidores hijo a este servidor. Necesitas el permiso «Crear servidores hijo» y que el servidor esté a tu cargo.', 403);
+            return $this->fail($parent && ServerLevel::ofCell($parent)->child() === null
+                ? 'Un '.mb_strtolower(ServerLevel::ofCell($parent)->label()).' no lleva servidores debajo.'
+                : 'No puedes añadir servidores aquí. Solo el Servidor de Red o un administrador con la función «Crear servidores hijo y subhijo» lo hace, dentro de su red.', 403);
         }
         [$cell, $account] = $open->handle($parent->network, $parent, $this->serverData($request), $request->user());
 

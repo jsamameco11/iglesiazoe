@@ -69,8 +69,33 @@ class AccessMatrixTest extends TestCase
             'Maestro de la Ruta' => ['estudios', self::ADMIN],
             'Coordinador de servidores' => ['voluntarios', self::ADMIN],
             'Temas de célula' => ['temas', self::ADMIN],
+            'Director de Área' => ['director', self::ADMIN],
             'SUPERADMI' => ['superadmin', self::ADMIN],
         ];
+    }
+
+    public function test_a_director_de_area_holds_only_the_functions_assigned_to_him(): void
+    {
+        $super = $this->user('super', Role::Superadmin, [], []);
+
+        $this->actingAs($super)
+            ->postJson(self::ADMIN.'/admin/equipo', ['name' => 'Rut Díaz', 'username' => 'rut.diaz', 'password' => 'secreto1', 'types' => ['director'], 'permissions' => ['events.manage'], 'area' => ' Alabanza '])
+            ->assertOk();
+
+        $director = User::query()->where('username', 'rut.diaz')->firstOrFail();
+        $this->assertSame(['director'], $director->admin_types);
+        $this->assertSame(['events.manage'], $director->permissions);
+        $this->assertSame('Alabanza', $director->area);
+        $this->assertSame('DIRECTOR DE ÁREA · ALABANZA', Permissions::label($director));
+        $this->assertTrue(Permissions::isAdministrator($director));
+        $this->assertFalse(Permissions::isServer($director));
+        $this->actingAs($director)->get(self::ADMIN.'/admin/eventos')->assertOk();
+        $this->actingAs($director)->get(self::ADMIN.'/admin/servidores')->assertRedirect();
+
+        $this->actingAs($super)
+            ->postJson(self::ADMIN.'/admin/equipo/actualizar', ['id' => $director->id, 'name' => 'Rut Díaz', 'types' => ['visuales'], 'permissions' => ['design.manage'], 'area' => 'Alabanza', 'active' => true])
+            ->assertOk();
+        $this->assertNull($director->fresh()->area);
     }
 
     #[DataProvider('accounts')]

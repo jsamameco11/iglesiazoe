@@ -9,14 +9,14 @@ class Permissions
 {
     public const CATALOG = [
         'reports.submit' => ['group' => 'Células', 'title' => 'Subir informes', 'text' => 'Registra el informe semanal de su propia célula con asistencia, ofrenda, diezmos y fotos.'],
-        'reports.delegate' => ['group' => 'Células', 'title' => 'Subir informes de sus servidores', 'text' => 'Sube o corrige el informe semanal de los servidores y servidores hijo de su red cuando ellos no pueden. Apagado por defecto: cada servidor sube el suyo.'],
+        'reports.delegate' => ['group' => 'Células', 'title' => 'Subir informes de sus servidores', 'text' => 'Sube o corrige el informe semanal de los Servidores Base, hijo y subhijo de su red cuando ellos no pueden. Apagado por defecto: cada servidor sube el suyo.'],
         'reports.weekly' => ['group' => 'Células', 'title' => 'Reporte semanal', 'text' => 'Ve el seguimiento de la semana de su red.'],
         'reports.all' => ['group' => 'Células', 'title' => 'Reportes de todos los servidores', 'text' => 'Ve los informes de todas las células y filtra por semana, mes o año.'],
         'offerings.weekly' => ['group' => 'Células', 'title' => 'Ofrendas por semana', 'text' => 'Ve la ofrenda y los diezmos de cada célula semana por semana, sin el tablero de ingresos.'],
         'cells.own' => ['group' => 'Células', 'title' => 'Abrir su propia célula', 'text' => 'El Servidor de Red que también lidera una célula la abre él mismo y sube su informe. Si no lidera una, no la abre.'],
         'servers.network' => ['group' => 'Células', 'title' => 'Servidores de Red', 'text' => 'Asigna y edita a los Servidores de Red de cada red: nombre, usuario, clave y si su cuenta está activa. Cada red tiene uno, o dos como máximo. Apagado por defecto: solo el superadministrador lo activa.'],
-        'servers.create' => ['group' => 'Células', 'title' => 'Crear servidores', 'text' => 'Abre servidores en su red (células como 01A) y les crea su cuenta.'],
-        'servers.children' => ['group' => 'Células', 'title' => 'Crear servidores hijo', 'text' => 'Añade células hija debajo de un servidor (como 0101A) y les crea su cuenta. El servidor lo usa para sus propios servidores hijo.'],
+        'servers.create' => ['group' => 'Células', 'title' => 'Crear Servidores Base', 'text' => 'Abre Servidores Base en su red (células como 01A) y les crea su cuenta. Solo para Servidores de Red y administradores: los servidores de célula no crean servidores.'],
+        'servers.children' => ['group' => 'Células', 'title' => 'Crear servidores hijo y subhijo', 'text' => 'Añade servidores hijo debajo de un Servidor Base (0101A) y servidores subhijo debajo de un hijo (020101A), y les crea su cuenta. Solo para Servidores de Red y administradores.'],
         'cells.manage' => ['group' => 'Células', 'title' => 'Células e integrantes', 'text' => 'Edita datos de cada célula y su lista de integrantes.'],
         'themes.manage' => ['group' => 'Células', 'title' => 'Temas de célula', 'text' => 'Publica el tema semanal (PDF, Word, PowerPoint o imagen), le pone fecha y público, y lo oculta cuando ya no se usa.'],
         'design.manage' => ['group' => 'Página web', 'title' => 'Diseño de la página', 'text' => 'Paleta de colores, tipografías, fondos de pantalla y de franja (color, degradado, foto, GIF o video), tamaños, grosor y espaciado del texto, y formas, página por página y sección por sección.'],
@@ -50,7 +50,7 @@ class Permissions
     public const TYPES = [
         'red' => [
             'label' => 'Servidor de Red',
-            'text' => 'Abre su propia célula si lidera una y sube su informe, ve reportes de todos los servidores, ve ofrendas y diezmos por semana, crea servidores y servidores hijo y recibe los formularios de la web.',
+            'text' => 'Abre su propia célula si lidera una y sube su informe, ve reportes de todos los servidores, ve ofrendas y diezmos por semana, crea Servidores Base, hijo y subhijo y recibe los formularios de la web.',
             'permissions' => ['reports.submit', 'reports.weekly', 'reports.all', 'offerings.weekly', 'cells.own', 'servers.create', 'servers.children', 'cells.manage', ...self::INBOX],
         ],
         'visuales' => [
@@ -60,8 +60,14 @@ class Permissions
         ],
         'celula' => [
             'label' => 'Servidor de Célula',
-            'text' => 'Sube sus informes y ve el reporte de la semana.',
-            'permissions' => ['reports.submit', 'reports.weekly'],
+            'text' => 'Servidor Base, hijo o subhijo: sube sus informes y ve el reporte de la semana. No crea servidores.',
+            'permissions' => self::SERVER_ACCOUNT,
+        ],
+        'director' => [
+            'label' => 'Director de Área',
+            'text' => 'Dirige un área de la iglesia (por ejemplo Alabanza, Niños o Multimedia). Empieza sin funciones: marca abajo solo las que le asignas.',
+            'permissions' => [],
+            'area' => true,
         ],
         'atmosfera' => [
             'label' => 'Servidor Atmósfera',
@@ -88,16 +94,17 @@ class Permissions
         ],
     ];
 
-    public const DEFAULTS = ['servers.create', 'servers.children'];
+    /** Opening servers is never on by default: only Servidores de Red get it with their type, administrators when it is given to them. */
+    public const DEFAULTS = [];
 
     /** Any of these opens the Servidores page. */
     public const SERVER_TREE = ['servers.network', 'servers.create', 'servers.children', 'cells.own'];
 
-    /** Account of a servidor: files its reports and adds its own servidores hijo. */
-    public const SERVER_ACCOUNT = ['reports.submit', 'reports.weekly', 'servers.children'];
+    /** Account of a Servidor Base, hijo or subhijo: files its reports and never opens servers. */
+    public const SERVER_ACCOUNT = ['reports.submit', 'reports.weekly'];
 
-    /** Account of a servidor hijo: files its reports only. */
-    public const CHILD_SERVER_ACCOUNT = ['reports.submit', 'reports.weekly'];
+    /** Functions a cell server can never hold, even when they are ticked for it. */
+    public const OPEN_SERVERS = ['servers.network', 'servers.create', 'servers.children'];
 
     /** Account types that sign in from the church site; every other type uses the admin site. */
     public const SERVER_TYPES = ['red', 'celula'];
@@ -129,6 +136,9 @@ class Permissions
         $types = self::cleanTypes($types);
         if ($permissions === null || (count($types) === 1 && (self::TYPES[$types[0]]['exclusive'] ?? false))) {
             return self::forTypes($types);
+        }
+        if ($types === ['celula']) {
+            $permissions = array_diff($permissions, self::OPEN_SERVERS);
         }
 
         return self::clean($permissions);
@@ -249,7 +259,7 @@ class Permissions
             return 'ADMINISTRADOR';
         }
 
-        return implode(' · ', array_map(fn ($type) => mb_strtoupper(self::TYPES[$type]['label']), $types));
+        return implode(' · ', array_map(fn ($type) => mb_strtoupper(self::TYPES[$type]['label'].(($type === 'director' && filled($user->area)) ? ' · '.$user->area : '')), $types));
     }
 
     public static function catalogPayload(): array
@@ -258,6 +268,7 @@ class Permissions
             'permissions' => collect(self::CATALOG)->map(fn ($item, $key) => ['key' => $key, ...$item])->values()->all(),
             'types' => collect(self::TYPES)->map(fn ($item, $key) => ['key' => $key, ...$item, 'server' => in_array($key, self::SERVER_TYPES, true)])->values()->all(),
             'defaults' => self::DEFAULTS,
+            'networkOnly' => self::OPEN_SERVERS,
         ];
     }
 }

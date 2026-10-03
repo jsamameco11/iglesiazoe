@@ -10,8 +10,9 @@ export type Palette = {
 };
 
 export type FontRole = "heading" | "text" | "accent";
-export type FontKind = "serif" | "sans" | "round";
-export type FontOption = { name: string; slug: string; kind: FontKind; local?: boolean };
+export type FontKind = "serif" | "sans" | "round" | "script" | "mono";
+export type FontOption = { name: string; slug: string; kind: FontKind; category?: string; local?: boolean };
+export type FontCategory = { key: string; label: string; text: string; count: number };
 
 export type BackdropFit = "cover" | "contain" | "repeat";
 
@@ -54,10 +55,27 @@ export type SectionRule = Backdrop & Typography & {
   hidden?: boolean;
 };
 
+export type TextAlign = "left" | "center" | "right";
+
+/** Look of one text picked in the preview. Size is a factor of the original; "box" lets an inline text be aligned on its own line. */
+export type TextRule = {
+  font?: FontRole | FontOption;
+  size?: number;
+  align?: TextAlign;
+  box?: "block" | "flex" | "grid";
+  weight?: number;
+  italic?: boolean;
+  label?: string;
+};
+
 export type PageRule = Omit<SectionRule, "hidden"> & {
   subtitle?: number;
   sections?: Record<string, SectionRule>;
+  texts?: Record<string, TextRule>;
 };
+
+/** A text the editor picked in the preview, as the page reports it. */
+export type TextPick = { path: string; label: string; tag: string; display: string };
 
 /** Menu bar links and the options that drop from them; every field falls back to the original look. Sizes in px, tracking in em. */
 export type NavType = {
