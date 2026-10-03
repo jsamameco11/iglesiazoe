@@ -135,7 +135,7 @@ export type Devotional = {
   active: boolean;
 };
 
-export type DevotionalFull = Devotional & { body: string };
+export type DevotionalFull = Devotional & { body: string; share_image: string };
 
 export type ChurchEvent = {
   id: string;

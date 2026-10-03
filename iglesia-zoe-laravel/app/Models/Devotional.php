@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Domain\Shared\Models\UuidModel;
+use App\Domain\Site\Support\DevotionalArt;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 
@@ -45,6 +46,6 @@ class Devotional extends UuidModel
 
     public function full(): array
     {
-        return [...$this->card(), 'body' => $this->body];
+        return [...$this->card(), 'body' => $this->body, 'share_image' => DevotionalArt::url($this)];
     }
 }

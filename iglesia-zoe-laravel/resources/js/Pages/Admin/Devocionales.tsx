@@ -19,6 +19,11 @@ export default function Devocionales({ devotionals, today }: { devotionals: Devo
       <p className="mt-2 max-w-2xl text-muted">
         Escribe devocionales para que la iglesia los lea durante la semana. Puedes programarlos: si eliges una fecha futura, aparecen solos en la web ese día. El más reciente se destaca en /devocionales.
       </p>
+      <ol className="mt-4 grid max-w-3xl gap-2 text-sm text-muted sm:grid-cols-3">
+        <li className="rounded-2xl border border-line bg-white px-4 py-3"><b className="text-ink">1. Imagen cuadrada.</b> Se muestra a un costado y es la que se envía por WhatsApp.</li>
+        <li className="rounded-2xl border border-line bg-white px-4 py-3"><b className="text-ink">2. Versículo.</b> Va arriba del texto, destacado, y viaja en el mensaje al compartir.</li>
+        <li className="rounded-2xl border border-line bg-white px-4 py-3"><b className="text-ink">3. Devocional.</b> Va debajo del versículo; deja una línea en blanco entre párrafos.</li>
+      </ol>
       <div className="mt-6 flex flex-wrap items-center gap-3">
         {creating ? null : (
           <button type="button" onClick={() => setCreating(true)} className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-white">
@@ -56,6 +61,25 @@ export default function Devocionales({ devotionals, today }: { devotionals: Devo
   );
 }
 
+/** Same square the site and WhatsApp show: near-square photos fill it, others sit whole over a blurred copy. */
+function SquarePreview({ src }: { src: string }) {
+  const [whole, setWhole] = useState(false);
+  return (
+    <>
+      {whole ? <img src={src} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-110 object-cover blur-xl brightness-[0.63]" /> : null}
+      <img
+        src={src}
+        alt=""
+        onLoad={(event) => {
+          const { naturalWidth: width, naturalHeight: height } = event.currentTarget;
+          setWhole(Math.max(width, height) / Math.max(1, Math.min(width, height)) > 1.2);
+        }}
+        className={`relative h-full w-full ${whole ? "object-contain" : "object-cover"}`}
+      />
+    </>
+  );
+}
+
 function DevotionalForm({ devotional, today, site, onDone }: { devotional?: DevotionalFull; today: string; site: string; onDone?: () => void }) {
   const [state, action, pending] = useActionState(async (_: ActionResult | undefined, formData: FormData) => {
     const result = await saveDevotional(formData);
@@ -90,9 +114,9 @@ function DevotionalForm({ devotional, today, site, onDone }: { devotional?: Devo
     <form action={action} className="grid gap-5 rounded-[1.5rem] border border-line bg-card p-5 md:grid-cols-[220px_1fr]">
       <input type="hidden" name="id" value={devotional?.id || ""} />
       <div>
-        <div className="flex aspect-[4/3] w-full max-w-[220px] items-center justify-center overflow-hidden rounded-2xl border border-line bg-stone md:max-w-none">
+        <div className="relative flex aspect-square w-full max-w-[220px] items-center justify-center overflow-hidden rounded-2xl border border-line bg-stone md:max-w-none">
           {image ? (
-            <img src={image} alt="" className="h-full w-full object-cover" />
+            <SquarePreview key={image} src={image} />
           ) : (
             <span className="px-4 text-center text-xs text-muted">Sin imagen propia. Se mostrará la portada de Devocionales (Imágenes y videos).</span>
           )}
@@ -110,7 +134,7 @@ function DevotionalForm({ devotional, today, site, onDone }: { devotional?: Devo
             className="mt-1 block w-full text-xs"
           />
         </label>
-        <p className="mt-1 text-[11px] leading-4 text-muted">JPG, PNG o WEBP hasta 8 MB. Ideal horizontal.</p>
+        <p className="mt-1 text-[11px] leading-4 text-muted">JPG, PNG o WEBP hasta 8 MB. Ideal cuadrada (1080 × 1080 px). Si es horizontal o vertical se muestra completa sobre un fondo difuminado, tal como ves aquí.</p>
         {devotional?.image ? (
           <label className="mt-2 block text-xs text-muted"><input type="checkbox" name="remove_image" /> Quitar imagen</label>
         ) : null}
