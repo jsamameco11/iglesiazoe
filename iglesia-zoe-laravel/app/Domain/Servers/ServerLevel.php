@@ -8,7 +8,8 @@ use App\Models\Cell;
 /**
  * The three tiers of the cell structure: the Servidor de Red oversees a
  * network, each servidor leads a root cell of that network (01A) and each
- * servidor hijo leads a cell under a servidor (0101A).
+ * servidor hijo leads a cell under a servidor (0101A). A Servidor de Red who
+ * also leads a cell may hold it under the network letter alone (A).
  */
 enum ServerLevel: string
 {
@@ -18,7 +19,11 @@ enum ServerLevel: string
 
     public static function ofCell(Cell $cell): self
     {
-        return $cell->parent_id ? self::Hijo : self::Servidor;
+        return match (true) {
+            $cell->parent_id !== null => self::Hijo,
+            $cell->isNetworkCell() => self::Red,
+            default => self::Servidor,
+        };
     }
 
     public function label(): string

@@ -7,7 +7,7 @@ export type NetworkLeader = { id: string; name: string; username: string; active
 export type ServerNode = {
   id: string;
   code: string;
-  level: Exclude<ServerLevel, "red">;
+  level: ServerLevel;
   leader_name: string | null;
   meeting_day: string | null;
   meeting_time: string | null;
@@ -33,10 +33,16 @@ export type ServerNetwork = {
   totals: { servers: number; children: number };
 };
 
+export type OwnCellChoices = {
+  network: string | null;
+  numbered: string;
+  free: { id: string; code: string; leader_name: string | null }[];
+};
+
 export type OwnCell = {
   network_code: string;
   can_open: boolean;
-  next_code: string | null;
+  choices: OwnCellChoices | null;
   cell: { code: string; leader_name: string | null; meeting_day: string | null; meeting_time: string | null } | null;
 };
 

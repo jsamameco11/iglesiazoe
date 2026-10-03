@@ -4,6 +4,11 @@ namespace App\Domain\Cells\Support;
 
 class CellCodes
 {
+    public static function network(string $network): string
+    {
+        return strtoupper($network);
+    }
+
     public static function root(string $network, int $number): string
     {
         return str_pad((string) $number, 2, '0', STR_PAD_LEFT).strtoupper($network);

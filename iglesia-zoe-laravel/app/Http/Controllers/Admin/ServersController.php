@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Access\CellScope;
 use App\Domain\Servers\Actions\CreateServerAccount;
+use App\Domain\Servers\Actions\OpenOwnCell;
 use App\Domain\Servers\Actions\OpenServer;
 use App\Domain\Servers\ServerLevel;
 use App\Domain\Servers\Support\ServerTree;
@@ -13,7 +14,6 @@ use App\Models\Network;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -58,7 +58,7 @@ class ServersController extends Controller
         return $this->done($this->created($cell, $account));
     }
 
-    public function storeOwnCell(Request $request, OpenServer $open): JsonResponse
+    public function storeOwnCell(Request $request, OpenOwnCell $open): JsonResponse
     {
         $user = $request->user();
         $scope = CellScope::for($user);
@@ -70,18 +70,17 @@ class ServersController extends Controller
                 : response()->json(['error' => 'Solo el Servidor de Red con permiso para abrir su propia célula puede hacerlo.'], 403);
         }
         $data = $request->validate([
+            'kind' => ['required', Rule::in(OpenOwnCell::KINDS)],
             'meeting_day' => ['nullable', Rule::in(Cell::MEETING_DAYS)],
             'meeting_time' => ['nullable', 'date_format:H:i'],
         ], [
+            'kind.required' => 'Elige cómo quieres tu célula.',
+            'kind.in' => 'Elige cómo quieres tu célula.',
             'meeting_day.in' => 'Elige un día de la lista.',
             'meeting_time.date_format' => 'La hora no es válida.',
         ]);
-        $cell = DB::transaction(function () use ($open, $scope, $user, $data) {
-            [$cell] = $open->handle($scope->network, null, ['leader_name' => $user->name, ...$data], $user);
-            $user->cells()->syncWithoutDetaching([$cell->id]);
-
-            return $cell;
-        });
+        $schedule = ['meeting_day' => $data['meeting_day'] ?? null, 'meeting_time' => $data['meeting_time'] ?? null];
+        $cell = $open->handle($user, $scope->network, $data['kind'], $this->find(Cell::class, $request->input('cell_id')), $schedule);
 
         return $this->done("Tu célula {$cell->code} está lista. Ya puedes subir su informe desde «Subir informe».");
     }
@@ -102,6 +101,9 @@ class ServersController extends Controller
         $cell = $this->find(Cell::class, $request->input('cell_id'));
         if (! $cell || ! CellScope::for($request->user())->oversees($cell)) {
             return response()->json(['error' => 'Ese servidor no está a tu cargo.'], 403);
+        }
+        if ($cell->isNetworkCell()) {
+            return response()->json(['error' => "La célula {$cell->code} es la del Servidor de Red; su cuenta se crea como Servidor de Red."], 422);
         }
         if ($cell->users()->exists()) {
             return response()->json(['error' => "{$cell->code} ya tiene cuenta."], 422);

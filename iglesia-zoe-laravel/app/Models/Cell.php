@@ -16,9 +16,17 @@ class Cell extends UuidModel
         'host_name', 'address', 'meeting_day', 'meeting_time', 'active',
     ];
 
+    /** Number of the cell a Servidor de Red leads under the network letter alone (H). */
+    public const NETWORK_NUMBER = 0;
+
     protected function casts(): array
     {
         return ['active' => 'boolean'];
+    }
+
+    public function isNetworkCell(): bool
+    {
+        return $this->parent_id === null && (int) $this->number === self::NETWORK_NUMBER;
     }
 
     public function network(): BelongsTo

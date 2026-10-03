@@ -5,6 +5,7 @@ namespace App\Domain\Servers\Support;
 use App\Domain\Access\CellScope;
 use App\Domain\Access\Permissions;
 use App\Domain\Cells\Support\CellCodes;
+use App\Domain\Servers\Actions\OpenOwnCell;
 use App\Domain\Servers\Actions\OpenServer;
 use App\Domain\Servers\ServerLevel;
 use App\Models\Cell;
@@ -74,7 +75,7 @@ final class ServerTree
         return [
             'network_code' => $network->code,
             'can_open' => $canOpen,
-            'next_code' => $canOpen ? CellCodes::root($network->code, OpenServer::nextNumber($network, null)) : null,
+            'choices' => $canOpen ? OpenOwnCell::choices($network) : null,
             'cell' => $cell ? [
                 'code' => $cell->code,
                 'leader_name' => $cell->leader_name,
@@ -128,7 +129,7 @@ final class ServerTree
             'own' => in_array($cell->id, $this->scope->own, true),
             'accounts' => $accounts,
             'can_add_child' => $canAddChild,
-            'can_give_account' => $accounts->isEmpty() && $this->scope->oversees($cell),
+            'can_give_account' => $accounts->isEmpty() && ! $cell->isNetworkCell() && $this->scope->oversees($cell),
             'next_child_code' => $canAddChild ? CellCodes::daughter($cell->code, $children->max(fn (array $child) => $child['number']) + 1) : null,
             'number' => $cell->number,
             'children' => $children,

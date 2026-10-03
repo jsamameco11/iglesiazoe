@@ -150,11 +150,15 @@ class CellScope
             : $cell->parent_id !== null && in_array($cell->parent_id, $this->own, true);
     }
 
-    /** Servidores hijo hang from a servidor's cell, never from another servidor hijo. */
+    /**
+     * Servidores hijo hang from a servidor's cell, never from another servidor
+     * hijo nor from the Servidor de Red's own network cell (A).
+     */
     public function canAddChildTo(Cell $parent): bool
     {
         return Permissions::has($this->user, 'servers.children')
             && $parent->parent_id === null
+            && ! $parent->isNetworkCell()
             && ($this->oversees($parent) || in_array($parent->id, $this->own, true));
     }
 
