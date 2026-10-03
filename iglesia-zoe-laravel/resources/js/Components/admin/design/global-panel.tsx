@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { fontHref, fontRoles, fontStack, zoePalette, type Design, type FontOption, type Palette } from "@/lib/design";
-import { Choice, ColorField, ScaleField } from "./fields";
+import { Choice, ColorField, RangeField, RoleField, ScaleField, SelectField } from "./fields";
 import type { Draft } from "./use-draft";
 
 const presets: { name: string; palette: Palette }[] = [
@@ -27,6 +27,16 @@ const kinds: { key: FontOption["kind"]; label: string }[] = [
   { key: "round", label: "Redondeadas" },
 ];
 
+const navWeights = [
+  { value: 300, label: "Ligera" },
+  { value: 400, label: "Normal" },
+  { value: 500, label: "Media" },
+  { value: 600, label: "Seminegrita" },
+  { value: 700, label: "Negrita" },
+];
+
+const px = (value: number) => `${value} px`;
+
 const samples = { heading: "Vida en abundancia", text: "Una familia que se reúne cada semana para crecer en Cristo.", accent: "PRÓXIMO DOMINGO · 10 AM" };
 
 function Group({ title, text, children }: { title: string; text: string; children: React.ReactNode }) {
@@ -41,6 +51,7 @@ function Group({ title, text, children }: { title: string; text: string; childre
 
 export function GlobalPanel({ draft, fonts }: { draft: Draft; fonts: FontOption[] }) {
   const { design } = draft;
+  const nav = design.nav ?? {};
 
   useEffect(() => {
     const id = "zoe-design-catalog";
@@ -98,6 +109,25 @@ export function GlobalPanel({ draft, fonts }: { draft: Draft; fonts: FontOption[
               </p>
             </div>
           ))}
+        </div>
+      </Group>
+
+      <Group title="Menú de navegación" text="Enlaces de la barra superior y opciones que se despliegan de ellos. Sin cambios, el menú conserva su aspecto original.">
+        <div className="space-y-5">
+          <RoleField label="Tipografía" value={nav.font} fallback="text" onChange={(font) => draft.setNav({ font })} />
+          <div className="space-y-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">Enlaces del menú</p>
+            <RangeField label="Tamaño" value={nav.size} fallback={15} min={12} max={19} step={0.5} format={px} onChange={(size) => draft.setNav({ size })} />
+            <SelectField<number> label="Grosor" value={nav.weight} options={navWeights} placeholder="Original (Media)" onChange={(weight) => draft.setNav({ weight })} />
+          </div>
+          <div className="space-y-4 border-t border-line pt-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">Opciones desplegables</p>
+            <RangeField label="Tamaño" value={nav.dropSize} fallback={14} min={12} max={18} step={0.5} format={px} onChange={(dropSize) => draft.setNav({ dropSize })} />
+            <SelectField<number> label="Grosor" value={nav.dropWeight} options={navWeights} placeholder="Original (Normal)" onChange={(dropWeight) => draft.setNav({ dropWeight })} />
+          </div>
+          <div className="border-t border-line pt-4">
+            <RangeField label="Espaciado entre letras" value={nav.tracking} fallback={-0.01} min={-0.03} max={0.2} step={0.005} format={(value) => `${value > 0 ? "+" : ""}${Math.round(value * 1000) / 10} %`} onChange={(tracking) => draft.setNav({ tracking })} />
+          </div>
         </div>
       </Group>
 

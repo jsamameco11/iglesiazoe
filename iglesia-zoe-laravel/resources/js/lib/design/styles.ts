@@ -36,6 +36,18 @@ export function designAttributes(design: Design | undefined, page: string | unde
     style["--zoe-subtitle-scale"] = String(subtitle);
     style["--zoe-text-scale"] = String(text);
   }
+  const nav = design.nav ?? {};
+  if (nav.font && ROLES.includes(nav.font)) style["--nav-face"] = faces[nav.font];
+  const navSize = number(nav.size, 12, 19);
+  const dropSize = number(nav.dropSize, 12, 18);
+  const navWeight = number(nav.weight, 300, 700);
+  const dropWeight = number(nav.dropWeight, 300, 700);
+  const navTracking = number(nav.tracking, -0.03, 0.2);
+  if (navSize) style["--nav-size"] = `${navSize}px`;
+  if (dropSize) style["--nav-drop-size"] = `${dropSize}px`;
+  if (navWeight) style["--nav-weight"] = String(Math.round(navWeight / 100) * 100);
+  if (dropWeight) style["--nav-drop-weight"] = String(Math.round(dropWeight / 100) * 100);
+  if (navTracking !== undefined) style["--nav-tracking"] = `${navTracking}em`;
   return { style, attrs };
 }
 

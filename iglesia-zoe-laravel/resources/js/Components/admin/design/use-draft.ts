@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ArtRule, Design, FontOption, FontRole, PageRule, Palette, SectionRule } from "@/lib/design";
+import type { ArtRule, Design, FontOption, FontRole, NavType, PageRule, Palette, SectionRule } from "@/lib/design";
 
 /** Drops empty values so "same as the site" never gets saved as a rule. */
 function compact<T extends object>(rule: T): T | undefined {
@@ -36,6 +36,11 @@ export function useDraft(published: Design) {
     setFont: (role: FontRole, font: FontOption) => update((current) => ({ ...current, fonts: { ...current.fonts, [role]: font } })),
     setSize: (key: keyof Design["sizes"], value: number) => update((current) => ({ ...current, sizes: { ...current.sizes, [key]: value } })),
     setShape: (shape: Design["shape"]) => update((current) => ({ ...current, shape })),
+    setNav: (patch: Partial<NavType>) =>
+      update(({ nav, ...current }) => {
+        const next = compact({ ...(nav ?? {}), ...patch });
+        return next ? { ...current, nav: next } : current;
+      }),
     setPage: (page: string, patch: Partial<PageRule> | null) =>
       update((current) => {
         const rule = patch ? compact({ ...(current.pages[page] ?? {}), ...patch }) : undefined;

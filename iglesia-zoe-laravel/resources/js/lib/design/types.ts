@@ -59,6 +59,16 @@ export type PageRule = Omit<SectionRule, "hidden"> & {
   sections?: Record<string, SectionRule>;
 };
 
+/** Menu bar links and the options that drop from them; every field falls back to the original look. Sizes in px, tracking in em. */
+export type NavType = {
+  font?: FontRole;
+  size?: number;
+  weight?: number;
+  dropSize?: number;
+  dropWeight?: number;
+  tracking?: number;
+};
+
 export type ArtRule = { hidden?: boolean; still?: boolean; speed?: number; colors?: Record<string, string> };
 
 export type Design = {
@@ -66,6 +76,7 @@ export type Design = {
   fonts: Record<FontRole, FontOption>;
   sizes: { title: number; subtitle: number; text: number };
   shape: "round" | "soft" | "square";
+  nav?: NavType;
   pages: Record<string, PageRule>;
   art: Record<string, ArtRule>;
   fontHref?: string;

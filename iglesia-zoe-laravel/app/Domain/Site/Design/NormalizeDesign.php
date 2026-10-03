@@ -34,10 +34,20 @@ class NormalizeDesign
         'textTracking' => [-0.03, 0.2, 0.005],
     ];
 
+    /** Typography of the menu bar links and of the options that drop from them: [min, max, step], sizes in px. */
+    private const NAV = [
+        'size' => [12, 19, 0.5],
+        'weight' => [300, 700, 100],
+        'dropSize' => [12, 18, 0.5],
+        'dropWeight' => [300, 700, 100],
+        'tracking' => [-0.03, 0.2, 0.005],
+    ];
+
     public static function run(array $input): array
     {
         $defaults = config('design.defaults');
         $fonts = self::fonts($input['fonts'] ?? [], $defaults['fonts']);
+        $nav = self::nav($input['nav'] ?? null);
 
         return [
             'palette' => self::palette($input['palette'] ?? [], $defaults['palette']),
@@ -48,6 +58,7 @@ class NormalizeDesign
                 'text' => self::scale($input['sizes']['text'] ?? null) ?? 1,
             ],
             'shape' => in_array($input['shape'] ?? '', ['round', 'soft', 'square'], true) ? $input['shape'] : $defaults['shape'],
+            ...($nav ? ['nav' => $nav] : []),
             'pages' => self::pages(is_array($input['pages'] ?? null) ? $input['pages'] : [], $fonts),
             'art' => self::art(is_array($input['art'] ?? null) ? $input['art'] : []),
         ];
@@ -87,6 +98,25 @@ class NormalizeDesign
         }
 
         return $fonts;
+    }
+
+    private static function nav(mixed $input): array
+    {
+        if (! is_array($input)) {
+            return [];
+        }
+        $clean = [];
+        if (in_array($input['font'] ?? null, self::ROLES, true)) {
+            $clean['font'] = $input['font'];
+        }
+        foreach (self::NAV as $key => [$min, $max, $step]) {
+            if (is_numeric($input[$key] ?? null)) {
+                $value = round(max($min, min($max, (float) $input[$key])) / $step) * $step;
+                $clean[$key] = is_int($step) ? (int) $value : round($value, 3);
+            }
+        }
+
+        return $clean;
     }
 
     private static function font(array $font): array

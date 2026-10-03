@@ -238,7 +238,7 @@ function HeaderBar({
       <Link href={home} className="shrink-0 whitespace-nowrap text-[1.3rem] font-semibold tracking-[-0.03em] text-current" tabIndex={ghostTab}>
         {t("nav.brand")}
       </Link>
-      <nav className="hidden items-center gap-[1.15rem] text-[15px] font-medium tracking-[-0.01em] text-current xl:flex 2xl:gap-6">
+      <nav className="site-nav hidden items-center gap-[1.15rem] text-current xl:flex 2xl:gap-6">
         <Link href="/conocenos" className={`transition hover:opacity-60 ${current("/conocenos")}`} tabIndex={ghostTab}>{t("nav.about")}</Link>
         <MegaDrop
           label={t("nav.ministries")}
