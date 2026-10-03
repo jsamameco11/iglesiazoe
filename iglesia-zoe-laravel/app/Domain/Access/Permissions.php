@@ -31,6 +31,7 @@ class Permissions
         'radio.library' => ['group' => 'Radio', 'title' => 'Biblioteca de audio', 'text' => 'Sube, edita y elimina canciones, anuncios, efectos y programas grabados, arma las listas de reproducción y las playlists de Spotify que se muestran en la página. Subir un audio no lo pone al aire.'],
         'radio.episodes' => ['group' => 'Radio', 'title' => 'Episodios', 'text' => 'Publica programas grabados como episodios en la página de la radio, con carátula, título y una descripción corta, para que la gente los escuche cuando quiera.'],
         'radio.settings' => ['group' => 'Radio', 'title' => 'Ajustes de la radio', 'text' => 'Nombre y lema de la emisora, radio al aire o fuera del aire, niveles de la mezcla, empalme entre canciones y transmisión externa.'],
+        'games.manage' => ['group' => 'Juegos', 'title' => 'Juegos bíblicos', 'text' => 'Administra REBET, LINGOBIBLE y El Cristiano Oculto de /juegos: crea, edita, ordena y elimina temas, preguntas, rutas, lecciones, ejercicios y palabras.'],
         'studies.students' => ['group' => 'Estudios · Ruta del Servidor', 'title' => 'Estudiantes y niveles', 'text' => 'Crea, edita y desactiva las cuentas de los estudiantes, cambia sus claves, los ubica en su nivel y define fechas y horario de cada nivel.'],
         'studies.grades' => ['group' => 'Estudios · Ruta del Servidor', 'title' => 'Notas', 'text' => 'Crea las evaluaciones de cada nivel y registra las notas de los estudiantes.'],
         'studies.board' => ['group' => 'Estudios · Ruta del Servidor', 'title' => 'Avisos, versículos y lecturas', 'text' => 'Publica los avisos que aparecen en el aula, los versículos y textos de ánimo y las lecturas en PDF.'],
@@ -55,8 +56,8 @@ class Permissions
         ],
         'visuales' => [
             'label' => 'Visuales · Multimedia',
-            'text' => 'Todo lo de la página web: imágenes, videos, textos, formas, colores, tipografías, eventos, devocionales, la radio en vivo, datos de generosidad, las indicaciones de la semana, los formularios de la web y el aula de la Ruta del Servidor.',
-            'permissions' => ['design.manage', 'media.manage', 'content.manage', 'generosity.manage', 'notices.manage', 'events.manage', 'devotionals.manage', ...self::RADIO, ...self::STUDIES, ...self::INBOX],
+            'text' => 'Todo lo de la página web: imágenes, videos, textos, formas, colores, tipografías, eventos, devocionales, la radio en vivo, los juegos bíblicos, datos de generosidad, las indicaciones de la semana, los formularios de la web y el aula de la Ruta del Servidor.',
+            'permissions' => ['design.manage', 'media.manage', 'content.manage', 'generosity.manage', 'notices.manage', 'events.manage', 'devotionals.manage', 'games.manage', ...self::RADIO, ...self::STUDIES, ...self::INBOX],
         ],
         'celula' => [
             'label' => 'Servidor de Célula',

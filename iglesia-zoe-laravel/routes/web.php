@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Auth\AccesoController;
 use App\Http\Controllers\Web\FormsController;
+use App\Http\Controllers\Web\GameRoomsController;
+use App\Http\Controllers\Web\GamesController;
 use App\Http\Controllers\Web\RadioController;
 use App\Http\Controllers\Web\SiteController;
 use App\Http\Controllers\Web\StudiesController;
@@ -41,6 +43,26 @@ Route::middleware('throttle:radio')->prefix('radio')->group(function () {
     Route::post('/voz', [RadioController::class, 'voice']);
     Route::post('/voz/respuesta', [RadioController::class, 'answer']);
     Route::post('/salir', [RadioController::class, 'leave']);
+});
+Route::prefix('juegos')->group(function () {
+    Route::get('/', [GamesController::class, 'index'])->name('games');
+    Route::get('/rebet', [GamesController::class, 'rebet'])->name('games.rebet');
+    Route::get('/lingobible', [GamesController::class, 'lingobible'])->name('games.lingobible');
+    Route::get('/lingobible/{slug}', [GamesController::class, 'lingoPath'])->where('slug', '[a-z0-9-]+')->name('games.lingobible.path');
+    Route::get('/lingobible/{slug}/{lesson}', [GamesController::class, 'lingoLesson'])->where(['slug' => '[a-z0-9-]+', 'lesson' => '[0-9a-f-]{36}'])->name('games.lingobible.lesson');
+    Route::get('/el-cristiano-oculto', [GamesController::class, 'oculto'])->name('games.oculto');
+    Route::get('/sala/{code}', [GamesController::class, 'room'])->where('code', '[A-Za-z0-9]{3,12}')->name('games.room');
+
+    Route::middleware('throttle:games')->group(function () {
+        Route::get('/rebet/preguntas', [GamesController::class, 'rebetQuestions']);
+        Route::post('/rebet/responder', [GamesController::class, 'rebetAnswer']);
+        Route::post('/lingobible/responder', [GamesController::class, 'lingoAnswer']);
+        Route::get('/el-cristiano-oculto/palabra', [GamesController::class, 'ocultoWord']);
+        Route::post('/salas', [GameRoomsController::class, 'create']);
+        Route::post('/salas/{code}/entrar', [GameRoomsController::class, 'join'])->where('code', '[A-Za-z0-9]{3,12}');
+        Route::get('/salas/{code}', [GameRoomsController::class, 'state'])->where('code', '[A-Za-z0-9]{3,12}');
+        Route::post('/salas/{code}', [GameRoomsController::class, 'act'])->where('code', '[A-Za-z0-9]{3,12}');
+    });
 });
 Route::get('/dar', [SiteController::class, 'give'])->name('give');
 Route::get('/contacto', [SiteController::class, 'contact'])->name('contact');

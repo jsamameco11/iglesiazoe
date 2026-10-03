@@ -210,6 +210,10 @@ return [
         ['key' => 'teachings', 'parent' => 'resources', 'path' => '/recursos', 'name' => 'Enseñanzas', 'note' => 'Prédica y grupos', 'kicker' => 'Recursos', 'sections' => [
             ['key' => 'more', 'name' => 'Más recursos'],
         ]],
+        ['key' => 'games', 'parent' => 'resources', 'path' => '/juegos', 'name' => 'Juegos', 'note' => 'Aprende la Biblia jugando', 'kicker' => 'Recursos · Juegos', 'sections' => [
+            ['key' => 'list', 'name' => 'Juegos'],
+            ['key' => 'rooms', 'name' => 'Salas en vivo'],
+        ]],
         ['key' => 'radio', 'path' => '/radio', 'name' => 'Radio', 'note' => 'En vivo, las 24 horas'],
         ['key' => 'contact', 'path' => '/contacto', 'name' => 'Oración', 'note' => 'Estamos contigo', 'kicker' => 'Oración', 'sections' => [
             ['key' => 'prayer', 'name' => 'Oramos contigo'],

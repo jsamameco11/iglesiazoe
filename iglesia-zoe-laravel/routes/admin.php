@@ -11,8 +11,10 @@ use App\Http\Controllers\Admin\ExpensesController;
 use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GalleriesController;
 use App\Http\Controllers\Admin\InboxController;
+use App\Http\Controllers\Admin\LingobibleController;
 use App\Http\Controllers\Admin\MinistriesController;
 use App\Http\Controllers\Admin\NoticeController;
+use App\Http\Controllers\Admin\OcultoController;
 use App\Http\Controllers\Admin\RadioConsoleController;
 use App\Http\Controllers\Admin\RadioEpisodesController;
 use App\Http\Controllers\Admin\RadioLibraryController;
@@ -20,6 +22,7 @@ use App\Http\Controllers\Admin\RadioPlaylistsController;
 use App\Http\Controllers\Admin\RadioScheduleController;
 use App\Http\Controllers\Admin\RadioSettingsController;
 use App\Http\Controllers\Admin\RadioSpotifyController;
+use App\Http\Controllers\Admin\RebetController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SectionsController;
 use App\Http\Controllers\Admin\SermonsController;
@@ -128,6 +131,28 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
             Route::get('/ajustes', [RadioSettingsController::class, 'index']);
             Route::post('/ajustes', [RadioSettingsController::class, 'save']);
         });
+    });
+
+    Route::middleware($can('games.manage'))->prefix('juegos')->group(function () {
+        Route::get('/', [RebetController::class, 'index']);
+        Route::post('/rebet/tema', [RebetController::class, 'saveTheme']);
+        Route::post('/rebet/tema/orden', [RebetController::class, 'moveTheme']);
+        Route::post('/rebet/tema/eliminar', [RebetController::class, 'deleteTheme']);
+        Route::post('/rebet/pregunta', [RebetController::class, 'saveQuestion']);
+        Route::post('/rebet/pregunta/eliminar', [RebetController::class, 'deleteQuestion']);
+        Route::get('/lingobible', [LingobibleController::class, 'index']);
+        Route::post('/lingobible/ruta', [LingobibleController::class, 'savePath']);
+        Route::post('/lingobible/unidad', [LingobibleController::class, 'saveUnit']);
+        Route::post('/lingobible/leccion', [LingobibleController::class, 'saveLesson']);
+        Route::post('/lingobible/ejercicio', [LingobibleController::class, 'saveExercise']);
+        Route::post('/lingobible/orden', [LingobibleController::class, 'reorder']);
+        Route::post('/lingobible/eliminar', [LingobibleController::class, 'destroy']);
+        Route::get('/cristiano-oculto', [OcultoController::class, 'index']);
+        Route::post('/cristiano-oculto/tema', [OcultoController::class, 'saveTheme']);
+        Route::post('/cristiano-oculto/tema/orden', [OcultoController::class, 'moveTheme']);
+        Route::post('/cristiano-oculto/tema/eliminar', [OcultoController::class, 'deleteTheme']);
+        Route::post('/cristiano-oculto/palabra', [OcultoController::class, 'saveWord']);
+        Route::post('/cristiano-oculto/palabra/eliminar', [OcultoController::class, 'deleteWord']);
     });
 
     Route::middleware($can('studies.students'))->prefix('estudios')->group(function () {
