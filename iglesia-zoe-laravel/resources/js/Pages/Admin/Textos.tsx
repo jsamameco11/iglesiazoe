@@ -1,21 +1,14 @@
 import { useActionState } from "react";
+import { blankDefaults, CopyFields } from "@/Components/admin/copy-fields";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { saveTexts, type ActionResult } from "@/lib/actions";
-import { copyDefault, copyGroups, readCopy } from "@/lib/copy";
+import { copyGroups } from "@/lib/copy";
 import type { SiteSettings } from "@/lib/types";
 
 const field = "mt-1 w-full rounded-xl border border-line bg-white px-3 py-2";
 
 export default function Textos({ settings }: { settings: SiteSettings }) {
-  const [state, action, pending] = useActionState(async (_: ActionResult | undefined, formData: FormData) => {
-    copyGroups.forEach((group) =>
-      group.entries.forEach((entry) => {
-        const name = `copy[${entry.key}]`;
-        if (String(formData.get(name) ?? "").replace(/\r\n/g, "\n").trim() === copyDefault(entry.key).trim()) formData.set(name, "");
-      }),
-    );
-    return saveTexts(formData);
-  }, undefined);
+  const [state, action, pending] = useActionState(async (_: ActionResult | undefined, formData: FormData) => saveTexts(blankDefaults(formData)), undefined);
 
   return (
     <AdminLayout>
@@ -40,24 +33,7 @@ export default function Textos({ settings }: { settings: SiteSettings }) {
               <h2 className="text-xl font-medium tracking-[-0.03em]">{group.title}</h2>
               {"note" in group && group.note ? <p className="mt-1 text-sm leading-6 text-muted">{group.note}</p> : null}
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {group.entries.map((entry) => {
-                const area = "area" in entry && entry.area;
-                const hint = "hint" in entry ? entry.hint : undefined;
-                const value = readCopy(settings, entry.key);
-                return (
-                  <label key={entry.key} className={`text-sm ${area ? "md:col-span-2" : ""}`}>
-                    {entry.label}
-                    {area ? (
-                      <textarea name={`copy[${entry.key}]`} defaultValue={value} rows={Math.min(8, Math.max(3, value.split("\n").length + 1))} className={field} />
-                    ) : (
-                      <input name={`copy[${entry.key}]`} defaultValue={value} className={field} />
-                    )}
-                    {hint ? <span className="mt-1 block text-xs leading-5 text-muted">{hint}</span> : null}
-                  </label>
-                );
-              })}
-            </div>
+            <CopyFields settings={settings} group={group} />
           </section>
         ))}
 

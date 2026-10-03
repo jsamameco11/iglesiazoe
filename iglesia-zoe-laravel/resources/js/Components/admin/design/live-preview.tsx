@@ -17,19 +17,22 @@ export function LivePreview({
   page,
   design,
   section,
+  refresh = 0,
   onSections,
   onPick,
 }: {
   page: DesignPage;
   design: Design;
   section: string | null;
+  refresh?: number;
   onSections: (sections: SectionInfo[]) => void;
   onPick: (section: string) => void;
 }) {
   const frame = useRef<HTMLIFrameElement>(null);
   const [device, setDevice] = useState<Device>("desktop");
   const [ready, setReady] = useState(false);
-  const [version, setVersion] = useState(0);
+  const [reloads, setReloads] = useState(0);
+  const version = reloads + refresh;
   const src = page.url ? previewUrl(page.url) : "";
   const origin = src ? new URL(src).origin : "";
   const latest = useRef({ onSections, onPick });
@@ -74,7 +77,7 @@ export function LivePreview({
           <div className="w-60">
             <Choice<Device> value={device} options={[{ key: "desktop", label: "Escritorio" }, { key: "tablet", label: "Tableta" }, { key: "phone", label: "Celular" }]} onChange={setDevice} />
           </div>
-          <button type="button" onClick={() => setVersion((value) => value + 1)} className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold hover:border-ink/30" title="Volver a cargar">↻</button>
+          <button type="button" onClick={() => setReloads((value) => value + 1)} className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold hover:border-ink/30" title="Volver a cargar">↻</button>
           {page.url && <a href={page.url} target="_blank" rel="noreferrer" className="rounded-full border border-line px-3 py-1.5 text-xs font-semibold hover:border-ink/30">Abrir ↗</a>}
         </div>
       </div>

@@ -33,8 +33,13 @@ export function MediaManager({ slots }: { slots: AdminMediaSlot[] }) {
   );
 }
 
-function MediaSlotCard({ slot }: { slot: AdminMediaSlot }) {
-  const [state, action, pending] = useActionState(async (_: unknown, formData: FormData) => saveMediaAsset(formData), undefined);
+/** Upload, framing and publishing of one photo or video slot. Compact stacks it for narrow side panels. */
+export function MediaSlotCard({ slot, compact = false, onSaved }: { slot: AdminMediaSlot; compact?: boolean; onSaved?: () => void }) {
+  const [state, action, pending] = useActionState(async (_: unknown, formData: FormData) => {
+    const result = await saveMediaAsset(formData);
+    if (result?.ok) onSaved?.();
+    return result;
+  }, undefined);
   const initialRatio = parseRatio(slot.asset.ratio);
   const [kind, setKind] = useState<MediaKind>(slot.asset.kind);
   const [preview, setPreview] = useState<string | null>(null);
@@ -78,7 +83,7 @@ function MediaSlotCard({ slot }: { slot: AdminMediaSlot }) {
   const previewRatio = parseRatio(ratio === "custom" ? `${ratioWidth}/${ratioHeight}` : ratio);
 
   return (
-    <form id={`medio-${slot.id}`} action={action} className="grid scroll-mt-24 gap-5 rounded-[1.6rem] border border-line bg-card p-4 md:grid-cols-[minmax(0,340px)_1fr] md:p-5">
+    <form id={`medio-${slot.id}`} action={action} className={`grid scroll-mt-24 gap-5 rounded-[1.6rem] border border-line bg-card p-4 ${compact ? "" : "md:grid-cols-[minmax(0,340px)_1fr] md:p-5"}`}>
       <input type="hidden" name="id" value={slot.id} />
       <input type="hidden" name="posX" value={posX} />
       <input type="hidden" name="posY" value={posY} />
@@ -120,7 +125,7 @@ function MediaSlotCard({ slot }: { slot: AdminMediaSlot }) {
       <div className="min-w-0">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="text-xl font-medium tracking-[-0.03em]">{slot.label}</h2>
+            <h2 className={`${compact ? "text-base" : "text-xl"} font-medium tracking-[-0.03em]`}>{slot.label}</h2>
             <p className="mt-1 max-w-xl text-sm leading-6 text-muted">{slot.hint}</p>
           </div>
         </div>

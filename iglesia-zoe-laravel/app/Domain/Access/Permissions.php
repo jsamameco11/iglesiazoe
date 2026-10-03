@@ -15,7 +15,7 @@ class Permissions
         'servers.create' => ['group' => 'Células', 'title' => 'Crear servidores y servidores hijo', 'text' => 'El Servidor de Red abre servidores en su red; cada servidor añade sus propios servidores hijo y les crea su cuenta.'],
         'cells.manage' => ['group' => 'Células', 'title' => 'Células e integrantes', 'text' => 'Edita datos de cada célula y su lista de integrantes.'],
         'themes.manage' => ['group' => 'Células', 'title' => 'Temas de célula', 'text' => 'Publica el tema semanal (PDF, Word, PowerPoint o imagen), le pone fecha y público, y lo oculta cuando ya no se usa.'],
-        'design.manage' => ['group' => 'Página web', 'title' => 'Diseño de la página', 'text' => 'Paleta de colores, tipografías, colores y tamaños de texto, y formas, página por página.'],
+        'design.manage' => ['group' => 'Página web', 'title' => 'Diseño de la página', 'text' => 'Paleta de colores, tipografías, fondos de pantalla y de franja (color, degradado, foto, GIF o video), tamaños, grosor y espaciado del texto, y formas, página por página y sección por sección.'],
         'media.manage' => ['group' => 'Página web', 'title' => 'Imágenes y videos', 'text' => 'Cambia fotos y videos de la web y la cantidad de imágenes de la galería.'],
         'content.manage' => ['group' => 'Página web', 'title' => 'Textos y secciones', 'text' => 'Edita textos, ministerios, prédicas, fechas de bautismo y temas.'],
         'generosity.manage' => ['group' => 'Página web', 'title' => 'Datos de generosidad', 'text' => 'Edita cuentas y medios de pago visibles en la web.'],
@@ -26,7 +26,8 @@ class Permissions
         'radio.schedule' => ['group' => 'Radio', 'title' => 'Programación', 'text' => 'Arma la línea de tiempo de cada día con la pista principal y las capas encima, elige la música continua y copia la parrilla a otros días.'],
         'radio.library' => ['group' => 'Radio', 'title' => 'Biblioteca de audio', 'text' => 'Sube, edita y elimina canciones, anuncios, efectos y programas grabados. Subir un audio no lo pone al aire.'],
         'radio.settings' => ['group' => 'Radio', 'title' => 'Ajustes de la radio', 'text' => 'Nombre y lema de la emisora, radio al aire o fuera del aire, niveles de la mezcla, empalme entre canciones y transmisión externa.'],
-        'studies.grades' => ['group' => 'Estudios · Ruta del Servidor', 'title' => 'Estudiantes, niveles y notas', 'text' => 'Crea las cuentas de los estudiantes, los ubica en su nivel, define fechas y horario de cada nivel y registra sus notas.'],
+        'studies.students' => ['group' => 'Estudios · Ruta del Servidor', 'title' => 'Estudiantes y niveles', 'text' => 'Crea, edita y desactiva las cuentas de los estudiantes, cambia sus claves, los ubica en su nivel y define fechas y horario de cada nivel.'],
+        'studies.grades' => ['group' => 'Estudios · Ruta del Servidor', 'title' => 'Notas', 'text' => 'Crea las evaluaciones de cada nivel y registra las notas de los estudiantes.'],
         'studies.board' => ['group' => 'Estudios · Ruta del Servidor', 'title' => 'Avisos, versículos y lecturas', 'text' => 'Publica los avisos que aparecen en el aula, los versículos y textos de ánimo y las lecturas en PDF.'],
         'expenses.manage' => ['group' => 'Atmósfera', 'title' => 'Gastos y compras', 'text' => 'Registra compras con foto de la boleta o factura, detalle y monto.'],
         'inbox.visits' => ['group' => 'Formularios de la web', 'title' => 'Visitas planificadas', 'text' => 'Ve a cada persona que planifica su visita, con la red que le corresponde, y recibe una notificación al instante.'],
@@ -37,7 +38,7 @@ class Permissions
 
     public const INBOX = ['inbox.visits', 'inbox.baptisms', 'inbox.prayers', 'inbox.serve'];
 
-    public const STUDIES = ['studies.grades', 'studies.board'];
+    public const STUDIES = ['studies.students', 'studies.grades', 'studies.board'];
 
     public const RADIO = ['radio.console', 'radio.schedule', 'radio.library', 'radio.settings'];
 

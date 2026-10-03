@@ -146,6 +146,9 @@ class StudiesController extends Controller
         }
 
         $password = $data['password'] ?? null;
+        if (! $student && ! $password && strlen($username) < 6) {
+            return response()->json(['error' => 'El usuario «'.$username.'» es muy corto para usarlo como clave. Escribe una clave de al menos 6 caracteres.'], 422);
+        }
         DB::transaction(function () use ($request, $student, $data, $username, $email, $password) {
             $account = [
                 'name' => $data['name'],

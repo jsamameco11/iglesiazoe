@@ -40,12 +40,12 @@ class StudiesTest extends TestCase
 
         $atmosfera = Permissions::forTypes(['atmosfera']);
         $visuales = Permissions::forTypes(['visuales']);
-        foreach (['studies.grades', 'studies.board', 'events.manage'] as $permission) {
+        foreach (['studies.students', 'studies.grades', 'studies.board', 'events.manage'] as $permission) {
             $this->assertContains($permission, $atmosfera);
             $this->assertContains($permission, $visuales);
         }
         $this->assertContains('devotionals.manage', $visuales);
-        $this->assertSame(['studies.grades', 'studies.board'], Permissions::forTypes(['estudios']));
+        $this->assertSame(['studies.students', 'studies.grades', 'studies.board'], Permissions::forTypes(['estudios']));
     }
 
     public function test_an_atmosfera_admin_creates_a_student_who_signs_in_to_the_classroom(): void
@@ -182,6 +182,18 @@ class StudiesTest extends TestCase
         $this->actingAs($grades)->get(self::ADMIN.'/admin/estudios/notas')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Admin/Estudios/Notas')->has('levels', 5));
         $this->actingAs($grades)->get(self::ADMIN.'/admin/estudios/lecturas')->assertRedirect('/admin');
         $this->actingAs($grades)->postJson(self::ADMIN.'/admin/estudios/animo', ['text' => 'Sin permiso para esto.'])->assertForbidden();
+        $this->actingAs($grades)->get(self::ADMIN.'/admin/estudios/estudiantes')->assertRedirect('/admin');
+        $this->actingAs($grades)->postJson(self::ADMIN.'/admin/estudios/estudiantes', ['name' => 'Sin permiso', 'username' => 'sinpermiso', 'status' => 'cursando'])->assertForbidden();
+
+        $students = $this->admin('matriculas', [], ['studies.students']);
+        $this->actingAs($students)->get(self::ADMIN.'/admin/estudios/estudiantes')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Admin/Estudios/Estudiantes'));
+        $this->actingAs($students)->get(self::ADMIN.'/admin/estudios')->assertOk();
+        $this->actingAs($students)->get(self::ADMIN.'/admin/estudios/notas')->assertRedirect('/admin');
+        $this->actingAs($students)->postJson(self::ADMIN.'/admin/estudios/estudiantes', ['name' => 'Usuario Corto', 'username' => 'ana', 'status' => 'cursando'])
+            ->assertUnprocessable()
+            ->assertJsonPath('error', fn ($error) => str_contains($error, 'al menos 6 caracteres'));
+        $this->actingAs($students)->postJson(self::ADMIN.'/admin/estudios/estudiantes', ['name' => 'Usuario Corto', 'username' => 'ana', 'password' => 'clave-segura', 'status' => 'cursando'])
+            ->assertOk();
 
         $nobody = $this->admin('indicaciones', [], ['notices.manage']);
         $this->actingAs($nobody)->get(self::ADMIN.'/admin/estudios')->assertRedirect('/admin');
@@ -211,7 +223,7 @@ class StudiesTest extends TestCase
             'password' => 'secreto123',
             'types' => ['estudios'],
         ])->assertOk();
-        $this->assertSame(['studies.grades', 'studies.board'], Permissions::of(User::query()->where('username', 'ana')->sole()));
+        $this->assertSame(['studies.students', 'studies.grades', 'studies.board'], Permissions::of(User::query()->where('username', 'ana')->sole()));
 
         $this->actingAs($super)->get(self::ADMIN.'/admin/equipo')
             ->assertOk()

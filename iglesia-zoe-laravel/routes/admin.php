@@ -100,12 +100,15 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         });
     });
 
-    Route::middleware($can('studies.grades'))->prefix('estudios')->group(function () {
+    Route::middleware($can('studies.students'))->prefix('estudios')->group(function () {
         Route::get('/', [StudiesController::class, 'levels']);
         Route::post('/niveles', [StudiesController::class, 'saveLevel']);
         Route::get('/estudiantes', [StudiesController::class, 'students']);
         Route::post('/estudiantes', [StudiesController::class, 'saveStudent']);
         Route::post('/estudiantes/eliminar', [StudiesController::class, 'deleteStudent']);
+    });
+
+    Route::middleware($can('studies.grades'))->prefix('estudios')->group(function () {
         Route::get('/notas', [StudiesController::class, 'grades']);
         Route::post('/notas', [StudiesController::class, 'saveGrades']);
         Route::post('/notas/evaluacion', [StudiesController::class, 'saveAssessment']);
@@ -156,6 +159,7 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::get('/diseno', [DesignController::class, 'index']);
         Route::post('/diseno', [DesignController::class, 'save']);
         Route::post('/diseno/restaurar', [DesignController::class, 'reset']);
+        Route::post('/diseno/fondo', [DesignController::class, 'upload']);
     });
 
     Route::middleware($can('servers.create'))->group(function () {

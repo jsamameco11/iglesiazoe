@@ -40,7 +40,7 @@ export function Meter({ analyser, className = "" }: { analyser: AnalyserNode | n
 }
 
 /** Spectrum bars of the program; calm idle bars while nothing plays. */
-export function Visualizer({ analyser, active, className = "" }: { analyser: AnalyserNode | null; active: boolean; className?: string }) {
+export function Visualizer({ analyser, active, className = "", speed = 1, still = false }: { analyser: AnalyserNode | null; active: boolean; className?: string; speed?: number; still?: boolean }) {
   const canvas = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export function Visualizer({ analyser, active, className = "" }: { analyser: Ana
     if (!ctx) return;
     const bars = 48;
     const data = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
-    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const reduced = still || window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let frame = 0;
     const draw = (time: number) => {
       const rgb = (getComputedStyle(el).color.match(/[\d.]+/g) ?? ["255", "255", "255"]).slice(0, 3).join(", ");
@@ -72,7 +72,7 @@ export function Visualizer({ analyser, active, className = "" }: { analyser: Ana
           const index = Math.floor(Math.pow(i / bars, 1.6) * (data.length * 0.72));
           value = data[index] / 255;
         } else {
-          value = reduced ? 0.08 : 0.06 + 0.05 * Math.abs(Math.sin(time / 900 + i * 0.45));
+          value = reduced ? 0.08 : 0.06 + 0.05 * Math.abs(Math.sin((time * speed) / 900 + i * 0.45));
         }
         const h = Math.max(3, value * height);
         const gradient = ctx.createLinearGradient(0, height, 0, height - h);
@@ -88,7 +88,7 @@ export function Visualizer({ analyser, active, className = "" }: { analyser: Ana
     };
     frame = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(frame);
-  }, [analyser, active]);
+  }, [analyser, active, speed, still]);
 
   return <canvas ref={canvas} className={className} aria-hidden />;
 }

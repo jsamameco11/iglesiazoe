@@ -38,7 +38,7 @@ export function Choice<T extends string>({ value, options, onChange }: { value: 
           key={option.key}
           type="button"
           onClick={() => onChange(option.key)}
-          className={`flex-1 rounded-full px-3 py-1.5 text-xs font-semibold transition ${value === option.key ? "bg-ink text-white" : "text-muted hover:text-ink"}`}
+          className={`flex-1 whitespace-nowrap rounded-full px-2 py-1.5 text-xs font-semibold transition ${value === option.key ? "bg-ink text-white" : "text-muted hover:text-ink"}`}
         >
           {option.label}
         </button>
@@ -60,6 +60,90 @@ export function RoleField({ label, value, fallback, from = "la web", onChange }:
         ))}
       </select>
     </label>
+  );
+}
+
+/** Slider that can stay "inherited": then it shows the fallback and saves nothing. */
+export function RangeField({
+  label,
+  value,
+  fallback,
+  min,
+  max,
+  step,
+  format,
+  onChange,
+}: {
+  label: string;
+  value?: number;
+  fallback: number;
+  min: number;
+  max: number;
+  step: number;
+  format: (value: number) => string;
+  onChange: (value: number | undefined) => void;
+}) {
+  const inherited = value === undefined;
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="font-semibold">{label}</span>
+        <span className="flex shrink-0 items-center gap-2 text-xs text-muted">
+          {inherited ? "Original" : format(value)}
+          {!inherited && <button type="button" onClick={() => onChange(undefined)} className="font-semibold hover:text-ink" aria-label={`Quitar ${label}`}>×</button>}
+        </span>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value ?? fallback} onChange={(event) => onChange(Number(event.target.value))} className={`mt-2 w-full accent-ink ${inherited ? "opacity-50" : ""}`} />
+    </div>
+  );
+}
+
+export function SelectField<T extends string | number>({
+  label,
+  value,
+  options,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value?: T;
+  options: { value: T; label: string }[];
+  placeholder: string;
+  onChange: (value: T | undefined) => void;
+}) {
+  return (
+    <label className="block text-xs font-semibold text-muted">
+      {label}
+      <select
+        value={value === undefined ? "" : String(value)}
+        onChange={(event) => onChange(options.find((option) => String(option.value) === event.target.value)?.value)}
+        className="mt-1.5 w-full rounded-xl border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-ink/40"
+      >
+        <option value="">{placeholder}</option>
+        {options.map((option) => (
+          <option key={String(option.value)} value={String(option.value)}>{option.label}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/** Collapsible block of the editor's side panel. */
+export function Group({ title, text, open = false, badge, children }: { title: string; text?: string; open?: boolean; badge?: string; children: React.ReactNode }) {
+  return (
+    <details open={open} className="group rounded-2xl border border-line bg-white/60 [&_summary::-webkit-details-marker]:hidden">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-ink">{title}</span>
+          {text && <span className="mt-0.5 block text-[11px] leading-4 text-muted">{text}</span>}
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          {badge && <span className="rounded-full bg-accent/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-accent">{badge}</span>}
+          <span className="text-muted transition group-open:rotate-180" aria-hidden>⌄</span>
+        </span>
+      </summary>
+      <div className="space-y-4 border-t border-line px-4 pb-4 pt-4">{children}</div>
+    </details>
   );
 }
 

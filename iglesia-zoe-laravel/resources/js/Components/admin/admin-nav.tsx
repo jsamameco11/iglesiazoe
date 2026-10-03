@@ -61,8 +61,8 @@ const groups: { title: string; items: Item[] }[] = [
   {
     title: "Estudios · Ruta del Servidor",
     items: [
-      { href: "/admin/estudios", label: "Niveles y horarios", needs: ["studies.grades"] },
-      { href: "/admin/estudios/estudiantes", label: "Estudiantes", needs: ["studies.grades"] },
+      { href: "/admin/estudios", label: "Niveles y horarios", needs: ["studies.students"] },
+      { href: "/admin/estudios/estudiantes", label: "Estudiantes", needs: ["studies.students"] },
       { href: "/admin/estudios/notas", label: "Notas", needs: ["studies.grades"] },
       { href: "/admin/estudios/avisos", label: "Avisos del aula", needs: ["studies.board"] },
       { href: "/admin/estudios/animo", label: "Versículos y ánimo", needs: ["studies.board"] },
