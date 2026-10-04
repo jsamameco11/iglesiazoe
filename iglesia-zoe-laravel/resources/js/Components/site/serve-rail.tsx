@@ -13,16 +13,19 @@ export function photoFallback(event: SyntheticEvent<HTMLImageElement>) {
   if (!img.src.endsWith(SERVE_FALLBACK)) img.src = SERVE_FALLBACK;
 }
 
-/** Centres and widths in % of the stage: the two photos beside the featured one tuck a few % under its plate. */
+/**
+ * Centres and widths in % of the stage: the two photos beside the featured one tuck a few % under its plate,
+ * and the outer pair keeps a 1% gap from them while staying flush with the stage edges.
+ */
 const slots = {
   wide: {
-    [-3]: { x: "-10%", w: "17%", o: 0, z: 0 },
-    [-2]: { x: "8.5%", w: "17%", o: 1, z: 2 },
+    [-3]: { x: "-10%", w: "16%", o: 0, z: 0 },
+    [-2]: { x: "8%", w: "16%", o: 1, z: 2 },
     [-1]: { x: "26.5%", w: "19%", o: 1, z: 3 },
     [0]: { x: "50%", w: "38%", o: 1, z: 6 },
     [1]: { x: "73.5%", w: "19%", o: 1, z: 3 },
-    [2]: { x: "91.5%", w: "17%", o: 1, z: 2 },
-    [3]: { x: "110%", w: "17%", o: 0, z: 0 },
+    [2]: { x: "92%", w: "16%", o: 1, z: 2 },
+    [3]: { x: "110%", w: "16%", o: 0, z: 0 },
   },
   narrow: {
     [-3]: { x: "-50%", w: "32%", o: 0, z: 0 },
