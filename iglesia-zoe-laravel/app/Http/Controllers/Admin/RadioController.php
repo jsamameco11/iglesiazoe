@@ -92,10 +92,14 @@ abstract class RadioController extends Controller
             ->map(fn (RadioPlaylist $playlist) => Arr::except($playlist->payload(), 'tracks'))->all();
     }
 
-    /** Spotify playlists the automatic music can play, in order. */
+    /** Spotify playlists the automatic music can play, in order: the available ones and any in use. */
     protected function spotifyPlaylists(): array
     {
-        return RadioSpotifyPlaylist::ordered()->get()
+        $inUse = Station::spotifyInUse();
+
+        return RadioSpotifyPlaylist::ordered()
+            ->where(fn ($query) => $query->where('published', true)->when($inUse, fn ($query) => $query->orWhereIn('id', $inUse)))
+            ->get()
             ->map(fn (RadioSpotifyPlaylist $playlist) => ['id' => $playlist->id, 'name' => $playlist->name, 'cover' => $playlist->cover_url])->all();
     }
 
@@ -107,8 +111,14 @@ abstract class RadioController extends Controller
     {
         if ($request->filled('spotify')) {
             $spotify = $this->find(RadioSpotifyPlaylist::class, $request->input('spotify'));
+            if (! $spotify) {
+                return $this->fail('Esa playlist de Spotify ya no existe.', 404);
+            }
+            if (! $spotify->published && ! in_array($spotify->id, Station::spotifyInUse(), true)) {
+                return $this->fail('«'.$spotify->name.'» está desactivada. Actívala en Biblioteca › Spotify para poder elegirla.');
+            }
 
-            return $spotify ? $this->switchedMessage(null, true, $immediately, $spotify) : $this->fail('Esa playlist de Spotify ya no existe.', 404);
+            return $this->switchedMessage(null, true, $immediately, $spotify);
         }
         $playlist = $this->playlistFrom($request);
         if ($playlist === false) {

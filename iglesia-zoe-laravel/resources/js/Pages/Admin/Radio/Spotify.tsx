@@ -21,8 +21,8 @@ function draftOf(playlist: RadioSpotifyPlaylistAdmin): Draft {
 type Found = { ok?: boolean; error?: string; message?: string | null; name?: string | null; cover?: string | null; embed?: string };
 
 /**
- * The church's Spotify playlists shown on /radio as «Escúchanos en Spotify»: each listener
- * opens them in their own Spotify. The name and cover come from Spotify itself.
+ * The church's Spotify playlists, the ones the admin can choose as the radio's automatic music.
+ * Listeners never pick them: they hear the one on air. The name and cover come from Spotify itself.
  */
 export default function Spotify({ playlists }: Props) {
   const [draft, setDraft] = useState<Draft>(() => (playlists[0] ? draftOf(playlists[0]) : blank));
@@ -73,7 +73,7 @@ export default function Spotify({ playlists }: Props) {
   }
 
   function remove() {
-    if (!draft.id || !window.confirm(`¿Quitar «${draft.name}» de la página de la radio? En Spotify la playlist sigue igual.`)) return;
+    if (!draft.id || !window.confirm(`¿Quitar «${draft.name}» de la radio? En Spotify la playlist sigue igual.`)) return;
     run(
       () => send("/admin/radio/spotify/eliminar", { id: draft.id ?? "" }),
       () => setDraft(blank),
@@ -87,13 +87,13 @@ export default function Spotify({ playlists }: Props) {
     run(() => send("/admin/radio/spotify/orden", { ids }));
   }
 
-  const visible = playlists.filter((item) => item.published).length;
+  const available = playlists.filter((item) => item.published).length;
 
   return (
     <AdminLayout>
       <RadioHeader
         title="Spotify"
-        text="Registra las playlists de la iglesia en Spotify. Aparecen en la página de la radio, en «Escúchanos en Spotify», con su carátula y descripción, y cada persona las abre en su propio Spotify."
+        text="Registra las playlists de Spotify que la radio puede sonar como música automática. Tú eliges cuál suena en la Consola o en Programación; el oyente solo escucha la que está al aire, en su orden, sin poder cambiar de canción."
       />
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
@@ -113,7 +113,7 @@ export default function Spotify({ playlists }: Props) {
                         <Cover src={item.cover} className="h-11 w-11 rounded-lg" />
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-semibold">{item.name}</span>
-                          <span className={`text-[11.5px] font-semibold ${item.published ? "text-emerald-700" : "text-muted"}`}>{item.published ? "Visible en la radio" : "Oculta"}</span>
+                          <span className={`text-[11.5px] font-semibold ${item.published ? "text-emerald-700" : "text-muted"}`}>{item.published ? "Disponible" : "Desactivada"}</span>
                         </span>
                       </button>
                       <span className="flex flex-col">
@@ -129,12 +129,14 @@ export default function Spotify({ playlists }: Props) {
             )}
           </section>
           <p className="px-2 text-[12px] leading-5 text-muted">
-            {visible ? `${visible} ${visible === 1 ? "playlist visible" : "playlists visibles"} en ` : "Las playlists visibles aparecen en "}
-            <a href={`${site}/radio#spotify`} target="_blank" rel="noreferrer" className="font-semibold text-ink underline">la página de la radio ↗</a>, en este orden.
+            {available
+              ? `${available} ${available === 1 ? "playlist disponible" : "playlists disponibles"} para la música automática, en este orden.`
+              : "Las playlists disponibles se ofrecen para la música automática, en este orden."}{" "}
+            <a href={`${site}/radio`} target="_blank" rel="noreferrer" className="font-semibold text-ink underline">Ver la radio ↗</a>
           </p>
           <p className="rounded-2xl bg-paper px-4 py-3 text-[12px] leading-5 text-muted">
-            Puedes elegir una de estas playlists como música automática en la Consola o en Programación. Spotify no permite retransmitirla desde la radio, así que cada oyente la escucha en el
-            reproductor de Spotify dentro de la página: con su cuenta de Spotify, canciones completas; sin cuenta, adelantos de 30 segundos.
+            Spotify no permite retransmitir su música desde la radio, así que en la página de la radio suena en un reproductor de Spotify bloqueado: el oyente solo puede escuchar o detener. Con
+            su cuenta de Spotify oye las canciones completas; sin cuenta, adelantos de 30 segundos.
           </p>
         </aside>
 
@@ -177,14 +179,14 @@ export default function Spotify({ playlists }: Props) {
               <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-line bg-white px-4 py-3">
                 <input type="checkbox" checked={draft.published} onChange={(event) => edit({ published: event.target.checked })} className="mt-0.5 h-4 w-4 accent-[#1db954]" />
                 <span>
-                  <span className="block text-sm font-semibold">Mostrar en la página de la radio</span>
-                  <span className="block text-[12px] leading-4 text-muted">Desmárcalo para dejarla guardada sin que se vea.</span>
+                  <span className="block text-sm font-semibold">Disponible para la música automática</span>
+                  <span className="block text-[12px] leading-4 text-muted">Desmárcalo para guardarla sin que aparezca al elegir la música en la Consola o en Programación.</span>
                 </span>
               </label>
             </div>
 
             <div>
-              <p className="text-xs font-semibold text-muted">Así se verá</p>
+              <p className="text-xs font-semibold text-muted">Vista previa</p>
               <div className="spotify-card mt-2">
                 <Cover src={cover} className="aspect-square w-full rounded-xl" />
                 <p className="mt-3 truncate text-[15px] font-semibold text-white">{draft.name || "Nombre de la playlist"}</p>
@@ -208,14 +210,14 @@ export default function Spotify({ playlists }: Props) {
             <Notice result={result} onClose={() => setResult(null)} />
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button type="button" disabled={pending || !draft.link.trim() || (!changed && Boolean(cover))} onClick={save} className={button}>
-                {pending ? "Guardando…" : draft.id ? "Guardar cambios" : "Agregar a la radio"}
+                {pending ? "Guardando…" : draft.id ? "Guardar cambios" : "Agregar playlist"}
               </button>
               {draft.id ? (
                 <a href={draft.link} target="_blank" rel="noreferrer" className={ghost}>Abrir en Spotify ↗</a>
               ) : null}
               {draft.id ? (
                 <button type="button" disabled={pending} onClick={remove} className="rounded-full px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50">
-                  Quitar de la radio
+                  Quitar playlist
                 </button>
               ) : null}
             </div>

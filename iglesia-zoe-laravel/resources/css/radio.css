@@ -217,13 +217,15 @@
 .radio-tag[data-kind="programa"] { background: #e3ecff; color: #2a4fa8; }
 .radio-tag[data-kind="efecto"] { background: #efe4ff; color: #6a3fb4; }
 
-/* The automatic music on a Spotify playlist: Spotify's own player inside the live deck. */
+/* The automatic music on a Spotify playlist: Spotify's compact player inside the live deck, as a
+   display only. The listener plays and stops with the deck's button; the admin chooses the music. */
 .radio-spotify-embed {
-  min-height: 152px;
+  min-height: 80px;
   overflow: hidden;
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.28);
 }
+.radio-spotify-embed[inert] { pointer-events: none; user-select: none; }
 .radio-spotify-embed iframe {
   display: block;
   border: 0;
@@ -233,12 +235,7 @@
   opacity: 0.72;
 }
 
-/* «Escúchanos en Spotify»: the church's playlists, each opened in the listener's Spotify. */
-.spotify-shelf {
-  display: grid;
-  gap: 1.25rem;
-  grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr));
-}
+/* A Spotify playlist in the admin's Spotify page. */
 .spotify-card {
   min-width: 0;
   border-radius: 1.4rem;
@@ -261,16 +258,6 @@
   transition: background 0.2s ease, transform 0.2s ease;
 }
 .spotify-open:hover { background: #1ed760; transform: scale(1.03); }
-.spotify-listen {
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  padding: 0.5rem 0.95rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #fff;
-  transition: border-color 0.2s ease, background 0.2s ease;
-}
-.spotify-listen:hover { border-color: #fff; background: rgba(255, 255, 255, 0.08); }
 
 /* Episodes: the main player in on-demand mode and the list below it. */
 .radio-chip-button { transition: background 0.2s ease, color 0.2s ease; }

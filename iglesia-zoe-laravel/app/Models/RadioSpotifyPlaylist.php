@@ -7,9 +7,9 @@ use App\Domain\Shared\Models\UuidModel;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * A Christian playlist on Spotify, shown on /radio for people to open in their own Spotify.
- * It can also be the source of the automatic music: then each listener's page plays it in
- * Spotify's own player (Spotify only allows personal listening, so the station sends no audio).
+ * A Christian playlist on Spotify the admin can choose as the automatic music (when published).
+ * Then each listener's page plays it in Spotify's own player, in its order and without letting
+ * the listener pick songs (Spotify only allows personal listening, so the station sends no audio).
  */
 class RadioSpotifyPlaylist extends UuidModel
 {
@@ -29,7 +29,7 @@ class RadioSpotifyPlaylist extends UuidModel
         return self::query()->orderBy('sort_order')->orderBy('created_at');
     }
 
-    /** What /radio shows of a list. */
+    /** What the radio shows of a list while it plays. */
     public function card(): array
     {
         return [

@@ -22,6 +22,12 @@ type SpotifyWindow = Window & { onSpotifyIframeApiReady?: (api: IFrameApi) => vo
 /** Longest a Spotify song may keep playing after a change is due before the change is forced. */
 const MAX_FINISH = 10 * 60000;
 
+/** Without sound this long after asking Spotify to play, the browser wants a tap inside its player. */
+const TAP_AFTER = 5000;
+
+/** Spotify stopped by itself this long after the end of a song: the playlist ended and starts over. */
+const REPLAY_AFTER = 3000;
+
 let loader: Promise<IFrameApi> | null = null;
 
 /** Spotify's iFrame API, loaded once per page. */
@@ -52,7 +58,8 @@ const isStationMusic = (item: RadioItem) => item.kind === "musica" && item.slot 
  * Scheduled blocks and the live signal still win at their exact time. A change of source never
  * cuts a song: from the station, Spotify starts once the station's last song has faded out;
  * towards the station or another playlist, the Spotify song on air finishes first (the station
- * stays silent meanwhile).
+ * stays silent meanwhile). The listener never picks songs: the player is a display, the
+ * playlist plays in its order and starts over when it ends.
  */
 export function useSpotifyAir(station: ReturnType<typeof useStation>) {
   const { state, now, playing, hold } = station;
@@ -73,7 +80,12 @@ export function useSpotifyAir(station: ReturnType<typeof useStation>) {
   const [ready, setReady] = useState(false);
   const [sounding, setSounding] = useState(false);
   const [shown, setShown] = useState<RadioSpotifyPlaylist | null>(null);
+  const [needsTap, setNeedsTap] = useState(false);
   const soundingRef = useRef(false);
+  /** This page wants Spotify sounding, and since when it asked (null once it sounds). */
+  const wanted = useRef(false);
+  const asked = useRef<number | null>(null);
+  const replay = useRef<number | null>(null);
 
   const load = useCallback((playlist: RadioSpotifyPlaylist) => {
     controller.current?.loadUri(uri(playlist));
@@ -88,6 +100,15 @@ export function useSpotifyAir(station: ReturnType<typeof useStation>) {
     if (started.current) embed.resume();
     else embed.play();
     started.current = true;
+    wanted.current = true;
+    asked.current ??= Date.now();
+  }, []);
+
+  const stop = useCallback(() => {
+    if (soundingRef.current) controller.current?.pause();
+    wanted.current = false;
+    asked.current = null;
+    setNeedsTap(false);
   }, []);
 
   /** Makes a change that waited for the song to end. */
@@ -100,10 +121,10 @@ export function useSpotifyAir(station: ReturnType<typeof useStation>) {
       load(change.next);
       start();
     } else {
-      controller.current?.pause();
+      stop();
     }
     hold(false);
-  }, [hold, load, start]);
+  }, [hold, load, start, stop]);
 
   const involvedRef = useRef(involved);
   involvedRef.current = involved;
@@ -126,7 +147,7 @@ export function useSpotifyAir(station: ReturnType<typeof useStation>) {
       node.replaceChildren(slot);
       void spotifyApi().then((api) => {
         if (element.current !== node) return;
-        api.createController(slot, { uri: uri(first), width: "100%", height: 152 }, (embed) => {
+        api.createController(slot, { uri: uri(first), width: "100%", height: 80 }, (embed) => {
           controller.current = embed;
           loaded.current = first.id;
           setShown(first);
@@ -136,10 +157,24 @@ export function useSpotifyAir(station: ReturnType<typeof useStation>) {
             const changedTrack = before.duration > 0 && data.duration > 0 && Math.abs(data.duration - before.duration) > 1000;
             const restarted = before.position > 3000 && data.position + 3000 < before.position;
             const ending = data.duration > 0 && data.duration - data.position <= 800;
+            const endedBefore = before.duration > 0 && before.duration - before.position <= 1500;
             last.current = { duration: data.duration, position: data.position };
             soundingRef.current = !data.isPaused;
             setSounding(!data.isPaused);
-            if (finishing.current && (data.isPaused || changedTrack || restarted || ending)) finish();
+            if (!data.isPaused) {
+              asked.current = null;
+              setNeedsTap(false);
+              if (replay.current !== null) window.clearTimeout(replay.current);
+              replay.current = null;
+            }
+            if (finishing.current && (data.isPaused || changedTrack || restarted || ending)) {
+              finish();
+            } else if (data.isPaused && wanted.current && (ending || endedBefore) && replay.current === null) {
+              replay.current = window.setTimeout(() => {
+                replay.current = null;
+                if (wanted.current && !soundingRef.current && !finishing.current) controller.current?.play();
+              }, REPLAY_AFTER);
+            }
           });
         });
       });
@@ -154,7 +189,10 @@ export function useSpotifyAir(station: ReturnType<typeof useStation>) {
     if (finishing.current) {
       if (!playing || stationTakes || now - finishing.current.since > MAX_FINISH) {
         finishing.current = null;
-        if (!playing || stationTakes) embed.pause();
+        if (!playing || stationTakes) {
+          embed.pause();
+          stop();
+        }
         hold(false);
         decision.current = "";
       }
@@ -173,7 +211,7 @@ export function useSpotifyAir(station: ReturnType<typeof useStation>) {
     decision.current = next;
 
     if (next === "pause" || next === "station") {
-      if (soundingRef.current) embed.pause();
+      stop();
       hold(false);
     } else if (next === "finish-station") {
       hold(true);
@@ -188,14 +226,24 @@ export function useSpotifyAir(station: ReturnType<typeof useStation>) {
       start();
       hold(false);
     }
-  }, [hold, item, load, now, playing, ready, start, stationTakes, target]);
+  }, [hold, item, load, now, playing, ready, start, stop, stationTakes, target]);
 
-  useEffect(() => () => hold(false), [hold]);
+  useEffect(() => {
+    if (asked.current !== null && !needsTap && Date.now() - asked.current > TAP_AFTER) setNeedsTap(true);
+  }, [needsTap, now]);
+
+  useEffect(
+    () => () => {
+      hold(false);
+      if (replay.current !== null) window.clearTimeout(replay.current);
+    },
+    [hold],
+  );
 
   /** Spotify fills the automatic music for this listener right now. */
   const active = Boolean(target) && state.on_air && !stationTakes && item === null;
   /** The playlist this listener hears: the one loaded while its song finishes, otherwise the one due. */
   const playlist = sounding && shown ? shown : target;
 
-  return { mount, ready, sounding, active, target, playlist, involved, waiting: source?.changing && now < (source?.since ?? 0) ? source : null };
+  return { mount, ready, sounding, active, target, playlist, involved, needsTap, waiting: source?.changing && now < (source?.since ?? 0) ? source : null };
 }

@@ -204,6 +204,19 @@ final class Station
         return true;
     }
 
+    /**
+     * Ids of the Spotify playlists the automatic music plays now or from a pending change.
+     *
+     * @return list<string>
+     */
+    public static function spotifyInUse(): array
+    {
+        $config = self::config();
+        $now = self::nowMs();
+
+        return array_values(array_unique(array_filter([$config['auto_spotify'], self::onAir($config, $now)['spotify']])));
+    }
+
     /** Seconds ahead a source change is due, within MIN_LEAD and MAX_LEAD. */
     public static function lead(array $config): int
     {

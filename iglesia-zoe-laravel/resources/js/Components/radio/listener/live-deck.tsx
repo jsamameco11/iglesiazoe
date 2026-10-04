@@ -5,15 +5,16 @@ import type { useStation } from "@/Components/radio/listener/use-station";
 import type { CopyKey } from "@/lib/copy";
 import { KIND_LABEL, clock, currentItem, dayLabel, duration, limaDate } from "@/lib/radio";
 
-/** What the listener should know about the Spotify player: a change on its way, or how to hear full songs. */
+/** What the listener should know about the Spotify player: a tap it needs, a change on its way, or how to hear full songs. */
 function spotifyNote(spotify: ReturnType<typeof useSpotifyAir>, stationName: string) {
+  if (spotify.needsTap) return "Tu navegador pide un toque más: pulsa ▶ en el reproductor de Spotify para activar el sonido.";
   const waiting = spotify.waiting;
   if (waiting) {
     return waiting.next
       ? `A las ${clock(waiting.since)} la música pasa a Spotify «${waiting.next.name}», al terminar la canción.`
       : `A las ${clock(waiting.since)} vuelve la música de ${stationName}, al terminar la canción de Spotify.`;
   }
-  return "Suena en el reproductor de Spotify. Inicia sesión en Spotify (gratis) para escuchar las canciones completas; sin sesión se oyen adelantos de 30 segundos.";
+  return "Suena a través de Spotify; el volumen se ajusta en tu dispositivo. Inicia sesión en Spotify (gratis) para escuchar las canciones completas; sin sesión se oyen adelantos de 30 segundos.";
 }
 
 /** Main player while listening to the live radio: what is on now, its progress, the host and the volume. */
@@ -97,10 +98,10 @@ export function LiveDeck({
         </button>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-white">{playing ? t("radio.stop") : t("radio.listen")}</p>
-          <label className="mt-2 flex items-center gap-3 text-white/60">
+          <label className={`mt-2 flex items-center gap-3 text-white/60 ${onSpotify ? "opacity-40" : ""}`} title={onSpotify ? "Spotify suena con el volumen de tu dispositivo" : undefined}>
             <VolumeIcon className="h-4 w-4 shrink-0" />
             <span className="sr-only">{t("radio.volume")}</span>
-            <input type="range" min={0} max={1} step={0.01} value={volume} onChange={(event) => station.setVolume(Number(event.target.value))} className="radio-volume" />
+            <input type="range" min={0} max={1} step={0.01} value={volume} disabled={Boolean(onSpotify)} onChange={(event) => station.setVolume(Number(event.target.value))} className="radio-volume" />
           </label>
         </div>
       </div>
@@ -109,7 +110,7 @@ export function LiveDeck({
 
       {spotify.involved && state.on_air ? (
         <div className="radio-spotify mt-5" data-active={onSpotify ? "" : undefined} data-sounding={spotify.sounding ? "" : undefined}>
-          <div ref={spotify.mount} className="radio-spotify-embed" />
+          <div ref={spotify.mount} className="radio-spotify-embed" inert={!spotify.needsTap} />
           <p className="mt-2 text-xs leading-5 text-white/55">{spotifyNote(spotify, state.name)}</p>
         </div>
       ) : null}

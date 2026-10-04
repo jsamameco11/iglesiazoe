@@ -9,7 +9,6 @@ use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Actions\ResolveSiteSkin;
 use App\Http\Controllers\Controller;
 use App\Models\RadioEpisode;
-use App\Models\RadioSpotifyPlaylist;
 use App\Models\RadioTrack;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -39,7 +38,6 @@ class RadioController extends Controller
                 ['date' => $tomorrow, 'items' => $this->program($tomorrow)],
             ],
             'episodes' => RadioEpisode::published()->limit(60)->get()->map->card(),
-            'spotify' => RadioSpotifyPlaylist::ordered()->where('published', true)->get()->map->card(),
         ]);
     }
 
