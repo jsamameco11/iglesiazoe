@@ -357,7 +357,7 @@
   width: 100%;
   max-width: 72rem;
   margin: 2.75rem auto 0;
-  aspect-ratio: 1.6 / 1;
+  aspect-ratio: 1.5 / 1;
   overflow: hidden;
   touch-action: pan-y;
 }
@@ -434,7 +434,7 @@
   }
 }
 @media (min-width: 768px) {
-  .serve-rail-stage { aspect-ratio: 2.9 / 1; }
+  .serve-rail-stage { aspect-ratio: 2.6 / 1; }
   .serve-rail-card { --rail-ring: 7px; --rail-radius: 1.4rem; }
 }
 .serve-rail-caption {
