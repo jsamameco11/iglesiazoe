@@ -11,8 +11,13 @@ export function section(key: string, label: string) {
   return { "data-section": key, "data-section-label": label };
 }
 
-/** Footer text alignment; a centered crest centers the name and slogan unless they were aligned on purpose. */
-export function footerAlign(rule: FooterRule, part: FooterPart): TextAlign {
+/** Alignment chosen for a footer text; a centered crest centers the name and slogan unless they were aligned on purpose. */
+export function footerAlignChoice(rule: FooterRule, part: FooterPart): TextAlign | undefined {
   const crest = rule.logo && rule.logoPlace === "center" && (part === "brand" || part === "slogan");
-  return rule[part]?.align ?? (crest ? "center" : "left");
+  return rule[part]?.align ?? (crest ? "center" : undefined);
+}
+
+/** Footer text alignment on wide screens: name and slogan close the right side, titles and links read from the left. */
+export function footerAlign(rule: FooterRule, part: FooterPart): TextAlign {
+  return footerAlignChoice(rule, part) ?? (part === "brand" || part === "slogan" ? "right" : "left");
 }

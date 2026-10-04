@@ -2,7 +2,7 @@ import { Link } from "@inertiajs/react";
 import { Rise } from "@/Components/motion/rise";
 import { SocialIcon } from "@/Components/site/social-icons";
 import { useCopy } from "@/lib/copy";
-import { footerAlign, hex, readableInk, useFooterDesign, type FooterPart, type FooterRule, type Palette } from "@/lib/design";
+import { footerAlignChoice, hex, readableInk, useFooterDesign, type FooterPart, type FooterRule, type Palette } from "@/lib/design";
 import { useSitePages, type PageKey } from "@/lib/site-pages";
 import { useSocial } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
@@ -20,7 +20,7 @@ function footerStyle(rule: FooterRule, palette: Palette) {
     "--footer-bg": background,
     "--footer-fg": ink,
     "--footer-accent": palette.accent,
-    "--footer-link": `color-mix(in srgb, ${ink} 70%, transparent)`,
+    "--footer-link": `color-mix(in srgb, ${ink} 80%, transparent)`,
   };
   PARTS.forEach((part) => {
     const text = rule[part];
@@ -31,7 +31,16 @@ function footerStyle(rule: FooterRule, palette: Palette) {
   return style as React.CSSProperties;
 }
 
-/** The closing band shared by every page: name, slogan, social icons, link columns and the closing strip. */
+/** "993 564 401" or "+51 993 564 401" for a WhatsApp number typed in any shape. */
+function phoneLabel(value: string) {
+  const digits = value.replace(/\D/g, "");
+  const local = digits.length === 11 && digits.startsWith("51") ? digits.slice(2) : digits;
+  if (local.length !== 9) return value.trim();
+  const grouped = local.replace(/(\d{3})(\d{3})(\d{3})/, "$1 $2 $3");
+  return local === digits ? grouped : `+51 ${grouped}`;
+}
+
+/** The closing band shared by every page: link columns and contact on the left, name, slogan and networks closing the right. */
 export function Footer({
   settings,
   other,
@@ -45,8 +54,10 @@ export function Footer({
   const { rule, palette } = useFooterDesign();
   const brand = t("footer.brand");
   const place = rule.logo ? rule.logoPlace : undefined;
-  const align = (part: FooterPart) => footerAlign(rule, part);
+  const align = (part: FooterPart) => footerAlignChoice(rule, part);
   const email = settings.email?.trim().toLowerCase();
+  const phone = settings.phone?.trim();
+  const whatsapp = settings.whatsapp ? phoneLabel(settings.whatsapp) : "";
   const icons = [
     ...social.links.map((item) => ({ key: item.id, href: item.href, label: item.label, icon: <SocialIcon id={item.id} /> })),
     ...(social.whatsapp ? [{ key: "whatsapp", href: social.whatsapp, label: "WhatsApp", icon: <WhatsAppIcon /> }] : []),
@@ -58,59 +69,65 @@ export function Footer({
   return (
     <footer data-site-footer className="site-footer" data-logo={place} style={footerStyle(rule, palette)}>
       <div className="site-footer-inner">
-        <Rise className="site-footer-head">
-          {place === "center" && <div className="site-footer-crest">{logo("center")}</div>}
-          <Link href="/" className="site-footer-brand" data-align={align("brand")} data-stack={place === "above" || undefined} aria-label={brand}>
-            {(place === "above" || place === "beside" || place === "only") && logo(place)}
-            {place !== "only" && <span className="site-footer-name">{brand}</span>}
-          </Link>
-          {settings.footerTagline && (
-            <div className="site-footer-slogan" data-align={align("slogan")} data-reveal-item>
-              {settings.footerTagline}
-            </div>
-          )}
-          {icons.length > 0 && (
-            <div className="site-footer-social" data-align={align("slogan")} data-reveal-item>
-              {icons.map((item) => (
-                <a key={item.key} href={item.href} target="_blank" rel="noreferrer" aria-label={item.label} title={item.label}>
-                  {item.icon}
-                </a>
-              ))}
-            </div>
-          )}
-        </Rise>
+        {place === "center" && <div className="site-footer-crest">{logo("center")}</div>}
 
-        <Rise className="site-footer-columns" delay={90}>
-          <nav aria-label={t("footer.colKnow")} className="site-footer-column" data-reveal-item>
-            <div className="site-footer-title" data-align={align("titles")}>{t("footer.colKnow")}</div>
+        <Rise className="site-footer-grid">
+          <div className="site-footer-head" data-reveal-item>
+            <Link href="/" className="site-footer-brand" data-align={align("brand")} data-stack={place === "above" || undefined} aria-label={brand}>
+              {(place === "above" || place === "beside" || place === "only") && logo(place)}
+              {place !== "only" && <span className="site-footer-name">{brand}</span>}
+            </Link>
+            {settings.footerTagline && (
+              <p className="site-footer-slogan" data-align={align("slogan")}>
+                {settings.footerTagline}
+              </p>
+            )}
+            {icons.length > 0 && (
+              <div className="site-footer-social" data-align={align("slogan")}>
+                {icons.map((item) => (
+                  <a key={item.key} href={item.href} target="_blank" rel="noreferrer" aria-label={item.label} title={item.label}>
+                    {item.icon}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <nav aria-label={t("footer.colKnow")} className="site-footer-column" data-area="know" data-reveal-item>
+            <h2 className="site-footer-title" data-align={align("titles")}>{t("footer.colKnow")}</h2>
             <div className="site-footer-links" data-align={align("links")}>
               {KNOW.map((key) => (
                 <Link key={key} href={pages.path(key)}>{pages.name(key)}</Link>
               ))}
             </div>
           </nav>
-          <nav aria-label={t("footer.colNext")} className="site-footer-column" data-reveal-item>
-            <div className="site-footer-title" data-align={align("titles")}>{t("footer.colNext")}</div>
+          <nav aria-label={t("footer.colNext")} className="site-footer-column" data-area="next" data-reveal-item>
+            <h2 className="site-footer-title" data-align={align("titles")}>{t("footer.colNext")}</h2>
             <div className="site-footer-links" data-align={align("links")}>
               {NEXT.map((key) => (
                 <Link key={key} href={pages.path(key)}>{pages.name(key)}</Link>
               ))}
             </div>
           </nav>
-          <div className="site-footer-column" data-reveal-item>
-            <div className="site-footer-title" data-align={align("titles")}>{t("footer.colVisit")}</div>
-            <div className="site-footer-links" data-align={align("links")}>
-              {settings.address && <span className="site-footer-strong">{settings.address}</span>}
+          <div className="site-footer-column" data-area="info" data-reveal-item>
+            <h2 className="site-footer-title" data-align={align("titles")}>{t("footer.colVisit")}</h2>
+            <address className="site-footer-links" data-align={align("links")}>
+              {phone && <a href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a>}
+              {social.whatsapp && (
+                <a href={social.whatsapp} target="_blank" rel="noreferrer">
+                  {whatsapp ? `${t("footer.writeTo")} ${whatsapp}` : t("footer.whatsapp")}
+                </a>
+              )}
+              {social.messenger && <a href={social.messenger} target="_blank" rel="noreferrer">{t("footer.messenger")}</a>}
+              {email && <a href={`mailto:${email}`} className="site-footer-email">{email}</a>}
+              {settings.address && <span className="site-footer-place">{settings.address}</span>}
               {settings.sunday && <span>{settings.sunday}</span>}
               {settings.wednesday && <span>{settings.wednesday}</span>}
-              {social.whatsapp && <a href={social.whatsapp} target="_blank" rel="noreferrer" className="site-footer-gap">{t("footer.whatsapp")}</a>}
-              {social.messenger && <a href={social.messenger} target="_blank" rel="noreferrer" className={social.whatsapp ? undefined : "site-footer-gap"}>{t("footer.messenger")}</a>}
-              {email && <a href={`mailto:${email}`} className="site-footer-email">{email}</a>}
-            </div>
+            </address>
           </div>
         </Rise>
 
-        <Rise className="site-footer-bottom" delay={160}>
+        <Rise className="site-footer-bottom" delay={120}>
           <div className="site-footer-legal">
             {place === "bottom" && logo("bottom")}
             <span>

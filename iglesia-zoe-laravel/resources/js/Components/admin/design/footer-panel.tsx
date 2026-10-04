@@ -19,10 +19,10 @@ const places: { key: FooterLogo | "none"; label: string }[] = [
 ];
 
 const parts: { key: FooterPart; label: string; text: string }[] = [
-  { key: "brand", label: "Nombre de la iglesia", text: "IGLESIA ZOE, siempre en mayúsculas y más grande que el resto" },
-  { key: "slogan", label: "Eslogan", text: "La frase grande; los íconos de redes siguen su alineación" },
-  { key: "titles", label: "Títulos de columnas", text: "Conoce, Siguiente paso y Visítanos" },
-  { key: "links", label: "Enlaces y datos", text: "Páginas, dirección, horarios y contacto" },
+  { key: "brand", label: "Nombre de la iglesia", text: "IGLESIA ZOE, siempre en mayúsculas, encima del eslogan" },
+  { key: "slogan", label: "Eslogan", text: "La frase grande de la derecha; los íconos de redes siguen su alineación" },
+  { key: "titles", label: "Títulos de columnas", text: "Conoce más de nosotros, Da tu siguiente paso e Información y dirección" },
+  { key: "links", label: "Enlaces y datos", text: "Páginas, teléfono, WhatsApp, correo, dirección y horarios" },
 ];
 
 const aligns: { key: TextAlign; label: string }[] = [
