@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller;
 use App\Models\BaptismEvent;
 use App\Models\ChurchEvent;
 use App\Models\Devotional;
+use App\Models\PastEvent;
 use App\Models\Sermon;
 use App\Models\ServiceGallery;
 use App\Models\Teaching;
@@ -158,7 +159,9 @@ class SiteController extends Controller
     {
         return Inertia::render('Events', [
             ...$this->shared($request),
-            'events' => ChurchEvent::upcoming()->limit(24)->get()->map->card(),
+            'events' => ChurchEvent::calendar()->limit(120)->get()->map->card(),
+            'pastEvents' => PastEvent::published()->limit(48)->get()->map->card(),
+            'today' => now('America/Lima')->toDateString(),
         ]);
     }
 

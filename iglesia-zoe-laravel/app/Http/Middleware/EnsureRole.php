@@ -42,6 +42,12 @@ class EnsureRole
                 : redirect('/admin');
         }
 
+        if ($gate === 'administrator' && ! Permissions::isAdministrator($user)) {
+            return $request->expectsJson()
+                ? response()->json(['error' => 'Solo los administradores pueden hacer esto.'], 403)
+                : redirect('/admin');
+        }
+
         return $next($request);
     }
 }

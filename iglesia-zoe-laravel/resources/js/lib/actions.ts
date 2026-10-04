@@ -99,6 +99,14 @@ export async function deleteChurchEvent(id: string): Promise<ActionResult> {
   return send("/admin/eventos/eliminar", { id });
 }
 
+export async function savePastEvent(formData: FormData): Promise<ActionResult> {
+  return postJson("/admin/eventos/anteriores", formData);
+}
+
+export async function deletePastEvent(id: string): Promise<ActionResult> {
+  return send("/admin/eventos/anteriores/eliminar", { id });
+}
+
 export async function submitServe(formData: FormData): Promise<ActionResult> {
   return postJson("/involucrate", formData);
 }

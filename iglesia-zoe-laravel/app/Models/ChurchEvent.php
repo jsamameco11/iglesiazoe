@@ -3,10 +3,15 @@
 namespace App\Models;
 
 use App\Domain\Shared\Models\UuidModel;
+use Database\Factories\ChurchEventFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class ChurchEvent extends UuidModel
 {
+    /** @use HasFactory<ChurchEventFactory> */
+    use HasFactory;
+
     protected $fillable = ['title', 'starts_on', 'ends_on', 'time_label', 'location', 'summary', 'body', 'image_path', 'cta_label', 'cta_url', 'active'];
 
     protected function casts(): array
@@ -25,6 +30,16 @@ class ChurchEvent extends UuidModel
 
         return self::query()->where('active', true)
             ->where(fn ($query) => $query->whereDate('starts_on', '>=', $today)->orWhereDate('ends_on', '>=', $today))
+            ->orderBy('starts_on');
+    }
+
+    /** Published events of this month onward (Lima time), for the calendar of /eventos. */
+    public static function calendar(): Builder
+    {
+        $monthStart = now('America/Lima')->startOfMonth()->toDateString();
+
+        return self::query()->where('active', true)
+            ->where(fn ($query) => $query->whereDate('starts_on', '>=', $monthStart)->orWhereDate('ends_on', '>=', $monthStart))
             ->orderBy('starts_on');
     }
 

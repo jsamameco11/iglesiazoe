@@ -2,7 +2,7 @@ import { Link, usePage } from "@inertiajs/react";
 import { can, SERVER_TREE, type PanelUser, type Permission } from "@/lib/access";
 import { useInboxShared, useUnread, type InboxKind } from "@/lib/inbox";
 
-type Item = { href: string; label: string; needs: (Permission | "superadmin")[] | null; inbox?: InboxKind };
+type Item = { href: string; label: string; needs: (Permission | "superadmin" | "administrator")[] | null; inbox?: InboxKind };
 
 const groups: { title: string; items: Item[] }[] = [
   { title: "", items: [{ href: "/admin", label: "Resumen", needs: null }] },
@@ -82,13 +82,8 @@ const groups: { title: string; items: Item[] }[] = [
     ],
   },
   { title: "Atmósfera", items: [{ href: "/admin/gastos", label: "Gastos y compras", needs: ["expenses.manage"] }] },
-  {
-    title: "Superadmi",
-    items: [
-      { href: "/admin/finanzas", label: "Finanzas", needs: ["superadmin"] },
-      { href: "/admin/equipo", label: "Equipo y accesos", needs: ["superadmin"] },
-    ],
-  },
+  { title: "Equipo", items: [{ href: "/admin/equipo", label: "Equipo y accesos", needs: ["administrator"] }] },
+  { title: "Superadmi", items: [{ href: "/admin/finanzas", label: "Finanzas", needs: ["superadmin"] }] },
 ];
 
 export function AdminNav({ user, onNavigate }: { user: PanelUser; onNavigate?: () => void }) {
@@ -100,7 +95,8 @@ export function AdminNav({ user, onNavigate }: { user: PanelUser; onNavigate?: (
       items: group.items.filter((item) => {
         if (!item.needs) return true;
         if (item.needs.includes("superadmin")) return user.superadmin;
-        return can(user, ...item.needs);
+        if (item.needs.includes("administrator")) return user.superadmin || user.administrator;
+        return can(user, ...(item.needs as Permission[]));
       }),
     }))
     .filter((group) => group.items.length);

@@ -7,6 +7,7 @@ use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Support\YouTube;
 use App\Http\Controllers\Controller;
 use App\Models\ChurchEvent;
+use App\Models\PastEvent;
 use App\Models\ServeArea;
 use App\Models\ServeRegistration;
 use App\Models\Teaching;
@@ -40,6 +41,7 @@ class SectionsController extends Controller
     {
         return Inertia::render('Admin/Eventos', [
             'events' => ChurchEvent::query()->orderByDesc('starts_on')->get()->map->card(),
+            'pastEvents' => PastEvent::query()->orderByDesc('held_on')->orderByDesc('created_at')->get()->map->card(),
             'today' => now('America/Lima')->toDateString(),
         ]);
     }

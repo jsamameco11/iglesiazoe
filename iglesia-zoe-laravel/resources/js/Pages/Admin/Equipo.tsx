@@ -17,12 +17,16 @@ type Account = {
   area: string | null;
   active: boolean;
   label: string;
+  creator: string | null;
   created_at: string | null;
 };
 
 type ServeArea = { id: string; name: string; active: boolean };
 
-type Props = { catalog: Catalog; networks: { id: string; code: string }[]; cells: string[]; meId: string; serveAreas: ServeArea[]; accounts: Account[] };
+/** What the signed-in administrator may hand out: the superadmin everything, anyone else at most his own functions. */
+type Scope = { superadmin: boolean; grantable: Permission[]; types: AdminType[]; mine: Permission[] };
+
+type Props = { catalog: Catalog; scope: Scope; networks: { id: string; code: string }[]; cells: string[]; meId: string; serveAreas: ServeArea[]; accounts: Account[] };
 
 const typeTone: Record<AdminType, string> = {
   red: "bg-sky text-[#28516b]",
@@ -35,9 +39,11 @@ const typeTone: Record<AdminType, string> = {
   estudios: "bg-sky text-[#28516b]",
 };
 
-export default function Equipo({ catalog, networks, cells, meId, serveAreas, accounts }: Props) {
+export default function Equipo({ catalog, scope, networks, cells, meId, serveAreas, accounts }: Props) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<AdminType | "all">("all");
+  const offered = useMemo(() => offeredCatalog(catalog, scope), [catalog, scope]);
+  const presentTypes = catalog.types.filter((type) => accounts.some((account) => account.types.includes(type.key)));
   const list = accounts.filter((account) => {
     const text = `${account.name} ${account.username} ${account.network_code ?? ""}`.toLowerCase();
     return text.includes(query.toLowerCase()) && (filter === "all" || account.types.includes(filter));
@@ -47,24 +53,36 @@ export default function Equipo({ catalog, networks, cells, meId, serveAreas, acc
     <AdminLayout>
       <div className="pb-16">
         <PageHeader
-          kicker="Superadmi"
+          kicker={scope.superadmin ? "Superadmi" : "Tu equipo"}
           title="Equipo y accesos"
-          text="Crea administradores, elige su tipo (puede ser híbrido) y ajusta cada función. Los cambios se aplican en cuanto guardas."
-          aside={<div className="rounded-2xl border border-line bg-white px-5 py-3 text-right"><p className="text-2xl font-semibold">{accounts.length}</p><p className="text-[11px] uppercase tracking-wider text-muted">cuentas</p></div>}
+          text={
+            scope.superadmin
+              ? "Crea administradores, elige su tipo (puede ser híbrido) y ajusta cada función. Los cambios se aplican en cuanto guardas."
+              : "Crea las cuentas de las personas de tu área y asígnales funciones. Solo puedes darles funciones que tú mismo tienes, y solo ves y editas las cuentas que tú (o tu equipo) creaste."
+          }
+          aside={<div className="rounded-2xl border border-line bg-white px-5 py-3 text-right"><p className="text-2xl font-semibold">{accounts.length}</p><p className="text-[11px] uppercase tracking-wider text-muted">{scope.superadmin ? "cuentas" : "en tu equipo"}</p></div>}
         />
+        {!scope.superadmin && <OwnFunctions catalog={catalog} scope={scope} />}
         <div className="mt-7 grid gap-6 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-          <CreateAccount catalog={catalog} networks={networks} cells={cells} serveAreas={serveAreas} />
+          <CreateAccount catalog={offered} superadmin={scope.superadmin} networks={networks} cells={cells} serveAreas={serveAreas} />
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-2">
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre, usuario o red" className={`${input} mt-0 max-w-xs`} />
-              {(["all", ...catalog.types.map((type) => type.key)] as const).map((key) => (
-                <button key={key} type="button" onClick={() => setFilter(key)} className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${filter === key ? "bg-ink text-white" : "bg-white text-muted hover:text-ink"}`}>
-                  {key === "all" ? "Todos" : catalog.types.find((type) => type.key === key)?.label}
-                </button>
-              ))}
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={scope.superadmin ? "Buscar por nombre, usuario o red" : "Buscar por nombre o usuario"} className={`${input} mt-0 max-w-xs`} />
+              {presentTypes.length > 1 &&
+                (["all", ...presentTypes.map((type) => type.key)] as const).map((key) => (
+                  <button key={key} type="button" onClick={() => setFilter(key)} className={`rounded-full px-3.5 py-2 text-xs font-semibold transition ${filter === key ? "bg-ink text-white" : "bg-white text-muted hover:text-ink"}`}>
+                    {key === "all" ? "Todos" : catalog.types.find((type) => type.key === key)?.label}
+                  </button>
+                ))}
             </div>
-            {list.map((account) => <AccountCard key={account.id} account={account} catalog={catalog} networks={networks} serveAreas={serveAreas} isMe={account.id === meId} />)}
-            {!list.length && <p className="rounded-2xl border border-dashed border-line px-5 py-10 text-center text-sm text-muted">No hay cuentas con ese filtro.</p>}
+            {list.map((account) => (
+              <AccountCard key={account.id} account={account} catalog={catalog} offered={offered} superadmin={scope.superadmin} networks={networks} serveAreas={serveAreas} isMe={account.id === meId} />
+            ))}
+            {!list.length && (
+              <p className="rounded-2xl border border-dashed border-line px-5 py-10 text-center text-sm text-muted">
+                {accounts.length ? "No hay cuentas con ese filtro." : "Aún no has creado cuentas. La primera que crees aparecerá aquí."}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -72,9 +90,45 @@ export default function Equipo({ catalog, networks, cells, meId, serveAreas, acc
   );
 }
 
-function CreateAccount({ catalog, networks, cells, serveAreas }: { catalog: Catalog; networks: { code: string }[]; cells: string[]; serveAreas: ServeArea[] }) {
-  const [types, setTypes] = useState<AdminType[]>(["red"]);
-  const [permissions, setPermissions] = useState<Permission[]>(() => withTypes(catalog, [], catalog.defaults, ["red"]));
+/** The catalog narrowed to what this administrator may hand out. */
+function offeredCatalog(catalog: Catalog, scope: Scope): Catalog {
+  if (scope.superadmin) return catalog;
+  return {
+    ...catalog,
+    permissions: catalog.permissions.filter((item) => scope.grantable.includes(item.key)),
+    types: catalog.types.filter((type) => scope.types.includes(type.key)),
+  };
+}
+
+function OwnFunctions({ catalog, scope }: { catalog: Catalog; scope: Scope }) {
+  const reserved = scope.mine.filter((permission) => !scope.grantable.includes(permission));
+  const title = (key: Permission) => catalog.permissions.find((item) => item.key === key)?.title ?? key;
+
+  return (
+    <section className="mt-7 rounded-[1.5rem] border border-line bg-card p-5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-sm font-semibold tracking-[-0.01em]">Funciones que puedes otorgar</h2>
+        <p className="text-xs text-muted">Son las tuyas: nadie de tu equipo puede tener más que tú.</p>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {scope.grantable.map((permission) => (
+          <span key={permission} className="rounded-full bg-paper px-2.5 py-1 text-[11.5px] text-ink">{title(permission)}</span>
+        ))}
+        {!scope.grantable.length && <span className="text-xs text-muted">Aún no tienes funciones que puedas otorgar. Pídeselas al SUPERADMI.</span>}
+      </div>
+      {reserved.length > 0 && (
+        <p className="mt-3 text-[11.5px] leading-4 text-muted">
+          {reserved.map(title).join(", ")}: {reserved.length === 1 ? "la tienes, pero solo la asigna" : "las tienes, pero solo las asigna"} el SUPERADMI.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function CreateAccount({ catalog, superadmin, networks, cells, serveAreas }: { catalog: Catalog; superadmin: boolean; networks: { code: string }[]; cells: string[]; serveAreas: ServeArea[] }) {
+  const startTypes: AdminType[] = superadmin ? ["red"] : catalog.types.some((type) => type.key === "director") ? ["director"] : [];
+  const [types, setTypes] = useState<AdminType[]>(startTypes);
+  const [permissions, setPermissions] = useState<Permission[]>(() => withTypes(catalog, [], catalog.defaults, startTypes));
   const [areas, setAreas] = useState<string[]>([]);
   const { result, setResult, pending, run } = useAction();
 
@@ -87,14 +141,18 @@ function CreateAccount({ catalog, networks, cells, serveAreas }: { catalog: Cata
     areas.forEach((area) => data.append("serve_areas[]", area));
     run(() => send("/admin/equipo", data), () => {
       form.reset();
-      setTypes(["red"]);
-      setPermissions(withTypes(catalog, [], catalog.defaults, ["red"]));
+      setTypes(startTypes);
+      setPermissions(withTypes(catalog, [], catalog.defaults, startTypes));
       setAreas([]);
     });
   }
 
   return (
-    <Panel title="Nueva cuenta" text="Elige el tipo: los servidores ingresan por la web de la iglesia y los administradores por el panel admi." className="self-start">
+    <Panel
+      title="Nueva cuenta"
+      text={superadmin ? "Elige el tipo: los servidores ingresan por la web de la iglesia y los administradores por el panel admi." : "La persona ingresa por el panel admi con el usuario y la clave que le des. Márcale solo lo que necesita para su servicio."}
+      className="self-start"
+    >
       <form onSubmit={submit} className="space-y-5">
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="text-xs font-semibold text-muted">Nombre completo<input name="name" required className={input} placeholder="Ej. María Torres" /></label>
@@ -104,18 +162,20 @@ function CreateAccount({ catalog, networks, cells, serveAreas }: { catalog: Cata
         <AccessEditor catalog={catalog} types={types} permissions={permissions} onChange={(nextTypes, nextPermissions) => { setTypes(nextTypes); setPermissions(nextPermissions); }} />
         {types.includes("director") && <DirectorArea serveAreas={serveAreas} />}
         {permissions.includes("inbox.serve") && <ServeAreaPicker areas={serveAreas} value={areas} onChange={setAreas} />}
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-xs font-semibold text-muted">Red (opcional)
-            <select name="network_code" className={input} defaultValue="">
-              <option value="">Sin red · ve todas</option>
-              {networks.map((network) => <option key={network.code} value={network.code}>Red {network.code}</option>)}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-muted">Células a cargo (opcional)
-            <input name="cells" list="zoe-cells" className={input} placeholder="01A, 0101A" />
-            <datalist id="zoe-cells">{cells.map((code) => <option key={code} value={code} />)}</datalist>
-          </label>
-        </div>
+        {superadmin && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="text-xs font-semibold text-muted">Red (opcional)
+              <select name="network_code" className={input} defaultValue="">
+                <option value="">Sin red · ve todas</option>
+                {networks.map((network) => <option key={network.code} value={network.code}>Red {network.code}</option>)}
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-muted">Células a cargo (opcional)
+              <input name="cells" list="zoe-cells" className={input} placeholder="01A, 0101A" />
+              <datalist id="zoe-cells">{cells.map((code) => <option key={code} value={code} />)}</datalist>
+            </label>
+          </div>
+        )}
         <Notice result={result} onClose={() => setResult(null)} />
         <button disabled={pending} className={button}>{pending ? "Creando…" : "Crear cuenta"}</button>
       </form>
@@ -123,7 +183,23 @@ function CreateAccount({ catalog, networks, cells, serveAreas }: { catalog: Cata
   );
 }
 
-function AccountCard({ account, catalog, networks, serveAreas, isMe }: { account: Account; catalog: Catalog; networks: { code: string }[]; serveAreas: ServeArea[]; isMe: boolean }) {
+function AccountCard({
+  account,
+  catalog,
+  offered,
+  superadmin,
+  networks,
+  serveAreas,
+  isMe,
+}: {
+  account: Account;
+  catalog: Catalog;
+  offered: Catalog;
+  superadmin: boolean;
+  networks: { code: string }[];
+  serveAreas: ServeArea[];
+  isMe: boolean;
+}) {
   const [mode, setMode] = useState<"view" | "edit" | "password">("view");
   const [types, setTypes] = useState(account.types);
   const [permissions, setPermissions] = useState(account.permissions);
@@ -173,6 +249,7 @@ function AccountCard({ account, catalog, networks, serveAreas, isMe }: { account
             Usuario <strong className="font-semibold text-ink">{account.username}</strong>
             {account.network_code ? ` · Red ${account.network_code}` : ""}
             {account.cells.length ? ` · Células ${account.cells.join(", ")}` : ""}
+            {account.creator ? ` · Creada por ${account.creator}` : ""}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -195,18 +272,21 @@ function AccountCard({ account, catalog, networks, serveAreas, isMe }: { account
       {mode === "edit" && (
         <form onSubmit={save} className="mt-5 space-y-4 border-t border-line pt-5">
           <label className="block text-xs font-semibold text-muted">Nombre<input name="name" defaultValue={account.name} className={input} /></label>
-          <AccessEditor catalog={catalog} types={types} permissions={permissions} onChange={(nextTypes, nextPermissions) => { setTypes(nextTypes); setPermissions(nextPermissions); }} />
+          <AccessEditor catalog={offered} types={types} permissions={permissions} onChange={(nextTypes, nextPermissions) => { setTypes(nextTypes); setPermissions(nextPermissions); }} />
+          {!superadmin && <ReservedAccess catalog={catalog} offered={offered} account={account} />}
           {types.includes("director") && <DirectorArea serveAreas={serveAreas} defaultValue={account.area ?? ""} />}
           {permissions.includes("inbox.serve") && <ServeAreaPicker areas={serveAreas} value={areas} onChange={setAreas} />}
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs font-semibold text-muted">Red
-              <select name="network_code" defaultValue={account.network_code ?? ""} className={input}>
-                <option value="">Sin red · ve todas</option>
-                {networks.map((network) => <option key={network.code} value={network.code}>Red {network.code}</option>)}
-              </select>
-            </label>
-            <label className="text-xs font-semibold text-muted">Células a cargo<input name="cells" defaultValue={account.cells.join(", ")} list="zoe-cells" className={input} /></label>
-          </div>
+          {superadmin && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-semibold text-muted">Red
+                <select name="network_code" defaultValue={account.network_code ?? ""} className={input}>
+                  <option value="">Sin red · ve todas</option>
+                  {networks.map((network) => <option key={network.code} value={network.code}>Red {network.code}</option>)}
+                </select>
+              </label>
+              <label className="text-xs font-semibold text-muted">Células a cargo<input name="cells" defaultValue={account.cells.join(", ")} list="zoe-cells" className={input} /></label>
+            </div>
+          )}
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="active" value="1" defaultChecked={account.active} className="h-4 w-4 accent-ink" /> Cuenta activa (si la desactivas no podrá ingresar)</label>
           <button disabled={pending} className={button}>{pending ? "Guardando…" : "Guardar accesos"}</button>
         </form>
@@ -242,6 +322,24 @@ function ServeAreaPicker({ areas, value, onChange }: { areas: ServeArea[]; value
       <p className="mt-2 text-[11.5px] leading-4 text-muted">
         {all ? "Recibe a todas las personas que se inscriben, de cualquier área." : "Solo verá y recibirá notificaciones de las áreas marcadas, por ejemplo el líder de Música solo de Música."}
       </p>
+    </div>
+  );
+}
+
+/** Types and functions the account holds that this administrator cannot give: they stay exactly as they are. */
+function ReservedAccess({ catalog, offered, account }: { catalog: Catalog; offered: Catalog; account: Account }) {
+  const types = catalog.types.filter((type) => account.types.includes(type.key) && !offered.types.some((item) => item.key === type.key));
+  const permissions = catalog.permissions.filter((item) => account.permissions.includes(item.key) && !offered.permissions.some((own) => own.key === item.key));
+  if (!types.length && !permissions.length) return null;
+
+  return (
+    <div className="rounded-2xl border border-dashed border-line bg-paper/60 p-4">
+      <p className="text-xs font-semibold text-muted">Asignado por el SUPERADMI · se mantiene, tú no lo puedes cambiar</p>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {[...types.map((type) => type.label), ...permissions.map((item) => item.title)].map((label) => (
+          <span key={label} className="rounded-full bg-white px-2.5 py-1 text-[11px] text-muted">{label}</span>
+        ))}
+      </div>
     </div>
   );
 }
