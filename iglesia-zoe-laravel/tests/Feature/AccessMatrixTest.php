@@ -56,7 +56,7 @@ class AccessMatrixTest extends TestCase
         '/admin/estudios/lecturas' => ['studies.board'],
         '/admin/gastos' => ['expenses.manage'],
         '/admin/finanzas' => 'superadmin',
-        '/admin/equipo' => 'superadmin',
+        '/admin/equipo' => 'administrator',
     ];
 
     public static function accounts(): array
@@ -110,6 +110,7 @@ class AccessMatrixTest extends TestCase
             $sees = match (true) {
                 $needs === null => true,
                 $needs === 'superadmin' => $type === 'superadmin',
+                $needs === 'administrator' => Permissions::isAdministrator($user),
                 default => Permissions::any($user, $needs),
             };
             $status = $this->actingAs($user)->get($host.$href)->status();

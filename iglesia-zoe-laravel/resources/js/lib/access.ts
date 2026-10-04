@@ -45,6 +45,8 @@ export type PanelUser = {
   full_name: string | null;
   cereal: string;
   superadmin: boolean;
+  /** Signs in from the admin panel; every administrator builds and manages his own team. */
+  administrator: boolean;
   types: AdminType[];
   permissions: Permission[];
   network_id: string | null;

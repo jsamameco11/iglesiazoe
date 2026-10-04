@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\LingobibleController;
 use App\Http\Controllers\Admin\MinistriesController;
 use App\Http\Controllers\Admin\NoticeController;
 use App\Http\Controllers\Admin\OcultoController;
+use App\Http\Controllers\Admin\PastEventsController;
 use App\Http\Controllers\Admin\RadioConsoleController;
 use App\Http\Controllers\Admin\RadioEpisodesController;
 use App\Http\Controllers\Admin\RadioLibraryController;
@@ -77,6 +78,8 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::get('/eventos', [SectionsController::class, 'eventos']);
         Route::post('/eventos', [SectionsController::class, 'saveEvent']);
         Route::post('/eventos/eliminar', [SectionsController::class, 'deleteEvent']);
+        Route::post('/eventos/anteriores', [PastEventsController::class, 'save']);
+        Route::post('/eventos/anteriores/eliminar', [PastEventsController::class, 'destroy']);
     });
 
     Route::middleware($can('devotionals.manage', 'content.manage'))->group(function () {
@@ -244,8 +247,9 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::get('/gastos/boleta/{id}', [ExpensesController::class, 'receipt'])->whereUuid('id');
     });
 
-    Route::middleware(EnsureRole::class.':superadmin')->group(function () {
-        Route::get('/finanzas', [FinanceController::class, 'index']);
+    Route::get('/finanzas', [FinanceController::class, 'index'])->middleware(EnsureRole::class.':superadmin');
+
+    Route::middleware(EnsureRole::class.':administrator')->group(function () {
         Route::get('/equipo', [TeamController::class, 'index']);
         Route::post('/equipo', [TeamController::class, 'store']);
         Route::post('/equipo/actualizar', [TeamController::class, 'update']);

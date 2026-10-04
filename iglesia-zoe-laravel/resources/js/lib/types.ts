@@ -1,3 +1,5 @@
+import type { SocialNetwork } from "@/lib/social";
+
 export type SiteSettings = {
   heroTitle: string;
   heroSubtitle: string;
@@ -149,6 +151,17 @@ export type ChurchEvent = {
   image: string | null;
   cta_label: string | null;
   cta_url: string | null;
+  active: boolean;
+};
+
+/** An event that already happened; its card opens the post on the church's network. */
+export type PastEvent = {
+  id: string;
+  title: string;
+  held_on: string;
+  image: string | null;
+  url: string;
+  platform: SocialNetwork | null;
   active: boolean;
 };
 

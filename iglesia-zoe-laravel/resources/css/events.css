@@ -1,0 +1,457 @@
+/* /eventos: calendar of the month, its flyers and «Conoce más de nuestros eventos anteriores». */
+
+/* ---------- Board: calendar, flyer and details ---------- */
+.events-board {
+  display: grid;
+  grid-template-areas: "calendar" "flyer" "info";
+  gap: 2.25rem;
+}
+.events-board-calendar { grid-area: calendar; }
+.events-board-flyer { grid-area: flyer; }
+.events-board-info { grid-area: info; }
+@media (min-width: 1024px) {
+  .events-board {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    grid-template-areas: "calendar flyer" "info flyer";
+    grid-template-rows: auto 1fr;
+    column-gap: clamp(2.5rem, 5vw, 5rem);
+    row-gap: 1.75rem;
+    align-items: start;
+  }
+}
+
+/* ---------- Calendar ---------- */
+.event-calendar {
+  margin-top: 0.9rem;
+}
+.event-calendar-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+}
+.event-calendar-title {
+  font-family: var(--font-heading);
+  font-size: clamp(2rem, 4.4vw, 2.75rem);
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+.event-calendar-title span:not(.sr-only) {
+  color: color-mix(in srgb, var(--ink) 38%, transparent);
+}
+.event-calendar-nav {
+  display: flex;
+  gap: 0.5rem;
+}
+.event-calendar-nav button {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  color: var(--ink);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.2s ease, opacity 0.2s ease;
+}
+.event-calendar-nav button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--ink) 30%, transparent);
+}
+.event-calendar-nav button:disabled {
+  opacity: 0.32;
+  cursor: default;
+}
+.event-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.3rem;
+  border-radius: 1.9rem;
+  background: color-mix(in srgb, var(--ink) 7%, var(--card));
+  padding: clamp(0.9rem, 3.4vw, 2.4rem);
+  text-align: center;
+}
+.event-calendar-weekday {
+  padding: 0.35rem 0 0.8rem;
+  font-family: var(--font-accent);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.event-calendar-day {
+  position: relative;
+  display: grid;
+  width: 100%;
+  max-width: 3.5rem;
+  aspect-ratio: 1;
+  justify-self: center;
+  place-items: center;
+  border-radius: 999px;
+  font-size: clamp(0.95rem, 2.5vw, 1.3rem);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+}
+.event-calendar-day[data-today] {
+  background: var(--ink);
+  color: var(--paper);
+}
+.event-calendar-day[data-finished] {
+  color: color-mix(in srgb, var(--ink) 40%, transparent);
+}
+.event-calendar-day[data-finished]::after {
+  content: "";
+  position: absolute;
+  bottom: 14%;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: currentColor;
+}
+.event-calendar-day[data-event] {
+  cursor: pointer;
+  background: var(--card);
+  box-shadow: 0 8px 18px -12px rgba(20, 16, 12, 0.5);
+}
+.event-calendar-day[data-event][data-today] {
+  box-shadow: inset 0 0 0 2px var(--ink), 0 8px 18px -12px rgba(20, 16, 12, 0.5);
+}
+.event-calendar-day[data-event]:hover {
+  transform: translateY(-2px);
+  background: color-mix(in srgb, var(--accent) 14%, var(--card));
+}
+.event-calendar-day[data-active],
+.event-calendar-day[data-active]:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.event-calendar-day:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.event-calendar-tip {
+  position: absolute;
+  bottom: calc(100% + 0.5rem);
+  left: 50%;
+  z-index: 5;
+  max-width: 15rem;
+  overflow: hidden;
+  border-radius: 0.6rem;
+  background: var(--ink);
+  padding: 0.4rem 0.65rem;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--paper);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+@media (hover: hover) {
+  .event-calendar-day:hover .event-calendar-tip,
+  .event-calendar-day:focus-visible .event-calendar-tip {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* ---------- Flyer carousel ---------- */
+.flyer-stage {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.flyer-frame {
+  position: relative;
+  flex: 1;
+  width: min(100%, calc(min(78svh, 700px) * 0.8));
+  margin-inline: auto;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: 1.6rem;
+  background: var(--clay);
+  box-shadow: 0 30px 70px -34px rgba(20, 16, 12, 0.55);
+  touch-action: pan-y;
+}
+.flyer-slide {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(1.025);
+  transition:
+    opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 0.6s;
+}
+.flyer-slide[data-active] {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition-delay: 0s;
+}
+.flyer-blur {
+  position: absolute;
+  inset: -10%;
+  width: 120%;
+  height: 120%;
+  object-fit: cover;
+  filter: blur(28px) saturate(1.15);
+  opacity: 0.75;
+}
+.flyer-image {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.flyer-fallback {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.flyer-arrow {
+  display: grid;
+  width: 2.6rem;
+  height: 2.6rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--ink) 45%, transparent);
+  transition: color 0.2s ease, background-color 0.2s ease, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.flyer-arrow:hover {
+  background: var(--card);
+  color: var(--ink);
+}
+.flyer-arrow[data-side="prev"]:hover { transform: translateX(-2px); }
+.flyer-arrow[data-side="next"]:hover { transform: translateX(2px); }
+.flyer-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+}
+.flyer-dot {
+  width: 1.65rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink) 12%, transparent);
+  transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.25s ease;
+}
+.flyer-dot:hover {
+  background: color-mix(in srgb, var(--ink) 25%, transparent);
+}
+.flyer-dot[data-active] {
+  width: 3.25rem;
+  background: color-mix(in srgb, var(--ink) 55%, transparent);
+}
+
+/* ---------- Details of the flyer on screen ---------- */
+.flyer-info {
+  border: 1px solid var(--line);
+  border-radius: 1.6rem;
+  background: var(--card);
+  padding: clamp(1.3rem, 3vw, 1.9rem);
+}
+.flyer-info > * + * {
+  margin-top: 0.95rem;
+}
+.flyer-ask {
+  font-family: var(--font-accent);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.flyer-info > .flyer-title {
+  margin-top: 0.4rem;
+  font-size: clamp(1.75rem, 3.2vw, 2.5rem);
+  line-height: 1.06;
+}
+.flyer-summary {
+  max-width: 34rem;
+  font-size: 1rem;
+  font-weight: 300;
+  line-height: 1.7;
+}
+.flyer-body summary {
+  width: fit-content;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.flyer-body p {
+  margin-top: 0.55rem;
+  max-width: 36rem;
+  font-size: 0.95rem;
+  line-height: 1.7;
+}
+.flyer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.8rem 1.4rem;
+  padding-top: 0.3rem;
+}
+.flyer-schedule {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 999px;
+  background: var(--ink);
+  padding: 0.75rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--paper);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s ease;
+}
+.flyer-schedule:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px -16px rgba(20, 16, 12, 0.6);
+}
+.flyer-cta {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+.flyer-cta:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.flyer-empty {
+  display: grid;
+  gap: 1.25rem;
+}
+.flyer-empty-note {
+  border: 1px solid var(--line);
+  border-radius: 1.6rem;
+  background: var(--card);
+  padding: clamp(1.3rem, 3vw, 1.9rem);
+}
+
+/* ---------- Conoce más de nuestros eventos anteriores ---------- */
+.past-events {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+@media (min-width: 768px) {
+  .past-events { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1.1rem; }
+}
+@media (min-width: 1280px) {
+  .past-events { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.35rem; }
+}
+.past-event {
+  position: relative;
+  isolation: isolate;
+  display: block;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: 1.4rem;
+  background: var(--clay);
+  color: #fff;
+  box-shadow: 0 22px 50px -32px rgba(20, 16, 12, 0.6);
+  transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.45s ease;
+}
+.past-event::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(to top, rgba(14, 12, 10, 0.86) 0%, rgba(14, 12, 10, 0.38) 42%, rgba(14, 12, 10, 0) 70%);
+}
+.past-event-art img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.past-event-network {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  z-index: 2;
+  display: grid;
+  width: 2.15rem;
+  height: 2.15rem;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.45);
+}
+.past-event-network svg {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+.past-event-body {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 2;
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem 1.05rem 1.1rem;
+}
+.past-event-date {
+  font-family: var(--font-accent);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.78;
+}
+.past-event-title {
+  font-family: var(--font-heading);
+  font-size: clamp(1.05rem, 1.9vw, 1.4rem);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.past-event-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.past-event:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 30px 60px -32px rgba(20, 16, 12, 0.7);
+}
+.past-event:hover .past-event-art img {
+  transform: scale(1.05);
+}
+.past-event:hover .past-event-more {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.past-event:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .flyer-slide,
+  .past-event,
+  .past-event-art img,
+  .event-calendar-day {
+    transition: none;
+  }
+}
