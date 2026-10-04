@@ -79,6 +79,8 @@ export type Autopilot = {
   mode?: AutopilotMode;
   playlist: string | null;
   shuffle: boolean;
+  /** Song the operator chose to start the music with (null = from the top). */
+  start?: string | null;
   label: string;
   since: number;
   pending?: { label: string } | null;

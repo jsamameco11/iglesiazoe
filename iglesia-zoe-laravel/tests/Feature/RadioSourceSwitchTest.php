@@ -92,6 +92,48 @@ class RadioSourceSwitchTest extends TestCase
         $this->assertNull(Station::autopilot()['pending']);
     }
 
+    public function test_starting_the_automatic_music_plays_the_chosen_song_for_everyone_in_seconds(): void
+    {
+        $this->actingAs($this->admin(['radio.console']))->postJson(self::ADMIN.'/admin/radio/musica-continua', [
+            'action' => 'start', 'playlist' => $this->new->id, 'shuffle' => '0', 'first' => $this->track('B 2'),
+        ])->assertOk()
+            ->assertJsonPath('autopilot.label', 'B')
+            ->assertJsonPath('autopilot.pending', null)
+            ->assertJsonPath('message', fn (string $message) => str_contains($message, '«B 2»'));
+
+        $queue = $this->state('queue');
+        $this->assertSame(['A 1', 'B 2', 'B 1'], array_slice(array_column($queue, 'title'), 0, 3), 'The list plays from the chosen song on.');
+        $this->assertSame($this->ms('15:00:07'), $queue[0]['end'], 'The song on air fades out under the first song instead of playing to its end.');
+        $this->assertSame($this->ms('15:00:03'), $queue[1]['start'], 'It starts a few seconds ahead so every listener hears it from the beginning.');
+        $this->assertEquals(0, $queue[1]['seek']);
+    }
+
+    public function test_starting_from_silence_puts_the_radio_on_air_with_the_chosen_song_first(): void
+    {
+        Station::saveConfig(['on_air' => false, 'autofill' => false]);
+
+        $this->actingAs($this->admin(['radio.console']))->postJson(self::ADMIN.'/admin/radio/musica-continua', [
+            'action' => 'start', 'playlist' => $this->old->id, 'shuffle' => '1', 'first' => $this->track('A 3'),
+        ])->assertOk();
+
+        $this->assertTrue(Station::config()['on_air']);
+        $this->assertTrue(Station::config()['autofill']);
+        $queue = $this->state('queue');
+        $this->assertSame('A 3', $queue[0]['title'], 'Nothing was sounding, so nothing fades: the chosen song opens the shuffled list.');
+        $this->assertSame($this->ms('15:00:03'), $queue[0]['start']);
+        $this->assertEqualsCanonicalizing(['A 1', 'A 2'], array_column(array_slice($queue, 1, 2), 'title'));
+    }
+
+    public function test_the_starting_song_must_belong_to_the_chosen_list(): void
+    {
+        $this->actingAs($this->admin(['radio.console']))->postJson(self::ADMIN.'/admin/radio/musica-continua', [
+            'action' => 'start', 'playlist' => $this->old->id, 'shuffle' => '0', 'first' => $this->track('B 1'),
+        ])->assertStatus(422);
+
+        $this->assertSame($this->old->id, Station::config()['auto_playlist']);
+        $this->assertSame('A 1', $this->state('queue')[0]['title']);
+    }
+
     public function test_a_spotify_playlist_left_as_the_source_gives_way_to_the_library(): void
     {
         $spotify = RadioSpotifyPlaylist::query()->create(['spotify_id' => '37i9dQZF1DWYcaB2B11tq2', 'name' => 'Clásicos Cristianos', 'sort_order' => 0]);
@@ -117,6 +159,11 @@ class RadioSourceSwitchTest extends TestCase
         auth()->guard('web')->forgetUser();
 
         return $this->getJson(self::SITE.'/radio/estado')->assertOk()->json($key);
+    }
+
+    private function track(string $title): string
+    {
+        return RadioTrack::query()->where('title', $title)->value('id');
     }
 
     /** @param  list<int>  $durations */

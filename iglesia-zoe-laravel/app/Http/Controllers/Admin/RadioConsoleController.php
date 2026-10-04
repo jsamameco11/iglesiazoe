@@ -32,7 +32,7 @@ class RadioConsoleController extends RadioController
             'today' => $today,
             'day' => Schedule::day($today),
             'host' => $request->user()->full_name ?: $request->user()->username,
-            'playlists' => $this->playlists(),
+            'playlists' => $this->playlists(true),
             'spotifyReferences' => $this->spotifyReferences(),
         ]);
     }
@@ -133,6 +133,9 @@ class RadioConsoleController extends RadioController
     public function music(Request $request): JsonResponse
     {
         $action = $request->input('action');
+        if ($action === 'start') {
+            return $this->start($request);
+        }
         if ($action === 'source') {
             $message = $this->switchRequested($request);
             if ($message instanceof JsonResponse) {
@@ -183,6 +186,44 @@ class RadioConsoleController extends RadioController
         }
 
         return $this->fail('Acción desconocida.');
+    }
+
+    /**
+     * «Iniciar modo automático»: the chosen list (or random songs) starts for every listener in a
+     * few seconds, from the chosen song, with the radio on air and the continuous music on.
+     */
+    private function start(Request $request): JsonResponse
+    {
+        $playlist = $this->playlistFrom($request);
+        if ($playlist === false) {
+            return $this->fail('Esa lista de reproducción ya no existe.', 404);
+        }
+        $shuffle = $request->boolean('shuffle', true);
+        $crossfade = (int) round(Station::config()['crossfade'] * 1000);
+        $source = Autopilot::resolve($playlist?->id, $shuffle, $crossfade);
+        if ($source['level'] === Autopilot::NONE) {
+            return $this->fail('No hay canciones disponibles para el modo automático. Sube música en Biblioteca.', 409);
+        }
+
+        $first = null;
+        if ($request->filled('first')) {
+            $first = collect($source['songs'])->firstWhere('id', (string) $request->input('first'));
+            if ($first === null || ($playlist && $source['level'] !== Autopilot::PLAYLIST)) {
+                return $this->fail('Esa canción no está disponible en '.($playlist ? 'la lista «'.$playlist->name.'»' : 'la música automática').'. Elige otra.', 422);
+            }
+        }
+
+        $since = Station::startAutopilot($playlist?->id, $shuffle, $first['id'] ?? null);
+        $what = $playlist ? 'la lista «'.$playlist->name.'» ('.($shuffle ? 'aleatorio' : 'en orden').')' : 'canciones aleatorias';
+        $song = Station::firstSong($since);
+        $message = $song
+            ? "Modo automático iniciado: «{$song['title']}» de {$what} empieza para todos los oyentes en unos segundos."
+            : "Modo automático listo: {$what} empezará".($first ? " con «{$first['title']}»" : '').' cuando termine lo que está programado ahora.';
+        if ($playlist && $source['level'] !== Autopilot::PLAYLIST) {
+            $message .= ' La lista no tiene canciones disponibles, así que suena el respaldo con tus otras canciones.';
+        }
+
+        return response()->json(['ok' => true, ...$this->snapshot(), 'message' => $message]);
     }
 
     /**

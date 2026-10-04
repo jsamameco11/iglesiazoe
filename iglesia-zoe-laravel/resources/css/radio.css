@@ -745,6 +745,7 @@
 .cx-btn[data-tone="amber"] { border-color: rgba(251, 191, 36, 0.45); background: rgba(217, 119, 6, 0.25); color: #fde68a; }
 .cx-btn[data-tone="amber"]:hover:not(:disabled) { background: #d97706; color: #fff; }
 .cx-btn[data-tone="green"] { border-color: rgba(52, 211, 153, 0.5); background: rgba(5, 150, 105, 0.3); color: #a7f3d0; }
+.cx-btn[data-tone="green"]:hover:not(:disabled) { background: #059669; color: #fff; }
 .cx-btn[data-tone="blue"] { border-color: rgba(96, 165, 250, 0.5); background: rgba(37, 99, 235, 0.3); color: #bfdbfe; }
 .cx-round {
   display: grid;
@@ -799,6 +800,7 @@
   color: #ddd6fe;
 }
 .cx-badge[data-tone="red"] { background: #b91c1c; color: #fff; }
+.cx-badge[data-tone="green"] { background: rgba(5, 150, 105, 0.35); color: #a7f3d0; }
 .cx-seg {
   display: inline-flex;
   height: 1.5rem;

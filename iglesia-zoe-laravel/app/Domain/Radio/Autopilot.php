@@ -123,9 +123,10 @@ final class Autopilot
      *
      * @param  array<string, mixed>  $extra  fields that override every item (kind, bed, block)
      * @param  bool  $ragged  the last song plays to its end past $to (it fades into the music that follows)
+     * @param  ?string  $first  track the music starts with (see order())
      * @return list<array<string, mixed>>
      */
-    public static function fill(array $songs, bool $shuffle, int $anchor, int $from, int $to, int $limit, array $extra = [], bool $ragged = false): array
+    public static function fill(array $songs, bool $shuffle, int $anchor, int $from, int $to, int $limit, array $extra = [], bool $ragged = false, ?string $first = null): array
     {
         $count = count($songs);
         $total = array_sum(array_column($songs, 'step'));
@@ -136,13 +137,13 @@ final class Autopilot
         // One cycle back, so the last song of the previous cycle is kept while it fades into this one.
         $cycle = max(0, intdiv(max(0, $from - $anchor), $total) - 1);
         $t = $anchor + $cycle * $total;
-        $order = self::order($songs, $shuffle, $anchor, $cycle);
+        $order = self::order($songs, $shuffle, $anchor, $cycle, $first);
         $index = 0;
-        $advance = function () use (&$t, &$index, &$cycle, &$order, $songs, $shuffle, $anchor, $count) {
+        $advance = function () use (&$t, &$index, &$cycle, &$order, $songs, $shuffle, $anchor, $count, $first) {
             $t += $order[$index]['step'];
             if (++$index === $count) {
                 $index = 0;
-                $order = self::order($songs, $shuffle, $anchor, ++$cycle);
+                $order = self::order($songs, $shuffle, $anchor, ++$cycle, $first);
             }
         };
         while ($t + $order[$index]['ms'] <= $from) {
@@ -178,15 +179,32 @@ final class Autopilot
     /**
      * Order of one cycle. Two songs or fewer simply alternate; otherwise a shuffled cycle never
      * opens with the song that closed the previous one (only the first two places can swap, so
-     * the closing song of a cycle is always the one of its plain shuffle).
+     * the closing song of a cycle is always the one of its plain shuffle, except the first cycle
+     * when it starts with a chosen song).
+     *
+     * With $first, a list in order plays from that song on (and on to the songs before it), and
+     * a shuffled source opens its first cycle with it.
      */
-    private static function order(array $songs, bool $shuffle, int $anchor, int $cycle): array
+    private static function order(array $songs, bool $shuffle, int $anchor, int $cycle, ?string $first = null): array
     {
+        $at = $first !== null ? array_search($first, array_column($songs, 'id'), true) : false;
         if (! $shuffle || count($songs) < 3) {
-            return $songs;
+            return $at === false ? $songs : [...array_slice($songs, $at), ...array_slice($songs, 0, $at)];
         }
         $order = self::shuffled($songs, $anchor.':'.$cycle);
-        if ($cycle > 0 && $order[0]['id'] === self::shuffled($songs, $anchor.':'.($cycle - 1))[count($songs) - 1]['id']) {
+        if ($cycle === 0 && $at !== false) {
+            $position = array_search($first, array_column($order, 'id'), true);
+            [$order[0], $order[$position]] = [$order[$position], $order[0]];
+
+            return $order;
+        }
+        if ($cycle === 0) {
+            return $order;
+        }
+        $closing = $cycle === 1 && $at !== false
+            ? self::order($songs, $shuffle, $anchor, 0, $first)
+            : self::shuffled($songs, $anchor.':'.($cycle - 1));
+        if ($order[0]['id'] === $closing[count($songs) - 1]['id']) {
             [$order[0], $order[1]] = [$order[1], $order[0]];
         }
 

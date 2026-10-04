@@ -327,6 +327,11 @@ export function useConsole(initial: Snapshot, host: string) {
     await musicAction({ action: "source", playlist, shuffle: shuffle ? "1" : "0" });
   }
 
+  /** «Iniciar modo automático»: the source starts for every listener within seconds, from the chosen song ("" = from the top). */
+  async function startAutopilot(playlist: string, shuffle: boolean, first: string) {
+    await musicAction({ action: "start", playlist, shuffle: shuffle ? "1" : "0", first });
+  }
+
   /** Calls off a scheduled change of the automatic music. */
   async function cancelSwitch() {
     await musicAction({ action: "cancel" });
@@ -373,6 +378,7 @@ export function useConsole(initial: Snapshot, host: string) {
     upcoming,
     reschedule,
     switchSource,
+    startAutopilot,
     cancelSwitch,
     cutMusic,
     resumeMusic,

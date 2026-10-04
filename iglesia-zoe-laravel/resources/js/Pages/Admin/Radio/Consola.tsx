@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { RadioHeader } from "@/Components/radio/admin-ui";
+import { AutoStartPanel } from "@/Components/radio/console/auto-start-panel";
 import { Decks } from "@/Components/radio/console/decks";
 import { LivePanel } from "@/Components/radio/console/live-panel";
 import { LiveTimeline } from "@/Components/radio/console/live-timeline";
@@ -116,8 +117,9 @@ export default function Consola({ radio, live, voice, config, autopilot, upcomin
           </div>
         </div>
 
-        <div className="mt-2 grid gap-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
+        <div className="mt-2 grid gap-2 xl:grid-cols-2 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1.3fr)]">
           <LivePanel api={api} />
+          <AutoStartPanel api={api} playlists={playlists} library={library} references={spotifyReferences} />
           <LaunchNow api={api} library={library} />
           <TodayList day={day} now={now} autofill={api.config.autofill} upcoming={api.upcoming} onAlert={setAlert} />
         </div>

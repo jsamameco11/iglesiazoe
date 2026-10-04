@@ -61,8 +61,10 @@ final class Station
         'max_voice' => 60,
         // Automatic music of the gaps: a playlist id (null = every list), shuffled or in order. A change
         // applies from auto_since (a song boundary at least switch_lead seconds ahead); before it, auto_prev played.
+        // auto_start is the song the operator chose to start the music with (null = from the top).
         'auto_playlist' => null,
         'auto_shuffle' => true,
+        'auto_start' => null,
         'auto_since' => 0,
         'auto_prev' => null,
         'switch_lead' => 300,
@@ -93,6 +95,12 @@ final class Station
     public const MIN_LEAD = 30;
 
     public const MAX_LEAD = 1800;
+
+    /** «Iniciar modo automático» starts this far ahead, so every listener (polling every ~2.5 s) hears the first song from its beginning. */
+    private const START_AHEAD = 3000;
+
+    /** Shortest fade of the song on air when the automatic music is started by hand, in ms. */
+    private const START_FADE = 2000;
 
     /** The console sends a heartbeat every ~1.5 s; after this many seconds of silence the live session ends. */
     private const OPERATOR_TIMEOUT = 25;
@@ -171,9 +179,53 @@ final class Station
             'auto_since' => $since,
             'auto_playlist' => $playlist,
             'auto_shuffle' => $playlist === null || $shuffle,
+            'auto_start' => null,
         ]);
 
         return $since;
+    }
+
+    /**
+     * «Iniciar modo automático»: puts the radio on air with the automatic music on and starts the
+     * source now, from the chosen song ($first; null = from the top). It starts a few seconds ahead
+     * so every listener hears the song from its beginning, while the song on air fades out under
+     * it; a live cut by hand ends. A scheduled audio on air keeps playing and the music follows it.
+     *
+     * @return int when the music starts (UTC ms)
+     */
+    public static function startAutopilot(?string $playlist, bool $shuffle, ?string $first): int
+    {
+        $config = self::config();
+        $now = self::nowMs();
+        $since = $now + self::START_AHEAD;
+        $cut = LiveSwitch::isOpen(self::storedLive()['window'], $now);
+        $sounding = $config['on_air'] && $config['autofill'] && ! $cut;
+        self::saveConfig([
+            'on_air' => true,
+            'autofill' => true,
+            'auto_prev' => $sounding ? [...self::onAir($config, $now), 'tail' => false, 'fade' => true] : null,
+            'auto_since' => $since,
+            'auto_playlist' => $playlist,
+            'auto_shuffle' => $playlist === null || $shuffle,
+            'auto_start' => $first,
+        ]);
+        if ($cut) {
+            LiveSwitch::resume();
+        }
+
+        return $since;
+    }
+
+    /** The first song the automatic music plays from $since, or null when something else is on air then. */
+    public static function firstSong(int $since): ?array
+    {
+        foreach (self::items($since, $since + 1000, true, 4) as $item) {
+            if ($item['origin'] >= $since - 50) {
+                return $item['kind'] === 'musica' && $item['slot'] === null && $item['block'] === null ? $item : null;
+            }
+        }
+
+        return null;
     }
 
     /** Calls off a source change that has not started yet: what is on air keeps playing. */
@@ -187,6 +239,7 @@ final class Station
         self::saveConfig([
             'auto_playlist' => $playing['playlist'],
             'auto_shuffle' => $playing['shuffle'],
+            'auto_start' => $playing['start'],
             'auto_since' => $playing['from'],
             'auto_prev' => null,
         ]);
@@ -203,7 +256,7 @@ final class Station
     /**
      * The source of the automatic music on air at $now and since when it plays.
      *
-     * @return array{playlist: ?string, shuffle: bool, from: int}
+     * @return array{playlist: ?string, shuffle: bool, start: ?string, from: int}
      */
     private static function onAir(array $config, int $now): array
     {
@@ -211,21 +264,30 @@ final class Station
             return self::source($config['auto_prev']);
         }
 
+        return self::current($config);
+    }
+
+    /** @return array{playlist: ?string, shuffle: bool, start: ?string, from: int} the source of the config, from auto_since */
+    private static function current(array $config): array
+    {
         return self::source([
             'playlist' => $config['auto_playlist'],
             'shuffle' => $config['auto_shuffle'],
+            'start' => $config['auto_start'],
             'from' => $config['auto_since'],
         ]);
     }
 
-    /** @return array{playlist: ?string, shuffle: bool, from: int} */
+    /** @return array{playlist: ?string, shuffle: bool, start: ?string, from: int} */
     private static function source(array $source): array
     {
         $playlist = $source['playlist'] ?? null;
+        $start = $source['start'] ?? null;
 
         return [
             'playlist' => $playlist,
             'shuffle' => $playlist === null || (bool) ($source['shuffle'] ?? true),
+            'start' => is_string($start) ? $start : null,
             'from' => (int) ($source['from'] ?? 0),
         ];
     }
@@ -243,6 +305,7 @@ final class Station
             ...$config,
             'auto_playlist' => $playing['playlist'],
             'auto_shuffle' => $playing['shuffle'],
+            'auto_start' => $playing['start'],
             'auto_since' => $playing['from'],
             'auto_prev' => null,
         ];
@@ -274,13 +337,16 @@ final class Station
     {
         $config ??= self::config();
         $now = self::nowMs();
-        $current = self::source(['playlist' => $config['auto_playlist'], 'shuffle' => $config['auto_shuffle']]);
-        $pending = $config['auto_since'] > $now && is_array($config['auto_prev']) ? self::source($config['auto_prev']) : null;
+        $current = self::current($config);
+        // A start by hand is not a pending change: it is heard within seconds.
+        $pending = $config['auto_since'] > $now && is_array($config['auto_prev']) && empty($config['auto_prev']['fade'])
+            ? self::source($config['auto_prev']) : null;
 
         return [
             'mode' => $current['playlist'] !== null ? 'lista' : 'aleatorio',
             'playlist' => $current['playlist'],
             'shuffle' => $current['shuffle'],
+            'start' => $current['start'],
             'label' => self::sourceLabel($current),
             'since' => (int) $config['auto_since'],
             // What keeps playing until a scheduled change starts.
@@ -932,7 +998,8 @@ final class Station
     /**
      * Automatic music of a gap, from the station's source. A source change splits the gap: the
      * old source plays until auto_since, its last song running on to fade into the new source,
-     * which starts fresh there.
+     * which starts fresh there. After a start by hand (auto_prev «fade») the song on air does not
+     * run on: it fades out over the first seconds of the new source.
      */
     private static function gap(array $config, int $anchor, int $from, int $to, bool $expand, int $limit): array
     {
@@ -941,30 +1008,42 @@ final class Station
         }
         $crossfade = (int) round($config['crossfade'] * 1000);
         $since = (int) $config['auto_since'];
-        $current = self::source(['playlist' => $config['auto_playlist'], 'shuffle' => $config['auto_shuffle'], 'from' => $since]);
+        $current = self::current($config);
         if (! $expand) {
             return Autopilot::songs($current['playlist'], $crossfade) ? [self::block('gap-'.$from, 'relleno', 'Música continua', $from, $to, $from)] : [];
         }
 
         $previous = is_array($config['auto_prev']) ? self::source($config['auto_prev']) : null;
+        $fade = $previous !== null && ! empty($config['auto_prev']['fade']) ? max(self::START_FADE, $crossfade) : 0;
         $parts = [];
         if ($since <= $anchor) {
-            $parts[] = [$anchor, $from, $to, $current, false];
+            $parts[] = [$anchor, $from, $to, $current, false, 0];
         } else {
             $tail = $previous !== null && $since < $to && ! empty($config['auto_prev']['tail']);
-            if ($previous !== null && ($from < $since || ($tail && $from < $since + $crossfade))) {
+            if ($previous !== null && ($from < $since || ($tail && $from < $since + $crossfade) || $from < $since + $fade)) {
                 $start = max($anchor, $previous['from']);
-                $parts[] = [$start, max($start, min($from, $since - 1)), min($since, $to), $previous, $tail];
+                $parts[] = [$start, max($start, min($from, $since - 1)), min($since, $to), $previous, $tail, $fade];
             }
             if ($since < $to) {
-                $parts[] = [$since, max($since, $from), $to, $current, false];
+                $parts[] = [$since, max($since, $from), $to, $current, false, 0];
             }
         }
 
         $items = [];
-        foreach ($parts as [$start, $begin, $end, $source, $tail]) {
+        foreach ($parts as [$start, $begin, $end, $source, $tail, $fadeOut]) {
             $resolved = Autopilot::resolve($source['playlist'], $source['shuffle'], $crossfade);
-            array_push($items, ...Autopilot::fill($resolved['songs'], $resolved['shuffle'], $start, $begin, $end, $limit - count($items), [], $tail));
+            $songs = Autopilot::fill($resolved['songs'], $resolved['shuffle'], $start, $begin, $end, $limit - count($items), [], $tail, $source['start']);
+            if ($fadeOut > 0 && $end === $since) {
+                $lengths = array_column($resolved['songs'], 'ms', 'id');
+                foreach ($songs as &$song) {
+                    if ($song['end'] === $since) {
+                        $song['end'] = min($song['origin'] + ($lengths[$song['track']] ?? 0), $since + $fadeOut, $to);
+                    }
+                }
+                unset($song);
+                $songs = array_values(array_filter($songs, fn (array $song) => $song['end'] > $from));
+            }
+            array_push($items, ...$songs);
         }
 
         return $items;
