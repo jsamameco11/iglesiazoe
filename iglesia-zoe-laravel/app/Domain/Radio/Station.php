@@ -4,6 +4,7 @@ namespace App\Domain\Radio;
 
 use App\Models\RadioListener;
 use App\Models\RadioSlot;
+use App\Models\RadioSpotifyPlaylist;
 use App\Models\RadioTrack;
 use App\Models\SiteSetting;
 use Carbon\CarbonImmutable;
@@ -59,12 +60,15 @@ final class Station
         'turn_username' => '',
         'turn_credential' => '',
         'max_voice' => 60,
-        // Automatic music of the gaps: a playlist id (null = every list), shuffled or in order.
-        // A change applies from auto_since (when the song on air ends); before it, auto_prev played.
+        // Automatic music of the gaps: a playlist id (null = every list), shuffled or in order, or a
+        // Spotify playlist id that each listener plays in Spotify's own player. A change applies from
+        // auto_since (a song boundary at least switch_lead seconds ahead); before it, auto_prev played.
         'auto_playlist' => null,
         'auto_shuffle' => true,
+        'auto_spotify' => null,
         'auto_since' => 0,
         'auto_prev' => null,
+        'switch_lead' => 300,
         // Live switch: automatic or manual, fed by the console or an external OBS/Icecast signal.
         'live_mode' => LiveSwitch::AUTO,
         'live_source' => LiveSwitch::CONSOLE,
@@ -88,6 +92,11 @@ final class Station
         'rev' => 0,
     ];
 
+    /** Bounds of the lead time of a source change, in seconds. */
+    public const MIN_LEAD = 30;
+
+    public const MAX_LEAD = 1800;
+
     /** The console sends a heartbeat every ~1.5 s; after this many seconds of silence the live session ends. */
     private const OPERATOR_TIMEOUT = 25;
 
@@ -108,6 +117,12 @@ final class Station
 
     private const OPERATOR_KEY = 'radio.operator';
 
+    /** Config the program is computed with instead of the stored one (to foresee a source change). */
+    private static ?array $override = null;
+
+    /** @var array<string, ?array> Spotify playlists looked up in this request, by id */
+    private static array $spotifyCards = [];
+
     public static function nowMs(): int
     {
         return CarbonImmutable::now()->getTimestampMs();
@@ -115,6 +130,9 @@ final class Station
 
     public static function config(): array
     {
+        if (self::$override !== null) {
+            return self::$override;
+        }
         $cached = Cache::rememberForever(self::CONFIG_KEY, function () {
             $stored = SiteSetting::query()->find('radio')?->value;
 
@@ -138,50 +156,183 @@ final class Station
     public static function flush(): void
     {
         Autopilot::flush();
+        self::$spotifyCards = [];
     }
 
     /**
-     * Changes the automatic music of the gaps. The song on air finishes first: the new source
-     * starts when it ends (at once when no automatic song is playing, or when $now is asked).
+     * Changes the automatic music of the gaps without cutting a song: the new source starts at the
+     * first song boundary at least switch_lead seconds ahead (so when the song on air ends too soon,
+     * the next one plays to its end as well), and the last song of the old source fades into it.
+     * From or to Spotify, whose songs only each listener's player knows, the change is due after the
+     * lead and every player makes it when its own song ends. With $immediately it is at once.
      *
      * @return int when the new source starts (UTC ms)
      */
-    public static function switchAutopilot(?string $playlist, bool $shuffle, bool $immediately = false): int
+    public static function switchAutopilot(?string $playlist, bool $shuffle, bool $immediately = false, ?string $spotify = null): int
     {
-        $shuffle = $playlist === null || $shuffle;
         $config = self::config();
         $now = self::nowMs();
-        $current = $immediately ? null : collect(self::program($now)[1])->filter(fn (array $item) => $item['start'] <= $now)->last();
-        $since = $current && $current['kind'] === 'musica' && $current['slot'] === null && $current['block'] === null
-            ? max($now, (int) $current['end'])
-            : $now;
-        $wasPlaying = $config['auto_since'] > $now ? $config['auto_prev'] : null;
+        $playing = self::onAir($config, $now);
+        [$since, $boundary] = $immediately ? [$now, false] : self::switchPoint($config, $playing, $now);
         self::saveConfig([
-            'auto_prev' => $wasPlaying ?? ['playlist' => $config['auto_playlist'], 'shuffle' => (bool) $config['auto_shuffle']],
+            'auto_prev' => [...$playing, 'tail' => $boundary],
             'auto_since' => $since,
-            'auto_playlist' => $playlist,
-            'auto_shuffle' => $shuffle,
+            'auto_playlist' => $spotify === null ? $playlist : null,
+            'auto_shuffle' => $spotify !== null || $playlist === null || $shuffle,
+            'auto_spotify' => $spotify,
         ]);
 
         return $since;
+    }
+
+    /** Calls off a source change that has not started yet: what is on air keeps playing. */
+    public static function cancelAutopilotSwitch(): bool
+    {
+        $config = self::config();
+        if ($config['auto_since'] <= self::nowMs() || ! is_array($config['auto_prev'])) {
+            return false;
+        }
+        $playing = self::onAir($config, self::nowMs());
+        self::saveConfig([
+            'auto_playlist' => $playing['playlist'],
+            'auto_shuffle' => $playing['shuffle'],
+            'auto_spotify' => $playing['spotify'],
+            'auto_since' => $playing['from'],
+            'auto_prev' => null,
+        ]);
+
+        return true;
+    }
+
+    /** Seconds ahead a source change is due, within MIN_LEAD and MAX_LEAD. */
+    public static function lead(array $config): int
+    {
+        return max(self::MIN_LEAD, min(self::MAX_LEAD, (int) $config['switch_lead']));
+    }
+
+    /**
+     * The source of the automatic music on air at $now and since when it plays.
+     *
+     * @return array{playlist: ?string, shuffle: bool, spotify: ?string, from: int}
+     */
+    private static function onAir(array $config, int $now): array
+    {
+        if ($config['auto_since'] > $now && is_array($config['auto_prev'])) {
+            return self::source($config['auto_prev']);
+        }
+
+        return self::source([
+            'playlist' => $config['auto_playlist'],
+            'shuffle' => $config['auto_shuffle'],
+            'spotify' => $config['auto_spotify'],
+            'from' => $config['auto_since'],
+        ]);
+    }
+
+    /** @return array{playlist: ?string, shuffle: bool, spotify: ?string, from: int} */
+    private static function source(array $source): array
+    {
+        $playlist = $source['playlist'] ?? null;
+
+        return [
+            'playlist' => $playlist,
+            'shuffle' => $playlist === null || (bool) ($source['shuffle'] ?? true),
+            'spotify' => $source['spotify'] ?? null,
+            'from' => (int) ($source['from'] ?? 0),
+        ];
+    }
+
+    /** The Spotify playlist a source plays, or null when it plays the station's songs (or that playlist is gone). */
+    public static function spotifyCard(?string $id): ?array
+    {
+        if ($id === null) {
+            return null;
+        }
+        if (! array_key_exists($id, self::$spotifyCards)) {
+            self::$spotifyCards[$id] = RadioSpotifyPlaylist::query()->find($id)?->card();
+        }
+
+        return self::$spotifyCards[$id];
+    }
+
+    /**
+     * Where a change of source lands: the first automatic song that would start at least the lead
+     * time from now (a song boundary, where the song before fades into the new source).
+     *
+     * @return array{0: int, 1: bool} the time and whether it is a song boundary
+     */
+    private static function switchPoint(array $config, array $playing, int $now): array
+    {
+        $due = $now + self::lead($config) * 1000;
+        if (self::spotifyCard($playing['spotify']) !== null) {
+            return [$due, false];
+        }
+
+        self::$override = [
+            ...$config,
+            'auto_playlist' => $playing['playlist'],
+            'auto_shuffle' => $playing['shuffle'],
+            'auto_spotify' => null,
+            'auto_since' => $playing['from'],
+            'auto_prev' => null,
+        ];
+        try {
+            $items = self::items($now, $due + 2 * 3600000, true, 120);
+        } finally {
+            self::$override = null;
+        }
+
+        $sounding = false;
+        $lastEnd = $now;
+        foreach ($items as $item) {
+            if ($item['kind'] !== 'musica' || $item['slot'] !== null || $item['block'] !== null) {
+                continue;
+            }
+            if ($item['origin'] >= $due) {
+                return [$item['origin'], true];
+            }
+            $sounding = $sounding || $item['start'] <= $now;
+            $lastEnd = max($lastEnd, $item['end']);
+        }
+
+        // No song boundary ahead: the program takes over, so the change waits for the end of this music.
+        return [$sounding ? max($due, $lastEnd) : $now, false];
     }
 
     /** The automatic music of the gaps, for the console and the schedule. */
     public static function autopilot(?array $config = null): array
     {
         $config ??= self::config();
-        $shuffle = $config['auto_playlist'] === null || $config['auto_shuffle'];
+        $now = self::nowMs();
+        $current = self::source([
+            'playlist' => $config['auto_playlist'], 'shuffle' => $config['auto_shuffle'], 'spotify' => $config['auto_spotify'],
+        ]);
+        $spotify = self::spotifyCard($current['spotify']);
+        $pending = $config['auto_since'] > $now && is_array($config['auto_prev']) ? self::source($config['auto_prev']) : null;
 
         return [
-            'playlist' => $config['auto_playlist'],
-            'shuffle' => $shuffle,
-            'label' => Autopilot::label($config['auto_playlist']),
+            'mode' => $spotify ? 'spotify' : ($current['playlist'] !== null ? 'lista' : 'aleatorio'),
+            'playlist' => $spotify ? null : $current['playlist'],
+            'shuffle' => $current['shuffle'],
+            'spotify' => $spotify ? $current['spotify'] : null,
+            'label' => self::sourceLabel($current),
             'since' => (int) $config['auto_since'],
+            // What keeps playing until a scheduled change starts.
+            'pending' => $pending ? ['label' => self::sourceLabel($pending), 'spotify' => self::spotifyCard($pending['spotify']) !== null] : null,
+            'lead' => self::lead($config),
             'paused' => ! $config['autofill'],
             // Level of the fallback chain that really sounds, and audios off the air because of their file.
-            'level' => Autopilot::resolve($config['auto_playlist'], $shuffle, (int) round($config['crossfade'] * 1000))['level'],
+            'level' => $spotify ? Autopilot::PLAYLIST : Autopilot::resolve($current['playlist'], $current['shuffle'], (int) round($config['crossfade'] * 1000))['level'],
             'broken' => RadioHealth::brokenCount(),
         ];
+    }
+
+    /** Name of a source for the console, the schedule and the messages. */
+    public static function sourceLabel(array $source): string
+    {
+        $spotify = self::spotifyCard($source['spotify'] ?? null);
+
+        return $spotify ? 'Spotify · '.$spotify['name'] : Autopilot::label($source['playlist'] ?? null);
     }
 
     /** Tracks of the pad bank, in the order the operator chose (effects first until the bank is first saved). */
@@ -561,6 +712,7 @@ final class Station
         $external = $window && $config['live_source'] === LiveSwitch::EXTERNAL && $config['live_url'] !== '';
         $next = $onAir ? RadioSlot::query()->where('layer', RadioSlot::MAIN)->where('kind', '!=', RadioSlot::AUTO)
             ->where('starts_at', '>', CarbonImmutable::createFromTimestampMs($now))->orderBy('starts_at')->first() : null;
+        $source = self::publicSource($config, $now);
 
         return [
             'now' => $now,
@@ -571,7 +723,8 @@ final class Station
             'previous' => $previous,
             'queue' => $queue,
             // Healthy songs the player falls back on when a file fails or the server stops answering (none when silence is intended).
-            'fallback' => $onAir && $config['autofill'] ? Autopilot::reserve($now) : [],
+            'fallback' => $onAir && $config['autofill'] && $source['spotify'] === null ? Autopilot::reserve($now) : [],
+            'source' => $source,
             'layers' => $onAir ? self::layers($live, $now) : [],
             'next_show' => $next ? ['title' => $next->title, 'kind' => $next->kind, 'start' => $next->starts_at->getTimestampMs()] : null,
             'live' => [
@@ -590,6 +743,27 @@ final class Station
             'mix' => self::mix($live, $config),
             'listeners' => self::listenerCount(),
             'ice' => self::iceServers($config),
+        ];
+    }
+
+    /**
+     * The Spotify side of the automatic music for the listeners: the playlist that fills the gaps
+     * now (`spotify`, null when the station's songs do), the one due from `since` (`next`) and
+     * whether a change is pending. A player switches when its own song ends after `since`.
+     *
+     * @return array{spotify: ?array, next: ?array, since: int, changing: bool}
+     */
+    private static function publicSource(array $config, int $now): array
+    {
+        $playing = self::onAir($config, $now);
+        $changing = $config['auto_since'] > $now && is_array($config['auto_prev']);
+        $active = $config['autofill'] ? self::spotifyCard($playing['spotify']) : null;
+
+        return [
+            'spotify' => $active,
+            'next' => $changing && $config['autofill'] ? self::spotifyCard($config['auto_spotify']) : $active,
+            'since' => (int) $config['auto_since'],
+            'changing' => $changing,
         ];
     }
 
@@ -816,7 +990,9 @@ final class Station
 
     /**
      * Automatic music of a gap, from the station's source. A source change splits the gap: the
-     * old source plays until auto_since and the new one starts fresh there.
+     * old source plays until auto_since, its last song running on to fade into the new source,
+     * which starts fresh there. A Spotify source leaves the station silent: each listener's
+     * Spotify player fills that time.
      */
     private static function gap(array $config, int $anchor, int $from, int $to, bool $expand, int $limit): array
     {
@@ -824,21 +1000,40 @@ final class Station
             return [];
         }
         $crossfade = (int) round($config['crossfade'] * 1000);
-        $current = ['playlist' => $config['auto_playlist'], 'shuffle' => (bool) $config['auto_shuffle']];
+        $since = (int) $config['auto_since'];
+        $current = self::source([
+            'playlist' => $config['auto_playlist'], 'shuffle' => $config['auto_shuffle'], 'spotify' => $config['auto_spotify'], 'from' => $since,
+        ]);
         if (! $expand) {
+            if (self::spotifyCard($current['spotify']) !== null) {
+                return [self::block('gap-'.$from, 'relleno', self::sourceLabel($current), $from, $to, $from)];
+            }
+
             return Autopilot::songs($current['playlist'], $crossfade) ? [self::block('gap-'.$from, 'relleno', 'Música continua', $from, $to, $from)] : [];
         }
 
-        $since = (int) $config['auto_since'];
-        $previous = is_array($config['auto_prev']) ? $config['auto_prev'] : null;
-        $parts = $previous && $anchor < $since && $since < $to
-            ? [[$anchor, $since, $previous], [$since, $to, $current]]
-            : [[$anchor, $to, $previous && $anchor < $since ? $previous : $current]];
+        $previous = is_array($config['auto_prev']) ? self::source($config['auto_prev']) : null;
+        $parts = [];
+        if ($since <= $anchor) {
+            $parts[] = [$anchor, $from, $to, $current, false];
+        } else {
+            $tail = $previous !== null && $since < $to && ! empty($config['auto_prev']['tail']);
+            if ($previous !== null && ($from < $since || ($tail && $from < $since + $crossfade))) {
+                $start = max($anchor, $previous['from']);
+                $parts[] = [$start, max($start, min($from, $since - 1)), min($since, $to), $previous, $tail];
+            }
+            if ($since < $to) {
+                $parts[] = [$since, max($since, $from), $to, $current, false];
+            }
+        }
 
         $items = [];
-        foreach ($parts as [$start, $end, $source]) {
-            $resolved = Autopilot::resolve($source['playlist'] ?? null, (bool) ($source['shuffle'] ?? true), $crossfade);
-            array_push($items, ...Autopilot::fill($resolved['songs'], $resolved['shuffle'], $start, max($start, $from), $end, $limit - count($items)));
+        foreach ($parts as [$start, $begin, $end, $source, $tail]) {
+            if (self::spotifyCard($source['spotify']) !== null) {
+                continue;
+            }
+            $resolved = Autopilot::resolve($source['playlist'], $source['shuffle'], $crossfade);
+            array_push($items, ...Autopilot::fill($resolved['songs'], $resolved['shuffle'], $start, $begin, $end, $limit - count($items), [], $tail));
         }
 
         return $items;

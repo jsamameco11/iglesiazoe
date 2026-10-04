@@ -133,7 +133,8 @@ export default function Spotify({ playlists }: Props) {
             <a href={`${site}/radio#spotify`} target="_blank" rel="noreferrer" className="font-semibold text-ink underline">la página de la radio ↗</a>, en este orden.
           </p>
           <p className="rounded-2xl bg-paper px-4 py-3 text-[12px] leading-5 text-muted">
-            Spotify no permite retransmitir su música en una radio. Por eso la música automática usa tus audios de la Biblioteca, y estas playlists se escuchan en el reproductor de Spotify de cada oyente.
+            Puedes elegir una de estas playlists como música automática en la Consola o en Programación. Spotify no permite retransmitirla desde la radio, así que cada oyente la escucha en el
+            reproductor de Spotify dentro de la página: con su cuenta de Spotify, canciones completas; sin cuenta, adelantos de 30 segundos.
           </p>
         </aside>
 

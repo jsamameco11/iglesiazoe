@@ -33,6 +33,7 @@ class RadioConsoleController extends RadioController
             'day' => Schedule::day($today),
             'host' => $request->user()->full_name ?: $request->user()->username,
             'playlists' => $this->playlists(),
+            'spotifyPlaylists' => $this->spotifyPlaylists(),
         ]);
     }
 
@@ -133,13 +134,15 @@ class RadioConsoleController extends RadioController
     {
         $action = $request->input('action');
         if ($action === 'source') {
-            $playlist = $this->playlistFrom($request);
-            if ($playlist === false) {
-                return $this->fail('Esa lista de reproducción ya no existe.', 404);
+            $message = $this->switchRequested($request);
+            if ($message instanceof JsonResponse) {
+                return $message;
             }
-            $message = $this->switchedMessage($playlist, $request->boolean('shuffle', true));
 
             return response()->json(['ok' => true, ...$this->snapshot(), 'message' => $message]);
+        }
+        if ($action === 'cancel') {
+            return response()->json(['ok' => true, 'message' => $this->cancelledMessage(), ...$this->snapshot()]);
         }
         if ($action === 'cut') {
             return $this->cut($request);
@@ -208,12 +211,11 @@ class RadioConsoleController extends RadioController
         }
 
         $message = 'De vuelta a la música automática.';
-        if ($request->has('playlist')) {
-            $playlist = $this->playlistFrom($request);
-            if ($playlist === false) {
-                return $this->fail('Esa lista de reproducción ya no existe.', 404);
+        if ($request->has('playlist') || $request->filled('spotify')) {
+            $message = $this->switchRequested($request, true);
+            if ($message instanceof JsonResponse) {
+                return $message;
             }
-            $message = $this->switchedMessage($playlist, $request->boolean('shuffle', true), true);
         }
         LiveSwitch::resume();
 

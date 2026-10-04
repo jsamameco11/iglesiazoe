@@ -122,9 +122,10 @@ final class Autopilot
      * keeps its origin, so a listener who joins mid-song seeks to the same moment as the rest.
      *
      * @param  array<string, mixed>  $extra  fields that override every item (kind, bed, block)
+     * @param  bool  $ragged  the last song plays to its end past $to (it fades into the music that follows)
      * @return list<array<string, mixed>>
      */
-    public static function fill(array $songs, bool $shuffle, int $anchor, int $from, int $to, int $limit, array $extra = []): array
+    public static function fill(array $songs, bool $shuffle, int $anchor, int $from, int $to, int $limit, array $extra = [], bool $ragged = false): array
     {
         $count = count($songs);
         $total = array_sum(array_column($songs, 'step'));
@@ -159,7 +160,7 @@ final class Autopilot
                 'artist' => $song['artist'],
                 'src' => $song['src'],
                 'start' => $begin,
-                'end' => min($t + $song['ms'], $to),
+                'end' => $ragged ? $t + $song['ms'] : min($t + $song['ms'], $to),
                 'origin' => $t,
                 'seek' => round(($begin - $t) / 1000, 3),
                 'bed' => false,

@@ -217,6 +217,22 @@
 .radio-tag[data-kind="programa"] { background: #e3ecff; color: #2a4fa8; }
 .radio-tag[data-kind="efecto"] { background: #efe4ff; color: #6a3fb4; }
 
+/* The automatic music on a Spotify playlist: Spotify's own player inside the live deck. */
+.radio-spotify-embed {
+  min-height: 152px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.28);
+}
+.radio-spotify-embed iframe {
+  display: block;
+  border: 0;
+  border-radius: 12px;
+}
+.radio-spotify:not([data-active]) .radio-spotify-embed {
+  opacity: 0.72;
+}
+
 /* «Escúchanos en Spotify»: the church's playlists, each opened in the listener's Spotify. */
 .spotify-shelf {
   display: grid;

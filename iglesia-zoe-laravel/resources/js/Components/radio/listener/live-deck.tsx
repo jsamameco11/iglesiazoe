@@ -1,8 +1,20 @@
-import { HeadphonesIcon, MicIcon, PlayIcon, StopIcon, VolumeIcon } from "@/Components/radio/icons";
+import { HeadphonesIcon, MicIcon, PlayIcon, SpotifyIcon, StopIcon, VolumeIcon } from "@/Components/radio/icons";
 import { Visualizer } from "@/Components/radio/meters";
+import { useSpotifyAir } from "@/Components/radio/listener/use-spotify-air";
 import type { useStation } from "@/Components/radio/listener/use-station";
 import type { CopyKey } from "@/lib/copy";
 import { KIND_LABEL, clock, currentItem, dayLabel, duration, limaDate } from "@/lib/radio";
+
+/** What the listener should know about the Spotify player: a change on its way, or how to hear full songs. */
+function spotifyNote(spotify: ReturnType<typeof useSpotifyAir>, stationName: string) {
+  const waiting = spotify.waiting;
+  if (waiting) {
+    return waiting.next
+      ? `A las ${clock(waiting.since)} la música pasa a Spotify «${waiting.next.name}», al terminar la canción.`
+      : `A las ${clock(waiting.since)} vuelve la música de ${stationName}, al terminar la canción de Spotify.`;
+  }
+  return "Suena en el reproductor de Spotify. Inicia sesión en Spotify (gratis) para escuchar las canciones completas; sin sesión se oyen adelantos de 30 segundos.";
+}
 
 /** Main player while listening to the live radio: what is on now, its progress, the host and the volume. */
 export function LiveDeck({
@@ -19,6 +31,8 @@ export function LiveDeck({
   const { state, now, playing, volume, voice, blocked } = station;
   const item = currentItem(state.queue, now);
   const live = state.live.on;
+  const spotify = useSpotifyAir(station);
+  const onSpotify = !item && !live && spotify.active ? spotify.playlist : null;
 
   return (
     <>
@@ -35,6 +49,14 @@ export function LiveDeck({
             {item.block ? <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#ff8a8e]">{item.block}</p> : null}
             <p className="mt-1 text-[1.65rem] font-semibold leading-tight tracking-[-0.03em] text-white md:text-3xl">{item.title}</p>
             <p className="mt-1.5 text-[15px] text-white/60">{item.artist || (item.kind === "musica" ? t("radio.continuousNote") : KIND_LABEL[item.kind])}</p>
+          </>
+        ) : onSpotify ? (
+          <>
+            <p className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.2em] text-[#1ed760]">
+              <SpotifyIcon className="h-3.5 w-3.5" /> Playlist de Spotify
+            </p>
+            <p className="mt-1 text-[1.65rem] font-semibold leading-tight tracking-[-0.03em] text-white md:text-3xl">{onSpotify.name}</p>
+            <p className="mt-1.5 text-[15px] text-white/60">{onSpotify.description || t("radio.continuousNote")}</p>
           </>
         ) : (
           <>
@@ -84,6 +106,13 @@ export function LiveDeck({
       </div>
 
       {blocked ? <p className="mt-4 rounded-xl bg-white/10 px-4 py-3 text-sm text-white/80">Toca «{t("radio.listen")}» otra vez para activar el sonido.</p> : null}
+
+      {spotify.involved && state.on_air ? (
+        <div className="radio-spotify mt-5" data-active={onSpotify ? "" : undefined} data-sounding={spotify.sounding ? "" : undefined}>
+          <div ref={spotify.mount} className="radio-spotify-embed" />
+          <p className="mt-2 text-xs leading-5 text-white/55">{spotifyNote(spotify, state.name)}</p>
+        </div>
+      ) : null}
 
       {live ? (
         <div className="radio-host">

@@ -27,6 +27,7 @@ class RadioSettingsController extends RadioController
             'fx_level' => 'required|integer|min:10|max:100',
             'duck_level' => 'required|integer|min:5|max:80',
             'crossfade' => 'required|integer|min:0|max:10',
+            'switch_lead' => 'sometimes|integer|min:'.Station::MIN_LEAD.'|max:'.Station::MAX_LEAD,
             'stream_url' => ['nullable', 'string', 'max:300', 'regex:#^https://#i'],
             'turn_url' => ['nullable', 'string', 'max:200', 'regex:#^turns?:#i'],
             'turn_username' => 'nullable|string|max:120',
@@ -50,6 +51,7 @@ class RadioSettingsController extends RadioController
             'fx_level' => 'volumen de efectos',
             'duck_level' => 'música bajo los anuncios',
             'crossfade' => 'empalme entre canciones',
+            'switch_lead' => 'anticipación del cambio de música',
             'max_voice' => 'oyentes de voz',
             'live_mode' => 'modo del vivo',
             'live_source' => 'fuente del vivo',
@@ -58,7 +60,7 @@ class RadioSettingsController extends RadioController
             return $this->fail($validator->errors()->first());
         }
         $data = $validator->validated();
-        $levels = ['bed_level', 'fx_level', 'duck_level', 'crossfade', 'max_voice'];
+        $levels = ['bed_level', 'fx_level', 'duck_level', 'crossfade', 'switch_lead', 'max_voice'];
         Station::saveConfig([
             ...array_map(fn ($value) => trim((string) $value), array_diff_key($data, array_flip($levels))),
             ...array_map(fn ($value) => (int) $value, array_intersect_key($data, array_flip($levels))),

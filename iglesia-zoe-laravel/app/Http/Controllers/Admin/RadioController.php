@@ -7,7 +7,9 @@ use App\Domain\Radio\Station;
 use App\Http\Controllers\Controller;
 use App\Models\RadioPlaylist;
 use App\Models\RadioSlot;
+use App\Models\RadioSpotifyPlaylist;
 use App\Models\RadioTrack;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 
@@ -90,15 +92,58 @@ abstract class RadioController extends Controller
             ->map(fn (RadioPlaylist $playlist) => Arr::except($playlist->payload(), 'tracks'))->all();
     }
 
-    /** Changes the automatic music of the gaps and says when the change is heard. */
-    protected function switchedMessage(?RadioPlaylist $playlist, bool $shuffle, bool $immediately = false): string
+    /** Spotify playlists the automatic music can play, in order. */
+    protected function spotifyPlaylists(): array
     {
-        $since = Station::switchAutopilot($playlist?->id, $shuffle, $immediately);
-        $what = $playlist ? 'lista «'.$playlist->name.'» '.($shuffle ? 'en aleatorio' : 'en orden') : 'canciones aleatorias';
+        return RadioSpotifyPlaylist::ordered()->get()
+            ->map(fn (RadioSpotifyPlaylist $playlist) => ['id' => $playlist->id, 'name' => $playlist->name, 'cover' => $playlist->cover_url])->all();
+    }
 
-        return $since > Station::nowMs() + 1000
-            ? "Música automática: {$what}. Empieza a las ".Schedule::clock($since).', cuando termine la canción que suena.'
-            : "Música automática: {$what}. Ya está sonando.";
+    /**
+     * Switches the automatic music to the requested source (a Spotify playlist, a list or random
+     * songs) and says when the change is heard; a failure when the source no longer exists.
+     */
+    protected function switchRequested(Request $request, bool $immediately = false): JsonResponse|string
+    {
+        if ($request->filled('spotify')) {
+            $spotify = $this->find(RadioSpotifyPlaylist::class, $request->input('spotify'));
+
+            return $spotify ? $this->switchedMessage(null, true, $immediately, $spotify) : $this->fail('Esa playlist de Spotify ya no existe.', 404);
+        }
+        $playlist = $this->playlistFrom($request);
+        if ($playlist === false) {
+            return $this->fail('Esa lista de reproducción ya no existe.', 404);
+        }
+
+        return $this->switchedMessage($playlist, $request->boolean('shuffle', true), $immediately);
+    }
+
+    /** Changes the automatic music of the gaps and says when the change is heard. */
+    protected function switchedMessage(?RadioPlaylist $playlist, bool $shuffle, bool $immediately = false, ?RadioSpotifyPlaylist $spotify = null): string
+    {
+        $since = Station::switchAutopilot($playlist?->id, $shuffle, $immediately, $spotify?->id);
+        $what = match (true) {
+            $spotify !== null => 'playlist de Spotify «'.$spotify->name.'»',
+            $playlist !== null => 'lista «'.$playlist->name.'» '.($shuffle ? 'en aleatorio' : 'en orden'),
+            default => 'canciones aleatorias',
+        };
+        if ($since <= Station::nowMs() + 1000) {
+            return "Música automática: {$what}. Ya está sonando.";
+        }
+        $autopilot = Station::autopilot();
+        $how = $spotify !== null || ($autopilot['pending']['spotify'] ?? false)
+            ? 'cada oyente cambia al terminar la canción que esté escuchando'
+            : 'justo cuando termina la canción que suene, sin cortes';
+
+        return "Cambio programado: {$what} empieza a las ".Schedule::clock($since)."; {$how}. Hasta entonces sigue {$autopilot['pending']['label']}. Puedes cancelarlo antes.";
+    }
+
+    /** Calls off a pending change of the automatic music. */
+    protected function cancelledMessage(): string
+    {
+        return Station::cancelAutopilotSwitch()
+            ? 'Cambio cancelado: sigue sonando '.Station::autopilot()['label'].'.'
+            : 'No había un cambio pendiente: ya está sonando '.Station::autopilot()['label'].'.';
     }
 
     protected function conflictMessage(RadioSlot $conflict): string

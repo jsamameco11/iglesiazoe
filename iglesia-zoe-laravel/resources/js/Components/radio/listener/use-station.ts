@@ -11,6 +11,7 @@ export function useStation(initial: RadioState) {
   const feed = useRef<HTMLAudioElement | null>(null);
   const feedUrl = useRef<string | null>(null);
   const volumeRef = useRef(0.9);
+  const heldRef = useRef(false);
   const rev = useRef(initial.live.rev);
   const playingRef = useRef(false);
   const [state, setState] = useState(initial);
@@ -152,7 +153,7 @@ export function useStation(initial: RadioState) {
         voice.current.onStop = (ids) => player.current?.dropLayers(ids);
       }
       await Promise.all([player.current.start(), voice.current.unlock()]);
-      player.current.setVolume(volume);
+      player.current.setVolume(heldRef.current ? 0 : volume);
       voice.current.setVolume(volume);
       player.current.setReserve(state.fallback ?? []);
       player.current.setQueue(state.queue);
@@ -168,11 +169,18 @@ export function useStation(initial: RadioState) {
   const setVolume = useCallback((value: number) => {
     setVolumeState(value);
     volumeRef.current = value;
-    player.current?.setVolume(value);
+    player.current?.setVolume(heldRef.current ? 0 : value);
     voice.current?.setVolume(value);
     if (stream.current) stream.current.volume = value;
     if (feed.current) feed.current.volume = value;
   }, []);
 
-  return { state, now, playing, volume, voice: voiceStatus, blocked, analyser, toggle, setVolume };
+  /** Keeps the station's music silent (while a Spotify song finishes before handing back to the station). */
+  const hold = useCallback((on: boolean) => {
+    if (heldRef.current === on) return;
+    heldRef.current = on;
+    player.current?.setVolume(on ? 0 : volumeRef.current);
+  }, []);
+
+  return { state, now, playing, volume, voice: voiceStatus, blocked, analyser, toggle, setVolume, hold };
 }

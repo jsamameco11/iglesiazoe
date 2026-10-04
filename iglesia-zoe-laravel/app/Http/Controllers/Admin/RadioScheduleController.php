@@ -29,6 +29,7 @@ class RadioScheduleController extends RadioController
             'tracks' => RadioTrack::query()->where('active', true)->orderBy('kind')->orderBy('title')->get()->map->payload(),
             'config' => Station::config(),
             'playlists' => $this->playlists(),
+            'spotifyPlaylists' => $this->spotifyPlaylists(),
             'autopilot' => Station::autopilot(),
         ]);
     }
@@ -207,15 +208,15 @@ class RadioScheduleController extends RadioController
             : 'Música continua vacía: los huecos de la programación quedarán en silencio.');
     }
 
-    /** The automatic music of the gaps: one playlist or all of them, shuffled or in order. */
+    /** The automatic music of the gaps: a Spotify playlist, one list or all of them; or calls off a pending change. */
     public function autopilot(Request $request): JsonResponse
     {
-        $playlist = $this->playlistFrom($request);
-        if ($playlist === false) {
-            return $this->fail('Esa lista de reproducción ya no existe.');
+        if ($request->boolean('cancel')) {
+            return $this->saved($this->cancelledMessage());
         }
+        $message = $this->switchRequested($request);
 
-        return $this->saved($this->switchedMessage($playlist, $request->boolean('shuffle', true)));
+        return $message instanceof JsonResponse ? $message : $this->saved($message);
     }
 
     /** «Música automática» from one time to another: a period of the main program for a playlist. */

@@ -7,8 +7,9 @@ use App\Domain\Shared\Models\UuidModel;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * A playlist of the church on Spotify, shown on /radio for people to open in their own
- * Spotify. It never plays on the radio itself: Spotify only allows personal listening.
+ * A Christian playlist on Spotify, shown on /radio for people to open in their own Spotify.
+ * It can also be the source of the automatic music: then each listener's page plays it in
+ * Spotify's own player (Spotify only allows personal listening, so the station sends no audio).
  */
 class RadioSpotifyPlaylist extends UuidModel
 {

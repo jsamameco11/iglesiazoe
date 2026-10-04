@@ -51,6 +51,7 @@ export function RadioSection({ settings, radio, asset }: { settings: SiteSetting
   const upcoming = state.on_air ? state.queue.find((entry) => entry.start > now) ?? null : null;
   const live = state.live.on;
   const tone = !state.on_air ? "off" : live ? "live" : "air";
+  const spotify = state.on_air && !live && !item ? (state.source?.spotify ?? null) : null;
   const length = item ? Math.max(1, item.end - item.start) : 1;
   const elapsed = item ? Math.min(length, Math.max(0, now - item.start)) : 0;
 
@@ -128,6 +129,11 @@ export function RadioSection({ settings, radio, asset }: { settings: SiteSetting
                   <>
                     <p className="onair-now">{item.title}</p>
                     <p className="onair-sub">{item.artist || (item.kind === "musica" ? t("radio.continuousNote") : KIND_LABEL[item.kind])}</p>
+                  </>
+                ) : spotify ? (
+                  <>
+                    <p className="onair-now">{spotify.name}</p>
+                    <p className="onair-sub">Playlist de Spotify · escúchala en la radio</p>
                   </>
                 ) : (
                   <>
