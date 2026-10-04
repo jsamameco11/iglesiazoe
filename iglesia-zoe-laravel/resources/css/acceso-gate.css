@@ -1,0 +1,160 @@
+/* Escena del acceso · el ánfora que recibe los sobres de célula; colores, velocidad y pausa desde Diseño › Ilustraciones */
+
+/* La fila de la grilla se dimensiona por contenido, así que height: 100% no se resuelve y el SVG crecería con su ancho. */
+.acceso-gate > .acceso-gate-scene {
+  position: absolute;
+  inset: 0;
+}
+
+/* Los tres sobres comparten un ciclo de 7.5 s desfasado 2.5 s: cada 2.5 s entra uno, y el brillo, las chispas
+   y el leve rebote del ánfora usan ese mismo pulso para coincidir con la entrada. */
+.acceso-envelope {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: acceso-fly-left 7.5s infinite;
+}
+.acceso-envelope[data-flight="right"] { animation-name: acceso-fly-right; }
+.acceso-envelope[data-flight="top"] { animation-name: acceso-fly-top; }
+
+@keyframes acceso-fly-left {
+  0% { opacity: 0; transform: translate(-300px, -130px) rotate(-22deg) scale(0.82); animation-timing-function: cubic-bezier(0.3, 0.1, 0.4, 1); }
+  8% { opacity: 1; }
+  46% { transform: translate(-64px, -44px) rotate(-8deg) scale(0.98); animation-timing-function: ease-in-out; }
+  60% { transform: translate(0, -10px) rotate(0deg) scale(1); animation-timing-function: ease-out; }
+  66% { transform: translate(0, -14px) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(0.55, 0, 0.85, 0.4); }
+  84% { opacity: 1; transform: translate(0, 118px) rotate(0deg) scale(0.9); }
+  85%, 100% { opacity: 0; transform: translate(0, 118px) rotate(0deg) scale(0.9); }
+}
+@keyframes acceso-fly-right {
+  0% { opacity: 0; transform: translate(300px, -150px) rotate(24deg) scale(0.82); animation-timing-function: cubic-bezier(0.3, 0.1, 0.4, 1); }
+  8% { opacity: 1; }
+  46% { transform: translate(70px, -50px) rotate(9deg) scale(0.98); animation-timing-function: ease-in-out; }
+  60% { transform: translate(0, -10px) rotate(0deg) scale(1); animation-timing-function: ease-out; }
+  66% { transform: translate(0, -14px) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(0.55, 0, 0.85, 0.4); }
+  84% { opacity: 1; transform: translate(0, 118px) rotate(0deg) scale(0.9); }
+  85%, 100% { opacity: 0; transform: translate(0, 118px) rotate(0deg) scale(0.9); }
+}
+@keyframes acceso-fly-top {
+  0% { opacity: 0; transform: translate(-60px, -290px) rotate(-14deg) scale(0.8); animation-timing-function: cubic-bezier(0.3, 0.1, 0.4, 1); }
+  8% { opacity: 1; }
+  46% { transform: translate(26px, -96px) rotate(7deg) scale(0.97); animation-timing-function: ease-in-out; }
+  60% { transform: translate(0, -10px) rotate(0deg) scale(1); animation-timing-function: ease-out; }
+  66% { transform: translate(0, -14px) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(0.55, 0, 0.85, 0.4); }
+  84% { opacity: 1; transform: translate(0, 118px) rotate(0deg) scale(0.9); }
+  85%, 100% { opacity: 0; transform: translate(0, 118px) rotate(0deg) scale(0.9); }
+}
+
+.acceso-mouth-glow {
+  opacity: 0;
+  animation: acceso-receive-glow 2.5s infinite;
+}
+@keyframes acceso-receive-glow {
+  0%, 28% { opacity: 0; }
+  42% { opacity: 0.75; }
+  70%, 100% { opacity: 0; }
+}
+
+.acceso-spark {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+  animation: acceso-spark 2.5s ease-out infinite;
+}
+@keyframes acceso-spark {
+  0%, 34% { opacity: 0; transform: translate(0, 0) scale(0.3); }
+  46% { opacity: 1; transform: translate(calc(var(--dx) * 0.4), -18px) scale(1); }
+  80%, 100% { opacity: 0; transform: translate(var(--dx), -64px) scale(0.55); }
+}
+
+.acceso-jar {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: acceso-receive 2.5s ease-out infinite;
+}
+@keyframes acceso-receive {
+  0%, 36% { transform: scale(1, 1); }
+  44% { transform: scale(1.01, 0.99); }
+  54% { transform: scale(0.997, 1.005); }
+  64%, 100% { transform: scale(1, 1); }
+}
+
+.acceso-rays {
+  transform-box: view-box;
+  transform-origin: 360px 400px;
+  animation: acceso-turn 90s linear infinite;
+}
+@keyframes acceso-turn {
+  to { transform: rotate(360deg); }
+}
+
+.acceso-flame {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  animation: acceso-flicker 1.6s ease-in-out infinite alternate;
+}
+.acceso-flame-glow {
+  animation: acceso-flame-glow 2.2s ease-in-out infinite alternate;
+}
+@keyframes acceso-flicker {
+  0% { transform: scale(1, 1) skewX(0deg); }
+  30% { transform: scale(0.96, 1.1) skewX(-3deg); }
+  60% { transform: scale(1.03, 0.94) skewX(2deg); }
+  100% { transform: scale(0.98, 1.06) skewX(-1deg); }
+}
+@keyframes acceso-flame-glow {
+  from { opacity: 0.25; }
+  to { opacity: 0.45; }
+}
+
+.acceso-dust {
+  opacity: 0;
+  animation: acceso-dust 9s linear infinite;
+}
+@keyframes acceso-dust {
+  0% { opacity: 0; transform: translateY(0); }
+  20% { opacity: 0.8; }
+  80% { opacity: 0.5; }
+  100% { opacity: 0; transform: translateY(-90px); }
+}
+
+.acceso-caret {
+  animation: acceso-blink 1s steps(1) infinite;
+}
+@keyframes acceso-blink {
+  0%, 45% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+.acceso-mote {
+  animation: acceso-float 7s ease-in-out infinite;
+}
+.acceso-mote-slow {
+  animation-duration: 11s;
+  animation-direction: reverse;
+}
+@keyframes acceso-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes acceso-drop {
+  0% { opacity: 0; transform: translate(0, -46px); }
+  14% { opacity: 1; transform: translate(0, -40px); animation-timing-function: ease-in-out; }
+  62% { transform: translate(0, -14px); animation-timing-function: cubic-bezier(0.55, 0, 0.85, 0.4); }
+  84% { opacity: 1; transform: translate(0, 118px); }
+  85%, 100% { opacity: 0; transform: translate(0, 118px); }
+}
+
+/* Con «reducir movimiento» los sobres solo bajan al ánfora: sin vuelos, giros, chispas ni rayos que rotan. */
+@media (prefers-reduced-motion: reduce) {
+  .acceso-envelope { animation-name: acceso-drop !important; }
+  .acceso-spark { display: none; }
+  .acceso-jar,
+  .acceso-rays,
+  .acceso-flame,
+  .acceso-flame-glow,
+  .acceso-dust,
+  .acceso-caret,
+  .acceso-mote { animation: none; }
+}

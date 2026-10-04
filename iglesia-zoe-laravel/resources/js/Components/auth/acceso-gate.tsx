@@ -3,10 +3,50 @@ import { useEffect, useId, useState } from "react";
 import { readPairs } from "@/lib/copy";
 import { useArt } from "@/lib/design";
 import type { SiteSettings } from "@/lib/types";
+import "../../../css/acceso-gate.css";
 
-const fallback = [{ kicker: "CEREAL", line: "Informe de tu grupo" }];
+const fallback = [{ kicker: "Juan 1:1", line: "En el principio era el Verbo" }];
 const tone = (color: string, amount: number, other: string) => `color-mix(in srgb, ${color} ${amount}%, ${other})`;
+const FLIGHTS = ["left", "right", "top"] as const;
+const SPARKS = [-26, -8, 12, 28];
+const MOTES = [
+  { x: 236, y: 300, r: 3, delay: 0 },
+  { x: 488, y: 340, r: 2.4, delay: -2.6 },
+  { x: 300, y: 220, r: 2, delay: -5.1 },
+  { x: 430, y: 250, r: 2.8, delay: -7.4 },
+  { x: 556, y: 420, r: 2.2, delay: -3.8 },
+  { x: 170, y: 420, r: 2.6, delay: -6.2 },
+];
 
+/** Splits a verse into at most three lines that fit the label on the jar. */
+function wrap(text: string, max = 23) {
+  const lines: string[] = [];
+  text.split(/\s+/).filter(Boolean).forEach((word) => {
+    const last = lines[lines.length - 1];
+    if (last !== undefined && (last + " " + word).length <= max) lines[lines.length - 1] = `${last} ${word}`;
+    else lines.push(word);
+  });
+  if (lines.length > 3) lines.splice(2, lines.length - 2, lines.slice(2).join(" "));
+  return lines.length ? lines : [""];
+}
+
+/** A sealed envelope with the Zoe mark, drawn around its own center. */
+function Envelope({ seal }: { seal: string }) {
+  return (
+    <>
+      <rect x="-42" y="-28" width="84" height="56" rx="5" fill="#fbf6ec" stroke="#e3d6c1" strokeWidth="1.5" />
+      <path d="M-41 26 L-7 1 M41 26 L7 1" stroke="#e7dccb" strokeWidth="1.5" fill="none" />
+      <path d="M-41 -27 L0 4 L41 -27 Z" fill="#f2e8d6" stroke="#e3d6c1" strokeWidth="1.5" strokeLinejoin="round" />
+      <circle cx="0" cy="4" r="11.5" style={{ fill: seal }} />
+      <circle cx="0" cy="4" r="8.5" fill="none" stroke="#fff" strokeOpacity="0.35" strokeWidth="1" />
+      <text x="0" y="8.6" textAnchor="middle" fill="#fff" fontSize="12.5" fontWeight="700" style={{ fontFamily: "var(--font-heading)" }}>
+        Z
+      </text>
+    </>
+  );
+}
+
+/** The amphora of the sign-in page: verses written on its label while the cells' envelopes drop in, one after another. */
 export function AccesoGate() {
   const { settings } = usePage().props as unknown as { settings?: SiteSettings };
   const art = useArt("acceso");
@@ -15,28 +55,38 @@ export function AccesoGate() {
   const still = Boolean(art.still);
   const sky = colors.sky || "#f0e4d4";
   const desk = colors.desk || "#c9ae96";
-  const screen = colors.screen || "#2b3342";
+  const jar = colors.jar || "#b86b43";
   const accent = colors.accent || "#c45c26";
   const gold = colors.gold || "#e0b062";
   const pairs = readPairs(settings, "acceso.lines").map((pair) => ({ kicker: pair.ref ? pair.text : "", line: pair.ref || pair.text }));
   const verses = pairs.length ? pairs : fallback;
   const uid = useId().replace(/:/g, "");
   const [index, setIndex] = useState(0);
-  const [typed, setTyped] = useState("");
+  const [typed, setTyped] = useState(0);
   const verse = verses[index % verses.length];
+  const lines = wrap(verse.line);
 
   useEffect(() => {
-    const word = verse.line;
-    if (typed.length < word.length) {
-      const timer = window.setTimeout(() => setTyped(still ? word : word.slice(0, typed.length + 1)), still ? 0 : 42 / speed);
+    const total = verse.line.length;
+    if (typed < total) {
+      const timer = window.setTimeout(() => setTyped(still ? total : typed + 1), still ? 0 : 46 / speed);
       return () => window.clearTimeout(timer);
     }
     const pause = window.setTimeout(() => {
-      setTyped("");
+      setTyped(0);
       setIndex((current) => (current + 1) % verses.length);
-    }, (still ? 4000 : 2200) / speed);
+    }, (still ? 5000 : 2600) / speed);
     return () => window.clearTimeout(pause);
   }, [verse.line, verses.length, typed, speed, still]);
+
+  let rest = typed;
+  const shown = lines.map((line) => {
+    const part = line.slice(0, Math.max(0, rest));
+    rest -= line.length + 1;
+    return part;
+  });
+  const caretLine = Math.max(0, shown.reduce((last, part, i) => (part ? i : last), 0));
+  const firstLine = 478 - (lines.length - 1) * 12;
 
   return (
     <div className="acceso-gate" data-art="acceso" aria-hidden="true">
@@ -47,133 +97,153 @@ export function AccesoGate() {
           <defs>
             <linearGradient id={`${uid}sky`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" style={{ stopColor: tone(sky, 30, "#fff") }} />
-              <stop offset="52%" style={{ stopColor: sky }} />
+              <stop offset="55%" style={{ stopColor: sky }} />
               <stop offset="100%" style={{ stopColor: tone(sky, 82, "#8d6b55") }} />
             </linearGradient>
-            <linearGradient id={`${uid}desk`} gradientUnits="userSpaceOnUse" x1="0" y1="400" x2="720" y2="820">
-              <stop offset="0%" style={{ stopColor: desk }} />
-              <stop offset="100%" style={{ stopColor: tone(desk, 76, "#5a3a28") }} />
+            <linearGradient id={`${uid}desk`} gradientUnits="userSpaceOnUse" x1="0" y1="600" x2="0" y2="820">
+              <stop offset="0%" style={{ stopColor: tone(desk, 88, "#fff") }} />
+              <stop offset="100%" style={{ stopColor: tone(desk, 74, "#5a3a28") }} />
             </linearGradient>
-            <linearGradient id={`${uid}wood`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" style={{ stopColor: tone(desk, 75, "#fff") }} />
-              <stop offset="100%" style={{ stopColor: tone(desk, 86, "#6b4a38") }} />
+            <linearGradient id={`${uid}jar`} gradientUnits="userSpaceOnUse" x1="214" y1="0" x2="506" y2="0">
+              <stop offset="0%" style={{ stopColor: tone(jar, 62, "#3a1d10") }} />
+              <stop offset="30%" style={{ stopColor: tone(jar, 78, "#ffe2c8") }} />
+              <stop offset="58%" style={{ stopColor: jar }} />
+              <stop offset="100%" style={{ stopColor: tone(jar, 52, "#2a140a") }} />
             </linearGradient>
-            <linearGradient id={`${uid}screen`} x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" style={{ stopColor: screen }} />
-              <stop offset="100%" style={{ stopColor: tone(screen, 45, "#000") }} />
+            <linearGradient id={`${uid}rim`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" style={{ stopColor: tone(jar, 70, "#ffe9d6") }} />
+              <stop offset="100%" style={{ stopColor: tone(jar, 80, "#3a1d10") }} />
             </linearGradient>
+            <radialGradient id={`${uid}mouth`} cx="0.5" cy="0.3" r="0.7">
+              <stop offset="0%" style={{ stopColor: tone(jar, 30, "#120804") }} />
+              <stop offset="100%" stopColor="#120804" />
+            </radialGradient>
             <linearGradient id={`${uid}gold`} x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" style={{ stopColor: tone(gold, 62, "#fff6dc") }} />
               <stop offset="100%" style={{ stopColor: tone(gold, 84, "#8a5a1a") }} />
             </linearGradient>
-            <linearGradient id={`${uid}page`} x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#fbfaf6" />
-              <stop offset="100%" stopColor="#efe6d8" />
+            <linearGradient id={`${uid}label`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fdf9f1" />
+              <stop offset="100%" stopColor="#f1e6d2" />
             </linearGradient>
-            <filter id={`${uid}soft`} x="-30%" y="-30%" width="160%" height="160%">
-              <feGaussianBlur stdDeviation="14" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
+            <radialGradient id={`${uid}halo`} cx="0.5" cy="0.5" r="0.5">
+              <stop offset="0%" style={{ stopColor: gold, stopOpacity: 0.42 }} />
+              <stop offset="60%" style={{ stopColor: gold, stopOpacity: 0.12 }} />
+              <stop offset="100%" style={{ stopColor: gold, stopOpacity: 0 }} />
+            </radialGradient>
+            <filter id={`${uid}blur`} x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="10" />
             </filter>
+            <filter id={`${uid}shine`} x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="6" />
+            </filter>
+            {/* Everything above the rim, plus the opening itself: an envelope below this line has gone into the jar. */}
+            <clipPath id={`${uid}into`}>
+              <rect x="-1200" y="-1600" width="3120" height="1858" />
+              <ellipse cx="360" cy="258" rx="47" ry="9" />
+            </clipPath>
           </defs>
 
-          {/* Sky and desk run past the viewBox so a panel taller or wider than 720×820 shows more scene instead of an empty band. */}
+          {/* Sky and floor run past the viewBox so a panel taller or wider than 720×820 shows more scene instead of an empty band. */}
           <rect x="-1200" y="-1600" width="3120" height="1610" style={{ fill: tone(sky, 30, "#fff") }} />
           <rect x="-1200" y="0" width="3120" height="820" fill={`url(#${uid}sky)`} />
-          <circle className="acceso-mote" cx="86" cy="94" r="54" fill="#f4e7db" opacity="0.85" />
-          <circle className="acceso-mote acceso-mote-slow" cx="628" cy="128" r="72" fill="#e4ddd4" opacity="0.55" />
 
-          <path d="M-1200 560 L0 470 C160 428 390 448 720 400 L1920 310 V2400 H-1200 Z" fill={`url(#${uid}desk)`} />
-          <path d="M-1200 600 L0 508 C240 470 470 492 720 454 L1920 364" fill="none" stroke="#8d6b55" strokeWidth="2" opacity="0.28" />
+          <circle cx="360" cy="400" r="300" fill={`url(#${uid}halo)`} />
+          <g className="acceso-rays">
+            {Array.from({ length: 12 }, (_, i) => (
+              <path key={i} d="M360 400 L346 40 L374 40 Z" style={{ fill: gold }} opacity="0.07" transform={`rotate(${i * 30} 360 400)`} />
+            ))}
+          </g>
+          <circle className="acceso-mote acceso-mote-slow" cx="110" cy="130" r="46" fill="#f4e7db" opacity="0.7" />
+          <circle className="acceso-mote" cx="630" cy="170" r="60" fill="#e9dfd3" opacity="0.5" />
 
-          <g className="acceso-plant">
-            <ellipse cx="118" cy="528" rx="36" ry="10" fill="#6b4a38" opacity="0.18" />
-            <path d="M118 470 C96 430 128 400 118 368" fill="none" stroke="#8d5a3c" strokeWidth="4" strokeLinecap="round" />
-            <ellipse className="acceso-leaf" cx="96" cy="392" rx="22" ry="12" fill="#c48a62" transform="rotate(-28 96 392)" />
-            <ellipse className="acceso-leaf" cx="138" cy="404" rx="24" ry="13" fill="#a56b48" transform="rotate(22 138 404)" />
-            <ellipse cx="118" cy="430" rx="18" ry="10" fill="#b88968" />
-            <rect x="104" y="468" width="28" height="36" rx="8" style={{ fill: accent }} />
+          <path d="M-1200 700 L0 652 C200 622 520 622 720 652 L1920 700 V2400 H-1200 Z" fill={`url(#${uid}desk)`} />
+          <path d="M-1200 712 L0 664 C200 636 520 636 720 664 L1920 712" fill="none" stroke="#fff" strokeOpacity="0.35" strokeWidth="2" />
+
+          <g className="acceso-lamp-oil" transform="translate(84 600)">
+            <ellipse cx="62" cy="72" rx="58" ry="9" fill="#5a3a28" opacity="0.2" />
+            <ellipse className="acceso-flame-glow" cx="104" cy="16" rx="34" ry="34" style={{ fill: gold }} opacity="0.35" filter={`url(#${uid}blur)`} />
+            <path d="M18 52 C18 34 42 28 66 28 C88 28 104 36 110 40 L124 38 C128 38 128 44 124 46 L106 52 C100 64 82 70 62 70 C36 70 18 64 18 52 Z" style={{ fill: tone(jar, 85, "#3a1d10") }} />
+            <path d="M28 46 C40 38 78 36 96 42" fill="none" stroke="#fff" strokeOpacity="0.22" strokeWidth="3" strokeLinecap="round" />
+            <ellipse cx="60" cy="36" rx="12" ry="4" fill="#2a160c" opacity="0.55" />
+            <path className="acceso-flame" d="M118 38 C110 26 112 14 120 2 C128 14 130 26 122 38 Z" style={{ fill: gold }} />
+            <path className="acceso-flame" d="M119.5 36 C115 28 116 20 120 13 C124 20 125 28 120.5 36 Z" fill="#fff6dc" />
           </g>
 
-          <g className="acceso-lamp">
-            <rect x="572" y="312" width="10" height="92" rx="4" fill="#2a2f34" />
-            <path d="M540 312 H614 L600 268 H554 Z" fill="#1f2328" />
-            <ellipse cx="577" cy="268" rx="28" ry="10" fill={`url(#${uid}gold)`} opacity="0.9" />
-            <ellipse className="acceso-lamp-glow" cx="577" cy="360" rx="70" ry="36" style={{ fill: gold }} opacity="0.18" />
+          <g className="acceso-pile" transform="translate(548 628)">
+            <ellipse cx="62" cy="50" rx="66" ry="9" fill="#5a3a28" opacity="0.18" />
+            <g transform="translate(62 40) rotate(-4) scale(0.92)"><Envelope seal={accent} /></g>
+            <g transform="translate(58 22) rotate(5) scale(0.92)"><Envelope seal={accent} /></g>
+            <g className="acceso-pile-top" transform="translate(66 4) rotate(-2) scale(0.92)"><Envelope seal={accent} /></g>
           </g>
 
-          <g className="acceso-machine">
-            <rect x="168" y="118" width="384" height="252" rx="22" fill="#1c2024" />
-            <rect x="182" y="132" width="356" height="216" rx="12" fill={`url(#${uid}screen)`} />
-            <rect x="182" y="132" width="356" height="216" rx="12" style={{ fill: gold }} opacity="0.06" />
-            <circle cx="360" cy="124" r="3" fill="#5c6570" />
-            <text x="204" y="172" fill="#c5cbb8" style={{ fontFamily: "var(--font-accent)" }} fontSize="11" fontWeight="500" letterSpacing="3.2">
-              {verse.kicker ? `IGLESIA ZOE · ${verse.kicker}` : "IGLESIA ZOE"}
-            </text>
-            <text x="204" y="228" fill="#fbfaf6" style={{ fontFamily: "var(--font-heading)" }} fontSize="24" fontWeight="500" fontStyle="italic">
-              {typed}
-              <tspan className="acceso-caret">|</tspan>
-            </text>
-            <rect x="204" y="268" width="168" height="10" rx="5" fill="#3b4554" />
-            <rect x="204" y="286" width="112" height="10" rx="5" fill="#323a47" />
-            <rect x="204" y="312" width="118" height="18" rx="9" fill="#fbfaf6" />
-            <text x="263" y="325" textAnchor="middle" fill="#1a1a1a" style={{ fontFamily: "var(--font-text)" }} fontSize="11" fontWeight="600">
-              Ingresar
-            </text>
-            <circle cx="498" cy="320" r="16" fill="#edd9a8" />
-            <path d="M498 312 v9 M493.5 321 h9" stroke="#8d5430" strokeWidth="2" strokeLinecap="round" />
+          <ellipse cx="360" cy="668" rx="128" ry="16" fill="#5a3a28" opacity="0.24" />
 
-            <path d="M148 372 H572 L600 404 H120 Z" fill="#2a3036" />
-            <rect x="120" y="400" width="480" height="78" rx="14" fill={`url(#${uid}wood)`} />
-            <g className="acceso-keys">
-              {Array.from({ length: 12 }, (_, i) => (
-                <rect
-                  key={i}
-                  x={148 + i * 36}
-                  y="418"
-                  width="26"
-                  height="16"
-                  rx="4"
-                  fill={i === 6 ? "#e8c57a" : "#f4efe6"}
-                  className="acceso-key"
-                  style={{ animationDelay: `${i * 80}ms` }}
-                />
+          <g className="acceso-jar">
+            <path
+              d="M318 266 C318 290 324 304 326 318 C250 336 214 392 214 452 C214 540 270 600 316 626 L310 652 H410 L404 626 C450 600 506 540 506 452 C506 392 470 336 394 318 C396 304 402 290 402 266 Z"
+              fill={`url(#${uid}jar)`}
+            />
+            <path d="M324 282 C268 268 236 300 256 352" fill="none" style={{ stroke: tone(jar, 72, "#3a1d10") }} strokeWidth="13" strokeLinecap="round" />
+            <path d="M396 282 C452 268 484 300 464 352" fill="none" style={{ stroke: tone(jar, 72, "#3a1d10") }} strokeWidth="13" strokeLinecap="round" />
+            <path d="M324 282 C272 271 242 300 258 346" fill="none" stroke="#fff" strokeOpacity="0.16" strokeWidth="3" strokeLinecap="round" />
+            <rect x="302" y="648" width="116" height="16" rx="5" style={{ fill: tone(jar, 70, "#2a140a") }} />
+            <path d="M262 350 Q360 374 458 350" fill="none" stroke={`url(#${uid}gold)`} strokeWidth="4" />
+            <path d="M268 362 Q360 384 452 362" fill="none" stroke={`url(#${uid}gold)`} strokeWidth="1.5" opacity="0.8" />
+            {Array.from({ length: 9 }, (_, i) => (
+              <circle key={i} cx={296 + i * 16} cy={334 + Math.abs(i - 4) * -1.2 + 4} r="2.2" style={{ fill: gold }} opacity="0.85" />
+            ))}
+            <path d="M232 562 Q360 590 488 562" fill="none" stroke={`url(#${uid}gold)`} strokeWidth="4" />
+            <path d="M246 578 Q360 604 474 578" fill="none" stroke={`url(#${uid}gold)`} strokeWidth="1.5" opacity="0.8" />
+            <ellipse cx="262" cy="452" rx="20" ry="92" fill="#fff" opacity="0.14" filter={`url(#${uid}shine)`} />
+
+            <rect x="242" y="404" width="236" height="132" rx="16" fill={`url(#${uid}label)`} stroke={`url(#${uid}gold)`} strokeWidth="2.5" />
+            <rect x="250" y="412" width="220" height="116" rx="11" fill="none" stroke={`url(#${uid}gold)`} strokeWidth="1" opacity="0.55" />
+            <text x="360" y="434" textAnchor="middle" style={{ fill: tone(accent, 82, "#3a1d10"), fontFamily: "var(--font-accent)" }} fontSize="10" fontWeight="600" letterSpacing="2.6">
+              {(verse.kicker || "Iglesia Zoe").toUpperCase()}
+            </text>
+            <path d="M340 444 H380" stroke={`url(#${uid}gold)`} strokeWidth="1.5" />
+            <text textAnchor="middle" fill="#2c241e" style={{ fontFamily: "var(--font-heading)" }} fontSize="19" fontWeight="500" fontStyle="italic">
+              {shown.map((part, i) => (
+                <tspan key={i} x="360" y={firstLine + i * 24}>
+                  {part}
+                  {i === caretLine && <tspan className="acceso-caret">|</tspan>}
+                </tspan>
               ))}
-            </g>
-            <rect x="292" y="444" width="136" height="18" rx="6" fill="#1c2024" />
-          </g>
-
-          <g className="acceso-bible" transform="translate(40 128)">
-            <ellipse cx="268" cy="650" rx="164" ry="22" fill="#6b3f32" opacity="0.18" />
-            <path
-              d="M118 516 C118 496 154 484 204 484 H268 V520 V640 H188 C140 640 118 616 118 588 Z"
-              fill="#6b3f32"
-            />
-            <path
-              d="M418 516 C418 496 382 484 332 484 H268 V520 V640 H348 C396 640 418 616 418 588 Z"
-              fill="#7a4a3b"
-            />
-            <path d="M132 528 H254 V620 H156 C138 620 132 604 132 590 Z" fill={`url(#${uid}page)`} />
-            <path d="M404 528 H282 V620 H380 C398 620 404 604 404 590 Z" fill={`url(#${uid}page)`} />
-            <path d="M268 484 V640" stroke={`url(#${uid}gold)`} strokeWidth="6" />
-            <path d="M148 548 H240 M148 566 H228 M148 584 H220" stroke="#c3b7a6" strokeWidth="3" strokeLinecap="round" />
-            <path d="M388 548 H296 M388 566 H308 M388 584 H316" stroke="#c3b7a6" strokeWidth="3" strokeLinecap="round" />
-            <path className="acceso-ribbon" d="M268 484 C284 520 252 560 278 640" fill="none" style={{ stroke: accent }} strokeWidth="7" strokeLinecap="round" />
-            <circle cx="268" cy="470" r="18" fill={`url(#${uid}gold)`} filter={`url(#${uid}soft)`} />
-            <text x="268" y="476" textAnchor="middle" fontSize="16">
-              ✝
             </text>
           </g>
 
-          <g className="acceso-cup" transform="translate(70 70)">
-            <ellipse cx="520" cy="574" rx="30" ry="8" fill="#6b4a38" opacity="0.16" />
-            <path d="M498 520 h44 v32 c0 12 -10 20 -22 20 s-22 -8 -22 -20 Z" fill="#fbfaf6" />
-            <path d="M542 528 c18 0 22 12 14 22" fill="none" stroke="#d7c4b0" strokeWidth="4" />
-            <path className="acceso-steam" d="M512 508 C508 496 516 492 512 480" fill="none" stroke="#d7c4b0" strokeWidth="3" strokeLinecap="round" />
-            <path className="acceso-steam acceso-mote-slow" d="M528 508 C532 496 522 492 528 480" fill="none" stroke="#d7c4b0" strokeWidth="3" strokeLinecap="round" />
+          <ellipse cx="360" cy="258" rx="58" ry="13" fill={`url(#${uid}rim)`} />
+          <ellipse cx="360" cy="258" rx="47" ry="9" fill={`url(#${uid}mouth)`} />
+          <ellipse className="acceso-mouth-glow" cx="360" cy="246" rx="70" ry="30" style={{ fill: gold }} filter={`url(#${uid}blur)`} />
+
+          <g clipPath={`url(#${uid}into)`}>
+            {still ? (
+              <g transform="translate(360 236) rotate(-7)"><Envelope seal={accent} /></g>
+            ) : (
+              FLIGHTS.map((flight, i) => (
+                <g key={flight} transform="translate(360 196)">
+                  <g className="acceso-envelope" data-flight={flight} style={{ animationDelay: `${i * -2.5}s` }}>
+                    <Envelope seal={accent} />
+                  </g>
+                </g>
+              ))
+            )}
           </g>
+
+          <path d="M302 262 C318 272 402 272 418 262" fill="none" style={{ stroke: tone(jar, 72, "#ffe9d6") }} strokeWidth="3" strokeLinecap="round" opacity="0.9" />
+
+          {!still && SPARKS.map((dx, i) => (
+            <path
+              key={dx}
+              className="acceso-spark"
+              d="M360 240 l3 7 l7 3 l-7 3 l-3 7 l-3 -7 l-7 -3 l7 -3 Z"
+              style={{ fill: tone(gold, 70, "#fff"), ["--dx" as string]: `${dx}px`, animationDelay: `${0.1 + i * 0.08}s` }}
+            />
+          ))}
+          {MOTES.map((mote) => (
+            <circle key={`${mote.x}-${mote.y}`} className="acceso-dust" cx={mote.x} cy={mote.y} r={mote.r} style={{ fill: tone(gold, 60, "#fff"), animationDelay: `${mote.delay}s` }} />
+          ))}
         </svg>
       </div>
     </div>

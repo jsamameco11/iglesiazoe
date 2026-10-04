@@ -254,14 +254,14 @@ return [
     'art' => [
         'acceso' => [
             'label' => 'Escena del acceso',
-            'text' => 'El escritorio animado con la computadora, la llave y la cinta.',
+            'text' => 'El ánfora animada que muestra versículos y recibe los sobres de célula con el sello de Zoe.',
             'page' => 'Acceso',
             'can_hide' => true,
             'colors' => [
                 'sky' => ['label' => 'Fondo', 'value' => '#f0e4d4'],
-                'desk' => ['label' => 'Escritorio', 'value' => '#c9ae96'],
-                'screen' => ['label' => 'Pantalla', 'value' => '#2b3342'],
-                'accent' => ['label' => 'Acento', 'value' => '#c45c26'],
+                'desk' => ['label' => 'Piso', 'value' => '#c9ae96'],
+                'jar' => ['label' => 'Ánfora', 'value' => '#b86b43'],
+                'accent' => ['label' => 'Sello de los sobres', 'value' => '#c45c26'],
                 'gold' => ['label' => 'Dorado', 'value' => '#e0b062'],
             ],
         ],
