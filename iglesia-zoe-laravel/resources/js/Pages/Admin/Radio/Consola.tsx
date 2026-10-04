@@ -12,7 +12,7 @@ import { UpcomingBubble } from "@/Components/radio/console/upcoming-bubble";
 import { useConsole, type Snapshot } from "@/Components/radio/console/use-console";
 import { HeadphonesIcon, MicIcon, UsersIcon } from "@/Components/radio/icons";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { KIND_LABEL, clock, duration, shortTitle, type RadioBlock, type RadioPlaylist, type RadioSpotifyChoice, type RadioTrack } from "@/lib/radio";
+import { KIND_LABEL, clock, duration, shortTitle, type RadioBlock, type RadioPlaylist, type RadioTrack } from "@/lib/radio";
 import "../../../../css/radio.css";
 
 type Props = Snapshot & {
@@ -22,10 +22,9 @@ type Props = Snapshot & {
   day: RadioBlock[];
   host: string;
   playlists: RadioPlaylist[];
-  spotifyPlaylists: RadioSpotifyChoice[];
 };
 
-export default function Consola({ radio, live, voice, config, autopilot, upcoming, pads: initialPads, library, day, host, playlists, spotifyPlaylists }: Props) {
+export default function Consola({ radio, live, voice, config, autopilot, upcoming, pads: initialPads, library, day, host, playlists }: Props) {
   const api = useConsole({ radio, live, voice, config, autopilot, upcoming }, host);
   const { notice, setNotice, now, state } = api;
   const [pads, setPads] = useState(initialPads);
@@ -101,7 +100,7 @@ export default function Consola({ radio, live, voice, config, autopilot, upcomin
           </button>
         </div>
 
-        <SwitchPanel api={api} day={day} playlists={playlists} spotifyPlaylists={spotifyPlaylists} />
+        <SwitchPanel api={api} day={day} playlists={playlists} />
 
         <div className="mt-2 grid gap-2 xl:grid-cols-[16rem_minmax(0,1fr)]">
           <SoundBrowser api={api} library={library} onPad={onPad} />

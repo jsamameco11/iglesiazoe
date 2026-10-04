@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import { input } from "@/Components/admin/ui";
-import { clock, longDuration, type Autopilot, type RadioPlaylist, type RadioSpotifyChoice } from "@/lib/radio";
+import { clock, longDuration, type Autopilot, type RadioPlaylist } from "@/lib/radio";
 
 const RANDOM_HINT = "Mezcla las canciones de todas tus listas y de la música continua, sin repetir hasta completar la vuelta; si no hay, toda la biblioteca";
 
@@ -37,15 +37,11 @@ export function FallbackNotice({ autopilot, studio = false }: { autopilot: Autop
   );
 }
 
-const SPOTIFY_HINT =
-  "Cada oyente la escucha en el reproductor de Spotify dentro de la página de la radio: con su cuenta de Spotify, canciones completas; sin cuenta, adelantos de 30 segundos";
-
 /** A scheduled change of the automatic music: when it starts, what plays until then, and a way to call it off. */
 export function PendingSwitch({ autopilot, now, busy, onCancel, studio = false }: { autopilot: Autopilot; now: number; busy?: boolean; onCancel: () => void; studio?: boolean }) {
   if (!autopilot.pending || autopilot.since <= now) return null;
   const left = Math.max(0, Math.round((autopilot.since - now) / 1000));
   const countdown = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
-  const how = autopilot.mode === "spotify" || autopilot.pending.spotify ? "cada oyente cambia al terminar su canción" : "al terminar la canción, sin cortes";
   return (
     <div
       role="status"
@@ -57,7 +53,7 @@ export function PendingSwitch({ autopilot, now, busy, onCancel, studio = false }
     >
       <p className="min-w-0 flex-1">
         <span className="font-semibold">Cambio programado:</span> {autopilot.label} a las {clock(autopilot.since)}{" "}
-        <span className="tabular-nums">(en {countdown})</span>, {how}. Hasta entonces sigue {autopilot.pending.label}.
+        <span className="tabular-nums">(en {countdown})</span>, al terminar la canción, sin cortes. Hasta entonces sigue {autopilot.pending.label}.
       </p>
       <button
         type="button"
@@ -71,10 +67,8 @@ export function PendingSwitch({ autopilot, now, busy, onCancel, studio = false }
   );
 }
 
-/** What the automatic music continues with, in words: «Spotify «Clásicos» », «Lista «Alabanza» · en orden» or «Canciones aleatorias». */
-export function sourceLabel(playlists: RadioPlaylist[], playlist: string, shuffle: boolean, spotifyPlaylists: RadioSpotifyChoice[] = [], spotify = "") {
-  const found = spotify ? spotifyPlaylists.find((item) => item.id === spotify) : undefined;
-  if (found) return `Spotify «${found.name}»`;
+/** What the automatic music continues with, in words: «Lista «Alabanza» · en orden» or «Canciones aleatorias». */
+export function sourceLabel(playlists: RadioPlaylist[], playlist: string, shuffle: boolean) {
   const list = playlists.find((item) => item.id === playlist);
   return list ? `Lista «${list.name}» · ${shuffle ? "aleatorio" : "en orden"}` : "Canciones aleatorias";
 }
@@ -87,12 +81,11 @@ export function leadLabel(seconds: number) {
   return rest ? `${minutes} min ${rest} s` : `${minutes} min`;
 }
 
-type Mode = "spotify" | "list" | "random";
+type Mode = "list" | "random";
 
 /**
- * What the automatic music plays: one of your playlists (shuffled or in its order), random
- * songs or, when `spotifyPlaylists` is given, a Spotify playlist. `playlist` is the list id,
- * or "" for random songs; `spotify` the Spotify playlist id, or "" for the station's songs.
+ * What the automatic music plays: one of your playlists (shuffled or in its order) or random
+ * songs. `playlist` is the list id, or "" for random songs.
  */
 export function SourcePicker({
   playlists,
@@ -100,9 +93,6 @@ export function SourcePicker({
   shuffle,
   onPlaylist,
   onShuffle,
-  spotifyPlaylists,
-  spotify = "",
-  onSpotify,
   studio = false,
 }: {
   playlists: RadioPlaylist[];
@@ -110,17 +100,11 @@ export function SourcePicker({
   shuffle: boolean;
   onPlaylist: (value: string) => void;
   onShuffle: (value: boolean) => void;
-  spotifyPlaylists?: RadioSpotifyChoice[];
-  spotify?: string;
-  onSpotify?: (value: string) => void;
   studio?: boolean;
 }) {
   const lastList = useRef(playlist);
-  const lastSpotify = useRef(spotify);
   if (playlist) lastList.current = playlist;
-  if (spotify) lastSpotify.current = spotify;
-  const withSpotify = spotifyPlaylists !== undefined && onSpotify !== undefined;
-  const mode: Mode = withSpotify && spotify ? "spotify" : playlist !== "" ? "list" : "random";
+  const mode: Mode = playlist !== "" ? "list" : "random";
   const isList = mode === "list";
 
   function chooseList() {
@@ -129,23 +113,13 @@ export function SourcePicker({
   }
 
   function choose(next: Mode) {
-    if (next === "spotify") {
-      const list = spotifyPlaylists ?? [];
-      const remembered = list.some((item) => item.id === lastSpotify.current) ? lastSpotify.current : (list[0]?.id ?? "");
-      if (remembered) onSpotify?.(remembered);
-      return;
-    }
-    onSpotify?.("");
     if (next === "list") chooseList();
     else onPlaylist("");
   }
 
   const sources: readonly (readonly [Mode, string, string, boolean])[] = [
-    ...(withSpotify
-      ? [["spotify", "Spotify", spotifyPlaylists.length ? SPOTIFY_HINT : "Primero agrega una playlist en Biblioteca › Spotify", !spotifyPlaylists.length] as const]
-      : []),
-    ["list", studio && withSpotify ? "Lista" : "Lista de reproducción", playlists.length ? "Una de tus listas, en aleatorio o en su orden" : "Primero crea una lista en Biblioteca › Listas", !playlists.length],
-    ["random", studio && withSpotify ? "Aleatorio" : "Canciones aleatorias", RANDOM_HINT, false],
+    ["list", "Lista de reproducción", playlists.length ? "Una de tus listas, en aleatorio o en su orden" : "Primero crea una lista en Biblioteca › Listas", !playlists.length],
+    ["random", "Canciones aleatorias", RANDOM_HINT, false],
   ];
   const orders = [
     [true, "Aleatorio", "Todas las canciones una vez, en un orden nuevo cada vuelta"],
@@ -175,16 +149,6 @@ export function SourcePicker({
         </button>
       ))}
     </div>
-  );
-
-  const spotifySelect = (
-    <select value={spotify} onChange={(event) => onSpotify?.(event.target.value)} className={studio ? "cx-select w-full" : input} aria-label="Playlist de Spotify">
-      {(spotifyPlaylists ?? []).map((item) => (
-        <option key={item.id} value={item.id}>
-          {item.name}
-        </option>
-      ))}
-    </select>
   );
 
   const listSelect = (
@@ -231,7 +195,6 @@ export function SourcePicker({
     return (
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {sourceSwitch}
-        {mode === "spotify" ? <div className="w-[13rem] max-w-full" title={SPOTIFY_HINT}>{spotifySelect}</div> : null}
         {isList ? <div className="w-[13rem] max-w-full">{listSelect}</div> : null}
         {isList ? orderSwitch : null}
         {playlists.length ? null : (
@@ -249,15 +212,7 @@ export function SourcePicker({
         <p className="mb-1 text-xs font-semibold text-muted">Qué suena</p>
         {sourceSwitch}
       </div>
-      {mode === "spotify" ? (
-        <>
-          <label className="text-xs font-semibold text-muted">
-            Playlist de Spotify
-            {spotifySelect}
-          </label>
-          <p className="text-[11.5px] leading-4 text-muted">{SPOTIFY_HINT}.</p>
-        </>
-      ) : isList ? (
+      {isList ? (
         <>
           <label className="text-xs font-semibold text-muted">
             Lista de reproducción

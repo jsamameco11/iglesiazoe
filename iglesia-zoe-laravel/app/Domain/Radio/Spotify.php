@@ -5,8 +5,8 @@ namespace App\Domain\Radio;
 use Illuminate\Support\Facades\Http;
 
 /**
- * Spotify playlists shown on /radio. Only public data is read (name and cover through
- * Spotify's oEmbed), and the list plays in Spotify's own player, inside the listener's account.
+ * Spotify playlists kept in the panel as a reference. Only public data is read (name and cover
+ * through Spotify's oEmbed); the admin previews them in Spotify's own player.
  */
 final class Spotify
 {

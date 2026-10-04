@@ -322,9 +322,9 @@ export function useConsole(initial: Snapshot, host: string) {
     await musicAction({ action: "drop", id: trackId });
   }
 
-  /** Changes what the automatic music plays (a Spotify playlist when `spotify` is set); it lands on a song boundary after the lead time. */
-  async function switchSource(playlist: string, shuffle: boolean, spotify = "") {
-    await musicAction({ action: "source", playlist, shuffle: shuffle ? "1" : "0", ...(spotify ? { spotify } : {}) });
+  /** Changes what the automatic music plays; it lands on a song boundary after the lead time. */
+  async function switchSource(playlist: string, shuffle: boolean) {
+    await musicAction({ action: "source", playlist, shuffle: shuffle ? "1" : "0" });
   }
 
   /** Calls off a scheduled change of the automatic music. */
@@ -338,11 +338,11 @@ export function useConsole(initial: Snapshot, host: string) {
   }
 
   /** Back to the automatic music right away, optionally with another playlist or order. */
-  async function resumeMusic(source?: { playlist: string; shuffle: boolean; spotify?: string }) {
+  async function resumeMusic(source?: { playlist: string; shuffle: boolean }) {
     await musicAction({
       action: "cut",
       on: "0",
-      ...(source ? { playlist: source.playlist, shuffle: source.shuffle ? "1" : "0", ...(source.spotify ? { spotify: source.spotify } : {}) } : {}),
+      ...(source ? { playlist: source.playlist, shuffle: source.shuffle ? "1" : "0" } : {}),
     });
   }
 

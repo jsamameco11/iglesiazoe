@@ -9,14 +9,16 @@ use App\Models\RadioPlaylist;
 use App\Models\RadioSlot;
 use App\Models\RadioSpotifyPlaylist;
 use App\Models\RadioTrack;
+use App\Models\SiteSetting;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /**
- * Changing what the automatic music plays (a list, random songs or a Spotify playlist) never cuts
+ * Changing what the automatic music plays (a list or random songs) never cuts
  * a song: the change lands on a song boundary at least the lead time ahead.
  *
  * The music starts at 14:50 after a program, with the list «A» in order and a 4 s crossfade:
@@ -90,34 +92,23 @@ class RadioSourceSwitchTest extends TestCase
         $this->assertNull(Station::autopilot()['pending']);
     }
 
-    public function test_a_spotify_playlist_takes_over_at_a_song_boundary_and_hands_back_after_the_lead(): void
+    public function test_a_spotify_playlist_left_as_the_source_gives_way_to_the_library(): void
     {
-        $spotify = RadioSpotifyPlaylist::query()->create(['spotify_id' => '37i9dQZF1DWYcaB2B11tq2', 'name' => 'Clásicos Cristianos', 'published' => true, 'sort_order' => 0]);
-        $scheduler = $this->admin(['radio.schedule']);
-        $this->actingAs($scheduler)->get(self::ADMIN.'/admin/radio/programacion')
-            ->assertInertia(fn (AssertableInertia $page) => $page->where('spotifyPlaylists.0.name', 'Clásicos Cristianos'));
+        $spotify = RadioSpotifyPlaylist::query()->create(['spotify_id' => '37i9dQZF1DWYcaB2B11tq2', 'name' => 'Clásicos Cristianos', 'sort_order' => 0]);
+        $setting = SiteSetting::query()->findOrFail('radio');
+        $setting->value = [...$setting->value, 'auto_playlist' => null, 'auto_spotify' => $spotify->id];
+        $setting->save();
+        Cache::flush();
 
-        $this->actingAs($scheduler)->postJson(self::ADMIN.'/admin/radio/programacion/piloto', ['spotify' => $spotify->id])->assertOk();
-        $this->assertSame('spotify', Station::autopilot()['mode']);
-        $state = $this->state();
-        $this->assertNull($state['source']['spotify'], 'The station music plays until the change.');
-        $this->assertSame('Clásicos Cristianos', $state['source']['next']['name']);
-        $this->assertSame($this->ms('15:05:52'), $state['source']['since']);
-        $this->assertSame(['A 1', 'A 2'], array_column($state['queue'], 'title'), 'The station falls silent after the song that fades into Spotify.');
+        $this->actingAs($this->admin(['radio.schedule']))->get(self::ADMIN.'/admin/radio/programacion')
+            ->assertInertia(fn (AssertableInertia $page) => $page->missing('spotifyPlaylists'));
+        $this->assertSame('aleatorio', Station::autopilot()['mode']);
 
-        $this->at('15:06:00');
         $state = $this->state();
-        $this->assertSame('Clásicos Cristianos', $state['source']['spotify']['name']);
-        $this->assertSame([], $state['queue']);
-        $this->assertSame([], $state['fallback'], 'No reserve songs play over Spotify.');
-
-        $this->at('15:10:00');
-        $since = Station::switchAutopilot($this->old->id, false);
-        $this->assertSame($this->ms('15:15:00'), $since, 'Spotify songs are unknown to the station: the change is due after the lead.');
-        $state = $this->state();
-        $this->assertSame('Clásicos Cristianos', $state['source']['spotify']['name']);
-        $this->assertSame('A 1', $state['queue'][0]['title']);
-        $this->assertSame($this->ms('15:15:00'), $state['queue'][0]['start']);
+        $this->assertArrayNotHasKey('source', $state);
+        $this->assertNotSame([], $state['queue']);
+        $this->assertSame([], array_diff(array_column($state['queue'], 'title'), ['A 1', 'A 2', 'A 3', 'B 1', 'B 2']), 'Only library songs reach the listeners.');
+        $this->assertStringNotContainsStringIgnoringCase('spotify', json_encode($state));
     }
 
     /** What a listener receives (as a guest: signed-in admins are sent to their own door). */

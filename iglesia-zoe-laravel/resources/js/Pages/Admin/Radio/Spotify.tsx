@@ -3,38 +3,35 @@ import { Notice, button, ghost, input, useAction } from "@/Components/admin/ui";
 import { RadioHeader } from "@/Components/radio/admin-ui";
 import { SpotifyIcon } from "@/Components/radio/icons";
 import AdminLayout from "@/Layouts/AdminLayout";
-import { useSiteUrl } from "@/lib/access";
 import { send } from "@/lib/actions";
 import type { RadioSpotifyPlaylistAdmin } from "@/lib/radio";
 import "../../../../css/radio.css";
 
 type Props = { playlists: RadioSpotifyPlaylistAdmin[] };
 
-type Draft = { id: string | null; link: string; name: string; description: string; published: boolean; cover: string | null; embed: string | null };
+type Draft = { id: string | null; link: string; name: string; description: string; cover: string | null; embed: string | null };
 
-const blank: Draft = { id: null, link: "", name: "", description: "", published: true, cover: null, embed: null };
+const blank: Draft = { id: null, link: "", name: "", description: "", cover: null, embed: null };
 
 function draftOf(playlist: RadioSpotifyPlaylistAdmin): Draft {
-  return { id: playlist.id, link: playlist.url, name: playlist.name, description: playlist.description ?? "", published: playlist.published, cover: playlist.cover, embed: playlist.embed };
+  return { id: playlist.id, link: playlist.url, name: playlist.name, description: playlist.description ?? "", cover: playlist.cover, embed: playlist.embed };
 }
 
 type Found = { ok?: boolean; error?: string; message?: string | null; name?: string | null; cover?: string | null; embed?: string };
 
 /**
- * The church's Spotify playlists, the ones the admin can choose as the radio's automatic music.
- * Listeners never pick them: they hear the one on air. The name and cover come from Spotify itself.
+ * The church's Spotify playlists, kept as a reference for choosing the radio's songs. They never
+ * play on the radio page: listeners hear the library. The name and cover come from Spotify itself.
  */
 export default function Spotify({ playlists }: Props) {
   const [draft, setDraft] = useState<Draft>(() => (playlists[0] ? draftOf(playlists[0]) : blank));
   const [looking, setLooking] = useState(false);
   const [listening, setListening] = useState(false);
   const { result, setResult, pending, run } = useAction();
-  const site = useSiteUrl();
   const saved = playlists.find((item) => item.id === draft.id);
   const cover = draft.cover ?? saved?.cover ?? null;
   const embed = draft.embed ?? saved?.embed ?? null;
-  const changed =
-    !saved || draft.link !== saved.url || draft.name !== saved.name || draft.description !== (saved.description ?? "") || draft.published !== saved.published;
+  const changed = !saved || draft.link !== saved.url || draft.name !== saved.name || draft.description !== (saved.description ?? "");
 
   function edit(next: Partial<Draft>) {
     setDraft((current) => ({ ...current, ...next }));
@@ -64,7 +61,7 @@ export default function Spotify({ playlists }: Props) {
 
   function save() {
     run(
-      () => send("/admin/radio/spotify", { id: draft.id ?? "", link: draft.link, name: draft.name, description: draft.description, published: draft.published ? "1" : "0" }),
+      () => send("/admin/radio/spotify", { id: draft.id ?? "", link: draft.link, name: draft.name, description: draft.description }),
       (data) => {
         const id = (data as { id?: string }).id;
         if (id) edit({ id });
@@ -73,7 +70,7 @@ export default function Spotify({ playlists }: Props) {
   }
 
   function remove() {
-    if (!draft.id || !window.confirm(`¿Quitar «${draft.name}» de la radio? En Spotify la playlist sigue igual.`)) return;
+    if (!draft.id || !window.confirm(`¿Quitar «${draft.name}» del panel? En Spotify la playlist sigue igual.`)) return;
     run(
       () => send("/admin/radio/spotify/eliminar", { id: draft.id ?? "" }),
       () => setDraft(blank),
@@ -87,13 +84,11 @@ export default function Spotify({ playlists }: Props) {
     run(() => send("/admin/radio/spotify/orden", { ids }));
   }
 
-  const available = playlists.filter((item) => item.published).length;
-
   return (
     <AdminLayout>
       <RadioHeader
         title="Spotify"
-        text="Registra las playlists de Spotify que la radio puede sonar como música automática. Tú eliges cuál suena en la Consola o en Programación; el oyente solo escucha la que está al aire, en su orden, sin poder cambiar de canción."
+        text="Guarda aquí las playlists de Spotify que te sirven de referencia para armar la música de la radio. Solo se ven en este panel: la página de la radio no muestra nada de Spotify."
       />
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[22rem_minmax(0,1fr)]">
@@ -113,7 +108,7 @@ export default function Spotify({ playlists }: Props) {
                         <Cover src={item.cover} className="h-11 w-11 rounded-lg" />
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-semibold">{item.name}</span>
-                          <span className={`text-[11.5px] font-semibold ${item.published ? "text-emerald-700" : "text-muted"}`}>{item.published ? "Disponible" : "Desactivada"}</span>
+                          {item.description ? <span className="block truncate text-[11.5px] text-muted">{item.description}</span> : null}
                         </span>
                       </button>
                       <span className="flex flex-col">
@@ -128,15 +123,9 @@ export default function Spotify({ playlists }: Props) {
               <p className="mt-3 rounded-xl border border-dashed border-line px-4 py-5 text-center text-sm text-muted">Aún no hay playlists. Pega el enlace de la primera a la derecha.</p>
             )}
           </section>
-          <p className="px-2 text-[12px] leading-5 text-muted">
-            {available
-              ? `${available} ${available === 1 ? "playlist disponible" : "playlists disponibles"} para la música automática, en este orden.`
-              : "Las playlists disponibles se ofrecen para la música automática, en este orden."}{" "}
-            <a href={`${site}/radio`} target="_blank" rel="noreferrer" className="font-semibold text-ink underline">Ver la radio ↗</a>
-          </p>
           <p className="rounded-2xl bg-paper px-4 py-3 text-[12px] leading-5 text-muted">
-            Spotify no permite retransmitir su música desde la radio, así que en la página de la radio suena en un reproductor de Spotify bloqueado: el oyente solo puede escuchar o detener. Con
-            su cuenta de Spotify oye las canciones completas; sin cuenta, adelantos de 30 segundos.
+            Spotify no permite retransmitir su música, así que estas playlists no suenan en la radio. La música automática sale de la Biblioteca: sube allí las canciones que quieras al
+            aire y agrégalas a una lista; todos los oyentes las escuchan a la vez, en tiempo real.
           </p>
         </aside>
 
@@ -175,13 +164,6 @@ export default function Spotify({ playlists }: Props) {
                   className={`${input} resize-none`}
                 />
                 <span className="mt-1 block text-right font-mono text-[10.5px] font-normal">{draft.description.length}/240</span>
-              </label>
-              <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-line bg-white px-4 py-3">
-                <input type="checkbox" checked={draft.published} onChange={(event) => edit({ published: event.target.checked })} className="mt-0.5 h-4 w-4 accent-[#1db954]" />
-                <span>
-                  <span className="block text-sm font-semibold">Disponible para la música automática</span>
-                  <span className="block text-[12px] leading-4 text-muted">Desmárcalo para guardarla sin que aparezca al elegir la música en la Consola o en Programación.</span>
-                </span>
               </label>
             </div>
 

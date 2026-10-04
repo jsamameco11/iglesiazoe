@@ -33,7 +33,6 @@ class RadioConsoleController extends RadioController
             'day' => Schedule::day($today),
             'host' => $request->user()->full_name ?: $request->user()->username,
             'playlists' => $this->playlists(),
-            'spotifyPlaylists' => $this->spotifyPlaylists(),
         ]);
     }
 
@@ -211,7 +210,7 @@ class RadioConsoleController extends RadioController
         }
 
         $message = 'De vuelta a la música automática.';
-        if ($request->has('playlist') || $request->filled('spotify')) {
+        if ($request->has('playlist')) {
             $message = $this->switchRequested($request, true);
             if ($message instanceof JsonResponse) {
                 return $message;

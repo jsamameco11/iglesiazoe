@@ -7,7 +7,6 @@ use App\Domain\Radio\Station;
 use App\Http\Controllers\Controller;
 use App\Models\RadioPlaylist;
 use App\Models\RadioSlot;
-use App\Models\RadioSpotifyPlaylist;
 use App\Models\RadioTrack;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -92,34 +91,12 @@ abstract class RadioController extends Controller
             ->map(fn (RadioPlaylist $playlist) => Arr::except($playlist->payload(), 'tracks'))->all();
     }
 
-    /** Spotify playlists the automatic music can play, in order: the available ones and any in use. */
-    protected function spotifyPlaylists(): array
-    {
-        $inUse = Station::spotifyInUse();
-
-        return RadioSpotifyPlaylist::ordered()
-            ->where(fn ($query) => $query->where('published', true)->when($inUse, fn ($query) => $query->orWhereIn('id', $inUse)))
-            ->get()
-            ->map(fn (RadioSpotifyPlaylist $playlist) => ['id' => $playlist->id, 'name' => $playlist->name, 'cover' => $playlist->cover_url])->all();
-    }
-
     /**
-     * Switches the automatic music to the requested source (a Spotify playlist, a list or random
-     * songs) and says when the change is heard; a failure when the source no longer exists.
+     * Switches the automatic music to the requested source (a list or random songs) and says when
+     * the change is heard; a failure when the list no longer exists.
      */
     protected function switchRequested(Request $request, bool $immediately = false): JsonResponse|string
     {
-        if ($request->filled('spotify')) {
-            $spotify = $this->find(RadioSpotifyPlaylist::class, $request->input('spotify'));
-            if (! $spotify) {
-                return $this->fail('Esa playlist de Spotify ya no existe.', 404);
-            }
-            if (! $spotify->published && ! in_array($spotify->id, Station::spotifyInUse(), true)) {
-                return $this->fail('«'.$spotify->name.'» está desactivada. Actívala en Biblioteca › Spotify para poder elegirla.');
-            }
-
-            return $this->switchedMessage(null, true, $immediately, $spotify);
-        }
         $playlist = $this->playlistFrom($request);
         if ($playlist === false) {
             return $this->fail('Esa lista de reproducción ya no existe.', 404);
@@ -129,23 +106,16 @@ abstract class RadioController extends Controller
     }
 
     /** Changes the automatic music of the gaps and says when the change is heard. */
-    protected function switchedMessage(?RadioPlaylist $playlist, bool $shuffle, bool $immediately = false, ?RadioSpotifyPlaylist $spotify = null): string
+    protected function switchedMessage(?RadioPlaylist $playlist, bool $shuffle, bool $immediately = false): string
     {
-        $since = Station::switchAutopilot($playlist?->id, $shuffle, $immediately, $spotify?->id);
-        $what = match (true) {
-            $spotify !== null => 'playlist de Spotify «'.$spotify->name.'»',
-            $playlist !== null => 'lista «'.$playlist->name.'» '.($shuffle ? 'en aleatorio' : 'en orden'),
-            default => 'canciones aleatorias',
-        };
+        $since = Station::switchAutopilot($playlist?->id, $shuffle, $immediately);
+        $what = $playlist !== null ? 'lista «'.$playlist->name.'» '.($shuffle ? 'en aleatorio' : 'en orden') : 'canciones aleatorias';
         if ($since <= Station::nowMs() + 1000) {
             return "Música automática: {$what}. Ya está sonando.";
         }
         $autopilot = Station::autopilot();
-        $how = $spotify !== null || ($autopilot['pending']['spotify'] ?? false)
-            ? 'cada oyente cambia al terminar la canción que esté escuchando'
-            : 'justo cuando termina la canción que suene, sin cortes';
 
-        return "Cambio programado: {$what} empieza a las ".Schedule::clock($since)."; {$how}. Hasta entonces sigue {$autopilot['pending']['label']}. Puedes cancelarlo antes.";
+        return "Cambio programado: {$what} empieza a las ".Schedule::clock($since).'; justo cuando termina la canción que suene, sin cortes. Hasta entonces sigue '.$autopilot['pending']['label'].'. Puedes cancelarlo antes.';
     }
 
     /** Calls off a pending change of the automatic music. */

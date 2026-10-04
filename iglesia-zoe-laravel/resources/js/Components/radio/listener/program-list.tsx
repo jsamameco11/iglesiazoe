@@ -2,9 +2,6 @@ import { Rise } from "@/Components/motion/rise";
 import type { CopyKey } from "@/lib/copy";
 import { KIND_LABEL, clock, longDuration, type RadioItem } from "@/lib/radio";
 
-/** Gaps filled by a Spotify playlist come titled «Spotify · name». */
-const SPOTIFY_PREFIX = "Spotify · ";
-
 export function ProgramList({ items, now, t }: { items: RadioItem[]; now: number; t: (key: CopyKey) => string }) {
   if (!items.length) {
     return (
@@ -18,8 +15,7 @@ export function ProgramList({ items, now, t }: { items: RadioItem[]; now: number
       {items.map((entry) => {
         const isNow = entry.start <= now && now < entry.end;
         const past = entry.end <= now;
-        const spotify = entry.kind === "relleno" && entry.title.startsWith(SPOTIFY_PREFIX) ? entry.title.slice(SPOTIFY_PREFIX.length) : null;
-        const filler = entry.kind === "relleno" && !spotify;
+        const filler = entry.kind === "relleno";
         return (
           <div key={entry.id} className="radio-row" data-now={isNow || undefined} data-past={past || undefined}>
             <p className="text-[15px] font-semibold tabular-nums text-ink">
@@ -27,8 +23,8 @@ export function ProgramList({ items, now, t }: { items: RadioItem[]; now: number
               <span className="block text-xs font-normal text-muted">{longDuration((entry.end - entry.start) / 1000)}</span>
             </p>
             <div className="min-w-0">
-              <p className="truncate text-[1.05rem] font-semibold tracking-[-0.02em] text-ink">{spotify ?? (filler ? t("radio.continuous") : entry.title)}</p>
-              <p className="truncate text-sm text-muted">{spotify ? "Playlist de Spotify" : filler ? t("radio.continuousNote") : entry.artist || KIND_LABEL[entry.kind]}</p>
+              <p className="truncate text-[1.05rem] font-semibold tracking-[-0.02em] text-ink">{filler ? t("radio.continuous") : entry.title}</p>
+              <p className="truncate text-sm text-muted">{filler ? t("radio.continuousNote") : entry.artist || KIND_LABEL[entry.kind]}</p>
             </div>
             <div className="flex items-center gap-2">
               {isNow ? <span className="radio-tag" data-kind="vivo">{t("radio.nowLabel")}</span> : null}

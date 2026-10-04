@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FallbackNotice, PendingSwitch, SourcePicker, leadLabel, sourceLabel } from "@/Components/radio/source-picker";
-import { clock, type RadioBlock, type RadioPlaylist, type RadioSpotifyChoice } from "@/lib/radio";
+import { clock, type RadioBlock, type RadioPlaylist } from "@/lib/radio";
 import type { ConsoleApi } from "./use-console";
 
 /**
@@ -8,7 +8,7 @@ import type { ConsoleApi } from "./use-console";
  * live signal or return to it, and what the automatic music plays (a change lands on a song
  * boundary after the lead time, or right away when returning from the live signal).
  */
-export function SwitchPanel({ api, day, playlists, spotifyPlaylists }: { api: ConsoleApi; day: RadioBlock[]; playlists: RadioPlaylist[]; spotifyPlaylists: RadioSpotifyChoice[] }) {
+export function SwitchPanel({ api, day, playlists }: { api: ConsoleApi; day: RadioBlock[]; playlists: RadioPlaylist[] }) {
   const { state, config, autopilot, now } = api;
   const live = state.live;
   const external = config.live_source === "externo";
@@ -18,18 +18,16 @@ export function SwitchPanel({ api, day, playlists, spotifyPlaylists }: { api: Co
   const block = day.find((item) => item.kind === "vivo" && item.layer === 0 && item.start <= now && now < item.end) ?? null;
   const [playlist, setPlaylist] = useState(autopilot.playlist ?? "");
   const [shuffle, setShuffle] = useState(autopilot.shuffle);
-  const [spotify, setSpotify] = useState(autopilot.spotify ?? "");
   const [busy, setBusy] = useState(false);
-  const changed = spotify !== (autopilot.spotify ?? "") || (!spotify && (playlist !== (autopilot.playlist ?? "") || shuffle !== autopilot.shuffle));
-  const current = sourceLabel(playlists, autopilot.playlist ?? "", autopilot.shuffle, spotifyPlaylists, autopilot.spotify ?? "");
-  const chosen = sourceLabel(playlists, playlist, shuffle, spotifyPlaylists, spotify);
+  const changed = playlist !== (autopilot.playlist ?? "") || shuffle !== autopilot.shuffle;
+  const current = sourceLabel(playlists, autopilot.playlist ?? "", autopilot.shuffle);
+  const chosen = sourceLabel(playlists, playlist, shuffle);
   const lead = leadLabel(autopilot.lead ?? 300);
 
   useEffect(() => {
     setPlaylist(autopilot.playlist ?? "");
     setShuffle(autopilot.shuffle);
-    setSpotify(autopilot.spotify ?? "");
-  }, [autopilot.playlist, autopilot.shuffle, autopilot.spotify]);
+  }, [autopilot.playlist, autopilot.shuffle]);
 
   async function act(action: () => Promise<void>) {
     setBusy(true);
@@ -86,15 +84,12 @@ export function SwitchPanel({ api, day, playlists, spotifyPlaylists }: { api: Co
             shuffle={shuffle}
             onPlaylist={setPlaylist}
             onShuffle={setShuffle}
-            spotifyPlaylists={spotifyPlaylists}
-            spotify={spotify}
-            onSpotify={setSpotify}
           />
           {!cut && changed ? (
             <button
               type="button"
               disabled={busy}
-              onClick={() => act(() => api.switchSource(playlist, shuffle, spotify))}
+              onClick={() => act(() => api.switchSource(playlist, shuffle))}
               className="cx-btn !py-1.5"
               data-tone="blue"
               title={`Se programa con al menos ${lead} de anticipación y entra justo cuando termina una canción, sin cortes (la anticipación se cambia en Ajustes)`}
@@ -115,7 +110,7 @@ export function SwitchPanel({ api, day, playlists, spotifyPlaylists }: { api: Co
             <button
               type="button"
               disabled={busy}
-              onClick={() => act(() => api.resumeMusic(changed ? { playlist, shuffle, spotify } : undefined))}
+              onClick={() => act(() => api.resumeMusic(changed ? { playlist, shuffle } : undefined))}
               className="cx-btn !py-2"
               data-tone="green"
               title={`Vuelve la música automática con: ${chosen}`}

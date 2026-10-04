@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Radio\Spotify;
-use App\Domain\Radio\Station;
 use App\Models\RadioSpotifyPlaylist;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
-/** The church's Spotify playlists the admin can choose as the radio's automatic music: name, cover and a short text. */
+/** The church's Spotify playlists kept in the panel as a reference for choosing the radio's songs; listeners never see them. */
 class RadioSpotifyController extends RadioController
 {
     private const BAD_LINK = 'Pega el enlace de una playlist de Spotify. En Spotify: ··· › Compartir › Copiar enlace de la playlist.';
@@ -76,7 +75,6 @@ class RadioSpotifyController extends RadioController
             'name' => $name,
             'description' => mb_substr(trim((string) $request->input('description', '')), 0, 240) ?: null,
             'cover_url' => $found['cover'] ?? ($playlist->spotify_id === $id ? $playlist->cover_url : null),
-            'published' => $request->boolean('published', true),
         ]);
         if (! $playlist->exists) {
             $playlist->sort_order = (int) RadioSpotifyPlaylist::query()->max('sort_order') + 1;
@@ -87,13 +85,11 @@ class RadioSpotifyController extends RadioController
             'ok' => true,
             'reload' => true,
             'id' => $playlist->id,
-            'message' => $playlist->published
-                ? '«'.$name.'» guardada: ya puedes elegirla como música automática en la Consola o en Programación.'
-                : '«'.$name.'» guardada como desactivada: no aparece para elegir hasta que la actives.',
+            'message' => '«'.$name.'» guardada en el panel como referencia.',
         ]);
     }
 
-    /** Order in which the playlists are offered as automatic music. */
+    /** Order of the playlists in the panel. */
     public function order(Request $request): JsonResponse
     {
         DB::transaction(function () use ($request) {
@@ -107,12 +103,8 @@ class RadioSpotifyController extends RadioController
 
     public function destroy(Request $request): JsonResponse
     {
-        $playlist = $this->find(RadioSpotifyPlaylist::class, $request->input('id'));
-        if ($playlist && in_array($playlist->id, Station::spotifyInUse(), true)) {
-            return $this->fail('«'.$playlist->name.'» es la música automática de la radio. Cambia la música automática en la Consola o en Programación antes de quitarla.');
-        }
-        $playlist?->delete();
+        $this->find(RadioSpotifyPlaylist::class, $request->input('id'))?->delete();
 
-        return $this->saved('Playlist quitada de la radio. En Spotify sigue igual.');
+        return $this->saved('Playlist quitada del panel. En Spotify sigue igual.');
     }
 }

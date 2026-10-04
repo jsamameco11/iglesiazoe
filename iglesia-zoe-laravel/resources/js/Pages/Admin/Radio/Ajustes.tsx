@@ -162,7 +162,7 @@ export default function Ajustes({ config }: { config: RadioConfig }) {
               value={lead}
               onChange={setLead}
               display={leadLabel}
-              hint="Al cambiar la música automática (Spotify, una lista o aleatorio), el cambio se programa con al menos este tiempo y entra justo cuando termina una canción, sin cortes. Si a la canción le falta menos, termina también la siguiente. De 30 s a 30 min; recomendado: 5 min."
+              hint="Al cambiar la música automática (una lista o aleatorio), el cambio se programa con al menos este tiempo y entra justo cuando termina una canción, sin cortes. Si a la canción le falta menos, termina también la siguiente. De 30 s a 30 min; recomendado: 5 min."
             />
             <label className="text-xs font-semibold text-muted">
               Oyentes de voz en vivo (máximo)

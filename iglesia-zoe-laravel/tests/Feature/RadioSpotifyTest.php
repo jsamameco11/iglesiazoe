@@ -51,7 +51,6 @@ class RadioSpotifyTest extends TestCase
         $this->assertSame(self::ID, $playlist->spotify_id);
         $this->assertSame('Alabanza Zoe', $playlist->name);
         $this->assertSame('https://i.scdn.co/image/portada', $playlist->cover_url);
-        $this->assertTrue($playlist->published);
 
         $this->actingAs($librarian)->postJson(self::ADMIN.'/admin/radio/spotify', ['link' => self::ID, 'name' => 'Otra'])
             ->assertStatus(422)->assertJsonPath('error', 'Esa playlist ya está agregada como «Alabanza Zoe».');
@@ -79,34 +78,18 @@ class RadioSpotifyTest extends TestCase
         $this->actingAs($scheduler)->postJson(self::ADMIN.'/admin/radio/spotify', ['link' => self::ID])->assertForbidden();
     }
 
-    public function test_only_the_admin_chooses_among_the_available_playlists(): void
+    public function test_the_playlists_stay_in_the_panel_and_never_reach_the_radio(): void
     {
-        $second = RadioSpotifyPlaylist::query()->create(['spotify_id' => '1111111111111111111111', 'name' => 'Segunda', 'sort_order' => 2]);
-        $first = RadioSpotifyPlaylist::query()->create(['spotify_id' => '2222222222222222222222', 'name' => 'Primera', 'sort_order' => 1]);
-        $hidden = RadioSpotifyPlaylist::query()->create(['spotify_id' => '3333333333333333333333', 'name' => 'Oculta', 'sort_order' => 0, 'published' => false]);
+        $playlist = RadioSpotifyPlaylist::query()->create(['spotify_id' => self::ID, 'name' => 'Alabanza Zoe', 'sort_order' => 0]);
 
         $this->get('http://localhost/radio')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Radio')->missing('spotify'));
+        $this->assertStringNotContainsStringIgnoringCase('spotify', $this->getJson('http://localhost/radio/estado')->assertOk()->content());
 
-        $scheduler = $this->admin(['radio.schedule'], 'programador');
-        $offered = fn () => $this->actingAs($scheduler)->get(self::ADMIN.'/admin/radio/programacion')->assertOk()
-            ->assertInertia(fn (AssertableInertia $page) => $page->has('spotifyPlaylists', 2)
-                ->where('spotifyPlaylists.0.name', 'Primera')
-                ->where('spotifyPlaylists.1.name', 'Segunda'));
-        $offered();
+        $this->actingAs($this->admin(['radio.schedule'], 'programador'))->get(self::ADMIN.'/admin/radio/programacion')->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->missing('spotifyPlaylists'));
 
-        $this->actingAs($scheduler)->postJson(self::ADMIN.'/admin/radio/programacion/piloto', ['spotify' => $hidden->id])
-            ->assertStatus(422)->assertJsonPath('error', fn (string $error) => str_contains($error, 'está desactivada'));
-        $this->actingAs($scheduler)->postJson(self::ADMIN.'/admin/radio/programacion/piloto', ['spotify' => $first->id])->assertOk();
-
-        $first->update(['published' => false]);
-        $offered();
-
-        $librarian = $this->admin(['radio.library']);
-        $this->actingAs($librarian)->postJson(self::ADMIN.'/admin/radio/spotify/eliminar', ['id' => $first->id])
-            ->assertStatus(422)->assertJsonPath('error', fn (string $error) => str_contains($error, 'es la música automática'));
-        $this->assertModelExists($first);
-        $this->actingAs($librarian)->postJson(self::ADMIN.'/admin/radio/spotify/eliminar', ['id' => $second->id])->assertOk();
-        $this->assertModelMissing($second);
+        $this->actingAs($this->admin(['radio.library']))->postJson(self::ADMIN.'/admin/radio/spotify/eliminar', ['id' => $playlist->id])->assertOk();
+        $this->assertModelMissing($playlist);
     }
 
     private function spotifyKnows(): void

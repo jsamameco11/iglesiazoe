@@ -68,7 +68,7 @@ export type LiveWindow = { start: number; end: number | null; auto: boolean; bed
 /** Level of the fallback chain that sounds: the chosen list, every list, or every song of the library. */
 export type AutopilotLevel = "playlist" | "lists" | "library" | "none";
 
-export type AutopilotMode = "spotify" | "lista" | "aleatorio";
+export type AutopilotMode = "lista" | "aleatorio";
 
 /**
  * The automatic music of the gaps; `broken` counts audios off the air because their file failed the checks.
@@ -79,34 +79,24 @@ export type Autopilot = {
   mode?: AutopilotMode;
   playlist: string | null;
   shuffle: boolean;
-  spotify?: string | null;
   label: string;
   since: number;
-  pending?: { label: string; spotify: boolean } | null;
+  pending?: { label: string } | null;
   lead?: number;
   paused: boolean;
   level?: AutopilotLevel;
   broken?: number;
 };
 
-/** A Spotify playlist the automatic music can play. */
-export type RadioSpotifyChoice = { id: string; name: string; cover: string | null };
-
-/**
- * The Spotify side of the automatic music: the playlist filling the gaps now (null while the
- * station's songs do), the one due from `since`, and whether a change is pending.
- */
-export type RadioSource = { spotify: RadioSpotifyPlaylist | null; next: RadioSpotifyPlaylist | null; since: number; changing: boolean };
-
 /** A healthy song the listener's player falls back on when a file fails or the server stops answering. */
 export type RadioReserveSong = { id: string; title: string; artist: string | null; src: string; ms: number };
 
 export type RadioPlaylist = { id: string; name: string; description: string | null; count: number; seconds: number; tracks?: string[] };
 
-/** A Spotify playlist shown on /radio; it plays in Spotify's own player. */
+/** A Spotify playlist kept in the panel as a reference; it never plays on the radio. */
 export type RadioSpotifyPlaylist = { id: string; name: string; description: string | null; cover: string | null; url: string; embed: string };
 
-export type RadioSpotifyPlaylistAdmin = RadioSpotifyPlaylist & { spotify_id: string; published: boolean };
+export type RadioSpotifyPlaylistAdmin = RadioSpotifyPlaylist & { spotify_id: string };
 
 export type RadioState = {
   now: number;
@@ -117,7 +107,6 @@ export type RadioState = {
   previous: RadioItem | null;
   queue: RadioItem[];
   fallback?: RadioReserveSong[];
-  source?: RadioSource;
   layers: RadioLayer[];
   next_show: { title: string; kind: RadioKind; start: number } | null;
   live: RadioLive;
@@ -175,7 +164,6 @@ export type RadioConfig = {
   max_voice: number;
   auto_playlist: string | null;
   auto_shuffle: boolean;
-  auto_spotify?: string | null;
   /** Minimum notice of a change of the automatic music, in seconds (30 to 1800). */
   switch_lead?: number;
   live_mode: LiveMode;

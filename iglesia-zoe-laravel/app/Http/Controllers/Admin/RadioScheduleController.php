@@ -29,7 +29,6 @@ class RadioScheduleController extends RadioController
             'tracks' => RadioTrack::query()->where('active', true)->orderBy('kind')->orderBy('title')->get()->map->payload(),
             'config' => Station::config(),
             'playlists' => $this->playlists(),
-            'spotifyPlaylists' => $this->spotifyPlaylists(),
             'autopilot' => Station::autopilot(),
         ]);
     }
@@ -208,7 +207,7 @@ class RadioScheduleController extends RadioController
             : 'Música continua vacía: los huecos de la programación quedarán en silencio.');
     }
 
-    /** The automatic music of the gaps: a Spotify playlist, one list or all of them; or calls off a pending change. */
+    /** The automatic music of the gaps: one list or all of them; or calls off a pending change. */
     public function autopilot(Request $request): JsonResponse
     {
         if ($request->boolean('cancel')) {
