@@ -7,6 +7,7 @@ use App\Domain\Radio\Station;
 use App\Http\Controllers\Controller;
 use App\Models\RadioPlaylist;
 use App\Models\RadioSlot;
+use App\Models\RadioSpotifyPlaylist;
 use App\Models\RadioTrack;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -84,11 +85,17 @@ abstract class RadioController extends Controller
         return $this->find(RadioPlaylist::class, $id) ?? false;
     }
 
-    /** Playlists to choose from, in order. */
+    /** Playlists to choose from, in order, each with its Spotify reference. */
     protected function playlists(): array
     {
-        return RadioPlaylist::query()->with('tracks')->orderBy('sort_order')->orderBy('created_at')->get()
+        return RadioPlaylist::query()->with(['tracks', 'spotify'])->orderBy('sort_order')->orderBy('created_at')->get()
             ->map(fn (RadioPlaylist $playlist) => Arr::except($playlist->payload(), 'tracks'))->all();
+    }
+
+    /** Spotify playlists of the panel that a list can take as its reference. */
+    protected function spotifyReferences(): array
+    {
+        return RadioSpotifyPlaylist::ordered()->get()->map->card()->all();
     }
 
     /**

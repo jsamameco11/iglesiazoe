@@ -1,23 +1,24 @@
 import { useMemo, useState } from "react";
 import { Notice, button, ghost, input, useAction } from "@/Components/admin/ui";
 import { RadioHeader } from "@/Components/radio/admin-ui";
+import { SpotifyIcon } from "@/Components/radio/icons";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { send } from "@/lib/actions";
-import { duration, longDuration, type Autopilot, type RadioPlaylist, type RadioTrack } from "@/lib/radio";
+import { duration, longDuration, type Autopilot, type RadioPlaylist, type RadioSpotifyPlaylist, type RadioTrack } from "@/lib/radio";
 import "../../../../css/radio.css";
 
-type Props = { playlists: RadioPlaylist[]; songs: RadioTrack[]; autopilot: Autopilot };
+type Props = { playlists: RadioPlaylist[]; songs: RadioTrack[]; autopilot: Autopilot; spotifyReferences: RadioSpotifyPlaylist[] };
 
-type Draft = { id: string | null; name: string; description: string; tracks: string[] };
+type Draft = { id: string | null; name: string; description: string; spotify: string; tracks: string[] };
 
-const blank: Draft = { id: null, name: "", description: "", tracks: [] };
+const blank: Draft = { id: null, name: "", description: "", spotify: "", tracks: [] };
 
 function draftOf(playlist: RadioPlaylist): Draft {
-  return { id: playlist.id, name: playlist.name, description: playlist.description ?? "", tracks: playlist.tracks ?? [] };
+  return { id: playlist.id, name: playlist.name, description: playlist.description ?? "", spotify: playlist.spotify?.id ?? "", tracks: playlist.tracks ?? [] };
 }
 
-/** Playlists of the automatic music: songs in order, and the order of the lists. */
-export default function Listas({ playlists, songs, autopilot }: Props) {
+/** Playlists of the automatic music: songs in order, the order of the lists and their Spotify reference. */
+export default function Listas({ playlists, songs, autopilot, spotifyReferences }: Props) {
   const [draft, setDraft] = useState<Draft>(() => (playlists[0] ? draftOf(playlists[0]) : blank));
   const [query, setQuery] = useState("");
   const { result, setResult, pending, run } = useAction();
@@ -27,7 +28,13 @@ export default function Listas({ playlists, songs, autopilot }: Props) {
   const shown = songs.filter((song) => !inList.has(song.id) && `${song.title} ${song.artist ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()));
   const length = picked.reduce((sum, song) => sum + song.duration, 0);
   const saved = playlists.find((item) => item.id === draft.id);
-  const changed = !saved || draft.name !== saved.name || draft.description !== (saved.description ?? "") || draft.tracks.join() !== (saved.tracks ?? []).join();
+  const reference = spotifyReferences.find((item) => item.id === draft.spotify) ?? null;
+  const changed =
+    !saved ||
+    draft.name !== saved.name ||
+    draft.description !== (saved.description ?? "") ||
+    draft.spotify !== (saved.spotify?.id ?? "") ||
+    draft.tracks.join() !== (saved.tracks ?? []).join();
 
   function edit(next: Partial<Draft>) {
     setDraft((current) => ({ ...current, ...next }));
@@ -48,7 +55,7 @@ export default function Listas({ playlists, songs, autopilot }: Props) {
 
   function save() {
     run(
-      () => send("/admin/radio/listas", { id: draft.id ?? "", name: draft.name, description: draft.description, tracks: draft.tracks.length ? draft.tracks : [""] }),
+      () => send("/admin/radio/listas", { id: draft.id ?? "", name: draft.name, description: draft.description, spotify: draft.spotify, tracks: draft.tracks.length ? draft.tracks : [""] }),
       (data) => {
         const id = (data as { id?: string }).id;
         if (id) edit({ id });
@@ -96,8 +103,16 @@ export default function Listas({ playlists, songs, autopilot }: Props) {
                           <span className="truncate text-sm font-semibold">{item.name}</span>
                           {autopilot.playlist === item.id ? <span className="shrink-0 rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-semibold text-teal-800">Piloto automático</span> : null}
                         </span>
-                        <span className="block text-[12px] text-muted">
-                          {item.count} {item.count === 1 ? "canción" : "canciones"} · {longDuration(item.seconds)}
+                        <span className="flex min-w-0 items-center gap-1 text-[12px] text-muted">
+                          <span className="shrink-0">
+                            {item.count} {item.count === 1 ? "canción" : "canciones"} · {longDuration(item.seconds)}
+                          </span>
+                          {item.spotify ? (
+                            <span className="flex min-w-0 items-center gap-1" title={`Referencia de Spotify: ${item.spotify.name}`}>
+                              · <SpotifyIcon className="h-3 w-3 shrink-0 text-[#1db954]" />
+                              <span className="truncate">{item.spotify.name}</span>
+                            </span>
+                          ) : null}
                         </span>
                       </button>
                       <span className="flex flex-col">
@@ -128,6 +143,37 @@ export default function Listas({ playlists, songs, autopilot }: Props) {
               Descripción (opcional)
               <input value={draft.description} onChange={(event) => edit({ description: event.target.value })} maxLength={240} placeholder="Ej.: Para las mañanas" className={input} />
             </label>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-line bg-paper/60 p-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-lg bg-[#1db954]/10 text-[#1db954]">
+                {reference?.cover ? <img src={reference.cover} alt="" className="h-full w-full object-cover" /> : <SpotifyIcon className="h-5 w-5" />}
+              </span>
+              <label className="min-w-[14rem] flex-1 text-xs font-semibold text-muted">
+                Referencia de Spotify (opcional)
+                <select value={draft.spotify} onChange={(event) => edit({ spotify: event.target.value })} className={input} disabled={!spotifyReferences.length}>
+                  <option value="">{spotifyReferences.length ? "Sin referencia" : "Aún no hay playlists de Spotify en el panel"}</option>
+                  {spotifyReferences.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {reference ? (
+                <a href={reference.url} target="_blank" rel="noreferrer" className="shrink-0 text-xs font-semibold text-[#1a9e48] hover:underline">
+                  Abrir en Spotify ↗
+                </a>
+              ) : (
+                <a href="/admin/radio/spotify" className="shrink-0 text-xs font-semibold text-muted hover:text-ink hover:underline">
+                  {spotifyReferences.length ? "Administrar playlists" : "+ Agregar playlists de Spotify"}
+                </a>
+              )}
+            </div>
+            <p className="mt-2 text-[11.5px] leading-4 text-muted">
+              Te sirve de guía para saber qué canciones subir a esta lista. Se ve en la consola junto a la lista, solo en el panel: al aire siempre suenan las canciones de la Biblioteca.
+            </p>
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">

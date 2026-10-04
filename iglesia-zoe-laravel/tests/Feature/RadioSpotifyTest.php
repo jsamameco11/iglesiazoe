@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Domain\Access\Permissions;
 use App\Domain\Radio\Spotify;
+use App\Domain\Radio\Station;
 use App\Domain\Shared\Enums\Role;
+use App\Models\RadioPlaylist;
 use App\Models\RadioSpotifyPlaylist;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -90,6 +92,27 @@ class RadioSpotifyTest extends TestCase
 
         $this->actingAs($this->admin(['radio.library']))->postJson(self::ADMIN.'/admin/radio/spotify/eliminar', ['id' => $playlist->id])->assertOk();
         $this->assertModelMissing($playlist);
+    }
+
+    public function test_a_list_shows_its_spotify_reference_in_the_panel_only(): void
+    {
+        $spotify = RadioSpotifyPlaylist::query()->create(['spotify_id' => self::ID, 'name' => 'Alabanza Zoe', 'sort_order' => 0]);
+        $list = RadioPlaylist::query()->create(['name' => 'Adoración', 'sort_order' => 0]);
+        $operator = $this->admin(['radio.console'], 'operador');
+
+        $this->actingAs($operator)->postJson(self::ADMIN.'/admin/radio/listas/referencia', ['playlist' => $list->id, 'spotify' => $spotify->id])
+            ->assertOk()->assertJsonPath('message', '«Adoración» tiene como referencia «Alabanza Zoe» de Spotify.');
+        $this->actingAs($operator)->get(self::ADMIN.'/admin/radio')->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('playlists.0.spotify.name', 'Alabanza Zoe')->where('spotifyReferences.0.id', $spotify->id));
+
+        Station::saveConfig(['auto_playlist' => $list->id, 'auto_shuffle' => true]);
+        auth()->guard('web')->forgetUser();
+        $this->assertStringNotContainsStringIgnoringCase('spotify', $this->getJson('http://localhost/radio/estado')->assertOk()->content());
+
+        $this->actingAs($this->admin([], 'sinradio'))->postJson(self::ADMIN.'/admin/radio/listas/referencia', ['playlist' => $list->id, 'spotify' => ''])->assertForbidden();
+
+        $this->actingAs($this->admin(['radio.library']))->postJson(self::ADMIN.'/admin/radio/spotify/eliminar', ['id' => $spotify->id])->assertOk();
+        $this->assertNull($list->fresh()->radio_spotify_playlist_id);
     }
 
     private function spotifyKnows(): void

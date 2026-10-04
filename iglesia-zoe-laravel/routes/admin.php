@@ -125,6 +125,7 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
             Route::post('/spotify/orden', [RadioSpotifyController::class, 'order']);
             Route::post('/spotify/eliminar', [RadioSpotifyController::class, 'destroy']);
         });
+        Route::post('/listas/referencia', [RadioPlaylistsController::class, 'reference'])->middleware($can('radio.console', 'radio.schedule', 'radio.library'));
         Route::middleware($can('radio.episodes'))->group(function () {
             Route::get('/episodios', [RadioEpisodesController::class, 'index']);
             Route::post('/episodios', [RadioEpisodesController::class, 'save']);

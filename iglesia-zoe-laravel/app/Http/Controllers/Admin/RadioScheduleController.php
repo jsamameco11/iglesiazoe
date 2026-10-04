@@ -29,6 +29,7 @@ class RadioScheduleController extends RadioController
             'tracks' => RadioTrack::query()->where('active', true)->orderBy('kind')->orderBy('title')->get()->map->payload(),
             'config' => Station::config(),
             'playlists' => $this->playlists(),
+            'spotifyReferences' => $this->spotifyReferences(),
             'autopilot' => Station::autopilot(),
         ]);
     }
