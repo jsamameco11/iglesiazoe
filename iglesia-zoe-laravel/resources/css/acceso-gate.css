@@ -1,4 +1,4 @@
-/* Escena del acceso · el ánfora que recibe los sobres de célula; colores, velocidad y pausa desde Diseño › Ilustraciones */
+/* Escena del acceso · el ánfora de madera que recibe los sobres de célula; colores, velocidad y pausa desde Diseño › Ilustraciones */
 
 /* La fila de la grilla se dimensiona por contenido, así que height: 100% no se resuelve y el SVG crecería con su ancho. */
 .acceso-gate > .acceso-gate-scene {
@@ -6,8 +6,9 @@
   inset: 0;
 }
 
-/* Los tres sobres comparten un ciclo de 7.5 s desfasado 2.5 s: cada 2.5 s entra uno, y el brillo, las chispas
-   y el leve rebote del ánfora usan ese mismo pulso para coincidir con la entrada. */
+/* Cada sobre se dibuja dos veces con la misma animación: una copia recortada sobre la ranura y otra dentro de la
+   ventana de vidrio, así se ve entrar por arriba y caer sobre la pila. Los tres sobres comparten un ciclo de 7.5 s
+   desfasado 2.5 s; el brillo de la ranura, las chispas y el golpe del ánfora usan ese mismo pulso de 2.5 s. */
 .acceso-envelope {
   transform-box: fill-box;
   transform-origin: center;
@@ -18,41 +19,53 @@
 .acceso-envelope[data-flight="top"] { animation-name: acceso-fly-top; }
 
 @keyframes acceso-fly-left {
-  0% { opacity: 0; transform: translate(-300px, -130px) rotate(-22deg) scale(0.82); animation-timing-function: cubic-bezier(0.3, 0.1, 0.4, 1); }
-  8% { opacity: 1; }
-  46% { transform: translate(-64px, -44px) rotate(-8deg) scale(0.98); animation-timing-function: ease-in-out; }
-  60% { transform: translate(0, -10px) rotate(0deg) scale(1); animation-timing-function: ease-out; }
-  66% { transform: translate(0, -14px) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(0.55, 0, 0.85, 0.4); }
-  84% { opacity: 1; transform: translate(0, 118px) rotate(0deg) scale(0.9); }
-  85%, 100% { opacity: 0; transform: translate(0, 118px) rotate(0deg) scale(0.9); }
+  0% { opacity: 0; transform: translate(-320px, -120px) rotate(-24deg) scale(0.8); animation-timing-function: cubic-bezier(0.3, 0.1, 0.4, 1); }
+  6% { opacity: 1; }
+  44% { transform: translate(-70px, -58px) rotate(-10deg) scale(0.97); animation-timing-function: ease-in-out; }
+  56% { transform: translate(0, -8px) rotate(0deg) scale(1); animation-timing-function: ease-out; }
+  63% { transform: translate(0, -14px) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5); }
+  72% { transform: translate(0, 62px) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(0.4, 0, 0.85, 0.65); }
+  84% { transform: translate(0, 300px) rotate(4deg) scale(0.82); animation-timing-function: ease-out; }
+  87% { transform: translate(0, 291px) rotate(2deg) scale(0.82); animation-timing-function: ease-in; }
+  90% { opacity: 1; transform: translate(0, 300px) rotate(3deg) scale(0.82); }
+  97%, 100% { opacity: 0; transform: translate(0, 308px) rotate(3deg) scale(0.82); }
 }
 @keyframes acceso-fly-right {
-  0% { opacity: 0; transform: translate(300px, -150px) rotate(24deg) scale(0.82); animation-timing-function: cubic-bezier(0.3, 0.1, 0.4, 1); }
-  8% { opacity: 1; }
-  46% { transform: translate(70px, -50px) rotate(9deg) scale(0.98); animation-timing-function: ease-in-out; }
-  60% { transform: translate(0, -10px) rotate(0deg) scale(1); animation-timing-function: ease-out; }
-  66% { transform: translate(0, -14px) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(0.55, 0, 0.85, 0.4); }
-  84% { opacity: 1; transform: translate(0, 118px) rotate(0deg) scale(0.9); }
-  85%, 100% { opacity: 0; transform: translate(0, 118px) rotate(0deg) scale(0.9); }
+  0% { opacity: 0; transform: translate(320px, -140px) rotate(26deg) scale(0.8); animation-timing-function: cubic-bezier(0.3, 0.1, 0.4, 1); }
+  6% { opacity: 1; }
+  44% { transform: translate(74px, -62px) rotate(11deg) scale(0.97); animation-timing-function: ease-in-out; }
+  56% { transform: translate(0, -8px) rotate(0deg) scale(1); animation-timing-function: ease-out; }
+  63% { transform: translate(0, -14px) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5); }
+  72% { transform: translate(0, 62px) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(0.4, 0, 0.85, 0.65); }
+  84% { transform: translate(0, 300px) rotate(-5deg) scale(0.82); animation-timing-function: ease-out; }
+  87% { transform: translate(0, 291px) rotate(-3deg) scale(0.82); animation-timing-function: ease-in; }
+  90% { opacity: 1; transform: translate(0, 300px) rotate(-4deg) scale(0.82); }
+  97%, 100% { opacity: 0; transform: translate(0, 308px) rotate(-4deg) scale(0.82); }
 }
 @keyframes acceso-fly-top {
-  0% { opacity: 0; transform: translate(-60px, -290px) rotate(-14deg) scale(0.8); animation-timing-function: cubic-bezier(0.3, 0.1, 0.4, 1); }
-  8% { opacity: 1; }
-  46% { transform: translate(26px, -96px) rotate(7deg) scale(0.97); animation-timing-function: ease-in-out; }
-  60% { transform: translate(0, -10px) rotate(0deg) scale(1); animation-timing-function: ease-out; }
-  66% { transform: translate(0, -14px) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(0.55, 0, 0.85, 0.4); }
-  84% { opacity: 1; transform: translate(0, 118px) rotate(0deg) scale(0.9); }
-  85%, 100% { opacity: 0; transform: translate(0, 118px) rotate(0deg) scale(0.9); }
+  0% { opacity: 0; transform: translate(-50px, -300px) rotate(-16deg) scale(0.78); animation-timing-function: cubic-bezier(0.3, 0.1, 0.4, 1); }
+  6% { opacity: 1; }
+  44% { transform: translate(28px, -110px) rotate(8deg) scale(0.96); animation-timing-function: ease-in-out; }
+  56% { transform: translate(0, -8px) rotate(0deg) scale(1); animation-timing-function: ease-out; }
+  63% { transform: translate(0, -14px) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5); }
+  72% { transform: translate(0, 62px) rotate(0deg) scale(1); animation-timing-function: cubic-bezier(0.4, 0, 0.85, 0.65); }
+  84% { transform: translate(0, 300px) rotate(1deg) scale(0.82); animation-timing-function: ease-out; }
+  87% { transform: translate(0, 291px) rotate(0deg) scale(0.82); animation-timing-function: ease-in; }
+  90% { opacity: 1; transform: translate(0, 300px) rotate(1deg) scale(0.82); }
+  97%, 100% { opacity: 0; transform: translate(0, 308px) rotate(1deg) scale(0.82); }
 }
 
-.acceso-mouth-glow {
+/* El sobre cruza la ranura entre el 63 % y el 72 % del ciclo (del 89 % al 16 % de un pulso de 2.5 s) y toca la pila al 84 % (52 % del pulso). */
+.acceso-slot-glow {
   opacity: 0;
-  animation: acceso-receive-glow 2.5s infinite;
+  animation: acceso-slot-glow 2.5s infinite;
 }
-@keyframes acceso-receive-glow {
-  0%, 28% { opacity: 0; }
-  42% { opacity: 0.75; }
-  70%, 100% { opacity: 0; }
+@keyframes acceso-slot-glow {
+  0% { opacity: 0.8; }
+  10% { opacity: 0.6; }
+  30%, 84% { opacity: 0; }
+  92% { opacity: 0.5; }
+  100% { opacity: 0.8; }
 }
 
 .acceso-spark {
@@ -62,21 +75,29 @@
   animation: acceso-spark 2.5s ease-out infinite;
 }
 @keyframes acceso-spark {
-  0%, 34% { opacity: 0; transform: translate(0, 0) scale(0.3); }
-  46% { opacity: 1; transform: translate(calc(var(--dx) * 0.4), -18px) scale(1); }
-  80%, 100% { opacity: 0; transform: translate(var(--dx), -64px) scale(0.55); }
+  0%, 10% { opacity: 0; transform: translate(0, 0) scale(0.3); }
+  20% { opacity: 1; transform: translate(calc(var(--dx) * 0.4), -20px) scale(1); }
+  56%, 100% { opacity: 0; transform: translate(var(--dx), -70px) scale(0.5); }
 }
 
-.acceso-jar {
+.acceso-box {
   transform-box: fill-box;
   transform-origin: 50% 100%;
-  animation: acceso-receive 2.5s ease-out infinite;
+  animation: acceso-thud 2.5s ease-out infinite;
 }
-@keyframes acceso-receive {
-  0%, 36% { transform: scale(1, 1); }
-  44% { transform: scale(1.01, 0.99); }
-  54% { transform: scale(0.997, 1.005); }
-  64%, 100% { transform: scale(1, 1); }
+@keyframes acceso-thud {
+  0%, 50% { transform: scale(1, 1); }
+  54% { transform: scale(1.006, 0.992); }
+  62% { transform: scale(0.998, 1.004); }
+  70%, 100% { transform: scale(1, 1); }
+}
+
+.acceso-glint {
+  animation: acceso-glint 5s ease-in-out infinite;
+}
+@keyframes acceso-glint {
+  0%, 60% { transform: translateX(0); }
+  85%, 100% { transform: translateX(380px); }
 }
 
 .acceso-rays {
@@ -139,18 +160,21 @@
 }
 
 @keyframes acceso-drop {
-  0% { opacity: 0; transform: translate(0, -46px); }
-  14% { opacity: 1; transform: translate(0, -40px); animation-timing-function: ease-in-out; }
-  62% { transform: translate(0, -14px); animation-timing-function: cubic-bezier(0.55, 0, 0.85, 0.4); }
-  84% { opacity: 1; transform: translate(0, 118px); }
-  85%, 100% { opacity: 0; transform: translate(0, 118px); }
+  0% { opacity: 0; transform: translate(0, -60px); }
+  12% { opacity: 1; transform: translate(0, -52px); animation-timing-function: ease-in-out; }
+  60% { transform: translate(0, -14px); animation-timing-function: cubic-bezier(0.6, 0, 0.9, 0.5); }
+  72% { transform: translate(0, 62px); animation-timing-function: cubic-bezier(0.4, 0, 0.85, 0.65); }
+  84% { transform: translate(0, 300px) scale(0.82); }
+  90% { opacity: 1; transform: translate(0, 300px) scale(0.82); }
+  97%, 100% { opacity: 0; transform: translate(0, 306px) scale(0.82); }
 }
 
-/* Con «reducir movimiento» los sobres solo bajan al ánfora: sin vuelos, giros, chispas ni rayos que rotan. */
+/* Con «reducir movimiento» los sobres solo bajan por la ranura: sin vuelos, giros, chispas, destellos ni rayos que rotan. */
 @media (prefers-reduced-motion: reduce) {
   .acceso-envelope { animation-name: acceso-drop !important; }
-  .acceso-spark { display: none; }
-  .acceso-jar,
+  .acceso-spark,
+  .acceso-glint { display: none; }
+  .acceso-box,
   .acceso-rays,
   .acceso-flame,
   .acceso-flame-glow,

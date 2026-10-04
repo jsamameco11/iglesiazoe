@@ -254,13 +254,13 @@ return [
     'art' => [
         'acceso' => [
             'label' => 'Escena del acceso',
-            'text' => 'El ánfora animada que muestra versículos y recibe los sobres de célula con el sello de Zoe.',
+            'text' => 'El ánfora de madera que muestra versículos en su placa y recibe por la ranura los sobres de célula con el sello de Zoe.',
             'page' => 'Acceso',
             'can_hide' => true,
             'colors' => [
                 'sky' => ['label' => 'Fondo', 'value' => '#f0e4d4'],
                 'desk' => ['label' => 'Piso', 'value' => '#c9ae96'],
-                'jar' => ['label' => 'Ánfora', 'value' => '#b86b43'],
+                'jar' => ['label' => 'Madera del ánfora', 'value' => '#9a6238'],
                 'accent' => ['label' => 'Sello de los sobres', 'value' => '#c45c26'],
                 'gold' => ['label' => 'Dorado', 'value' => '#e0b062'],
             ],

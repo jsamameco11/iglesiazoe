@@ -402,7 +402,7 @@ export const copyGroups = [
         label: "Frases de la ilustración",
         value: "Juan 1:1 | En el principio era el Verbo\nMateo 18:20 | Donde están dos o tres reunidos en mi nombre, allí estoy yo\nSalmo 119:105 | Lámpara es a mis pies tu palabra\nHechos 2:46 | Partían el pan en las casas con alegría",
         area: true,
-        hint: "Una frase por línea: cita | versículo. Se escriben solas en la etiqueta del ánfora (hasta unas 65 letras cada una).",
+        hint: "Una frase por línea: cita | versículo. Se escriben solas en la placa del ánfora (hasta unas 65 letras cada una).",
       },
     ],
   },
