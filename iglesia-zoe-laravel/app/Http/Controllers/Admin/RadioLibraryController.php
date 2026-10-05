@@ -34,8 +34,8 @@ class RadioLibraryController extends RadioController
 
     private const MAX_COVER_MB = 8;
 
-    /** Songs compared at once against the library. */
-    private const MAX_REVIEW = 200;
+    /** Songs of one upload read at once; only the ones asked for are judged against the library. */
+    private const MAX_REVIEW = 600;
 
     public function index(): Response
     {
@@ -205,11 +205,16 @@ class RadioLibraryController extends RadioController
         }
         Station::flush();
 
-        return $this->saved(match (true) {
-            (bool) $existing => 'Audio actualizado.',
-            (bool) $episode => 'Audio guardado en la biblioteca y publicado como episodio en la página de la radio.',
-            default => 'Audio guardado en la biblioteca. No suena hasta que lo programes o lo lances desde la consola.',
-        });
+        return response()->json([
+            'ok' => true,
+            'reload' => true,
+            'id' => $track->id,
+            'message' => match (true) {
+                (bool) $existing => 'Audio actualizado.',
+                (bool) $episode => 'Audio guardado en la biblioteca y publicado como episodio en la página de la radio.',
+                default => 'Audio guardado en la biblioteca. No suena hasta que lo programes o lo lances desde la consola.',
+            },
+        ]);
     }
 
     /**
@@ -305,8 +310,11 @@ class RadioLibraryController extends RadioController
     public function duplicates(Request $request): JsonResponse
     {
         $text = fn (mixed $value, int $max) => mb_substr(trim(is_scalar($value) ? (string) $value : ''), 0, $max);
+        $list = fn (string $field): array => is_string($request->input($field))
+            ? (array) (json_decode($request->input($field), true) ?? [])
+            : (array) $request->input($field, []);
         $songs = [];
-        foreach (array_slice((array) $request->input('songs', []), 0, self::MAX_REVIEW) as $song) {
+        foreach (array_slice($list('songs'), 0, self::MAX_REVIEW) as $song) {
             if (! is_array($song) || ! is_string($song['key'] ?? null) || mb_strlen($text($song['title'] ?? null, 160)) < 2) {
                 continue;
             }
@@ -321,9 +329,13 @@ class RadioLibraryController extends RadioController
             ];
         }
 
+        $only = $request->has('judge')
+            ? collect($list('judge'))->filter(fn (mixed $key) => is_string($key))->map(fn (string $key) => mb_substr($key, 0, 200))->values()->all()
+            : null;
+
         return response()->json([
             'ok' => true,
-            'results' => (object) SameSong::review($songs, RadioTrack::query()->where('kind', 'musica')->get()),
+            'results' => (object) SameSong::review($songs, RadioTrack::query()->where('kind', 'musica')->get(), $only),
         ]);
     }
 

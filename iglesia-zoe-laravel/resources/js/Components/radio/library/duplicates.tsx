@@ -21,21 +21,25 @@ export type DuplicateDecision = { choice: DuplicateChoice; about: string };
 
 export type SongToReview = { key: string; title: string; artist: string; featured: string[]; album: string; year: string; duration: number | null; identity: string | null };
 
-/** Asks which songs of an upload repeat a song of the library or an earlier song of the same upload; null when it could not ask. */
-export async function reviewDuplicates(songs: SongToReview[]): Promise<Record<string, DuplicateMatch[]> | null> {
-  const data = new FormData();
-  songs.forEach((song, index) => {
-    const at = `songs[${index}]`;
-    data.set(`${at}[key]`, song.key);
-    data.set(`${at}[title]`, song.title.trim());
-    data.set(`${at}[artist]`, song.artist.trim());
-    song.featured.map((name) => name.trim()).filter(Boolean).forEach((name) => data.append(`${at}[featured][]`, name));
-    data.set(`${at}[album]`, song.album.trim());
-    data.set(`${at}[year]`, song.year);
-    if (song.duration) data.set(`${at}[duration]`, String(song.duration));
-    if (song.identity) data.set(`${at}[identity]`, song.identity);
-  });
-  const response = await send("/admin/radio/biblioteca/duplicados", data).catch(() => null);
+/**
+ * Asks which of the `judge` songs repeat a song of the library or an earlier song of the same upload (every song when
+ * `judge` is left out); the others only count as earlier songs. Null when it could not ask. The list travels as JSON
+ * because a big upload as form fields goes past what PHP reads.
+ */
+export async function reviewDuplicates(songs: SongToReview[], judge?: string[]): Promise<Record<string, DuplicateMatch[]> | null> {
+  const list = songs.map((song) => ({
+    key: song.key,
+    title: song.title.trim(),
+    artist: song.artist.trim(),
+    featured: song.featured.map((name) => name.trim()).filter(Boolean),
+    album: song.album.trim(),
+    year: song.year,
+    duration: song.duration || null,
+    identity: song.identity,
+  }));
+  const payload: Record<string, string> = { songs: JSON.stringify(list) };
+  if (judge) payload.judge = JSON.stringify(judge);
+  const response = await send("/admin/radio/biblioteca/duplicados", payload).catch(() => null);
   if (!response || response.error) return null;
   return (response.results ?? {}) as Record<string, DuplicateMatch[]>;
 }
@@ -43,9 +47,10 @@ export async function reviewDuplicates(songs: SongToReview[]): Promise<Record<st
 const matchesOf = (review: DuplicateReview) => (Array.isArray(review) ? review : []);
 
 /** Matches that may be the same song (not just another version of it): the admin has to decide on them. */
-const concerns = (review: DuplicateReview) => matchesOf(review).filter((match) => match.verdict !== "version");
+export const concerns = (review: DuplicateReview) => matchesOf(review).filter((match) => match.verdict !== "version");
 
-const concernKey = (review: DuplicateReview) =>
+/** The songs a decision is about: `t:` a library song by its id, `b:` a song of the upload by its key. */
+export const concernKey = (review: DuplicateReview) =>
   concerns(review)
     .map((match) => (match.track ? `t:${match.track.id}` : `b:${match.batch}`))
     .join("|");
@@ -108,6 +113,35 @@ export function DuplicateBadge({ review, decision }: { review: DuplicateReview; 
   if (first.verdict === "misma") return <span className="rounded-full bg-red-100 px-2 py-0.5 font-semibold text-red-800">⚠ {first.batch ? "Repetida en esta subida" : "Ya está en la biblioteca"} · elige qué hacer</span>;
   if (first.verdict === "posible") return <span className="rounded-full bg-amber-100 px-2 py-0.5 font-semibold text-amber-900">⚠ Posible duplicado {here} · elige qué hacer</span>;
   return <span className="rounded-full bg-sky-50 px-2 py-0.5 font-semibold text-sky-800">Otra versión {here}</span>;
+}
+
+/** The library song a new one may repeat, shown right above it so both can be compared one after the other. */
+export function LibraryTwin({ match, playing, onListen }: { match: DuplicateMatch; playing: string | null; onListen: (match: DuplicateMatch) => void }) {
+  const track = match.track;
+  if (!track) return null;
+  const key = listenKey(match);
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 px-3 py-2.5 md:px-4">
+      {track.cover ? <img src={track.cover} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" /> : <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-white text-slate-400">♪</span>}
+      <span className="min-w-0 flex-1">
+        <span className="block text-[10.5px] font-semibold uppercase tracking-[0.08em] text-slate-500">Ya está en la biblioteca</span>
+        <span className="block truncate text-[13.5px] font-semibold text-ink">
+          {track.title}
+          {track.artist ? <span className="font-normal text-muted"> · {track.artist}</span> : null}
+        </span>
+        <span className="block truncate text-[11.5px] text-muted">{[track.album, track.year, track.duration ? duration(track.duration) : null].filter(Boolean).join(" · ") || "Sin álbum ni año"}</span>
+      </span>
+      {track.src ? (
+        <button
+          type="button"
+          onClick={() => onListen(match)}
+          className={`shrink-0 rounded-full px-3 py-1.5 text-[11.5px] font-semibold shadow-sm transition ${playing === key ? "bg-ink text-white" : "bg-white text-ink hover:bg-ink hover:text-white"}`}
+        >
+          {playing === key ? "■ Detener" : "▶ Escuchar"}
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 const VERDICT: Record<DuplicateMatch["verdict"], { tone: string; library: string; batch: string }> = {
@@ -197,7 +231,7 @@ export function DuplicatePanel({
 
       {needsDecision(review) ? (
         <div className="mt-3">
-          <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] opacity-80">{choice ? "Tu decisión" : "¿Qué hacemos con esta canción? Elige una opción para poder guardar"}</p>
+          <p className="text-[11.5px] font-semibold uppercase tracking-[0.06em] opacity-80">{choice ? "Tu decisión" : "¿Qué hacemos con esta canción? Apenas elijas, la subida sigue con ella"}</p>
           <div className={`mt-1.5 grid gap-2 ${options.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`} role="radiogroup" aria-label="Qué hacer con esta canción repetida">
             {options.map((option) => {
               const active = choice === option.choice;

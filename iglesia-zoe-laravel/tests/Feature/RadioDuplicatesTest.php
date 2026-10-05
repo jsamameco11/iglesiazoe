@@ -101,6 +101,23 @@ class RadioDuplicatesTest extends TestCase
             ->assertJsonPath('results.d.0.verdict', SameSong::VERSION)->assertJsonPath('results.d.0.track.id', $track->id);
     }
 
+    public function test_a_long_upload_sent_as_json_judges_only_the_songs_asked_for_with_the_rest_as_the_songs_before_them(): void
+    {
+        $this->track(['title' => 'Renuévame', 'artist' => 'Marcos Witt', 'duration' => 245.4]);
+        $songs = collect(range(1, 150))->map(fn (int $number) => ['key' => "s{$number}", 'title' => "Canción número {$number}", 'artist' => 'Coro Zoe', 'featured' => [], 'album' => '', 'year' => '', 'duration' => 200 + $number, 'identity' => null])->all();
+        $songs[] = ['key' => 'repeat', 'title' => 'Canción número 7', 'artist' => 'Coro Zoe', 'featured' => [], 'album' => '', 'year' => '', 'duration' => 207.4, 'identity' => null];
+        $songs[] = ['key' => 'library', 'title' => 'Renuevame', 'artist' => 'Marcos Witt', 'featured' => [], 'album' => '', 'year' => '', 'duration' => 245.9, 'identity' => null];
+
+        $response = $this->actingAs($this->admin())->post(self::ADMIN.'/admin/radio/biblioteca/duplicados', [
+            'songs' => json_encode($songs),
+            'judge' => json_encode(['repeat', 'library']),
+        ], ['Accept' => 'application/json'])->assertOk();
+
+        $this->assertSame(['repeat', 'library'], array_keys($response->json('results')));
+        $response->assertJsonPath('results.repeat.0.verdict', SameSong::SAME)->assertJsonPath('results.repeat.0.batch', 's7')
+            ->assertJsonPath('results.library.0.verdict', SameSong::SAME)->assertJsonPath('results.library.0.track.title', 'Renuévame');
+    }
+
     public function test_the_same_song_is_only_uploaded_again_when_asked_and_other_versions_go_in_freely(): void
     {
         Storage::fake(config('filesystems.media'));
@@ -110,7 +127,8 @@ class RadioDuplicatesTest extends TestCase
             ->assertStatus(409)->assertJsonPath('error', 'Esta canción ya está en la biblioteca: «Renuévame» de Marcos Witt. Elige en su tarjeta qué hacer: no subirla, reemplazar la que ya está o guardar ambas.');
         $this->assertSame(1, RadioTrack::query()->count());
 
-        $this->upload(['title' => 'Renuévame (En Vivo)', 'artist' => 'Marcos Witt', 'duration' => '312'])->assertOk();
+        $live = $this->upload(['title' => 'Renuévame (En Vivo)', 'artist' => 'Marcos Witt', 'duration' => '312'])->assertOk();
+        $live->assertJsonPath('id', RadioTrack::query()->where('title', 'Renuévame (En Vivo)')->value('id'));
         $this->upload(['title' => 'Renuevame', 'artist' => 'Marcos Witt', 'duplicate_ok' => '1'])->assertOk();
         $this->assertSame(3, RadioTrack::query()->count());
     }

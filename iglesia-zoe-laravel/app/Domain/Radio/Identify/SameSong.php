@@ -80,13 +80,17 @@ final class SameSong
 
     /**
      * Every song of an upload compared with the library and with the songs before it in the same upload.
+     * With `$only`, just those songs are judged (the rest only count as the songs before them), so a long
+     * upload asks again only for the songs that changed.
      *
      * @param  array<string, array{title: string, artist?: ?string, featured?: ?list<string>, album?: ?string, year?: int|string|null, duration?: float|string|null, ids?: ?array<string, string>}>  $songs  By the key the browser gave them, in upload order.
      * @param  iterable<RadioTrack>  $library
+     * @param  list<string>|null  $only
      * @return array<string, list<array{verdict: string, reasons: list<string>, track?: array<string, mixed>, batch?: string}>>
      */
-    public static function review(array $songs, iterable $library): array
+    public static function review(array $songs, iterable $library, ?array $only = null): array
     {
+        $judged = $only === null ? null : array_flip($only);
         $tracks = [];
         foreach ($library as $track) {
             $tracks[] = [$track, self::facts(self::songOf($track))];
@@ -96,6 +100,11 @@ final class SameSong
         $earlier = [];
         foreach ($songs as $key => $song) {
             $facts = self::facts($song);
+            if ($judged !== null && ! isset($judged[(string) $key])) {
+                $earlier[(string) $key] = $facts;
+
+                continue;
+            }
             $matches = [];
             foreach ($tracks as [$track, $other]) {
                 if ($verdict = self::judge($facts, $other)) {
