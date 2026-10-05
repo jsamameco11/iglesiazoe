@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\OcultoController;
 use App\Http\Controllers\Admin\PastEventsController;
 use App\Http\Controllers\Admin\RadioCatalogController;
 use App\Http\Controllers\Admin\RadioConsoleController;
+use App\Http\Controllers\Admin\RadioEditorController;
 use App\Http\Controllers\Admin\RadioEpisodesController;
 use App\Http\Controllers\Admin\RadioLibraryController;
 use App\Http\Controllers\Admin\RadioPlaylistsController;
@@ -136,6 +137,14 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::middleware($can('radio.library', 'radio.episodes'))->group(function () {
             Route::post('/subida', [RadioUploadController::class, 'begin'])->middleware('throttle:60,1');
             Route::post('/subida/cancelar', [RadioUploadController::class, 'cancel']);
+        });
+        Route::middleware($can('radio.library', 'radio.episodes'))->prefix('editor')->group(function () {
+            Route::get('/', [RadioEditorController::class, 'index']);
+            Route::get('/analisis', [RadioEditorController::class, 'analysis'])->middleware('throttle:60,1');
+            Route::get('/estado', [RadioEditorController::class, 'status']);
+            Route::post('/', [RadioEditorController::class, 'save'])->middleware('throttle:20,1');
+            Route::post('/muestra', [RadioEditorController::class, 'preview'])->middleware('throttle:30,1');
+            Route::post('/restaurar', [RadioEditorController::class, 'restore'])->middleware('throttle:20,1');
         });
         Route::middleware($can('radio.settings'))->group(function () {
             Route::get('/ajustes', [RadioSettingsController::class, 'index']);

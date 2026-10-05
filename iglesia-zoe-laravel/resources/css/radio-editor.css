@@ -1,0 +1,76 @@
+/* Sliders of the audio editor: the track fills from the neutral value (--from) to the current one (--to). */
+.zoe-editor-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 18px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.zoe-editor-range::-webkit-slider-runnable-track {
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(to right, rgba(42, 39, 36, 0.12) var(--from), var(--accent) var(--from), var(--accent) var(--to), rgba(42, 39, 36, 0.12) var(--to));
+}
+
+.zoe-editor-range::-moz-range-track {
+  height: 5px;
+  border-radius: 999px;
+  background: linear-gradient(to right, rgba(42, 39, 36, 0.12) var(--from), var(--accent) var(--from), var(--accent) var(--to), rgba(42, 39, 36, 0.12) var(--to));
+}
+
+.zoe-editor-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  margin-top: -5.5px;
+  border-radius: 999px;
+  border: 2px solid var(--accent);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(42, 39, 36, 0.25);
+  transition: transform 0.12s;
+}
+
+.zoe-editor-range::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 2px solid var(--accent);
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(42, 39, 36, 0.25);
+}
+
+.zoe-editor-range:active::-webkit-slider-thumb {
+  transform: scale(1.2);
+}
+
+.zoe-editor-range:focus-visible {
+  outline: none;
+}
+
+.zoe-editor-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px rgba(224, 102, 47, 0.25);
+}
+
+.zoe-editor-vertical {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 18px;
+}
+
+.zoe-editor-vertical::-webkit-slider-runnable-track {
+  width: 5px;
+  height: auto;
+  background: linear-gradient(to top, rgba(42, 39, 36, 0.12) var(--from), var(--accent) var(--from), var(--accent) var(--to), rgba(42, 39, 36, 0.12) var(--to));
+}
+
+.zoe-editor-vertical::-moz-range-track {
+  width: 5px;
+  height: auto;
+  background: linear-gradient(to top, rgba(42, 39, 36, 0.12) var(--from), var(--accent) var(--from), var(--accent) var(--to), rgba(42, 39, 36, 0.12) var(--to));
+}
+
+.zoe-editor-vertical::-webkit-slider-thumb {
+  margin-top: 0;
+  margin-left: -5.5px;
+}

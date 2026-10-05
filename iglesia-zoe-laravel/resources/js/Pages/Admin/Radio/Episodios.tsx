@@ -1,4 +1,4 @@
-import { router } from "@inertiajs/react";
+import { Link, router } from "@inertiajs/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AUDIO_ACCEPT, COVER_ACCEPT, RadioHeader, postWithProgress, readDuration } from "@/Components/radio/admin-ui";
 import { postAudio } from "@/Components/radio/audio-upload";
@@ -150,6 +150,11 @@ function EpisodeRow({
           <button type="button" onClick={onPlay} disabled={!episode.src} className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted transition hover:bg-paper hover:text-ink">
             {playing ? "■ Detener" : "▶ Escuchar"}
           </button>
+          {episode.track_id ? (
+            <Link href={`/admin/radio/editor?audio=${episode.track_id}`} className="rounded-full px-3 py-1.5 text-xs font-semibold text-violet-800 transition hover:bg-violet-50" title="Recortar y mejorar el sonido del audio">
+              ✂ Editar audio
+            </Link>
+          ) : null}
           <button type="button" onClick={onEdit} className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted transition hover:bg-paper hover:text-ink">{editing ? "Cerrar" : "Editar"}</button>
           <button type="button" disabled={pending} onClick={remove} className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50">Quitar</button>
         </div>

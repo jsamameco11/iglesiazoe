@@ -8,6 +8,7 @@ use App\Domain\Radio\Actions\SaveEpisode;
 use App\Domain\Radio\AudioRejected;
 use App\Domain\Radio\Catalog\Genres;
 use App\Domain\Radio\Catalog\MusicCatalog;
+use App\Domain\Radio\Editor\AudioEditor;
 use App\Domain\Radio\Identify\CoverDownload;
 use App\Domain\Radio\Identify\Identifier;
 use App\Domain\Radio\Identify\SameSong;
@@ -163,6 +164,7 @@ class RadioLibraryController extends RadioController
             }
             $payload['duration'] = round((float) $data['duration'], 2);
             MediaLibrary::deletePublic($existing?->file_path);
+            $payload += $existing ? AudioEditor::forget($existing) : [];
         }
 
         $identity = $isSong ? self::identity($data['identity'] ?? null) : null;
@@ -250,7 +252,7 @@ class RadioLibraryController extends RadioController
         }
 
         $previous = $track->file_path;
-        $track->update($payload);
+        $track->update($payload + AudioEditor::forget($track));
         MediaLibrary::deletePublic($previous);
         $track->slots()->where('starts_at', '>=', now())->update(['duration' => $payload['duration']]);
         if ($isSong && ! empty($data['genre_ids']) && $track->genres()->doesntExist()) {
@@ -352,6 +354,7 @@ class RadioLibraryController extends RadioController
         $track = $this->find(RadioTrack::class, $request->input('id'));
         if ($track) {
             MediaLibrary::deletePublic($track->file_path);
+            MediaLibrary::deletePublic($track->original_path);
             MediaLibrary::deletePublic($track->cover_path);
             $track->delete();
             Station::flush();

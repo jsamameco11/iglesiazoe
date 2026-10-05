@@ -356,8 +356,18 @@ function TrackRow({
               Guardar como episodio
             </Link>
           ) : null}
+          {track.editing ? (
+            <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">Procesando edición…</span>
+          ) : track.edited ? (
+            <span className="rounded-full bg-violet-100 px-2.5 py-1 text-[11px] font-semibold text-violet-800" title="Recortado o con el sonido mejorado en el editor. El original está guardado.">
+              Editado
+            </span>
+          ) : null}
+          <Link href={`/admin/radio/editor?audio=${track.id}`} className="rounded-full px-3 py-1.5 text-xs font-semibold text-violet-800 transition hover:bg-violet-50" title="Recortar y mejorar el sonido">
+            ✂ Editar audio
+          </Link>
           <button type="button" onClick={onEdit} className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted transition hover:bg-paper hover:text-ink">
-            {editing ? "Cerrar" : "Editar"}
+            {editing ? "Cerrar" : "Editar datos"}
           </button>
           <button type="button" disabled={pending} onClick={remove} className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50">
             Eliminar

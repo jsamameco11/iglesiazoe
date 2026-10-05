@@ -4,20 +4,21 @@ import { can, usePanelUser, type Permission, useSiteUrl } from "@/lib/access";
 import { csrf, type ActionResult } from "@/lib/actions";
 import { KIND_LABEL, type RadioKind } from "@/lib/radio";
 
-const tabs: { href: string; label: string; needs: Permission }[] = [
+const tabs: { href: string; label: string; needs: Permission | Permission[] }[] = [
   { href: "/admin/radio", label: "Consola en vivo", needs: "radio.console" },
   { href: "/admin/radio/programacion", label: "Programación", needs: "radio.schedule" },
   { href: "/admin/radio/biblioteca", label: "Biblioteca", needs: "radio.library" },
   { href: "/admin/radio/listas", label: "Listas", needs: "radio.library" },
   { href: "/admin/radio/catalogo", label: "Catálogo musical", needs: "radio.library" },
   { href: "/admin/radio/episodios", label: "Episodios", needs: "radio.episodes" },
+  { href: "/admin/radio/editor", label: "Editor de audio", needs: ["radio.library", "radio.episodes"] },
   { href: "/admin/radio/ajustes", label: "Ajustes", needs: "radio.settings" },
 ];
 
 export function RadioHeader({ title, text, aside }: { title: string; text: string; aside?: ReactNode }) {
   const path = usePage().url.split("?")[0];
   const user = usePanelUser();
-  const allowed = tabs.filter((tab) => can(user, tab.needs));
+  const allowed = tabs.filter((tab) => can(user, ...[tab.needs].flat()));
   const site = useSiteUrl();
   return (
     <div>

@@ -148,6 +148,10 @@ export type RadioTrack = {
   problem?: string | null;
   /** Episodes of /radio that play this audio (library only). */
   episodes?: number;
+  /** Cut or treated in the audio editor (the original is kept aside). */
+  edited?: boolean;
+  /** The audio editor is rendering a new edit of this audio. */
+  editing?: boolean;
 };
 
 /** A musical style of the catalog; `family` groups them (cristiana, pop, rock…). */

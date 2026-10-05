@@ -30,13 +30,16 @@ class RadioTrack extends UuidModel
     /** Genres (musical styles) a song carries, in order. */
     public const MAX_GENRES = 4;
 
-    protected $fillable = ['kind', 'title', 'artist', 'featured', 'album', 'year', 'file_path', 'cover_path', 'identity', 'identified_at', 'duration', 'rotation', 'duck', 'active'];
+    protected $fillable = ['kind', 'title', 'artist', 'featured', 'album', 'year', 'file_path', 'original_path', 'original_duration', 'edit', 'edit_status', 'edit_error', 'edited_at', 'cover_path', 'identity', 'identified_at', 'duration', 'rotation', 'duck', 'active'];
 
     protected function casts(): array
     {
         return [
             'featured' => 'array',
             'identity' => 'array',
+            'original_duration' => 'float',
+            'edit' => 'array',
+            'edited_at' => 'datetime',
             'identified_at' => 'datetime',
             'year' => 'integer',
             'duration' => 'float',
@@ -83,6 +86,18 @@ class RadioTrack extends UuidModel
         return $names ? implode(', ', $names) : null;
     }
 
+    /** The file the editor works from: the original when the audio was already edited. */
+    public function sourcePath(): ?string
+    {
+        return $this->original_path ?: $this->file_path;
+    }
+
+    /** Length of the audio the editor works from. */
+    public function sourceDuration(): float
+    {
+        return (float) ($this->original_path ? ($this->original_duration ?: $this->duration) : $this->duration);
+    }
+
     public function payload(): array
     {
         return [
@@ -101,6 +116,8 @@ class RadioTrack extends UuidModel
             'duck' => $this->duck,
             'active' => $this->active,
             'problem' => $this->file_problem,
+            'edited' => $this->original_path !== null,
+            'editing' => $this->edit_status === 'processing',
         ];
     }
 }
