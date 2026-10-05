@@ -74,6 +74,17 @@ class HotMediaTest extends TestCase
         $this->assertFileDoesNotExist($this->root.'/media/'.self::HERO);
     }
 
+    public function test_a_file_replaced_on_wasabi_replaces_the_web_server_copy(): void
+    {
+        $this->artisan('media:hot')->assertSuccessful();
+        Storage::disk('wasabi')->put('videos/siguientepaso.mp4', 'video comprimido');
+
+        $this->artisan('media:hot')->assertSuccessful();
+
+        $this->assertStringEqualsFile($this->root.'/videos/siguientepaso.mp4', 'video comprimido');
+        $this->assertStringEqualsFile($this->root.'/images/banner.jpg', 'contenido de images/banner.jpg');
+    }
+
     public function test_nothing_is_copied_when_files_live_on_the_local_disk(): void
     {
         config(['filesystems.media' => 'public']);

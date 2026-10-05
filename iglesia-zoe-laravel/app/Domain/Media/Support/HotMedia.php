@@ -48,18 +48,12 @@ final class HotMedia
     public static function mirror(string $key): bool
     {
         $path = self::localPath($key);
-        if (is_file($path)) {
-            return true;
-        }
-        if (! MediaLibrary::cloud() || ! MediaLibrary::validKey($key)) {
-            return false;
-        }
 
-        return (bool) Cache::lock('zoe.hot.'.sha1($key), self::LOCK_SECONDS)->get(fn () => self::download($key, $path));
+        return is_file($path) || self::copy($key, $path);
     }
 
     /**
-     * Copies every hot key that is missing and deletes the copies nothing links to anymore.
+     * Copies every hot key that is missing or was replaced on Wasabi and deletes the copies nothing links to anymore.
      *
      * @return array{copied: int, removed: int, failed: list<string>}
      */
@@ -72,10 +66,11 @@ final class HotMedia
 
         $keys = self::keys();
         foreach ($keys as $key) {
-            if (is_file(self::localPath($key))) {
+            $path = self::localPath($key);
+            if (is_file($path) && ! self::isStale($key, $path)) {
                 continue;
             }
-            if (self::mirror($key)) {
+            if (self::copy($key, $path)) {
                 $result['copied']++;
             } else {
                 $result['failed'][] = $key;
@@ -177,6 +172,28 @@ final class HotMedia
         }
 
         return $paths;
+    }
+
+    /** Copies a key from Wasabi over whatever copy the web server has; false when it cannot. */
+    private static function copy(string $key, string $path): bool
+    {
+        if (! MediaLibrary::cloud() || ! MediaLibrary::validKey($key)) {
+            return false;
+        }
+
+        return (bool) Cache::lock('zoe.hot.'.sha1($key), self::LOCK_SECONDS)->get(fn () => self::download($key, $path));
+    }
+
+    /** Whether the file on Wasabi changed after it was copied; an unreachable Wasabi keeps the copy. */
+    private static function isStale(string $key, string $path): bool
+    {
+        try {
+            $disk = MediaLibrary::publicDisk();
+
+            return $disk->size($key) !== filesize($path) || $disk->lastModified($key) > filemtime($path);
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     /** Streams a key from Wasabi into a partial file and renames it into place when complete. */
