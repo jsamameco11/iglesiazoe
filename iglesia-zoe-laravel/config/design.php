@@ -61,7 +61,7 @@ return [
         ['name' => 'DM Sans', 'slug' => 'dm-sans', 'kind' => 'sans', 'category' => 'sans'],
         ['name' => 'Manrope', 'slug' => 'manrope', 'kind' => 'sans', 'category' => 'sans'],
         ['name' => 'Plus Jakarta Sans', 'slug' => 'plus-jakarta-sans', 'kind' => 'sans', 'category' => 'sans'],
-        ['name' => 'Montserrat', 'slug' => 'montserrat', 'kind' => 'sans', 'category' => 'sans'],
+        ['name' => 'Montserrat', 'slug' => 'montserrat', 'kind' => 'sans', 'category' => 'sans', 'local' => true],
         ['name' => 'Poppins', 'slug' => 'poppins', 'kind' => 'sans', 'category' => 'sans'],
         ['name' => 'Outfit', 'slug' => 'outfit', 'kind' => 'sans', 'category' => 'sans'],
         ['name' => 'Raleway', 'slug' => 'raleway', 'kind' => 'sans', 'category' => 'sans'],
@@ -336,7 +336,7 @@ return [
             'clay' => '#ead8c9',
         ],
         'fonts' => [
-            'heading' => 'Fraunces',
+            'heading' => 'Montserrat',
             'text' => 'Inter',
             'accent' => 'Fredoka',
         ],

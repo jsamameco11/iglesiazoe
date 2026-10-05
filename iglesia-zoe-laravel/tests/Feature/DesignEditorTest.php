@@ -27,7 +27,7 @@ class DesignEditorTest extends TestCase
                 ->where('pages.0.key', 'Home')
                 ->where('pages.0.url', config('zoe.site_url').'/')
                 ->has('art', count(config('design.art')))
-                ->where('stored.fonts.heading.name', 'Fraunces')
+                ->where('stored.fonts.heading.name', 'Montserrat')
                 ->where('stored.fonts.accent.name', 'Fredoka'));
     }
 

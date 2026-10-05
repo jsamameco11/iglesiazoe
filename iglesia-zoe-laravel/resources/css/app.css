@@ -36,7 +36,7 @@
 }
 
 html {
-  --font-heading: "Fraunces Soft", Georgia, "Times New Roman", serif;
+  --font-heading: "Montserrat", ui-sans-serif, system-ui, sans-serif;
   --font-text: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-accent: "Fredoka Variable", "Fredoka", ui-rounded, ui-sans-serif, sans-serif;
   /* Fraunces' SOFT axis rounds the serifs; fonts without that axis ignore it. */
@@ -127,9 +127,9 @@ body {
 
 .editorial {
   font-family: var(--font-heading);
-  font-weight: 500;
-  letter-spacing: -0.012em;
-  line-height: 0.98;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
 }
 
 .headline {
@@ -143,7 +143,7 @@ body {
 .ital {
   font-family: var(--font-heading);
   font-style: italic;
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.005em;
 }
 
@@ -232,7 +232,7 @@ body {
   margin-top: 0.45rem;
   font-family: var(--font-heading);
   font-size: clamp(1.9rem, 2.4vw, 2.6rem);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1;
   letter-spacing: -0.012em;
 }
@@ -531,7 +531,7 @@ body {
 
 .lead {
   color: var(--muted);
-  font-weight: 400;
+  font-weight: 500;
 }
 
 .lead .ink,
