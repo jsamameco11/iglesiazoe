@@ -56,6 +56,7 @@
   writing-mode: vertical-lr;
   direction: rtl;
   width: 18px;
+  height: 8.5rem;
 }
 
 .zoe-editor-vertical::-webkit-slider-runnable-track {

@@ -197,6 +197,7 @@ function Workspace({ current, limits, kinds }: { current: Current; limits: Limit
   const [status, setStatus] = useState(current.status);
   const [statusError, setStatusError] = useState(current.error);
   const [confirming, setConfirming] = useState<"save" | "restore" | null>(null);
+  const [guide, setGuide] = useState(false);
   const [busy, setBusy] = useState(false);
   const [sample, setSample] = useState<{ url: string; at: number } | null>(null);
   const [sampling, setSampling] = useState(false);
@@ -384,7 +385,7 @@ function Workspace({ current, limits, kinds }: { current: Current; limits: Limit
     const keydown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const typing = target && (target.tagName === "TEXTAREA" || target.tagName === "SELECT" || (target.tagName === "INPUT" && (target as HTMLInputElement).type !== "range") || target.isContentEditable);
-      if (typing || confirming) return;
+      if (typing || confirming || guide) return;
       const key = event.key.toLowerCase();
       const command = event.ctrlKey || event.metaKey;
       if (command && key === "z") {
@@ -396,6 +397,8 @@ function Workspace({ current, limits, kinds }: { current: Current; limits: Limit
         redo();
       } else if (command) {
         return;
+      } else if (event.key === "?") {
+        setGuide(true);
       } else if (event.key === " ") {
         event.preventDefault();
         togglePlay();
@@ -418,7 +421,7 @@ function Workspace({ current, limits, kinds }: { current: Current; limits: Limit
     };
     window.addEventListener("keydown", keydown);
     return () => window.removeEventListener("keydown", keydown);
-  }, [confirming, cutSelection, mark, redo, seek, selection, togglePlay, undo, zoomBy, total]);
+  }, [confirming, guide, cutSelection, mark, redo, seek, selection, togglePlay, undo, zoomBy, total]);
 
   async function listenFinal() {
     engine.current?.pause();
@@ -553,6 +556,15 @@ function Workspace({ current, limits, kinds }: { current: Current; limits: Limit
             </button>
             <ToolButton label="Acercar (+) · también Ctrl + rueda del mouse" onClick={() => zoomBy(1.6)} icon="plus" />
           </div>
+          <button
+            type="button"
+            onClick={() => setGuide(true)}
+            title="Guía rápida y atajos de teclado (?)"
+            aria-label="Guía rápida y atajos de teclado"
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white text-[13px] font-semibold text-muted transition hover:border-ink/30 hover:text-ink"
+          >
+            ?
+          </button>
         </div>
 
         <div className="mt-4">
@@ -623,139 +635,103 @@ function Workspace({ current, limits, kinds }: { current: Current; limits: Limit
         </section>
       )}
 
-      <div className="grid gap-5 xl:grid-cols-12">
-        <div className="space-y-5 xl:col-span-7">
-          <Panel title="Cortes y transiciones" text="Así queda el audio, en orden. Puedes escuchar cada empalme o recuperar una parte cortada.">
-            <ol className="space-y-1.5">
-              {timeline(parts, recipe.cuts).map((piece, index) =>
-                piece.cut ? (
-                  <li key={`c${index}`} className="flex flex-wrap items-center gap-2 rounded-xl border border-red-100 bg-red-50/70 px-3 py-2 text-[13px]">
-                    <Icon name="scissors" className="h-4 w-4 text-red-600" />
-                    <span className="font-semibold text-red-800">Cortado</span>
-                    <span className="tabular-nums text-red-900/70">{preciseTime(piece.range[0])} → {preciseTime(piece.range[1])} · {preciseTime(piece.range[1] - piece.range[0])}</span>
-                    <span className="ml-auto flex gap-1">
-                      {piece.range[0] > 0 && piece.range[1] < total && (
-                        <SmallButton onClick={() => {
-                          setSample(null);
-                          void engine.current?.play(Math.max(0, piece.range[0] - 3));
-                        }}>▶ Escuchar el empalme</SmallButton>
-                      )}
-                      <SmallButton onClick={() => setSelection(piece.range)}>Seleccionar</SmallButton>
-                      <SmallButton onClick={() => change((value) => ({ ...value, cuts: restoreRange(value.cuts, piece.range, total) }))}>Recuperar</SmallButton>
-                    </span>
-                  </li>
-                ) : (
-                  <li key={`k${index}`} className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-[13px]">
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                    <span className="font-semibold">Parte {piece.number}</span>
-                    <span className="tabular-nums text-muted">{preciseTime(piece.range[0])} → {preciseTime(piece.range[1])} · {preciseTime(piece.range[1] - piece.range[0])}</span>
-                    <span className="ml-auto">
-                      <SmallButton onClick={() => {
-                        setSample(null);
-                        void engine.current?.play(piece.range[0]);
-                      }}>▶ Escuchar</SmallButton>
-                    </span>
-                  </li>
-                ),
-              )}
-            </ol>
-            {recipe.cuts.length === 0 && <p className="mt-3 text-xs text-muted">Todavía no hay cortes: el audio suena completo.</p>}
+      <Panel title="Cortes y transiciones" text="Así queda el audio, en orden. Puedes escuchar cada empalme o recuperar una parte cortada.">
+        <ol className="space-y-1.5">
+          {timeline(parts, recipe.cuts).map((piece, index) =>
+            piece.cut ? (
+              <li key={`c${index}`} className="flex flex-wrap items-center gap-2 rounded-xl border border-red-100 bg-red-50/70 px-3 py-2 text-[13px]">
+                <Icon name="scissors" className="h-4 w-4 text-red-600" />
+                <span className="font-semibold text-red-800">Cortado</span>
+                <span className="tabular-nums text-red-900/70">{preciseTime(piece.range[0])} → {preciseTime(piece.range[1])} · {preciseTime(piece.range[1] - piece.range[0])}</span>
+                <span className="ml-auto flex gap-1">
+                  {piece.range[0] > 0 && piece.range[1] < total && (
+                    <SmallButton onClick={() => {
+                      setSample(null);
+                      void engine.current?.play(Math.max(0, piece.range[0] - 3));
+                    }}>▶ Escuchar el empalme</SmallButton>
+                  )}
+                  <SmallButton onClick={() => setSelection(piece.range)}>Seleccionar</SmallButton>
+                  <SmallButton onClick={() => change((value) => ({ ...value, cuts: restoreRange(value.cuts, piece.range, total) }))}>Recuperar</SmallButton>
+                </span>
+              </li>
+            ) : (
+              <li key={`k${index}`} className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-white px-3 py-2 text-[13px]">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                <span className="font-semibold">Parte {piece.number}</span>
+                <span className="tabular-nums text-muted">{preciseTime(piece.range[0])} → {preciseTime(piece.range[1])} · {preciseTime(piece.range[1] - piece.range[0])}</span>
+                <span className="ml-auto">
+                  <SmallButton onClick={() => {
+                    setSample(null);
+                    void engine.current?.play(piece.range[0]);
+                  }}>▶ Escuchar</SmallButton>
+                </span>
+              </li>
+            ),
+          )}
+        </ol>
+        {recipe.cuts.length === 0 && <p className="mt-3 text-xs text-muted">Todavía no hay cortes: el audio suena completo.</p>}
 
-            <div className="mt-5 grid gap-4 rounded-2xl border border-line bg-white p-4 md:grid-cols-3">
-              <Slider
-                label="Entrada suave"
-                hint="El audio empieza desde silencio y sube poco a poco."
-                value={recipe.fadeIn}
-                min={0}
-                max={Math.min(limits.maxFade, Math.floor((length / 2) * 10) / 10)}
-                step={0.1}
-                format={(value) => (value ? `${value.toFixed(1)} s` : "Sin fundido")}
-                group="fadeIn"
-                onChange={(patch, group) => change((value) => ({ ...value, ...patch }), group)}
-              />
-              <Slider
-                label="Salida suave"
-                hint="El final baja poco a poco hasta el silencio. Ideal si cortaste el final."
-                value={recipe.fadeOut}
-                min={0}
-                max={Math.min(limits.maxFade, Math.floor((length / 2) * 10) / 10)}
-                step={0.1}
-                format={(value) => (value ? `${value.toFixed(1)} s` : "Sin fundido")}
-                group="fadeOut"
-                onChange={(patch, group) => change((value) => ({ ...value, ...patch }), group)}
-              />
-              <Slider
-                label="Unión de los cortes"
-                hint={overlaps.length ? "En cero, corte limpio. Más arriba, las partes se funden una con otra." : "Se usa cuando cortas una parte del medio."}
-                value={recipe.join}
-                min={0}
-                max={limits.maxJoin}
-                step={0.05}
-                format={(value) => (value ? `Fundido ${value.toFixed(2)} s` : "Corte limpio")}
-                group="join"
-                onChange={(patch, group) => change((value) => ({ ...value, ...patch }), group)}
-              />
-            </div>
-          </Panel>
-
-          <details className="group rounded-[1.6rem] border border-line bg-card p-5">
-            <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold">
-              ¿Cómo se usa? Guía rápida y atajos
-              <span className="text-muted transition group-open:rotate-180">⌄</span>
-            </summary>
-            <div className="mt-4 grid gap-5 text-[13px] leading-6 md:grid-cols-2">
-              <ol className="list-decimal space-y-1.5 pl-5">
-                <li><b>Escucha</b> con el botón ▶ o la barra espaciadora. Haz clic en la onda para ir a un punto.</li>
-                <li><b>Selecciona</b> arrastrando sobre la onda la parte que sobra (una intro larga, un silencio, una parte del medio).</li>
-                <li><b>Corta</b> con «Cortar selección» o la tecla Supr. Al reproducir, el corte se salta solo: escucha cómo queda el empalme.</li>
-                <li><b>Afina</b> arrastrando las marcas rojas del corte, y suaviza con la entrada, la salida o la unión de los cortes.</li>
-                <li><b>Mejora el sonido</b> con un estilo o los controles. Compara con «Original / Editado».</li>
-                <li><b>Guarda.</b> El original queda guardado: podrás reabrir la edición o restaurarlo.</li>
-              </ol>
-              <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5">
-                {[
-                  ["Espacio", "Reproducir / pausar"],
-                  ["Supr", "Cortar la selección"],
-                  ["I  ·  O", "Marcar inicio · fin de la selección en el cursor"],
-                  ["L", "Repetir la selección"],
-                  ["B", "Comparar original / editado"],
-                  ["+  ·  −", "Acercar · alejar (o Ctrl + rueda)"],
-                  ["← →", "Mover el cursor 1 s (Mayús: 5 s)"],
-                  ["Ctrl+Z · Ctrl+Y", "Deshacer · rehacer"],
-                  ["Mayús + clic", "Extender la selección"],
-                  ["Doble clic", "Seleccionar un corte · volver un control a cero"],
-                ].map(([key, text]) => (
-                  <div key={key} className="contents">
-                    <dt><kbd className="rounded-md border border-line bg-white px-1.5 py-0.5 font-mono text-[11px] font-semibold">{key}</kbd></dt>
-                    <dd className="text-muted">{text}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          </details>
+        <div className="mt-5 grid gap-5 rounded-2xl border border-line bg-white p-4 md:grid-cols-3 md:p-5">
+          <Slider
+            label="Entrada suave"
+            hint="El audio empieza desde silencio y sube poco a poco."
+            value={recipe.fadeIn}
+            min={0}
+            max={Math.min(limits.maxFade, Math.floor((length / 2) * 10) / 10)}
+            step={0.1}
+            digits={1}
+            unit="s"
+            format={(value) => (value ? "Desde silencio" : "Sin fundido")}
+            group="fadeIn"
+            onChange={(patch, group) => change((value) => ({ ...value, ...patch }), group)}
+          />
+          <Slider
+            label="Salida suave"
+            hint="El final baja poco a poco hasta el silencio. Ideal si cortaste el final."
+            value={recipe.fadeOut}
+            min={0}
+            max={Math.min(limits.maxFade, Math.floor((length / 2) * 10) / 10)}
+            step={0.1}
+            digits={1}
+            unit="s"
+            format={(value) => (value ? "Hasta el silencio" : "Sin fundido")}
+            group="fadeOut"
+            onChange={(patch, group) => change((value) => ({ ...value, ...patch }), group)}
+          />
+          <Slider
+            label="Unión de los cortes"
+            hint={overlaps.length ? "En cero, corte limpio. Más arriba, las partes se funden una con otra." : "Se usa cuando cortas una parte del medio."}
+            value={recipe.join}
+            min={0}
+            max={limits.maxJoin}
+            step={0.05}
+            digits={2}
+            unit="s"
+            format={(value) => (value ? "Fundido" : "Corte limpio")}
+            group="join"
+            onChange={(patch, group) => change((value) => ({ ...value, ...patch }), group)}
+          />
         </div>
+      </Panel>
 
-        <div className="xl:col-span-5">
-          <Panel
-            title="Sonido"
-            text="Mejora la calidad del audio. Todo se escucha al instante mientras reproduces."
-            actions={
-              <button
-                type="button"
-                onClick={listenFinal}
-                disabled={sampling || processing}
-                className={`${ghost} border-violet-200 bg-violet-50 text-violet-900 hover:border-violet-400`}
-                title="Procesa unos segundos en el servidor con todos los filtros, incluidos los que el navegador no puede reproducir"
-              >
-                {sampling ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-violet-700 border-t-transparent" /> : <Icon name="headphones" className="h-4 w-4" />}
-                Escuchar el resultado final
-              </button>
-            }
+      <Panel
+        title="Sonido"
+        text="Mejora la calidad del audio. Todo se escucha al instante mientras reproduces; escribe el valor exacto en cualquier control si lo necesitas."
+        actions={
+          <button
+            type="button"
+            onClick={listenFinal}
+            disabled={sampling || processing}
+            className={`${ghost} border-violet-200 bg-violet-50 text-violet-900 hover:border-violet-400`}
+            title="Procesa unos segundos en el servidor con todos los filtros, incluidos los que el navegador no puede reproducir"
           >
-            <SoundPanel recipe={recipe} onChange={(patch, group) => change((value) => ({ ...value, ...patch }), group)} onReplace={(next) => change(next)} />
-          </Panel>
-        </div>
-      </div>
+            {sampling ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-violet-700 border-t-transparent" /> : <Icon name="headphones" className="h-4 w-4" />}
+            Escuchar el resultado final
+          </button>
+        }
+      >
+        <SoundPanel recipe={recipe} onChange={(patch, group) => change((value) => ({ ...value, ...patch }), group)} onReplace={(next) => change(next)} />
+      </Panel>
 
       {/* Save bar */}
       <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/90 backdrop-blur-md 2xl:left-[272px]">
@@ -806,6 +782,55 @@ function Workspace({ current, limits, kinds }: { current: Current; limits: Limit
           <div className="mt-5 flex justify-end gap-2">
             <button type="button" onClick={() => setConfirming(null)} className={ghost}>Seguir editando</button>
             <button type="button" onClick={save} disabled={busy || isPlain(recipe)} className={button}>{busy ? "Guardando…" : "Guardar edición"}</button>
+          </div>
+        </Dialog>
+      )}
+
+      {guide && (
+        <Dialog title="Guía rápida y atajos" onClose={() => setGuide(false)} wide>
+          <div className="grid gap-6 text-[13px] leading-6 md:grid-cols-[1.1fr_1fr]">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Paso a paso</p>
+              <ol className="mt-3 space-y-2.5">
+                {[
+                  ["Escucha", "con el botón ▶ o la barra espaciadora. Haz clic en la onda para ir a un punto."],
+                  ["Selecciona", "arrastrando sobre la onda la parte que sobra: una intro larga, un silencio o una parte del medio."],
+                  ["Corta", "con «Cortar selección» o la tecla Supr. Al reproducir, el corte se salta solo: escucha cómo queda el empalme."],
+                  ["Afina", "arrastrando las marcas rojas del corte, y suaviza con la entrada, la salida o la unión de los cortes."],
+                  ["Mejora el sonido", "con un estilo o los controles; escribe el valor exacto si lo necesitas. Compara con «Original / Editado»."],
+                  ["Guarda.", "El original queda guardado: podrás reabrir la edición o restaurarlo."],
+                ].map(([title, text], index) => (
+                  <li key={title} className="flex gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-paper text-[11.5px] font-semibold tabular-nums">{index + 1}</span>
+                    <span><b>{title}</b> {text}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">Atajos de teclado</p>
+              <dl className="mt-3 divide-y divide-line rounded-2xl border border-line">
+                {[
+                  ["Espacio", "Reproducir / pausar"],
+                  ["Supr", "Cortar la selección"],
+                  ["I · O", "Marcar inicio · fin en el cursor"],
+                  ["L", "Repetir la selección"],
+                  ["B", "Comparar original / editado"],
+                  ["+ · −", "Acercar · alejar (o Ctrl + rueda)"],
+                  ["← →", "Mover el cursor 1 s (Mayús: 5 s)"],
+                  ["Ctrl+Z · Ctrl+Y", "Deshacer · rehacer"],
+                  ["Mayús + clic", "Extender la selección"],
+                  ["Doble clic", "Seleccionar un corte · volver un control a cero"],
+                  ["↑ ↓", "En un valor escrito: subir · bajar (Mayús: ×10)"],
+                  ["?", "Abrir esta guía"],
+                ].map(([key, text]) => (
+                  <div key={key} className="flex items-center justify-between gap-4 px-3.5 py-2">
+                    <dt className="order-last shrink-0"><kbd className="rounded-md border border-line bg-paper px-1.5 py-0.5 font-mono text-[11px] font-semibold">{key}</kbd></dt>
+                    <dd className="text-muted">{text}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
           </div>
         </Dialog>
       )}
@@ -895,7 +920,7 @@ function ToolButton({ label, onClick, icon, disabled }: { label: string; onClick
   );
 }
 
-function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
+function Dialog({ title, onClose, wide = false, children }: { title: string; onClose: () => void; wide?: boolean; children: ReactNode }) {
   useEffect(() => {
     const close = (event: KeyboardEvent) => event.key === "Escape" && onClose();
     window.addEventListener("keydown", close);
@@ -903,8 +928,15 @@ function Dialog({ title, onClose, children }: { title: string; onClose: () => vo
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-sm" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" className="w-full max-w-lg rounded-[1.6rem] bg-white p-6 shadow-2xl">
-        <h3 className="text-lg font-semibold tracking-[-0.025em]">{title}</h3>
+      <div role="dialog" aria-modal="true" aria-label={title} className={`max-h-[calc(100vh-2rem)] w-full overflow-y-auto rounded-[1.6rem] bg-white p-6 shadow-2xl ${wide ? "max-w-3xl" : "max-w-lg"}`}>
+        <div className="flex items-start justify-between gap-4">
+          <h3 className="text-lg font-semibold tracking-[-0.025em]">{title}</h3>
+          {wide && (
+            <button type="button" onClick={onClose} aria-label="Cerrar" className="-mr-2 -mt-1 flex h-8 w-8 items-center justify-center rounded-full text-lg text-muted transition hover:bg-paper hover:text-ink">
+              ×
+            </button>
+          )}
+        </div>
         <div className="mt-4">{children}</div>
       </div>
     </div>
