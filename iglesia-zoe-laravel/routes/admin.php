@@ -117,6 +117,7 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
             Route::post('/biblioteca/rotacion', [RadioLibraryController::class, 'rotation']);
             Route::post('/biblioteca/eliminar', [RadioLibraryController::class, 'destroy']);
             Route::post('/biblioteca/identificar', [RadioLibraryController::class, 'identify'])->middleware('throttle:90,1');
+            Route::post('/biblioteca/duplicados', [RadioLibraryController::class, 'duplicates'])->middleware('throttle:120,1');
             Route::get('/catalogo', [RadioCatalogController::class, 'index']);
             Route::post('/catalogo/genero', [RadioCatalogController::class, 'saveGenre']);
             Route::post('/catalogo/genero/eliminar', [RadioCatalogController::class, 'destroyGenre']);

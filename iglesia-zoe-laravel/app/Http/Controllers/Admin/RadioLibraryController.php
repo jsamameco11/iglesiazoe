@@ -10,6 +10,7 @@ use App\Domain\Radio\Catalog\Genres;
 use App\Domain\Radio\Catalog\MusicCatalog;
 use App\Domain\Radio\Identify\CoverDownload;
 use App\Domain\Radio\Identify\Identifier;
+use App\Domain\Radio\Identify\SameSong;
 use App\Domain\Radio\Identify\SongQuery;
 use App\Domain\Radio\Identify\Text;
 use App\Domain\Radio\RadioAudio;
@@ -31,6 +32,9 @@ class RadioLibraryController extends RadioController
     private const COVER_TYPES = ['jpg', 'jpeg', 'png', 'webp'];
 
     private const MAX_COVER_MB = 8;
+
+    /** Songs compared at once against the library. */
+    private const MAX_REVIEW = 200;
 
     public function index(): Response
     {
@@ -100,6 +104,12 @@ class RadioLibraryController extends RadioController
         }
         $data = $validator->validated();
         $isSong = $data['kind'] === 'musica';
+        if (! $existing && $isSong && ! $request->boolean('duplicate_ok')) {
+            $twin = SameSong::twinIn([...$data, 'ids' => self::identity($data['identity'] ?? null)['ids'] ?? []], RadioTrack::query()->where('kind', 'musica')->get());
+            if ($twin) {
+                return $this->fail('Esta canción ya está en la biblioteca: «'.$twin->title.'»'.($twin->credit() ? ' de '.$twin->credit() : '').'. Quítala de la lista o marca «Subir igual» si de verdad quieres otra copia.', 409);
+            }
+        }
 
         $cover = $isSong ? $request->file('cover') : null;
         $coverExtension = null;
@@ -230,6 +240,35 @@ class RadioLibraryController extends RadioController
         }
 
         return response()->json(['ok' => true, 'result' => $result]);
+    }
+
+    /**
+     * Compares the songs about to be uploaded with the library and among themselves: for each one,
+     * the same song already there, another version of it or a possible duplicate, with the reasons.
+     */
+    public function duplicates(Request $request): JsonResponse
+    {
+        $text = fn (mixed $value, int $max) => mb_substr(trim(is_scalar($value) ? (string) $value : ''), 0, $max);
+        $songs = [];
+        foreach (array_slice((array) $request->input('songs', []), 0, self::MAX_REVIEW) as $song) {
+            if (! is_array($song) || ! is_string($song['key'] ?? null) || mb_strlen($text($song['title'] ?? null, 160)) < 2) {
+                continue;
+            }
+            $songs[mb_substr($song['key'], 0, 200)] = [
+                'title' => $text($song['title'], 160),
+                'artist' => $text($song['artist'] ?? null, 120),
+                'featured' => collect((array) ($song['featured'] ?? []))->map(fn (mixed $name) => $text($name, 120))->filter()->take(RadioTrack::MAX_FEATURED)->values()->all(),
+                'album' => $text($song['album'] ?? null, 160),
+                'year' => $song['year'] ?? null,
+                'duration' => $song['duration'] ?? null,
+                'ids' => self::identity(is_string($song['identity'] ?? null) ? $song['identity'] : null)['ids'] ?? [],
+            ];
+        }
+
+        return response()->json([
+            'ok' => true,
+            'results' => (object) SameSong::review($songs, RadioTrack::query()->where('kind', 'musica')->get()),
+        ]);
     }
 
     /** Puts a song in the continuous music, where it repeats in the gaps of the program, or takes it out. */

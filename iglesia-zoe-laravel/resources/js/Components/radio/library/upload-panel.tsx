@@ -6,6 +6,7 @@ import { postAudio } from "@/Components/radio/audio-upload";
 import { SearchIcon } from "@/Components/radio/icons";
 import { duration, type RadioGenre, type RadioTrack } from "@/lib/radio";
 import { artistHints, parseFileName, recognizeSong, type SongDetails } from "@/lib/radio/audio-tags";
+import { DuplicateBadge, DuplicatePanel, isBlocked, reviewDuplicates, type DuplicateReview } from "./duplicates";
 import { CoAuthorsField, CoverPicker, GenrePicker, LookupBadge, MusicNote, cleanYear, identifySong, identityJson, mergeNames, plain, type LookupState } from "./song-fields";
 
 type Kind = RadioTrack["kind"];
@@ -34,6 +35,10 @@ type Upload = {
   source: SongDetails["source"] | null;
   lookup: LookupState | null;
   identity: string | null;
+  /** Songs of the library or of this upload it repeats. */
+  duplicates: DuplicateReview;
+  /** Uploaded even though it is the same song as another: the admin wants another copy. */
+  duplicateOk: boolean;
   /** Also publish it on /radio as an episode, with this description and cover. */
   episode: boolean;
   description: string;
@@ -61,6 +66,12 @@ const small = `${input} !mt-0 !py-2`;
 /** Spoken audio lowers the music by default when it plays on top of it. */
 const duckFor = (kind: Kind) => kind === "anuncio" || kind === "programa";
 
+/** Songs compared with the library and among themselves, in upload order. */
+const reviewable = (list: Upload[]) => list.filter((item) => item.kind === "musica" && item.status === "ready" && item.title.trim().length >= 2);
+
+/** What the duplicate review reads of a song: when it changes, the song is compared again. */
+const reviewSignature = (list: Upload[]) => JSON.stringify(reviewable(list).map((item) => [item.key, item.title.trim(), item.artist.trim(), item.featured, item.album.trim(), item.year, item.duration, item.identity]));
+
 function sizeLabel(bytes: number) {
   return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
@@ -71,6 +82,12 @@ function missing(item: Upload) {
   if (item.kind === "musica" && !item.artist.trim()) return "Falta el autor de la canción.";
   if (item.year && item.year.length !== 4) return "El año va con 4 cifras (por ejemplo 2024).";
   return null;
+}
+
+/** Complete, searched and, if it is a song, compared with the library without being the same as another. */
+function uploadable(item: Upload) {
+  if (item.status !== "ready" || !item.duration || missing(item) || item.lookup?.status === "searching") return false;
+  return item.kind !== "musica" || (item.duplicates !== null && !isBlocked(item.duplicates, item.duplicateOk));
 }
 
 function coverName(blob: Blob) {
@@ -128,9 +145,12 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
   const urls = useRef(new Set<string>());
   const current = useRef(queue);
   const lookups = useRef<Promise<void>>(Promise.resolve());
+  const reviews = useRef(0);
+  const [reviewRound, setReviewRound] = useState(0);
   current.current = queue;
 
   const kindList = Object.keys(kinds) as Kind[];
+  const signature = reviewSignature(queue);
 
   useEffect(
     () => () => {
@@ -139,6 +159,20 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
     },
     [],
   );
+
+  /** Each song is compared with the library and with the songs before it once it is read, and again after every change. */
+  useEffect(() => {
+    const songs = reviewable(current.current);
+    if (songs.length === 0) return;
+    const ticket = ++reviews.current;
+    const timer = window.setTimeout(async () => {
+      const results = await reviewDuplicates(songs);
+      if (ticket !== reviews.current) return;
+      const keys = new Set(songs.map((song) => song.key));
+      setQueue((list) => list.map((item) => (keys.has(item.key) ? { ...item, duplicates: results ? (results[item.key] ?? []) : "error" } : item)));
+    }, 450);
+    return () => window.clearTimeout(timer);
+  }, [signature, reviewRound]);
 
   function objectUrl(blob: Blob) {
     const url = URL.createObjectURL(blob);
@@ -218,6 +252,8 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
         source: null,
         lookup: null,
         identity: null,
+        duplicates: null,
+        duplicateOk: false,
         episode: false,
         description: "",
         episodeCover: null,
@@ -306,7 +342,7 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
     setNotice(null);
     let uploaded = 0;
     for (const item of queue) {
-      if (item.status !== "ready" || !item.duration || missing(item)) continue;
+      if (!uploadable(item)) continue;
       patch(item.key, { status: "uploading", progress: 0, error: undefined });
       const data = new FormData();
       data.set("title", item.title.trim());
@@ -322,6 +358,7 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
         if (item.cover) data.set("cover", item.cover, item.cover instanceof File ? item.cover.name : coverName(item.cover));
         else if (item.remoteCover) data.set("cover_url", item.remoteCover);
         if (item.identity) data.set("identity", item.identity);
+        if (item.duplicateOk) data.set("duplicate_ok", "1");
       }
       if (canEpisodes && item.episode) {
         data.set("episode", "1");
@@ -336,6 +373,7 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
       }
     }
     setRunning(false);
+    setReviewRound((round) => round + 1);
     if (uploaded) {
       router.reload({ only: ["tracks"] });
       setQueue((list) => {
@@ -356,8 +394,14 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
 
   const reading = queue.filter((item) => item.status === "reading").length;
   const searching = queue.filter((item) => item.lookup?.status === "searching").length;
-  const ready = queue.filter((item) => item.status === "ready" && !missing(item) && item.lookup?.status !== "searching");
+  const ready = queue.filter(uploadable);
   const incomplete = queue.filter((item) => item.status === "ready" && missing(item)).length;
+  const checking = reviewable(queue).filter((item) => item.duplicates === null).length;
+  const repeated = queue.filter((item) => item.status === "ready" && item.kind === "musica" && isBlocked(item.duplicates, item.duplicateOk)).length;
+  const nameOf = (key: string) => {
+    const item = queue.find((entry) => entry.key === key);
+    return item ? `«${item.title.trim() || item.file.name}» (${item.file.name})` : "otra canción";
+  };
   const songs = queue.filter((item) => item.kind === "musica" && item.status !== "done");
 
   return (
@@ -467,6 +511,7 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
               canEpisodes={canEpisodes}
               running={running}
               previewing={previewing === item.key}
+              nameOf={nameOf}
               onPatch={(values) => patch(item.key, values)}
               onLookUp={() => lookUp(item.key, true)}
               onCover={(file) => setCover(item, file)}
@@ -485,6 +530,8 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
             <p className="text-[12.5px] text-muted">
               {reading ? `Reconociendo ${reading} ${reading === 1 ? "audio" : "audios"}… ` : ""}
               {searching ? `Buscando ${searching === 1 ? "1 canción" : `${searching} canciones`} en internet… ` : ""}
+              {checking ? `Revisando si ${checking === 1 ? "1 canción está repetida" : `${checking} canciones están repetidas`}… ` : ""}
+              {repeated ? <span className="font-medium text-red-800">{repeated === 1 ? "1 canción ya está en la biblioteca o repetida en esta subida y no se subirá. " : `${repeated} canciones ya están en la biblioteca o repetidas en esta subida y no se subirán. `}</span> : null}
               {incomplete ? <span className="font-medium text-amber-800">Completa los datos obligatorios en {incomplete === 1 ? "1 audio" : `${incomplete} audios`} para subirlos.</span> : null}
             </p>
           </div>
@@ -512,6 +559,7 @@ function UploadCard({
   canEpisodes,
   running,
   previewing,
+  nameOf,
   onPatch,
   onLookUp,
   onCover,
@@ -529,6 +577,7 @@ function UploadCard({
   canEpisodes: boolean;
   running: boolean;
   previewing: boolean;
+  nameOf: (key: string) => string;
   onPatch: (values: Partial<Upload>) => void;
   onLookUp: () => void;
   onCover: (file: File | null) => void;
@@ -543,9 +592,10 @@ function UploadCard({
   const required = <span className="text-red-600">*</span>;
   const titleMissing = item.status === "ready" && !item.title.trim();
   const artistMissing = item.status === "ready" && song && !item.artist.trim();
+  const repeated = song && item.status === "ready" && isBlocked(item.duplicates, item.duplicateOk);
 
   return (
-    <article className={`rounded-2xl border bg-white p-3 transition md:p-4 ${item.error ? "border-red-200" : problem ? "border-amber-200" : "border-line"}`}>
+    <article className={`rounded-2xl border bg-white p-3 transition md:p-4 ${item.error || repeated ? "border-red-200" : problem ? "border-amber-200" : "border-line"}`}>
       <div className="flex gap-3 md:gap-4">
         {song ? <CoverPicker src={item.coverUrl} disabled={locked} onPick={(file) => onCover(file)} onRemove={() => onCover(null)} /> : null}
 
@@ -563,6 +613,7 @@ function UploadCard({
               </span>
             ) : null}
             {song ? <LookupBadge state={item.lookup} /> : null}
+            {song && item.status === "ready" ? <DuplicateBadge review={item.duplicates} /> : null}
             <span className="ml-auto flex items-center gap-1">
               {song && !locked && !searching && item.title.trim().length >= 2 ? (
                 <button
@@ -723,6 +774,9 @@ function UploadCard({
               </span>
               <span className="w-24 text-right text-[11.5px] font-semibold tabular-nums text-muted">{item.status === "done" ? "Subido ✓" : `Subiendo ${Math.round(item.progress * 100)}%`}</span>
             </div>
+          ) : null}
+          {song && item.status === "ready" ? (
+            <DuplicatePanel review={item.duplicates} allowed={item.duplicateOk} disabled={running} nameOf={nameOf} onAllow={(duplicateOk) => onPatch({ duplicateOk })} onRemove={onRemove} />
           ) : null}
           {item.error ? <p className="text-xs font-medium text-red-700">{item.error}</p> : null}
           {problem ? <p className="text-xs font-medium text-amber-800">{problem}</p> : null}
