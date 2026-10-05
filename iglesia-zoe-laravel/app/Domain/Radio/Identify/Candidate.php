@@ -21,8 +21,10 @@ final class Candidate
     public float $artistScore = 0.0;
 
     /**
-     * @param  list<string>  $featured
+     * @param  list<string>  $featured  Everyone credited besides the author: co-authors and guests.
      * @param  list<array{0: string, 1: float}>  $tags  Genre tags with their weight; one tag may list other names after «||».
+     * @param  list<string>  $partners  Co-authors credited as authors of the song as much as the first one («Adoración & Miel San Marcos»).
+     * @param  list<string>  $mentioned  Names after «con» or «with» in the name, that may be people or another song of a medley.
      */
     public function __construct(
         public string $source,
@@ -40,6 +42,8 @@ final class Candidate
         public ?string $isrc = null,
         public ?string $artistId = null,
         public ?string $albumId = null,
+        public array $partners = [],
+        public array $mentioned = [],
     ) {}
 
     /** Whether the release is a real album or EP of the artist, not a single or a compilation. */

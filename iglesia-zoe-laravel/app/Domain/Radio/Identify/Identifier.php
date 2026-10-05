@@ -9,6 +9,7 @@ use App\Domain\Radio\Identify\Sources\MusicBrainz;
 use App\Domain\Radio\Identify\Sources\Wikidata;
 use App\Models\RadioGenre;
 use App\Models\RadioTrack;
+use Generator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
@@ -17,14 +18,21 @@ use Illuminate\Support\Facades\Cache;
  * the album it belongs to, its year, its cover and its genres.
  *
  * It asks iTunes, Deezer and MusicBrainz in several ways until two of them agree on the same
- * recording. The album is only given when it is certain: two databases agree on it for a version
- * of the same length, or MusicBrainz has it with the exact length; singles and compilations never
- * count. Genres come from the artist catalog and the tags of every database, in Spanish.
+ * recording. Other cuts of the song (remixes, sped-up, instrumental or acoustic versions,
+ * performance tracks) and songs with more words in their name never count as the song. The album
+ * is only given when it is certain: two databases agree on it for a version of the same length,
+ * MusicBrainz has it with the exact length, or the song is on a single album; singles and
+ * compilations never count, nor an EP named after the song when the recording is on an album. A co-author is only given when the user wrote it or most databases
+ * that have the recording credit it. Genres come from the artist catalog and the tags of every
+ * database, in Spanish.
  */
 final class Identifier
 {
     /** A version is the song from this score on (0 to 1). */
     private const MATCH = 0.75;
+
+    /** A version's name must be at least this alike to the song's. */
+    private const SAME_TITLE = 0.8;
 
     /** No more ways are tried once a version scores this and two databases agree. */
     private const SURE = 0.86;
@@ -35,7 +43,11 @@ final class Identifier
     /** Seconds within which the length is exact. */
     private const EXACT_LENGTH = 2.0;
 
-    private const CACHE = 'radio-identify:v1:';
+    /** Albums of other cuts of the songs: karaoke, instrumentals, performance tracks, remixes. */
+    private const CUT_ALBUM = '/\b(instrumental|instrumentales|instrumentals|pistas?|karaoke|performance tracks?|backing tracks?|playback|made popular|in the style of|tribute|tributo|remix|remixes|sped up|slowed|lofi|lo fi|piano)\b/';
+
+
+    private const CACHE = 'radio-identify:v2:';
 
     public function __construct(
         private readonly ITunes $iTunes,
@@ -55,6 +67,54 @@ final class Identifier
      */
     public function identify(SongQuery $query): array
     {
+        $first = null;
+        foreach ($this->readings($query) as $reading) {
+            $found = $this->found($reading);
+            if ($found['found']) {
+                return $this->classify($reading, $found);
+            }
+            $first ??= [$reading, $found];
+        }
+        [$reading, $found] = $first ?? [$query, ['found' => false]];
+
+        return $this->classify($reading, $found);
+    }
+
+    /**
+     * Ways to read the song: as it came; or, when it came without author, with the author written
+     * in its name («Marcos Witt Gracias Tu Fidelidad») taken out: a known artist first, then an
+     * artist a database credits for the rest of the name.
+     *
+     * @return Generator<int, SongQuery>
+     */
+    private function readings(SongQuery $query): Generator
+    {
+        if ($query->artist !== '') {
+            yield $query;
+
+            return;
+        }
+        $tried = [];
+        if ($edge = MusicCatalog::artistAtEdge($query->title)) {
+            $tried[Text::key($edge[0]->name)] = true;
+            yield $query->withArtist($edge[0]->name, $edge[1]);
+        }
+        yield $query;
+        $known = MusicCatalog::joinedNames();
+        foreach ([...$this->iTunes->search($query->title, $known), ...$this->deezer->search($query->title, $known)] as $candidate) {
+            foreach ([$candidate->artist, ...$candidate->partners] as $name) {
+                $rest = Text::withoutName($query->title, $name);
+                if ($rest !== null && ! isset($tried[Text::key($name)]) && Text::titleSimilarity($candidate->title, $rest) >= self::SAME_TITLE) {
+                    $tried[Text::key($name)] = true;
+                    yield $query->withArtist(MusicCatalog::artist($name)?->name ?? $name, $rest);
+                }
+            }
+        }
+    }
+
+    /** What the internet says of a reading of the song, kept for a while. */
+    private function found(SongQuery $query): array
+    {
         $key = self::CACHE.$query->cacheKey();
         $found = Cache::get($key);
         if (! is_array($found)) {
@@ -62,7 +122,7 @@ final class Identifier
             Cache::put($key, $found, $found['found'] ? now()->addDays(30) : now()->addHours(6));
         }
 
-        return $this->classify($query, $found);
+        return $found;
     }
 
     /** What the internet says of the song, before it is classified with the catalog. */
@@ -86,7 +146,7 @@ final class Identifier
         foreach ($plan as $step) {
             foreach ($step() as $candidate) {
                 $this->score($candidate, $query);
-                $candidates[$candidate->source.'|'.$candidate->id.'|'.$candidate->albumId.'|'.Text::key($candidate->album)] ??= $candidate;
+                $candidates[$candidate->source.'|'.$candidate->id.'|'.$candidate->albumId.'|'.Text::key($candidate->album).'|'.$candidate->albumTracks] ??= $candidate;
             }
             $matched = $this->matched($candidates, $query);
             if ($matched && $matched[0]->score >= self::SURE && count(self::sources($matched)) >= 2) {
@@ -101,27 +161,39 @@ final class Identifier
         $best = $matched[0];
         $matched = array_values(array_filter($matched, fn (Candidate $candidate) => Text::similarity($candidate->artist, $best->artist) >= 0.85
             || ($artist !== '' && Text::similarity($candidate->artist, $artist) >= 0.85)));
-        $same = $query->duration
-            ? array_values(array_filter($matched, fn (Candidate $candidate) => ($gap = $candidate->gap($query->duration)) === null || $gap <= self::SAME_LENGTH))
-            : $matched;
+        $isLive = fn (Candidate $candidate) => Text::isLive($candidate->title.' '.($candidate->album ?? ''));
+        $this->completeAlbums($matched);
+        if (! $query->live && $isLive($best)) {
+            $best = collect($matched)->first(fn (Candidate $candidate) => ! $isLive($candidate) && $candidate->score >= $best->score - 0.05) ?? $best;
+        }
+        if ($best->albumType === Candidate::COMPILATION) {
+            $best = collect($matched)->first(fn (Candidate $candidate) => $candidate->onAlbum() && $candidate->score >= $best->score - 0.05) ?? $best;
+        }
+        $cut = fn (Candidate $candidate) => [$isLive($candidate), Text::cuts($candidate->title)];
+        $same = array_values(array_filter($matched, fn (Candidate $candidate) => $cut($candidate) == $cut($best)
+            && (! $query->duration || ($gap = $candidate->gap($query->duration)) === null || $gap <= self::SAME_LENGTH)));
 
         $versions = $same ?: $matched;
         $this->completeAlbums($versions);
-        $album = $this->album($same, $query);
-        $recording = $album['candidates'] ?? $this->recording($versions, $best);
+        $album = $this->album($same, $query->duration);
+        $songYear = $album['year'] ?? ($query->duration ? $this->album(array_values(array_filter($matched, fn (Candidate $candidate) => $cut($candidate) == $cut($best))), null)['first_year'] ?? null : null);
+        $recording = self::onePerSource($album['candidates'] ?? $this->recording($versions, $best));
         if ($deezer = collect($recording)->first(fn (Candidate $candidate) => $candidate->source === Deezer::NAME)) {
             $this->deezer->completeCredits($deezer);
         }
 
-        $artistName = MusicCatalog::artist($best->artist)?->name ?? $best->artist;
-        $credited = array_map(fn (string $name) => MusicCatalog::artist($name)?->name ?? trim($name), [
-            ...$query->featured,
-            ...collect($recording)->flatMap(fn (Candidate $candidate) => $candidate->featured)->all(),
-        ]);
-        $featured = array_values(array_filter(
-            Text::mergeSpellings($credited, fn (string $name) => MusicCatalog::artist($name) !== null),
-            fn (string $name) => Text::similarity($name, $artistName) < 0.86,
-        ));
+        $author = $best->artist;
+        $before = [];
+        if ($artist !== '' && Text::similarity($author, $artist) < 0.86) {
+            $partner = collect($recording)->flatMap(fn (Candidate $candidate) => $candidate->partners)
+                ->first(fn (string $name) => Text::similarity($name, $artist) >= 0.86);
+            if ($partner) {
+                $before[] = $author;
+                $author = $partner;
+            }
+        }
+        $artistName = MusicCatalog::artist($author)?->name ?? $author;
+        $featured = $this->credits($recording, $query, $artistName, $before);
 
         $tags = [];
         foreach ($versions as $candidate) {
@@ -131,7 +203,7 @@ final class Identifier
         }
         $sources = self::sources($matched);
         $info = ['kind' => null, 'country' => null, 'musicbrainz_id' => null];
-        $mbArtist = collect($matched)->first(fn (Candidate $candidate) => $candidate->source === MusicBrainz::NAME && $candidate->artistId);
+        $mbArtist = collect($matched)->first(fn (Candidate $candidate) => $candidate->source === MusicBrainz::NAME && $candidate->artistId && Text::similarity($candidate->artist, $author) >= 0.85);
         $info['musicbrainz_id'] = $mbArtist?->artistId;
         $catalog = MusicCatalog::artist($artistName);
         if (! $catalog || ! $catalog->genres()->exists()) {
@@ -156,7 +228,7 @@ final class Identifier
             $best->score >= 0.8 => 'media',
             default => 'baja',
         };
-        $first = fn (string $source) => collect($versions)->first(fn (Candidate $candidate) => $candidate->source === $source)
+        $first = fn (string $source) => collect($recording)->first(fn (Candidate $candidate) => $candidate->source === $source)
             ?? collect($matched)->first(fn (Candidate $candidate) => $candidate->source === $source);
 
         return [
@@ -173,7 +245,7 @@ final class Identifier
             'artist' => $artistName,
             'featured' => array_slice($featured, 0, RadioTrack::MAX_FEATURED),
             'album' => $album['name'] ?? null,
-            'year' => $album['year'] ?? $this->year($versions),
+            'year' => $songYear ?? $this->year($versions),
             'cover' => $album['cover'] ?? $this->cover($recording),
             'tags' => array_values($tags),
             'artist_info' => $info,
@@ -186,13 +258,25 @@ final class Identifier
         ];
     }
 
-    /** How well a version matches: name 50 %, author 35 %, length 15 %. */
+    /**
+     * How well a version matches: name 50 %, author 35 %, length 15 %. Another cut of the song
+     * (a remix when the song was asked) falls below the name needed; guests the song was not asked
+     * with, or a cut asked for that the version lacks, take a little off.
+     */
     private function score(Candidate $candidate, SongQuery $query): void
     {
-        $candidate->titleScore = max(
-            Text::similarity(Text::cleanTitle($candidate->title), $query->title),
-            Text::similarity(Text::baseTitle($candidate->title), Text::baseTitle($query->title)),
+        $title = Text::titleSimilarity($candidate->title, $query->title);
+        $cuts = Text::cuts($candidate->title);
+        $otherCut = array_diff($cuts, $query->cuts) !== []
+            || ($query->cuts === [] && $candidate->album && preg_match(self::CUT_ALBUM, Text::key($candidate->album)));
+        $candidate->titleScore = $otherCut ? min($title, self::SAME_TITLE - 0.02) : $title;
+        $missing = array_diff($query->cuts, $cuts) !== [] ? 0.15 : 0.0;
+        $guests = array_filter(
+            [...Text::featuredIn($candidate->title), ...Text::mentionedIn($candidate->title)],
+            fn (string $name) => ! collect($query->names())->contains(fn (string $asked) => Text::similarity($asked, $name) >= 0.85),
         );
+        $penalty = $missing + 0.01 * min(3, count($guests));
+
         $gap = $candidate->gap($query->duration);
         $length = match (true) {
             $gap === null => 0.6,
@@ -201,18 +285,22 @@ final class Identifier
             $gap <= 12 => 0.5,
             default => 0.15,
         };
-        $live = $query->live === Text::isLive($candidate->title.' '.($candidate->album ?? '')) ? 0.0 : -0.03;
+        $live = match (true) {
+            $query->live === Text::isLive($candidate->title.' '.($candidate->album ?? '')) => 0.0,
+            $query->live => -0.1,
+            default => -0.03,
+        };
 
         if ($query->artist === '') {
             $candidate->artistScore = 0.0;
-            $candidate->score = round(0.7 * $candidate->titleScore + 0.3 * $length + $live, 4);
+            $candidate->score = round(0.7 * $candidate->titleScore + 0.3 * $length + $live - $penalty, 4);
 
             return;
         }
         $asMain = max(array_map(fn (string $name) => Text::similarity($candidate->artist, $name), $query->names()));
         $credited = max(array_map(fn (string $name) => Text::similarity($name, $query->artist), [$candidate->artist, ...$candidate->featured]));
         $candidate->artistScore = max(Text::similarity($candidate->artist, $query->artist), 0.85 * $credited, 0.8 * $asMain);
-        $candidate->score = round(0.5 * $candidate->titleScore + 0.35 * $candidate->artistScore + 0.15 * $length + $live, 4);
+        $candidate->score = round(0.5 * $candidate->titleScore + 0.35 * $candidate->artistScore + 0.15 * $length + $live - $penalty, 4);
     }
 
     /**
@@ -224,7 +312,7 @@ final class Identifier
     private function matched(array $candidates, SongQuery $query): array
     {
         $matched = array_values(array_filter($candidates, function (Candidate $candidate) use ($query) {
-            if ($candidate->score < self::MATCH || $candidate->titleScore < 0.8) {
+            if ($candidate->score < self::MATCH || $candidate->titleScore < self::SAME_TITLE) {
                 return false;
             }
             if ($query->artist === '') {
@@ -240,11 +328,11 @@ final class Identifier
         return $matched;
     }
 
-    /** Asks Deezer what kind of release each version is on (album, EP, single or compilation). @param list<Candidate> $versions */
+    /** Asks Deezer what kind of release each version is on (album, EP, single or compilation), best versions first. @param list<Candidate> $versions */
     private function completeAlbums(array $versions): void
     {
         $deezer = array_values(array_filter($versions, fn (Candidate $candidate) => $candidate->source === Deezer::NAME));
-        collect($deezer)->unique('albumId')->take(4)->each(fn (Candidate $candidate) => $this->deezer->completeAlbum($candidate));
+        collect($deezer)->unique('albumId')->take(6)->each(fn (Candidate $candidate) => $this->deezer->completeAlbum($candidate));
         foreach ($deezer as $candidate) {
             if ($candidate->albumType === null && ($twin = collect($deezer)->first(fn (Candidate $other) => $other->albumId === $candidate->albumId && $other->albumType !== null))) {
                 $candidate->albumType = $twin->albumType;
@@ -263,67 +351,188 @@ final class Identifier
      */
     private function recording(array $versions, Candidate $best): array
     {
-        $release = $best->album ? Text::albumKey($best->album) : '';
+        $reference = collect($versions)->first(fn (Candidate $candidate) => $candidate->albumType !== Candidate::COMPILATION) ?? $best;
+        $release = $reference->album ? Text::albumKey($reference->album) : '';
         $same = $release === '' ? [] : array_values(array_filter($versions, fn (Candidate $candidate) => $candidate->album && Text::albumKey($candidate->album) === $release));
 
-        return $same ?: [$best];
+        return $same ?: [$reference];
+    }
+
+    /**
+     * The best version of each database, so the deluxe edition's duet with someone else does not
+     * lend its credits to the song.
+     *
+     * @param  list<Candidate>  $versions  Best first.
+     * @return list<Candidate>
+     */
+    private static function onePerSource(array $versions): array
+    {
+        $chosen = [];
+        foreach ($versions as $candidate) {
+            $chosen[$candidate->source] ??= $candidate;
+        }
+
+        return array_values($chosen);
+    }
+
+    /**
+     * Co-authors of the recording: those the user wrote, and those credited by most of the databases
+     * that have it. A name after «con» or «with» only counts when a database credits it as an artist
+     * or the catalog knows it; a social handle takes the name of whoever it belongs to.
+     *
+     * @param  list<Candidate>  $recording  One version per database.
+     * @param  list<string>  $before  Credited names that go first.
+     * @return list<string>
+     */
+    private function credits(array $recording, SongQuery $query, string $artist, array $before): array
+    {
+        $artists = collect($recording)->flatMap(fn (Candidate $candidate) => [$candidate->artist, ...$candidate->partners, ...$candidate->featured]);
+        $groups = [];
+        foreach ($recording as $candidate) {
+            $names = $candidate->featured;
+            foreach ($candidate->mentioned as $name) {
+                if (MusicCatalog::artist($name) || $artists->contains(fn (string $credited) => Text::similarity($credited, $name) >= 0.85)) {
+                    $names[] = $name;
+                }
+            }
+            foreach (Text::unique($names) as $name) {
+                foreach ($groups as &$group) {
+                    if (Text::similarity($group['names'][0], $name) >= 0.85) {
+                        $group['names'][] = $name;
+                        $group['sources'][$candidate->source] = true;
+
+                        continue 2;
+                    }
+                }
+                unset($group);
+                $groups[] = ['names' => [$name], 'sources' => [$candidate->source => true]];
+            }
+        }
+        $spelling = function (array $names): string {
+            foreach ($names as $name) {
+                if ($known = MusicCatalog::artist($name)) {
+                    return $known->name;
+                }
+            }
+            $counts = array_count_values($names);
+            arsort($counts);
+            $top = array_keys($counts, reset($counts), true);
+
+            return (string) Text::bestSpelling(array_map('strval', $top));
+        };
+
+        $needed = min(2, count(self::sources($recording)));
+        $names = $before;
+        foreach ($query->featured as $name) {
+            $group = collect($groups)->first(fn (array $group) => Text::similarity($group['names'][0], $name) >= 0.85);
+            $names[] = $group ? $spelling($group['names']) : (MusicCatalog::artist($name)?->name ?? $name);
+        }
+        foreach ($query->handles as $handle) {
+            $group = collect($groups)->first(fn (array $group) => collect($group['names'])->contains(fn (string $name) => Text::handleOf($handle, $name)));
+            if ($group) {
+                $names[] = $spelling($group['names']);
+            }
+        }
+        foreach ($groups as $group) {
+            if (count($group['sources']) >= $needed) {
+                $names[] = $spelling($group['names']);
+            }
+        }
+
+        return array_values(array_filter(
+            Text::mergeSpellings(Text::unique($names), fn (string $name) => MusicCatalog::artist($name) !== null),
+            fn (string $name) => Text::similarity($name, $artist) < 0.86,
+        ));
     }
 
     /**
      * The album the song belongs to, only when it is certain.
      *
      * @param  list<Candidate>  $same  Versions of the same length as the file.
-     * @return array{name: string, year: ?int, cover: ?string, candidates: list<Candidate>}|null
+     * @return array{name: string, year: ?int, first_year: ?int, cover: ?string, candidates: list<Candidate>}|null
      */
-    private function album(array $same, SongQuery $query): ?array
+    private function album(array $same, ?float $duration): ?array
     {
         $groups = [];
+        $onFullAlbum = collect($same)->contains(fn (Candidate $candidate) => $candidate->albumType === Candidate::ALBUM);
         foreach ($same as $candidate) {
             $isAlbum = $candidate->onAlbum() || ($candidate->albumType === null && $candidate->album && ($candidate->albumTracks ?? 0) >= 5);
             $key = $isAlbum ? Text::albumKey((string) $candidate->album) : '';
+            if ($onFullAlbum && $candidate->albumType === Candidate::EP && in_array($key, [Text::key(Text::cleanTitle($candidate->title)), Text::key(Text::baseTitle($candidate->title))], true)) {
+                continue;
+            }
             if ($key === '') {
                 continue;
             }
-            $groups[$key] ??= ['names' => [], 'sources' => [], 'years' => [], 'releaseYears' => [], 'exact' => false, 'candidates' => []];
-            $groups[$key]['names'][] = (string) $candidate->album;
+            $groups[$key] ??= ['sources' => [], 'years' => [], 'exact' => false, 'candidates' => []];
             $groups[$key]['sources'][$candidate->source] = true;
             $groups[$key]['years'][] = $candidate->year;
-            if ($candidate->source !== ITunes::NAME) {
-                $groups[$key]['releaseYears'][] = $candidate->year;
-            }
             $groups[$key]['candidates'][] = $candidate;
-            $gap = $candidate->gap($query->duration);
+            $gap = $candidate->gap($duration);
             $groups[$key]['exact'] = $groups[$key]['exact'] || ($gap !== null && $gap <= self::EXACT_LENGTH);
         }
-        $certain = array_filter($groups, fn (array $group) => $query->duration
+        $paired = count(array_filter($groups, fn (array $group) => count($group['sources']) >= 2));
+        $certain = array_filter($groups, fn (array $group) => $duration
             ? count($group['sources']) >= 2 || (isset($group['sources'][MusicBrainz::NAME]) && $group['exact'])
-            : count($group['sources']) >= 3);
+            : count($group['sources']) >= 3 || ($paired === 1 && count($group['sources']) >= 2));
         if (! $certain) {
             return null;
         }
         uasort($certain, fn (array $a, array $b) => [count($b['sources']), $b['exact'], self::earliest($a['years']) ?? 9999]
             <=> [count($a['sources']), $a['exact'], self::earliest($b['years']) ?? 9999]);
         $group = reset($certain);
-        $plain = key($certain);
-        $spellings = array_count_values($group['names']);
-        uksort($spellings, fn ($a, $b) => [Text::key((string) $a) !== $plain, -$spellings[$a]] <=> [Text::key((string) $b) !== $plain, -$spellings[$b]]);
+        $plain = (string) key($certain);
+        $bySource = collect($group['candidates'])->sortBy(fn (Candidate $candidate) => array_search($candidate->source, [ITunes::NAME, Deezer::NAME, MusicBrainz::NAME], true));
+        $name = $bySource->first(fn (Candidate $candidate) => Text::key($candidate->album) === $plain)?->album ?? $bySource->first()->album;
 
         return [
-            'name' => (string) array_key_first($spellings),
-            'year' => self::earliest($group['releaseYears']) ?? self::earliest($group['years']),
+            'name' => (string) $name,
+            'year' => self::albumYear($group['candidates'], $plain),
+            'first_year' => self::earliest(array_map(fn (array $certainGroup, string $key) => self::albumYear($certainGroup['candidates'], $key), $certain, array_keys($certain))),
             'cover' => $this->cover($group['candidates']),
             'candidates' => $group['candidates'],
         ];
     }
 
-    /** Year of the song when it is on no certain album: two databases must agree on it. @param list<Candidate> $versions */
+    /**
+     * Year the album came out, from its original edition (the one named plainly, with the fewest
+     * songs; deluxe ones come later): the earliest date MusicBrainz, curated by people, gives;
+     * otherwise the earliest the stores give, since Deezer's may be when it was delivered again.
+     *
+     * @param  list<Candidate>  $candidates
+     */
+    private static function albumYear(array $candidates, string $plain): ?int
+    {
+        $dated = array_filter($candidates, fn (Candidate $candidate) => $candidate->year !== null);
+        $editions = array_filter($dated, fn (Candidate $candidate) => Text::key($candidate->album) === $plain) ?: $dated;
+        $fewest = collect($editions)->pluck('albumTracks')->filter()->min();
+        $editions = $fewest ? array_filter($editions, fn (Candidate $candidate) => $candidate->albumTracks === $fewest) : $editions;
+        $curated = array_filter($editions, fn (Candidate $candidate) => $candidate->source === MusicBrainz::NAME);
+
+        return self::earliest(array_map(fn (Candidate $candidate) => $candidate->year, $curated))
+            ?? self::earliest(array_map(fn (Candidate $candidate) => $candidate->year, $editions));
+    }
+
+    /**
+     * Year of the song when it is on no certain album: the earliest one two databases confirm
+     * (a year apart at most), so re-releases do not hide it and one stray date does not make it.
+     *
+     * @param  list<Candidate>  $versions
+     */
     private function year(array $versions): ?int
     {
         $years = collect($versions)
             ->filter(fn (Candidate $candidate) => $candidate->year && $candidate->albumType !== Candidate::COMPILATION)
-            ->groupBy('source')->map(fn (Collection $list) => $list->min('year'));
+            ->groupBy('source')->map(fn (Collection $list) => $list->pluck('year')->unique()->all());
 
-        return $years->count() >= 2 && $years->max() - $years->min() <= 1 ? (int) $years->min() : null;
+        foreach ($years->flatten()->unique()->sort() as $year) {
+            $confirmed = $years->filter(fn (array $list) => collect($list)->contains(fn (int $other) => $other >= $year && $other <= $year + 1));
+            if ($confirmed->count() >= 2) {
+                return (int) $year;
+            }
+        }
+
+        return null;
     }
 
     /** The best cover among the versions: Apple's 600 px, then Deezer's, then the Cover Art Archive. @param list<Candidate> $versions */

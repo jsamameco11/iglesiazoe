@@ -75,6 +75,15 @@ export function DuckIcon({ className = "h-4 w-4" }: Props) {
   );
 }
 
+export function SearchIcon({ className = "h-3.5 w-3.5" }: Props) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} {...base} strokeWidth={2.2}>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="M15.5 15.5 20.5 20.5" />
+    </svg>
+  );
+}
+
 export function UsersIcon({ className = "h-4 w-4" }: Props) {
   return (
     <svg viewBox="0 0 24 24" className={className} {...base}>

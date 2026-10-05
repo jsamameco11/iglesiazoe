@@ -76,6 +76,7 @@ function baseName(name: string): string {
     .replace(/\.[a-z0-9]{2,4}$/i, "")
     .replace(/_+/g, " ")
     .replace(NOISE, "")
+    .replace(/[([]?\s*\b(?:feat\.?|ft\.?|featuring)\s+@[\w.]+(?:\s*(?:,|&|\by\b|\band\b|\bx\b)\s*@[\w.]+)*\s*[)\]]?/giu, " ")
     .replace(/(^|\s)@[\w.]+/g, " ")
     .replace(/\s+/g, " ")
     .trim()

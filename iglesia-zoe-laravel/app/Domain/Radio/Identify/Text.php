@@ -16,6 +16,12 @@ final class Text
     /** Separators between the credited names of a song. */
     private const SPLIT = '/(?:\s*(?:,|;|\/|(?<=\s)(?:&|\+|y|e|x|and|feat\.?|ft\.?|featuring|con|with|vs\.?)(?=\s))\s*)+/iu';
 
+    /** Notes that make another cut of a song: a remix, a sped-up or instrumental version, a performance track, another language… */
+    private const CUTS = '/\b(remix|rmx|mix|reloaded|reimagined|re imagined|rework|redux|revisited|re recorded|rerecorded|re record|new version|nueva version|radio version|sped up|speed up|slowed|reverb|nightcore|8d|instrumental|pista|karaoke|backing track|performance track|playback|acoustic|acustico|unplugged|stripped|piano|demo|extended|edit|club|dub|cover|tribute|made popular|in the style of|spanish|english|portuguese|espanol|ingles|portugues|versao|lofi|lo fi|orchestral|sinfonico|symphonic|a cappella|acapella|session|sessions|medley|popurri|mashup|morning|evening|reprise|interlude|intro|outro|vip|bootleg)\b/';
+
+    /** Endings of a social handle that are not part of the name: @uncorazonorg → «un corazon». */
+    private const HANDLE_END = '/(oficial|official|org|music|musica|tv|band|banda|ministries|ministerio|channel|vevo|records|online)$/';
+
     /** Lowercase, without accents or punctuation: «Renuévame (En Vivo)» → «renuevame en vivo». */
     public static function key(?string $value): string
     {
@@ -32,15 +38,19 @@ final class Text
         $title = preg_replace_callback('/\s*[\(\[\{]([^\)\]\}]*)[\)\]\}]/u', fn ($match) => preg_match(self::NOISE, $match[1]) ? '' : $match[0], $title) ?? $title;
         $title = preg_replace('/\s+[-–—|]\s+.*\b(live|en vivo|ao vivo|official|oficial|video|audio|lyric|letra|remaster|versi[oó]n|version|ac[uú]stico|acoustic)\b.*$/iu', '', $title) ?? $title;
         $title = preg_replace('/\s+(feat\.?|ft\.?|featuring)\s+.+$/iu', '', $title) ?? $title;
+        $title = preg_replace('/(^|\s)@[\w.]+/u', ' ', $title) ?? $title;
+        $title = preg_replace('/^\s*(?:(?:video\s*-?\s*lyrics?|lyrics?\s*-?\s*video|videolyrics?|lyricvideo|(?:official|oficial)\s+(?:music\s+)?(?:video|v[ií]deo|audio)|(?:video|v[ií]deo|audio)\s+(?:official|oficial)|estreno|premiere)\b[\s:|·.-]*)+/iu', '', $title) ?? $title;
+        $title = preg_replace('/\s+(?:(?:official|oficial)\s+)?(?:music\s+)?(?:video|videoclip|v[ií]deo|audio|lyric video|lyrics?|letra|visualizer)(?:\s+(?:official|oficial))?\s*$/iu', '', $title) ?? $title;
 
         return trim(preg_replace('/\s+/u', ' ', $title) ?? $title, " \t\n\r\0\x0B-–—|·.");
     }
 
-    /** Names credited inside a song name: «Derramo el Perfume (feat. Averly Morillo) [Live]» → [Averly Morillo]. */
+    /** Names credited as guests inside a song name: «Derramo el Perfume (feat. Averly Morillo) [Live]» → [Averly Morillo]. */
     public static function featuredIn(string $title, array $known = []): array
     {
+        $title = self::withoutNoise($title);
         $names = [];
-        if (preg_match_all('/[\(\[]\s*(?:feat\.?|ft\.?|featuring|con|with)\s+([^\)\]]+)[\)\]]/iu', $title, $matches)) {
+        if (preg_match_all('/[\(\[]\s*(?:feat\.?|ft\.?|featuring)\s+([^\)\]]+)[\)\]]/iu', $title, $matches)) {
             foreach ($matches[1] as $credit) {
                 $names = [...$names, ...self::splitNames($credit, $known)];
             }
@@ -49,6 +59,93 @@ final class Text
         }
 
         return self::unique($names);
+    }
+
+    /**
+     * Names after «con» or «with» in brackets. They may be people or another song of a medley
+     * («Eterno (Con Cuando los Santos Marchen Ya)»), so they only count when something confirms them.
+     *
+     * @param  list<string>  $known
+     * @return list<string>
+     */
+    public static function mentionedIn(string $title, array $known = []): array
+    {
+        $names = [];
+        if (preg_match_all('/[\(\[]\s*(?:con|with)\s+([^\)\]]+)[\)\]]/iu', self::withoutNoise($title), $matches)) {
+            foreach ($matches[1] as $credit) {
+                $names = [...$names, ...self::splitNames($credit, $known)];
+            }
+        }
+
+        return self::unique($names);
+    }
+
+    /** The song name without bracketed labels that are not credits: «… feat. X (Videoclip Oficial)» → «… feat. X». */
+    private static function withoutNoise(string $title): string
+    {
+        return preg_replace_callback('/\s*[\(\[]([^\)\]]*)[\)\]]/u', fn ($match) => preg_match('/^\s*(feat|ft|featuring|con|with)\b/iu', $match[1]) || ! preg_match(self::NOISE, $match[1]) ? $match[0] : '', $title) ?? $title;
+    }
+
+    /**
+     * The cuts a song name speaks of, in brackets or after a dash: «Oceans (Sped Up)» → [sped up].
+     *
+     * @return list<string>
+     */
+    public static function cuts(string $title): array
+    {
+        preg_match_all('/[\(\[\{]([^\)\]\}]*)[\)\]\}]/u', $title, $brackets);
+        $dash = preg_match('/\s[-–—]\s(.+)$/u', $title, $match) ? $match[1] : '';
+        preg_match_all(self::CUTS, self::key(implode(' ', [...$brackets[1], $dash])), $cuts);
+
+        return array_values(array_unique($cuts[0]));
+    }
+
+    /** Whether a name is a social handle («@uncorazonorg»). */
+    public static function isHandle(string $name): bool
+    {
+        return str_starts_with(trim($name), '@');
+    }
+
+    /** Whether a social handle belongs to a name: «@uncorazonorg» is «Un Corazón». */
+    public static function handleOf(string $handle, string $name): bool
+    {
+        $handle = str_replace(' ', '', self::key($handle));
+        $name = str_replace(' ', '', self::key($name));
+        if ($handle === '' || strlen($name) < 3) {
+            return false;
+        }
+
+        return $handle === $name || (str_starts_with($handle, $name) && preg_match(self::HANDLE_END, substr($handle, strlen($name))) === 1
+            && preg_replace(self::HANDLE_END, '', substr($handle, strlen($name))) === '');
+    }
+
+    /**
+     * The song name without the author written at its start or end: («Marcos Witt Gracias», «Marcos Witt») → «Gracias».
+     * Null when the name does not start or end with the author, or nothing would be left.
+     */
+    public static function withoutName(string $title, string $name): ?string
+    {
+        $name = self::key($name);
+        if ($name === '' || ! preg_match_all('/[\p{L}\p{N}]+/u', $title, $words, PREG_OFFSET_CAPTURE)) {
+            return null;
+        }
+        foreach ($words[0] as [$word, $at]) {
+            $end = $at + strlen($word);
+            if (self::key(substr($title, 0, $end)) === $name) {
+                $rest = trim(substr($title, $end), " \t-–—:|·.,");
+
+                return self::key($rest) !== '' ? $rest : null;
+            }
+        }
+        foreach (array_reverse($words[0]) as [, $at]) {
+            if (self::key(substr($title, $at)) === $name) {
+                $rest = trim(substr($title, 0, $at), " \t-–—:|·.,");
+
+                return self::key($rest) !== '' ? $rest : null;
+            }
+        }
+
+        return null;
     }
 
     /**
@@ -97,9 +194,12 @@ final class Text
         return $unique;
     }
 
+    /** Whether a name speaks of a live recording; a studio version on a live album is not one. */
     public static function isLive(string $value): bool
     {
-        return preg_match(self::LIVE, Str::ascii($value)) === 1;
+        $value = Str::ascii($value);
+
+        return preg_match(self::LIVE, $value) === 1 && preg_match('/\b(studio|estudio)\b/i', $value) !== 1;
     }
 
     /** The album name without edition notes, to group the same album across stores. */
@@ -134,6 +234,37 @@ final class Text
         $edit = strlen($a) <= 255 && strlen($b) <= 255 ? 1 - levenshtein($a, $b) / max(strlen($a), strlen($b)) : 0.0;
 
         return round(max($percent / 100 * 0.95, $jaccard * 0.95, $edit, $contained), 4);
+    }
+
+    /**
+     * How alike two song names are, from 0 to 1. Stricter than similarity(): word order counts
+     * («Tú eres» is not «Eres tú») and a name with more words is another song («Tú Eres Santo»),
+     * unless the extra words are a subtitle in brackets («Oceans (Where Feet May Fail)»).
+     */
+    public static function titleSimilarity(string $title, string $asked): float
+    {
+        $a = self::key(self::cleanTitle($title));
+        $b = self::key(self::cleanTitle($asked));
+        if ($a === '' || $b === '') {
+            return 0.0;
+        }
+        if ($a === $b) {
+            return 1.0;
+        }
+        $baseA = self::key(self::baseTitle($title));
+        if ($baseA !== '' && $baseA === self::key(self::baseTitle($asked))) {
+            return 0.95;
+        }
+        similar_text($a, $b, $percent);
+        $edit = strlen($a) <= 255 && strlen($b) <= 255 ? 1 - levenshtein($a, $b) / max(strlen($a), strlen($b)) : 0.0;
+        $score = max($percent / 100 * 0.95, $edit);
+        $short = strlen($a) < strlen($b) ? $a : $b;
+        $long = $short === $a ? $b : $a;
+        if (preg_match('/(^| )'.preg_quote($short, '/').'( |$)/', $long) === 1) {
+            $score = min($score, 0.72);
+        }
+
+        return round($score, 4);
     }
 
     /** The song name without anything in brackets: «Oceans (Where Feet May Fail)» → «Oceans». */

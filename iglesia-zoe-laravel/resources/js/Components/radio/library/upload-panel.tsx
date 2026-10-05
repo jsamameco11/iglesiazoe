@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type DragEvent } from "react";
 import { button, ghost, input } from "@/Components/admin/ui";
 import { AUDIO_ACCEPT, COVER_ACCEPT, readDuration } from "@/Components/radio/admin-ui";
 import { postAudio } from "@/Components/radio/audio-upload";
+import { SearchIcon } from "@/Components/radio/icons";
 import { duration, type RadioGenre, type RadioTrack } from "@/lib/radio";
 import { artistHints, parseFileName, recognizeSong, type SongDetails } from "@/lib/radio/audio-tags";
 import { CoAuthorsField, CoverPicker, GenrePicker, LookupBadge, MusicNote, cleanYear, identifySong, identityJson, mergeNames, plain, type LookupState } from "./song-fields";
@@ -568,10 +569,10 @@ function UploadCard({
                   type="button"
                   disabled={running}
                   onClick={onLookUp}
-                  className="rounded-full bg-paper px-2.5 py-1 text-[11px] font-semibold text-ink transition hover:bg-ink hover:text-white"
+                  className="inline-flex items-center gap-1 rounded-full bg-paper px-2.5 py-1 text-[11px] font-semibold text-ink transition hover:bg-ink hover:text-white"
                   title="Vuelve a buscar la canción en internet con el nombre y el autor de ahora, y reemplaza el álbum, el año, los estilos y la carátula encontrados."
                 >
-                  ⌕ Buscar en internet
+                  <SearchIcon className="h-3 w-3" /> Buscar en internet
                 </button>
               ) : null}
               {song && !locked && (item.title.trim() || item.artist.trim()) ? (

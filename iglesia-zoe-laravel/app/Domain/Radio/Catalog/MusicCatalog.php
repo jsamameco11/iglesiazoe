@@ -26,19 +26,45 @@ final class MusicCatalog
     public static function sync(): array
     {
         $added = ['genres' => 0, 'artists' => 0];
-        $order = 0;
-        foreach (Genres::all() as $family => $genres) {
+        $owners = [];
+        foreach (Genres::all() as $genres) {
             foreach ($genres as [$name, $aliases]) {
-                $order += 10;
-                $genre = RadioGenre::query()->firstOrNew(['slug' => Str::slug($name)]);
-                if (! $genre->exists) {
-                    $genre->fill(['name' => $name, 'family' => $family, 'aliases' => $aliases, 'sort_order' => $order, 'custom' => false])->save();
-                    $added['genres']++;
-                } elseif (! $genre->custom) {
-                    $genre->update(['aliases' => Text::unique([...($genre->aliases ?? []), ...$aliases])]);
+                foreach ([$name, ...$aliases] as $alias) {
+                    $owners[Text::key($alias)] = Str::slug($name);
                 }
             }
         }
+        $existing = RadioGenre::query()->get()->keyBy('slug');
+        $order = 0;
+        $rows = [];
+        foreach (Genres::all() as $family => $genres) {
+            foreach ($genres as [$name, $aliases]) {
+                $order += 10;
+                $slug = Str::slug($name);
+                $genre = $existing->get($slug);
+                if (! $genre) {
+                    $rows[] = [
+                        'id' => (string) Str::uuid(), 'name' => $name, 'slug' => $slug, 'family' => $family,
+                        'aliases' => json_encode($aliases, JSON_UNESCAPED_UNICODE), 'sort_order' => $order, 'custom' => false,
+                        'created_at' => now(), 'updated_at' => now(),
+                    ];
+
+                    continue;
+                }
+                if ($genre->custom) {
+                    continue;
+                }
+                $kept = array_filter($genre->aliases ?? [], fn (string $alias) => ($owners[Text::key($alias)] ?? $slug) === $slug);
+                $merged = Text::unique([...$kept, ...$aliases]);
+                if ($merged !== ($genre->aliases ?? []) || $genre->sort_order !== $order) {
+                    $genre->update(['aliases' => $merged, 'sort_order' => $order]);
+                }
+            }
+        }
+        foreach (array_chunk($rows, 100) as $chunk) {
+            RadioGenre::query()->insert($chunk);
+        }
+        $added['genres'] = count($rows);
         self::forget();
 
         foreach (Artists::all() as $entry) {
@@ -132,6 +158,27 @@ final class MusicCatalog
     }
 
     /**
+     * The known artist a song name starts or ends with, and the rest of the name:
+     * «Marcos Witt Gracias Tu Fidelidad» → [Marcos Witt, «Gracias Tu Fidelidad»]. The longest name wins.
+     *
+     * @return array{0: RadioArtist, 1: string}|null
+     */
+    public static function artistAtEdge(string $title): ?array
+    {
+        $text = Text::key($title);
+        $keys = array_filter(array_keys(self::artists()), fn ($key) => strlen((string) $key) >= 3
+            && (str_starts_with($text, $key.' ') || str_ends_with($text, ' '.$key)));
+        usort($keys, fn ($a, $b) => strlen((string) $b) <=> strlen((string) $a));
+        foreach ($keys as $key) {
+            if (($rest = Text::withoutName($title, (string) $key)) !== null) {
+                return [self::artists()[$key], $rest];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Known names that contain a separator («Majo y Dan»), so credits are not split inside them.
      *
      * @return list<string>
@@ -182,14 +229,20 @@ final class MusicCatalog
         $artist->genres()->sync($genres->unique('id')->values()->mapWithKeys(fn (RadioGenre $genre, int $position) => [$genre->id => ['position' => $position]])->all());
     }
 
-    /** @return array<string, RadioGenre> */
+    /** @return array<string, RadioGenre> Every name of every genre; a genre's own name wins over another's alias. */
     private static function genres(): array
     {
         $memo = self::memo();
         if (! isset($memo['genres'])) {
             $genres = [];
-            foreach (RadioGenre::query()->orderBy('sort_order')->get() as $genre) {
-                foreach ([$genre->name, $genre->slug, ...($genre->aliases ?? [])] as $name) {
+            $all = RadioGenre::query()->orderBy('sort_order')->get();
+            foreach ($all as $genre) {
+                foreach ([$genre->name, $genre->slug] as $name) {
+                    $genres[Text::key($name)] ??= $genre;
+                }
+            }
+            foreach ($all as $genre) {
+                foreach ($genre->aliases ?? [] as $name) {
                     $genres[Text::key($name)] ??= $genre;
                 }
             }

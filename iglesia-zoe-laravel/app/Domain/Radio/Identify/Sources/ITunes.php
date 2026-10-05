@@ -46,6 +46,8 @@ final class ITunes extends Source
             title: (string) $item['trackName'],
             artist: $credited[0] ?? (string) $item['artistName'],
             featured: Text::unique([...array_slice($credited, 1), ...Text::featuredIn((string) $item['trackName'], $known)]),
+            partners: array_slice($credited, 1),
+            mentioned: Text::mentionedIn((string) $item['trackName'], $known),
             album: $album,
             albumType: $type,
             albumTracks: (int) ($item['trackCount'] ?? 0) ?: null,

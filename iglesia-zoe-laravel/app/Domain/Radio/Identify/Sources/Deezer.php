@@ -34,6 +34,7 @@ final class Deezer extends Source
                 cover: $item['album']['cover_xl'] ?? null,
                 artistId: isset($item['artist']['id']) ? (string) $item['artist']['id'] : null,
                 albumId: isset($item['album']['id']) ? (string) $item['album']['id'] : null,
+                mentioned: Text::mentionedIn((string) $item['title'], $known),
             ))
             ->values()->all();
     }
@@ -60,16 +61,18 @@ final class Deezer extends Source
         $candidate->tags = collect($album['genres']['data'] ?? [])->pluck('name')->filter()->map(fn ($name) => [(string) $name, 1.5])->values()->all();
     }
 
-    /** Completes a version with its credits (main and featured artists) and its ISRC. */
+    /** Completes a version with its credits (main and featured artists, not producers or writers) and its ISRC. */
     public function completeCredits(Candidate $candidate): void
     {
         $track = $this->json('https://api.deezer.com/track/'.$candidate->id);
         if (! $track) {
             return;
         }
-        $contributors = collect($track['contributors'] ?? [])->filter(fn ($person) => ! empty($person['name']));
-        $others = $contributors->reject(fn ($person) => Text::key($person['name']) === Text::key($candidate->artist))->pluck('name')->all();
-        $candidate->featured = Text::unique([...$candidate->featured, ...$others]);
+        $others = collect($track['contributors'] ?? [])
+            ->filter(fn ($person) => ! empty($person['name']) && in_array($person['role'] ?? 'Main', ['Main', 'Featured'], true))
+            ->reject(fn ($person) => Text::key($person['name']) === Text::key($candidate->artist));
+        $candidate->partners = Text::unique([...$candidate->partners, ...$others->where('role', 'Main')->pluck('name')->all()]);
+        $candidate->featured = Text::unique([...$candidate->featured, ...$others->pluck('name')->all()]);
         $candidate->isrc = $track['isrc'] ?? null;
         $candidate->year ??= self::year($track['release_date'] ?? null);
     }

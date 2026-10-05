@@ -16,6 +16,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
+use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
 /** Songs are identified on the internet when they are uploaded: author, co-authors, exact album, year, cover and genres. */
@@ -148,6 +149,111 @@ class RadioMusicIdentifyTest extends TestCase
         Http::assertNotSent(fn (Request $request) => str_contains(urldecode($request->url()), 'Cancion sin nombre'));
     }
 
+    public function test_another_cut_of_the_song_never_wins_and_a_guest_of_one_database_is_not_a_co_author(): void
+    {
+        config(['services.music.musicbrainz_gap_ms' => 0]);
+        Http::preventStrayRequests();
+        Http::fake([
+            'itunes.apple.com/search*' => Http::response(['results' => [
+                $this->appleSong(['trackId' => 1, 'trackName' => 'Oceans (Sped Up)', 'artistName' => 'Hillsong UNITED', 'collectionName' => 'Oceans (Sped Up) - Single', 'trackCount' => 1, 'releaseDate' => '2023-01-01T12:00:00Z', 'trackTimeMillis' => 536000]),
+                $this->appleSong(['trackId' => 2, 'trackName' => 'Oceans (feat. Guest Star)', 'artistName' => 'Hillsong UNITED', 'collectionName' => 'Zion (Deluxe Edition)', 'trackCount' => 18, 'releaseDate' => '2014-01-01T12:00:00Z', 'trackTimeMillis' => 536000]),
+                $this->appleSong(['trackId' => 3, 'trackName' => 'Oceans', 'artistName' => 'Hillsong UNITED', 'collectionName' => 'Zion', 'trackCount' => 13, 'releaseDate' => '2013-02-22T12:00:00Z', 'trackTimeMillis' => 536000]),
+            ]]),
+            'api.deezer.com/search*' => Http::response(['data' => [[
+                'id' => 31, 'type' => 'track', 'title' => 'Oceans', 'duration' => 536,
+                'artist' => ['id' => 7, 'name' => 'Hillsong UNITED'],
+                'album' => ['id' => 5151, 'title' => 'Zion', 'cover_xl' => 'https://e-cdns-images.dzcdn.net/images/cover/z/1000x1000.jpg'],
+            ]]]),
+            'api.deezer.com/album/*' => Http::response(['record_type' => 'album', 'nb_tracks' => 13, 'release_date' => '2013-02-22', 'genres' => ['data' => []]]),
+            'api.deezer.com/track/*' => Http::response(['contributors' => [['name' => 'Hillsong UNITED', 'role' => 'Main']]]),
+            'musicbrainz.org/ws/2/recording*' => Http::response(['recordings' => []]),
+        ]);
+
+        $result = $this->identify(['title' => 'Oceans', 'artist' => 'Hillsong United', 'duration' => '536'])->assertOk()->json('result');
+
+        $this->assertSame(['Oceans', 'Hillsong UNITED', [], 'Zion', 2013], [$result['title'], $result['artist'], $result['featured'], $result['album'], $result['year']]);
+    }
+
+    public function test_a_file_name_with_its_author_and_a_handle_inside_finds_the_author_and_the_co_author(): void
+    {
+        config(['services.music.musicbrainz_gap_ms' => 0]);
+        Http::preventStrayRequests();
+        Http::fake([
+            'itunes.apple.com/search*' => Http::response(['results' => [
+                $this->appleSong(['trackName' => 'Gracias / Tu Fidelidad (feat. Un Corazón)', 'artistName' => 'Marcos Witt', 'collectionName' => 'Legado', 'trackCount' => 12, 'releaseDate' => '2025-05-02T12:00:00Z', 'trackTimeMillis' => 325000]),
+            ]]),
+            'api.deezer.com/search*' => Http::response(['data' => [[
+                'id' => 41, 'type' => 'track', 'title' => 'Gracias / Tu Fidelidad', 'duration' => 325,
+                'artist' => ['id' => 8, 'name' => 'Marcos Witt'],
+                'album' => ['id' => 6161, 'title' => 'Legado', 'cover_xl' => 'https://e-cdns-images.dzcdn.net/images/cover/l/1000x1000.jpg'],
+            ]]]),
+            'api.deezer.com/album/*' => Http::response(['record_type' => 'album', 'nb_tracks' => 12, 'release_date' => '2025-05-02', 'genres' => ['data' => []]]),
+            'api.deezer.com/track/*' => Http::response(['contributors' => [['name' => 'Marcos Witt', 'role' => 'Main'], ['name' => 'Un Corazón', 'role' => 'Featured']]]),
+            'musicbrainz.org/ws/2/recording*' => Http::response(['recordings' => []]),
+        ]);
+
+        $result = $this->identify(['title' => 'Marcos Witt Gracias Tu Fidelidad feat. @uncorazonorg (Videoclip Oficial)', 'duration' => '325'])->assertOk()->json('result');
+
+        $this->assertSame(['Gracias / Tu Fidelidad', 'Marcos Witt', ['Un Corazón'], 'Legado', 2025], [$result['title'], $result['artist'], $result['featured'], $result['album'], $result['year']]);
+    }
+
+    public function test_a_medley_is_not_a_co_author_and_the_asked_author_stays_first_when_credited_with_another(): void
+    {
+        config(['services.music.musicbrainz_gap_ms' => 0]);
+        Http::preventStrayRequests();
+        Http::fake([
+            'itunes.apple.com/search*' => Http::response(['results' => [
+                $this->appleSong(['trackName' => 'Eterno (Con Cuando los Santos Marchen Ya) [Live]', 'artistName' => 'Christine D\'Clario', 'collectionName' => 'Eterno (Live)', 'trackCount' => 14, 'releaseDate' => '2013-01-01T12:00:00Z', 'trackTimeMillis' => 363000]),
+                $this->appleSong(['trackId' => 2, 'trackName' => 'Dios De Pactos', 'artistName' => 'Adoración & Miel San Marcos', 'collectionName' => 'Adoración Vol. 1', 'trackCount' => 13, 'releaseDate' => '2022-11-04T12:00:00Z', 'trackTimeMillis' => 276000]),
+            ]]),
+            'api.deezer.com/search*' => Http::response(['data' => [[
+                'id' => 51, 'type' => 'track', 'title' => 'Eterno (Con Cuando los Santos Marchen Ya)', 'duration' => 363,
+                'artist' => ['id' => 9, 'name' => 'Christine D\'Clario'],
+                'album' => ['id' => 7171, 'title' => 'Eterno (Live)', 'cover_xl' => 'https://e-cdns-images.dzcdn.net/images/cover/e/1000x1000.jpg'],
+            ]]]),
+            'api.deezer.com/album/*' => Http::response(['record_type' => 'album', 'nb_tracks' => 14, 'release_date' => '2013-01-01', 'genres' => ['data' => []]]),
+            'api.deezer.com/track/*' => Http::response(['contributors' => [['name' => 'Christine D\'Clario', 'role' => 'Main']]]),
+            'musicbrainz.org/ws/2/recording*' => Http::response(['recordings' => []]),
+        ]);
+
+        $medley = $this->identify(['title' => 'Eterno', 'artist' => 'Christine D\'Clario'])->assertOk()->json('result');
+        $shared = $this->identify(['title' => 'Dios de pactos', 'artist' => 'Miel San Marcos'])->assertOk()->json('result');
+
+        $this->assertSame(['Christine D\'Clario', [], 'Eterno (Live)', 2013], [$medley['artist'], $medley['featured'], $medley['album'], $medley['year']]);
+        $this->assertSame(['Miel San Marcos', ['Adoración']], [$shared['artist'], $shared['featured']]);
+    }
+
+    public function test_a_compilation_recording_lends_no_credits_and_the_year_is_the_original_editions(): void
+    {
+        config(['services.music.musicbrainz_gap_ms' => 0]);
+        Http::preventStrayRequests();
+        Http::fake([
+            'itunes.apple.com/search*' => Http::response(['results' => [
+                $this->appleSong(['trackId' => 1, 'trackName' => '10,000 Reasons (Bless the Lord)', 'artistName' => 'Matt Redman & Steve Angrisano', 'collectionName' => 'Spirit & Song: Disc M', 'collectionArtistName' => 'Various Artists', 'trackCount' => 18, 'releaseDate' => '2013-01-01T12:00:00Z', 'trackTimeMillis' => 300000]),
+                $this->appleSong(['trackId' => 2, 'trackName' => '10,000 Reasons (Bless the Lord)', 'artistName' => 'Matt Redman', 'collectionName' => '10,000 Reasons', 'trackCount' => 11, 'releaseDate' => '2011-04-04T12:00:00Z', 'trackTimeMillis' => 343000]),
+            ]]),
+            'api.deezer.com/search*' => Http::response(['data' => [[
+                'id' => 61, 'type' => 'track', 'title' => '10,000 Reasons (Bless the Lord)', 'duration' => 343,
+                'artist' => ['id' => 10, 'name' => 'Matt Redman'],
+                'album' => ['id' => 8181, 'title' => '10,000 Reasons', 'cover_xl' => 'https://e-cdns-images.dzcdn.net/images/cover/r/1000x1000.jpg'],
+            ]]]),
+            'api.deezer.com/album/*' => Http::response(['record_type' => 'album', 'nb_tracks' => 11, 'release_date' => '2013-09-01', 'genres' => ['data' => []]]),
+            'api.deezer.com/track/*' => Http::response(['contributors' => [['name' => 'Matt Redman', 'role' => 'Main']]]),
+            'musicbrainz.org/ws/2/recording*' => Http::response(['recordings' => [[
+                'id' => 'b1f3c2a0-0000-4000-8000-000000000003', 'score' => 100, 'title' => '10,000 Reasons (Bless the Lord)', 'length' => 343300,
+                'artist-credit' => [['name' => 'Matt Redman', 'artist' => ['id' => 'b1f3c2a0-0000-4000-8000-0000000000dd']]],
+                'releases' => [
+                    ['title' => '10,000 Reasons', 'status' => 'Official', 'track-count' => 11, 'release-group' => ['id' => 'rg-3', 'primary-type' => 'Album']],
+                    ['title' => '10,000 Reasons', 'date' => '2012-06-01', 'status' => 'Official', 'track-count' => 15, 'release-group' => ['id' => 'rg-3', 'primary-type' => 'Album']],
+                ],
+            ]]]),
+        ]);
+
+        $result = $this->identify(['title' => '10,000 Reasons (Bless the Lord)', 'artist' => 'Matt Redman'])->assertOk()->json('result');
+
+        $this->assertSame(['Matt Redman', [], '10,000 Reasons', 2011], [$result['artist'], $result['featured'], $result['album'], $result['year']]);
+    }
+
     public function test_only_the_library_identifies_songs_and_it_needs_their_name(): void
     {
         $other = User::query()->create([
@@ -196,6 +302,23 @@ class RadioMusicIdentifyTest extends TestCase
         $this->assertSame(['Averly Morillo'], Text::featuredIn('Derramo el Perfume (feat. Averly Morillo) [Live]', $known));
         $this->assertSame(['Averly Morillo'], Text::mergeSpellings(['Averly Morillo', 'Arely Morillo', 'Averly Morillo'], fn () => false));
         $this->assertLessThan(0.8, Text::similarity('Santo', 'Ven Espíritu Santo'));
+
+        $this->assertLessThan(0.8, Text::titleSimilarity('Tú Eres Santo', 'Tú eres'));
+        $this->assertLessThan(0.8, Text::titleSimilarity('Eres Tú', 'Tú eres'));
+        $this->assertLessThan(0.8, Text::titleSimilarity('Jesus What A Beautiful Name', 'What a Beautiful Name'));
+        $this->assertGreaterThanOrEqual(0.9, Text::titleSimilarity('Oceans (Where Feet May Fail)', 'Oceans'));
+        $this->assertGreaterThanOrEqual(0.9, Text::titleSimilarity('Graves Into Gardens', 'Graves into Garden'));
+        $this->assertSame(['sped up'], Text::cuts('Oceans (Where Feet May Fail) (Sped Up)'));
+        $this->assertSame(['performance track'], Text::cuts('Who Am I (High without background vocals) (Performance Track)'));
+        $this->assertSame(['redux'], Text::cuts('Oceans (Where Feet May Fail) [Redux]'));
+        $this->assertSame([], Text::cuts('Renuévame (En Vivo) [Video Oficial]'));
+        $this->assertSame([], Text::featuredIn('Eterno (Con Cuando los Santos Marchen Ya) [Live]', $known));
+        $this->assertSame(['Cuando los Santos Marchen Ya'], Text::mentionedIn('Eterno (Con Cuando los Santos Marchen Ya) [Live]', $known));
+        $this->assertSame(['@uncorazonorg'], Text::featuredIn('Gracias Tu Fidelidad feat. @uncorazonorg (Videoclip Oficial)', $known));
+        $this->assertTrue(Text::handleOf('@uncorazonorg', 'Un Corazón'));
+        $this->assertFalse(Text::handleOf('@uncorazonorg', 'Un Cora'));
+        $this->assertSame('Gracias Tu Fidelidad', Text::withoutName('Marcos Witt - Gracias Tu Fidelidad', 'Marcos Witt'));
+        $this->assertSame('Alaben', Text::withoutName('Alaben - for KING & COUNTRY', 'for KING & COUNTRY'));
     }
 
     /** iTunes, Deezer and MusicBrainz answers for «Derramo el perfume» of Montesanto. */
@@ -220,6 +343,28 @@ class RadioMusicIdentifyTest extends TestCase
                     ['name' => 'Arely Morillo', 'artist' => ['id' => 'b1f3c2a0-0000-4000-8000-0000000000cc']],
                 ],
                 'releases' => [['title' => 'Bautizados En Fuego (LIVE)', 'date' => '2023-10-20', 'status' => 'Official', 'track-count' => 10, 'release-group' => ['id' => 'rg-1', 'primary-type' => 'Album', 'secondary-types' => ['Live']]]],
+            ]]]),
+        ];
+    }
+
+    /** «Danzo en el río» of Miel San Marcos: live on iTunes and Deezer, without the label on MusicBrainz. */
+    private function mielSanMarcos(): array
+    {
+        return [
+            'itunes.apple.com/search*' => Http::response(['results' => [
+                $this->appleSong(['trackName' => 'Danzo en el Río (feat. Josh Morales) [En Vivo]', 'artistName' => 'Miel San Marcos', 'collectionName' => 'Pentecostés (En Vivo)', 'trackCount' => 21, 'releaseDate' => '2017-11-10T12:00:00Z', 'trackTimeMillis' => 281800]),
+            ]]),
+            'api.deezer.com/search*' => Http::response(['data' => [[
+                'id' => 21, 'type' => 'track', 'title' => 'Danzo en el Río (En Vivo)', 'duration' => 282,
+                'artist' => ['id' => 6, 'name' => 'MIEL SAN MARCOS'],
+                'album' => ['id' => 4242, 'title' => 'Pentecostés (En Vivo)', 'cover_xl' => 'https://e-cdns-images.dzcdn.net/images/cover/y/1000x1000.jpg'],
+            ]]]),
+            'api.deezer.com/album/*' => Http::response(['record_type' => 'album', 'nb_tracks' => 21, 'release_date' => '2017-11-10', 'genres' => ['data' => []]]),
+            'api.deezer.com/track/*' => Http::response(['contributors' => [['name' => 'Miel San Marcos', 'role' => 'Main'], ['name' => 'Josh Morales', 'role' => 'Featured']]]),
+            'musicbrainz.org/ws/2/recording*' => Http::response(['recordings' => [[
+                'id' => 'b1f3c2a0-0000-4000-8000-000000000003', 'score' => 100, 'title' => 'Danzo en el río', 'length' => 281000,
+                'artist-credit' => [['name' => 'Miel San Marcos', 'artist' => ['id' => 'b1f3c2a0-0000-4000-8000-0000000000dd']]],
+                'releases' => [['title' => 'Pentecostés', 'date' => '2017-11-10', 'status' => 'Official', 'track-count' => 21, 'release-group' => ['id' => 'rg-3', 'primary-type' => 'Album', 'secondary-types' => []]]],
             ]]]),
         ];
     }

@@ -40,7 +40,15 @@ final class MusicBrainz extends Source
             if (! is_array($recording) || ($recording['score'] ?? 0) < 50 || empty($recording['title']) || empty($recording['artist-credit'][0]['name'])) {
                 continue;
             }
-            $credits = collect($recording['artist-credit'])->filter(fn ($credit) => ! empty($credit['name']));
+            $credits = collect($recording['artist-credit'])->filter(fn ($credit) => ! empty($credit['name']))->values();
+            $partners = [];
+            $guest = false;
+            foreach ($credits as $index => $credit) {
+                if ($index > 0 && ! $guest) {
+                    $partners[] = (string) $credit['name'];
+                }
+                $guest = $guest || preg_match('/\b(feat|ft|featuring|with|con)\b/i', (string) ($credit['joinphrase'] ?? '')) === 1;
+            }
             $tags = collect($recording['tags'] ?? [])->filter(fn ($tag) => ($tag['count'] ?? 0) > 0 && ! empty($tag['name']))
                 ->map(fn ($tag) => [(string) $tag['name'], 2.0])->values()->all();
             $releases = collect($recording['releases'] ?? [])
@@ -55,6 +63,7 @@ final class MusicBrainz extends Source
                 'duration' => isset($recording['length']) ? round($recording['length'] / 1000, 1) : null,
                 'tags' => $tags,
                 'artistId' => $credits->first()['artist']['id'] ?? null,
+                'partners' => $partners,
             ];
             if ($releases->isEmpty()) {
                 $candidates[] = new Candidate(...$base);

@@ -25,7 +25,7 @@ class RadioMusicCatalogTest extends TestCase
 
     public function test_the_library_starts_with_hundreds_of_genres_and_the_christian_artists_with_their_genres(): void
     {
-        $this->assertGreaterThanOrEqual(200, RadioGenre::query()->count());
+        $this->assertGreaterThanOrEqual(600, RadioGenre::query()->count());
         foreach (array_keys(Genres::FAMILIES) as $family) {
             $this->assertTrue(RadioGenre::query()->where('family', $family)->exists(), "La familia {$family} no tiene géneros.");
         }

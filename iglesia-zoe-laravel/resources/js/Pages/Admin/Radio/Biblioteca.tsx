@@ -4,6 +4,7 @@ import { AUDIO_ACCEPT, COVER_ACCEPT, KindTag, RadioHeader, postWithProgress, rea
 import { CoAuthorsField, CoverPicker, GenrePicker, LookupBadge, MusicNote, cleanYear, identifySong, identityJson, mergeNames, type LookupState } from "@/Components/radio/library/song-fields";
 import { UploadPanel } from "@/Components/radio/library/upload-panel";
 import { postAudio } from "@/Components/radio/audio-upload";
+import { SearchIcon } from "@/Components/radio/icons";
 import { Notice, Stat, button, input, useAction } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { can, usePanelUser } from "@/lib/access";
@@ -373,10 +374,10 @@ function TrackRow({
                   type="button"
                   disabled={lookup?.status === "searching" || fields.title.trim().length < 2}
                   onClick={lookUp}
-                  className="rounded-full bg-paper px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-ink hover:text-white disabled:opacity-50"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-paper px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-ink hover:text-white disabled:opacity-50"
                   title="Busca la canción en internet (Apple Music, Deezer, MusicBrainz y Wikidata) con el nombre y el autor de abajo, y completa autor, coautores, álbum, año, estilos y carátula."
                 >
-                  ⌕ Buscar datos en internet
+                  <SearchIcon /> Buscar datos en internet
                 </button>
                 <LookupBadge state={lookup} />
                 {lookup?.status === "error" ? <span className="text-red-700">{lookup.error}</span> : null}
