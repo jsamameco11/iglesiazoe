@@ -93,9 +93,6 @@ export type Autopilot = {
 /** A healthy song the listener's player falls back on when a file fails or the server stops answering. */
 export type RadioReserveSong = { id: string; title: string; artist: string | null; src: string; ms: number };
 
-/** A Spotify playlist kept in the panel as a reference; it never plays on the radio. */
-export type RadioSpotifyPlaylist = { id: string; name: string; description: string | null; cover: string | null; url: string; embed: string };
-
 export type RadioPlaylist = {
   id: string;
   name: string;
@@ -103,11 +100,7 @@ export type RadioPlaylist = {
   count: number;
   seconds: number;
   tracks?: string[];
-  /** Spotify playlist the list takes as its reference in the panel (never on air). */
-  spotify?: RadioSpotifyPlaylist | null;
 };
-
-export type RadioSpotifyPlaylistAdmin = RadioSpotifyPlaylist & { spotify_id: string };
 
 export type RadioState = {
   now: number;

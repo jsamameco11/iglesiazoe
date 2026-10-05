@@ -33,7 +33,6 @@ class RadioConsoleController extends RadioController
             'day' => Schedule::day($today),
             'host' => $request->user()->full_name ?: $request->user()->username,
             'playlists' => $this->playlists(true),
-            'spotifyReferences' => $this->spotifyReferences(),
         ]);
     }
 

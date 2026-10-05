@@ -19,15 +19,6 @@ export function PauseIcon({ className = "h-6 w-6" }: Props) {
   );
 }
 
-export function SpotifyIcon({ className = "h-5 w-5" }: Props) {
-  return (
-    <svg viewBox="0 0 24 24" className={className} aria-hidden>
-      <circle cx="12" cy="12" r="11" fill="currentColor" />
-      <path d="M6.6 9.3c3.6-1.1 7.9-.8 11 1M7.3 12.6c3-.8 6.3-.5 8.9.9M8 15.7c2.3-.6 4.7-.3 6.7.8" fill="none" stroke="#0b0b0c" strokeWidth="1.7" strokeLinecap="round" />
-    </svg>
-  );
-}
-
 /** Jump back or forward a few seconds; the number is drawn inside the arrow. */
 export function SkipIcon({ seconds, forward = false, className = "h-8 w-8" }: Props & { seconds: number; forward?: boolean }) {
   return (

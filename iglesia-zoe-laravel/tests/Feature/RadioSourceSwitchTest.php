@@ -7,13 +7,13 @@ use App\Domain\Radio\Station;
 use App\Domain\Shared\Enums\Role;
 use App\Models\RadioPlaylist;
 use App\Models\RadioSlot;
-use App\Models\RadioSpotifyPlaylist;
 use App\Models\RadioTrack;
 use App\Models\SiteSetting;
 use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
@@ -136,9 +136,8 @@ class RadioSourceSwitchTest extends TestCase
 
     public function test_a_spotify_playlist_left_as_the_source_gives_way_to_the_library(): void
     {
-        $spotify = RadioSpotifyPlaylist::query()->create(['spotify_id' => '37i9dQZF1DWYcaB2B11tq2', 'name' => 'Clásicos Cristianos', 'sort_order' => 0]);
         $setting = SiteSetting::query()->findOrFail('radio');
-        $setting->value = [...$setting->value, 'auto_playlist' => null, 'auto_spotify' => $spotify->id];
+        $setting->value = [...$setting->value, 'auto_playlist' => null, 'auto_spotify' => (string) Str::uuid()];
         $setting->save();
         Cache::flush();
 

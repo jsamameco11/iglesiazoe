@@ -1,17 +1,16 @@
 import { useMemo, useState } from "react";
-import { SpotifyReference } from "@/Components/radio/spotify-reference";
-import { duration, shortTitle, type RadioPlaylist, type RadioSpotifyPlaylist, type RadioTrack } from "@/lib/radio";
+import { duration, shortTitle, type RadioPlaylist, type RadioTrack } from "@/lib/radio";
 import type { ConsoleApi } from "./use-console";
 
 /** Songs this short are jingles, not music (as the automatic music sees them). */
 const MIN_SECONDS = 5;
 
 /**
- * «Iniciar modo automático»: what the automatic music plays (a list with its Spotify reference,
- * or random songs) and the song it starts with. It is heard by every listener within seconds;
- * the song on air fades out under it.
+ * «Iniciar modo automático»: what the automatic music plays (a list or random songs) and the
+ * song it starts with. It is heard by every listener within seconds; the song on air fades out
+ * under it.
  */
-export function AutoStartPanel({ api, playlists, library, references }: { api: ConsoleApi; playlists: RadioPlaylist[]; library: RadioTrack[]; references: RadioSpotifyPlaylist[] }) {
+export function AutoStartPanel({ api, playlists, library }: { api: ConsoleApi; playlists: RadioPlaylist[]; library: RadioTrack[] }) {
   const { autopilot, config, state, now } = api;
   const [playlist, setPlaylist] = useState(autopilot.playlist ?? playlists[0]?.id ?? "");
   const [shuffle, setShuffle] = useState(autopilot.playlist ? autopilot.shuffle : false);
@@ -89,8 +88,6 @@ export function AutoStartPanel({ api, playlists, library, references }: { api: C
           ) : null}
         </div>
 
-        {list ? <SpotifyReference list={list} references={references} studio /> : null}
-
         <label className="block">
           <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-white/40">Punto de partida</span>
           <select value={first} onChange={(event) => setPick({ list: playlist, id: event.target.value })} disabled={empty} className="cx-select w-full" aria-label="Canción con la que empieza">
@@ -107,7 +104,7 @@ export function AutoStartPanel({ api, playlists, library, references }: { api: C
 
         {empty ? (
           <p className="rounded-md border border-amber-400/30 bg-amber-400/10 px-2.5 py-1.5 text-[11.5px] leading-4 text-amber-100">
-            Esta lista no tiene canciones. Sube a la Biblioteca las canciones de su referencia de Spotify que tengas con licencia y agrégalas en{" "}
+            Esta lista no tiene canciones. Sube canciones a la Biblioteca y agrégalas en{" "}
             <a href="/admin/radio/listas" className="font-semibold underline">Listas</a>.
           </p>
         ) : null}
@@ -123,7 +120,7 @@ export function AutoStartPanel({ api, playlists, library, references }: { api: C
           {busy ? "Iniciando…" : running ? `Empezar ahora${opening ? ` · ${shortTitle(opening.title, 26)}` : ""}` : "Iniciar modo automático"}
         </button>
         <p className="text-[10.5px] leading-4 text-white/35">
-          Al aire suenan las canciones de la Biblioteca{list?.spotify ? "; la playlist de Spotify es solo tu referencia aquí en el panel" : ""}.
+          Al aire suenan las canciones de la Biblioteca.
         </p>
       </div>
     </div>

@@ -217,30 +217,6 @@
 .radio-tag[data-kind="programa"] { background: #e3ecff; color: #2a4fa8; }
 .radio-tag[data-kind="efecto"] { background: #efe4ff; color: #6a3fb4; }
 
-/* A Spotify playlist in the admin's Spotify page. */
-.spotify-card {
-  min-width: 0;
-  border-radius: 1.4rem;
-  background: linear-gradient(180deg, #232326, #141416);
-  padding: 1rem;
-  box-shadow: 0 24px 50px -32px rgba(0, 0, 0, 0.7);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
-}
-.spotify-card:hover { transform: translateY(-3px); box-shadow: 0 30px 60px -30px rgba(29, 185, 84, 0.35); }
-.spotify-open {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  border-radius: 999px;
-  background: #1db954;
-  padding: 0.5rem 0.95rem;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #0b0b0c;
-  transition: background 0.2s ease, transform 0.2s ease;
-}
-.spotify-open:hover { background: #1ed760; transform: scale(1.03); }
-
 /* Episodes: the main player in on-demand mode and the list below it. */
 .radio-chip-button { transition: background 0.2s ease, color 0.2s ease; }
 .radio-chip-button:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }

@@ -18,7 +18,6 @@ import {
   type RadioBlock,
   type RadioConfig,
   type RadioPlaylist,
-  type RadioSpotifyPlaylist,
   type RadioTrack,
 } from "@/lib/radio";
 import "../../../../css/radio.css";
@@ -35,7 +34,6 @@ type Props = {
   tracks: RadioTrack[];
   config: RadioConfig;
   playlists: RadioPlaylist[];
-  spotifyReferences: RadioSpotifyPlaylist[];
   autopilot: Autopilot;
 };
 
@@ -51,7 +49,7 @@ function useNow(initial: number) {
   return now;
 }
 
-export default function Programacion({ date, today, now: serverNow, blocks, dayEnds, days, tracks, config, playlists, spotifyReferences, autopilot }: Props) {
+export default function Programacion({ date, today, now: serverNow, blocks, dayEnds, days, tracks, config, playlists, autopilot }: Props) {
   const now = useNow(serverNow);
   const start = dayStart(date);
   const end = start + DAY_MS;
@@ -179,7 +177,7 @@ export default function Programacion({ date, today, now: serverNow, blocks, dayE
           ) : (
             <AddPanel date={date} isToday={isToday} dayEnds={dayEnds} tracks={tracks} playlists={playlists} />
           )}
-          <AutopilotPanel autopilot={autopilot} playlists={playlists} references={spotifyReferences} now={now} />
+          <AutopilotPanel autopilot={autopilot} playlists={playlists} now={now} />
           <RotationPanel tracks={tracks} autofill={config.autofill} crossfade={config.crossfade} />
           <DayTools date={date} today={today} hasBlocks={blocks.length > 0} />
         </aside>

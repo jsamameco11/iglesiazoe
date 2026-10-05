@@ -2,10 +2,10 @@ import { useEffect, useState } from "react";
 import { Notice, button, useAction } from "@/Components/admin/ui";
 import { FallbackNotice, PendingSwitch, SourcePicker, leadLabel, sourceLabel } from "@/Components/radio/source-picker";
 import { send } from "@/lib/actions";
-import type { Autopilot, RadioPlaylist, RadioSpotifyPlaylist } from "@/lib/radio";
+import type { Autopilot, RadioPlaylist } from "@/lib/radio";
 
 /** The station's automatic music: what fills every space without a block, 24/7. */
-export function AutopilotPanel({ autopilot, playlists, references, now }: { autopilot: Autopilot; playlists: RadioPlaylist[]; references: RadioSpotifyPlaylist[]; now: number }) {
+export function AutopilotPanel({ autopilot, playlists, now }: { autopilot: Autopilot; playlists: RadioPlaylist[]; now: number }) {
   const [playlist, setPlaylist] = useState(autopilot.playlist ?? "");
   const [shuffle, setShuffle] = useState(autopilot.shuffle);
   const { result, setResult, pending, run } = useAction();
@@ -41,7 +41,6 @@ export function AutopilotPanel({ autopilot, playlists, references, now }: { auto
           shuffle={shuffle}
           onPlaylist={setPlaylist}
           onShuffle={setShuffle}
-          references={references}
         />
       </div>
       <div className="mt-3">

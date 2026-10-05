@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FallbackNotice, PendingSwitch, SourcePicker, leadLabel, sourceLabel } from "@/Components/radio/source-picker";
-import { clock, type RadioBlock, type RadioPlaylist, type RadioSpotifyPlaylist } from "@/lib/radio";
+import { clock, type RadioBlock, type RadioPlaylist } from "@/lib/radio";
 import type { ConsoleApi } from "./use-console";
 
 /**
@@ -8,7 +8,7 @@ import type { ConsoleApi } from "./use-console";
  * live signal or return to it, and what the automatic music plays (a change lands on a song
  * boundary after the lead time, or right away when returning from the live signal).
  */
-export function SwitchPanel({ api, day, playlists, references }: { api: ConsoleApi; day: RadioBlock[]; playlists: RadioPlaylist[]; references: RadioSpotifyPlaylist[] }) {
+export function SwitchPanel({ api, day, playlists }: { api: ConsoleApi; day: RadioBlock[]; playlists: RadioPlaylist[] }) {
   const { state, config, autopilot, now } = api;
   const live = state.live;
   const external = config.live_source === "externo";
@@ -84,7 +84,6 @@ export function SwitchPanel({ api, day, playlists, references }: { api: ConsoleA
             shuffle={shuffle}
             onPlaylist={setPlaylist}
             onShuffle={setShuffle}
-            references={references}
           />
           {!cut && changed ? (
             <button

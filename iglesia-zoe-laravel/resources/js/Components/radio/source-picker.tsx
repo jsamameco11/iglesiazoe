@@ -1,7 +1,6 @@
 import { useRef } from "react";
 import { input } from "@/Components/admin/ui";
-import { SpotifyReference } from "@/Components/radio/spotify-reference";
-import { clock, longDuration, type Autopilot, type RadioPlaylist, type RadioSpotifyPlaylist } from "@/lib/radio";
+import { clock, longDuration, type Autopilot, type RadioPlaylist } from "@/lib/radio";
 
 const RANDOM_HINT = "Mezcla las canciones de todas tus listas y de la música continua, sin repetir hasta completar la vuelta; si no hay, toda la biblioteca";
 
@@ -86,8 +85,7 @@ type Mode = "list" | "random";
 
 /**
  * What the automatic music plays: one of your playlists (shuffled or in its order) or random
- * songs. `playlist` is the list id, or "" for random songs. With `references`, the chosen list
- * shows its Spotify reference beside it.
+ * songs. `playlist` is the list id, or "" for random songs.
  */
 export function SourcePicker({
   playlists,
@@ -95,7 +93,6 @@ export function SourcePicker({
   shuffle,
   onPlaylist,
   onShuffle,
-  references,
   studio = false,
 }: {
   playlists: RadioPlaylist[];
@@ -103,15 +100,12 @@ export function SourcePicker({
   shuffle: boolean;
   onPlaylist: (value: string) => void;
   onShuffle: (value: boolean) => void;
-  references?: RadioSpotifyPlaylist[];
   studio?: boolean;
 }) {
   const lastList = useRef(playlist);
   if (playlist) lastList.current = playlist;
   const mode: Mode = playlist !== "" ? "list" : "random";
   const isList = mode === "list";
-  const selected = playlists.find((item) => item.id === playlist);
-  const reference = isList && selected && references ? <SpotifyReference list={selected} references={references} studio={studio} /> : null;
 
   function chooseList() {
     const remembered = playlists.some((item) => item.id === lastList.current) ? lastList.current : (playlists[0]?.id ?? "");
@@ -202,7 +196,6 @@ export function SourcePicker({
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
         {sourceSwitch}
         {isList ? <div className="w-[13rem] max-w-full">{listSelect}</div> : null}
-        {reference}
         {isList ? orderSwitch : null}
         {playlists.length ? null : (
           <a href="/admin/radio/listas" className="text-[11px] font-semibold text-white/50 transition hover:text-white" title="Aún no tienes listas: crea una en Biblioteca › Listas para elegirla aquí">
@@ -225,12 +218,6 @@ export function SourcePicker({
             Lista de reproducción
             {listSelect}
           </label>
-          {reference ? (
-            <div>
-              <p className="mb-1 text-xs font-semibold text-muted">Referencia de Spotify</p>
-              {reference}
-            </div>
-          ) : null}
           {orderSwitch}
           <p className="text-[11.5px] leading-4 text-muted">{orders.find(([value]) => value === shuffle)?.[2]}.</p>
         </>
