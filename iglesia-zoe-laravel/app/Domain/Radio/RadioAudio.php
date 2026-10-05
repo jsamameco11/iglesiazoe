@@ -15,9 +15,14 @@ final class RadioAudio
     /** What is wrong with the file, or null when it can be stored. */
     public static function problem(UploadedFile $file): ?string
     {
+        if (! $file->isValid()) {
+            return in_array($file->getError(), [UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE], true)
+                ? 'El servidor no aceptó el archivo porque pesa demasiado. Expórtalo en MP3 (128–192 kbps) e inténtalo de nuevo.'
+                : 'El archivo no llegó completo. Inténtalo de nuevo.';
+        }
         $ext = strtolower($file->getClientOriginalExtension());
         $mime = (string) $file->getMimeType();
-        if (! $file->isValid() || ! in_array($ext, self::TYPES, true) || ! preg_match('#^(audio/|video/(mp4|webm|ogg)|application/(ogg|octet-stream))#', $mime)) {
+        if (! in_array($ext, self::TYPES, true) || ! preg_match('#^(audio/|video/(mp4|webm|ogg)|application/(ogg|octet-stream))#', $mime)) {
             return 'El archivo debe ser de audio: MP3, M4A, AAC, OGG, OPUS, WAV, WEBM o FLAC.';
         }
         if ($file->getSize() > self::MAX_MB * 1024 * 1024) {

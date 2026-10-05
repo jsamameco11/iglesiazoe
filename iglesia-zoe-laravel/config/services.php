@@ -38,6 +38,18 @@ return [
         'subject' => env('VAPID_SUBJECT', env('ZOE_SITE_URL', 'https://iglesiacristianazoe.miacademiapreu.com')),
     ],
 
+    /*
+     * Free music databases the radio library asks to identify a song (author, co-authors,
+     * album, year, genres and cover). None needs a key; MusicBrainz asks for one request per
+     * second and a User-Agent with a contact.
+     */
+    'music' => [
+        'agent' => env('MUSIC_LOOKUP_AGENT', 'IglesiaZoeRadio/1.0 ( '.env('ZOE_SITE_URL', 'https://iglesiacristianazoe.miacademiapreu.com').' )'),
+        'musicbrainz_gap_ms' => (int) env('MUSICBRAINZ_GAP_MS', 1100),
+        'timeout' => (int) env('MUSIC_LOOKUP_TIMEOUT', 8),
+        'store' => env('MUSIC_LOOKUP_STORE', 'US'),
+    ],
+
     'slack' => [
         'notifications' => [
             'bot_user_oauth_token' => env('SLACK_BOT_USER_OAUTH_TOKEN'),

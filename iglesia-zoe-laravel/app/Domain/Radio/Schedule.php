@@ -82,7 +82,7 @@ final class Schedule
             'kind' => $slot->kind,
             'layer' => $slot->layer,
             'title' => $slot->title,
-            'artist' => $slot->track?->artist,
+            'artist' => $slot->track?->credit(),
             'note' => $slot->note,
             'bed' => $slot->bed,
             'duck' => $slot->duck,

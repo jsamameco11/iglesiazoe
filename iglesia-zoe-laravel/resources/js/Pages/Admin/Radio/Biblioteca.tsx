@@ -1,139 +1,65 @@
 import { Link, router } from "@inertiajs/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AUDIO_ACCEPT, COVER_ACCEPT, KindTag, RadioHeader, postWithProgress, readDuration } from "@/Components/radio/admin-ui";
-import { Notice, Stat, button, ghost, input, useAction } from "@/Components/admin/ui";
+import { CoAuthorsField, CoverPicker, GenrePicker, LookupBadge, MusicNote, cleanYear, identifySong, identityJson, mergeNames, type LookupState } from "@/Components/radio/library/song-fields";
+import { UploadPanel } from "@/Components/radio/library/upload-panel";
+import { Notice, Stat, button, input, useAction } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { can, usePanelUser } from "@/lib/access";
 import { send } from "@/lib/actions";
-import { duration, longDuration, type RadioTrack } from "@/lib/radio";
+import { duration, longDuration, type RadioGenre, type RadioTrack } from "@/lib/radio";
 import "../../../../css/radio.css";
 
 type Kind = RadioTrack["kind"];
 
-type Props = { tracks: RadioTrack[]; kinds: Record<Kind, string>; maxMb: number; maxDescription: number };
-
-type Upload = {
-  key: string;
-  file: File;
-  title: string;
-  artist: string;
-  kind: Kind;
-  duck: boolean;
-  duration: number | null;
-  progress: number;
-  status: "ready" | "reading" | "uploading" | "done" | "error";
-  error?: string;
-  /** Also publish it on /radio as an episode, with this description and cover. */
-  episode: boolean;
-  description: string;
-  cover: File | null;
+type Props = {
+  tracks: RadioTrack[];
+  kinds: Record<Kind, string>;
+  genres: RadioGenre[];
+  families: Record<string, string>;
+  maxGenres: number;
+  maxFeatured: number;
+  maxMb: number;
+  maxDescription: number;
 };
 
 const LIBRARY = "/admin/radio/biblioteca";
 
-/** Spoken audio lowers the music by default when it plays on top of it. */
-const duckFor = (kind: Kind) => kind === "anuncio" || kind === "programa";
-
 const upload = (data: FormData, onProgress?: (value: number) => void) => postWithProgress(LIBRARY, data, onProgress);
 
-function cleanTitle(name: string) {
-  return name
-    .replace(/\.[^.]+$/, "")
-    .replace(/[_]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 160);
+/** «Marcos Witt, Danilo Montero» */
+function credit(track: RadioTrack) {
+  return [track.artist, ...(track.featured ?? [])].filter(Boolean).join(", ");
 }
 
-function guessArtist(title: string): [string, string] {
-  const parts = title.split(/\s+-\s+/);
-  return parts.length === 2 ? [parts[1].trim(), parts[0].trim()] : [title, ""];
+/** «Pop rock alternativo / Pop progresivo» */
+function styles(track: RadioTrack) {
+  return (track.genres ?? []).map((genre) => genre.name).join(" / ");
 }
 
-export default function Biblioteca({ tracks, kinds, maxMb, maxDescription }: Props) {
+export default function Biblioteca({ tracks, kinds, genres, families, maxGenres, maxFeatured, maxMb, maxDescription }: Props) {
   const canEpisodes = can(usePanelUser(), "radio.episodes");
   const [tab, setTab] = useState<Kind | "">("");
+  const [genre, setGenre] = useState("");
   const [query, setQuery] = useState("");
-  const [queue, setQueue] = useState<Upload[]>([]);
-  const [uploadKind, setUploadKind] = useState<Kind>("musica");
-  const [running, setRunning] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
-  const picker = useRef<HTMLInputElement>(null);
 
   useEffect(() => () => audio.current?.pause(), []);
 
   const music = tracks.filter((track) => track.kind === "musica");
   const rotation = music.filter((track) => track.rotation && track.active);
-  const shown = tracks.filter((track) => (!tab || track.kind === tab) && `${track.title} ${track.artist ?? ""}`.toLowerCase().includes(query.trim().toLowerCase()));
+  const knownArtists = music.flatMap((track) => [track.artist ?? "", ...(track.featured ?? [])]).filter(Boolean);
+  const usedGenres = [...new Map(music.flatMap((track) => track.genres ?? []).map((value) => [value.id, value])).values()].sort((a, b) => a.name.localeCompare(b.name, "es"));
+  const needle = query.trim().toLowerCase();
+  const shown = tracks.filter(
+    (track) =>
+      (!tab || track.kind === tab) &&
+      (!genre || (track.genres ?? []).some((value) => value.id === genre)) &&
+      `${track.title} ${credit(track)} ${track.album ?? ""} ${styles(track)}`.toLowerCase().includes(needle),
+  );
   const kindList = Object.keys(kinds) as Kind[];
-
-  function patch(key: string, values: Partial<Upload>) {
-    setQueue((list) => list.map((item) => (item.key === key ? { ...item, ...values } : item)));
-  }
-
-  function addFiles(files: FileList | null) {
-    if (!files?.length) return;
-    const fresh: Upload[] = Array.from(files).map((file, index) => {
-      const [title, artist] = guessArtist(cleanTitle(file.name));
-      const tooBig = file.size > maxMb * 1024 * 1024;
-      return {
-        key: `${Date.now()}-${index}-${file.name}`,
-        file,
-        title,
-        artist: uploadKind === "musica" ? artist : "",
-        kind: uploadKind,
-        duck: duckFor(uploadKind),
-        duration: null,
-        progress: 0,
-        status: tooBig ? "error" : "reading",
-        error: tooBig ? `Pesa más de ${maxMb} MB. Expórtalo en MP3 (128–192 kbps).` : undefined,
-        episode: false,
-        description: "",
-        cover: null,
-      };
-    });
-    setQueue((list) => [...list, ...fresh]);
-    fresh
-      .filter((item) => item.status === "reading")
-      .forEach(async (item) => {
-        const seconds = await readDuration(item.file);
-        patch(item.key, seconds ? { duration: seconds, status: "ready" } : { status: "error", error: "No pudimos leer este audio. Prueba con MP3 o M4A." });
-      });
-  }
-
-  async function uploadAll() {
-    setRunning(true);
-    let uploaded = 0;
-    for (const item of queue) {
-      if (item.status !== "ready" || !item.duration) continue;
-      patch(item.key, { status: "uploading", progress: 0 });
-      const data = new FormData();
-      data.set("title", item.title.trim() || cleanTitle(item.file.name));
-      data.set("artist", item.artist);
-      data.set("kind", item.kind);
-      data.set("duration", String(item.duration));
-      data.set("duck", item.duck ? "1" : "0");
-      data.set("audio", item.file);
-      if (canEpisodes && item.episode) {
-        data.set("episode", "1");
-        data.set("episode_description", item.description);
-        if (item.cover) data.set("episode_cover", item.cover);
-      }
-      const result = await upload(data, (progress) => patch(item.key, { progress }));
-      if (result.error) patch(item.key, { status: "error", error: result.error });
-      else {
-        patch(item.key, { status: "done", progress: 1 });
-        uploaded++;
-      }
-    }
-    setRunning(false);
-    if (uploaded) {
-      router.reload({ only: ["tracks"] });
-      setQueue((list) => list.filter((item) => item.status !== "done"));
-    }
-  }
 
   function togglePlay(track: RadioTrack) {
     audio.current ??= new Audio();
@@ -148,8 +74,6 @@ export default function Biblioteca({ tracks, kinds, maxMb, maxDescription }: Pro
     setPlaying(track.id);
   }
 
-  const ready = queue.filter((item) => item.status === "ready").length;
-
   return (
     <AdminLayout>
       <RadioHeader
@@ -158,7 +82,7 @@ export default function Biblioteca({ tracks, kinds, maxMb, maxDescription }: Pro
       />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Stat label="Audios en la biblioteca" value={tracks.length} />
+        <Stat label="Audios en la biblioteca" value={tracks.length} note={music.length ? `${music.length} ${music.length === 1 ? "canción" : "canciones"}` : undefined} />
         <Stat
           label="En la música continua"
           value={rotation.length}
@@ -169,110 +93,17 @@ export default function Biblioteca({ tracks, kinds, maxMb, maxDescription }: Pro
         <Stat label="Programas grabados" value={tracks.filter((track) => track.kind === "programa").length} />
       </div>
 
-      <section
-        className="mt-6 rounded-[1.6rem] border-2 border-dashed border-line bg-card p-5 transition md:p-6"
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault();
-          addFiles(event.dataTransfer.files);
-        }}
-      >
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-lg font-semibold tracking-[-0.025em]">Subir audios</h2>
-            <p className="mt-1 text-[13px] leading-5 text-muted">Arrastra aquí varios archivos o elígelos. MP3, M4A, AAC, OGG, OPUS, WAV o FLAC · hasta {maxMb} MB cada uno.</p>
-            <p className="mt-1 text-[12.5px] font-medium text-emerald-800">Nada empieza a sonar al subir: todo queda guardado para programarlo.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <select value={uploadKind} onChange={(event) => setUploadKind(event.target.value as Kind)} className={`${input} !mt-0 !w-auto`}>
-              {kindList.map((kind) => (
-                <option key={kind} value={kind}>Subir como: {kinds[kind]}</option>
-              ))}
-            </select>
-            <button type="button" onClick={() => picker.current?.click()} className={button}>Elegir archivos</button>
-            <input
-              ref={picker}
-              type="file"
-              accept={AUDIO_ACCEPT}
-              multiple
-              hidden
-              onChange={(event) => {
-                addFiles(event.target.files);
-                event.target.value = "";
-              }}
-            />
-          </div>
-        </div>
-
-        {queue.length ? (
-          <div className="mt-5 space-y-2">
-            {queue.map((item) => (
-              <div key={item.key} className="grid gap-2 rounded-2xl border border-line bg-white p-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_10rem_auto_auto] md:items-center">
-                <input value={item.title} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { title: event.target.value })} className={`${input} !mt-0`} placeholder="Título" maxLength={160} />
-                <input value={item.artist} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { artist: event.target.value })} className={`${input} !mt-0`} placeholder={item.kind === "programa" ? "Programa o locutor (opcional)" : "Artista (opcional)"} maxLength={120} />
-                <select value={item.kind} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { kind: event.target.value as Kind, duck: duckFor(event.target.value as Kind) })} className={`${input} !mt-0`}>
-                  {kindList.map((kind) => (
-                    <option key={kind} value={kind}>{kinds[kind]}</option>
-                  ))}
-                </select>
-                <label className="flex items-center gap-2 text-xs" title="Cuando suene encima de la música, la música baja para que se escuche mejor.">
-                  <input type="checkbox" checked={item.duck} onChange={(event) => patch(item.key, { duck: event.target.checked })} /> Baja la música
-                </label>
-                <div className="flex items-center justify-end gap-3 text-xs">
-                  <span className="font-mono tabular-nums text-muted">{item.duration ? duration(item.duration) : "--:--"}</span>
-                  {item.status === "uploading" || item.status === "done" ? (
-                    <span className="w-20 overflow-hidden rounded-full bg-paper">
-                      <span className="block h-1.5 rounded-full bg-accent transition-[width]" style={{ width: `${Math.round(item.progress * 100)}%` }} />
-                    </span>
-                  ) : (
-                    <button type="button" disabled={running} onClick={() => setQueue((list) => list.filter((entry) => entry.key !== item.key))} className="px-1 text-base text-muted hover:text-red-700" aria-label="Quitar">
-                      ×
-                    </button>
-                  )}
-                </div>
-                {canEpisodes ? (
-                  <div className="md:col-span-5">
-                    <label className="inline-flex items-center gap-2 text-[13px] font-semibold">
-                      <input type="checkbox" checked={item.episode} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { episode: event.target.checked })} />
-                      Publicar también como episodio en la página de la radio
-                    </label>
-                    {item.episode ? (
-                      <div className="mt-2 grid gap-3 rounded-xl bg-paper p-3 md:grid-cols-[minmax(0,1fr)_16rem]">
-                        <label className="text-xs font-semibold text-muted">
-                          Descripción corta del programa
-                          <textarea
-                            value={item.description}
-                            disabled={item.status === "uploading"}
-                            onChange={(event) => patch(item.key, { description: event.target.value })}
-                            maxLength={maxDescription}
-                            rows={2}
-                            placeholder="De qué trata este programa, en una o dos frases."
-                            className={`${input} resize-none`}
-                          />
-                          <span className="mt-1 block text-right text-[11px] font-normal tabular-nums">{item.description.length}/{maxDescription}</span>
-                        </label>
-                        <label className="text-xs font-semibold text-muted">
-                          Carátula (opcional)
-                          <input type="file" accept={COVER_ACCEPT} disabled={item.status === "uploading"} onChange={(event) => patch(item.key, { cover: event.target.files?.[0] ?? null })} className={`${input} file:mr-3 file:rounded-full file:border-0 file:bg-paper file:px-3 file:py-1 file:text-xs file:font-semibold`} />
-                          <span className="mt-1 block text-[11px] font-normal">JPG, PNG o WEBP cuadrada · hasta 8 MB</span>
-                        </label>
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
-                {item.status === "error" ? <p className="text-xs font-medium text-red-700 md:col-span-5">{item.file.name}: {item.error}</p> : null}
-                {item.status === "reading" ? <p className="text-xs text-muted md:col-span-5">Leyendo la duración…</p> : null}
-              </div>
-            ))}
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <button type="button" disabled={running || ready === 0} onClick={uploadAll} className={button}>
-                {running ? "Subiendo…" : `Subir ${ready} audio${ready === 1 ? "" : "s"}`}
-              </button>
-              <button type="button" disabled={running} onClick={() => setQueue([])} className={ghost}>Limpiar lista</button>
-            </div>
-          </div>
-        ) : null}
-      </section>
+      <UploadPanel
+        kinds={kinds}
+        genres={genres}
+        families={families}
+        maxGenres={maxGenres}
+        maxFeatured={maxFeatured}
+        maxMb={maxMb}
+        maxDescription={maxDescription}
+        canEpisodes={canEpisodes}
+        knownArtists={knownArtists}
+      />
 
       <section className="mt-6 rounded-[1.6rem] border border-line bg-card p-4 md:p-6">
         <div className="flex flex-wrap items-center gap-2">
@@ -286,7 +117,19 @@ export default function Biblioteca({ tracks, kinds, maxMb, maxDescription }: Pro
               {kind ? kinds[kind] : "Todo"} · {kind ? tracks.filter((track) => track.kind === kind).length : tracks.length}
             </button>
           ))}
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por título o artista…" className={`${input} !mt-0 ml-auto !w-full sm:!w-64`} />
+          <div className="ml-auto flex w-full flex-wrap gap-2 sm:w-auto">
+            {usedGenres.length ? (
+              <select value={genre} onChange={(event) => setGenre(event.target.value)} className={`${input} !mt-0 !w-auto`} aria-label="Filtrar por estilo musical">
+                <option value="">Todos los estilos</option>
+                {usedGenres.map((value) => (
+                  <option key={value.id} value={value.id}>
+                    {value.name}
+                  </option>
+                ))}
+              </select>
+            ) : null}
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre, autor, álbum o estilo…" className={`${input} !mt-0 min-w-0 flex-1 sm:!w-72`} />
+          </div>
         </div>
 
         {shown.length === 0 ? (
@@ -300,6 +143,10 @@ export default function Biblioteca({ tracks, kinds, maxMb, maxDescription }: Pro
                 key={track.id}
                 track={track}
                 kinds={kinds}
+                genres={genres}
+                families={families}
+                maxGenres={maxGenres}
+                maxFeatured={maxFeatured}
                 maxMb={maxMb}
                 canEpisodes={canEpisodes}
                 playing={playing === track.id}
@@ -318,6 +165,10 @@ export default function Biblioteca({ tracks, kinds, maxMb, maxDescription }: Pro
 function TrackRow({
   track,
   kinds,
+  genres,
+  families,
+  maxGenres,
+  maxFeatured,
   maxMb,
   canEpisodes,
   playing,
@@ -327,6 +178,10 @@ function TrackRow({
 }: {
   track: RadioTrack;
   kinds: Record<Kind, string>;
+  genres: RadioGenre[];
+  families: Record<string, string>;
+  maxGenres: number;
+  maxFeatured: number;
   maxMb: number;
   canEpisodes: boolean;
   playing: boolean;
@@ -337,6 +192,61 @@ function TrackRow({
   const { result, setResult, pending, run } = useAction();
   const [kind, setKind] = useState<Kind>(track.kind);
   const [file, setFile] = useState<File | null>(null);
+  const [fields, setFields] = useState({ title: track.title, artist: track.artist ?? "", album: track.album ?? "" });
+  const [featured, setFeatured] = useState<string[]>(track.featured ?? []);
+  const [year, setYear] = useState(track.year ? String(track.year) : "");
+  const [chosen, setChosen] = useState<RadioGenre[]>(track.genres ?? []);
+  const [cover, setCover] = useState<{ file: File | null; url: string | null; removed: boolean; remote: string | null }>({ file: null, url: track.cover ?? null, removed: false, remote: null });
+  const [lookup, setLookup] = useState<LookupState | null>(null);
+  const [identity, setIdentity] = useState<string | null>(null);
+  const song = kind === "musica";
+  const details = [credit(track), track.album ? `${track.album}${track.year ? ` (${track.year})` : ""}` : track.year ? String(track.year) : "", styles(track)].filter(Boolean);
+
+  useEffect(() => {
+    if (!editing) return;
+    setKind(track.kind);
+    setFields({ title: track.title, artist: track.artist ?? "", album: track.album ?? "" });
+    setFeatured(track.featured ?? []);
+    setYear(track.year ? String(track.year) : "");
+    setChosen(track.genres ?? []);
+    setCover({ file: null, url: track.cover ?? null, removed: false, remote: null });
+    setLookup(null);
+    setIdentity(null);
+    setFile(null);
+  }, [editing, track]);
+
+  useEffect(() => () => void (cover.file && cover.url && URL.revokeObjectURL(cover.url)), [cover]);
+
+  function pickCover(picked: File | null) {
+    if (picked && (picked.size > 8 * 1024 * 1024 || !COVER_ACCEPT.split(",").includes(picked.type))) {
+      setResult({ error: "La carátula debe ser una imagen JPG, PNG o WEBP de hasta 8 MB." });
+      return;
+    }
+    setCover({ file: picked, url: picked ? URL.createObjectURL(picked) : null, removed: !picked, remote: null });
+  }
+
+  /** Asked on purpose: a sure answer replaces the album, year, styles and co-authors; a doubtful one only fills what is empty. */
+  async function lookUp() {
+    setLookup({ status: "searching" });
+    const state = await identifySong({ id: track.id, title: fields.title, artist: fields.artist, featured });
+    setLookup(state);
+    if (state.status !== "found") return;
+    const found = state.result;
+    const sure = found.found && (found.confidence === "alta" || found.confidence === "media");
+    if (found.found) {
+      setFields((current) => ({
+        title: sure && found.title ? found.title : current.title,
+        artist: found.artist && (sure || !current.artist.trim()) ? found.artist : current.artist,
+        album: found.album && (sure || !current.album.trim()) ? found.album : current.album,
+      }));
+      if (found.year && (sure || !year)) setYear(String(found.year));
+      const main = (found.artist ?? fields.artist).toLowerCase();
+      setFeatured((current) => mergeNames(current.filter((name) => name.toLowerCase() !== main), found.featured, maxFeatured));
+      if (found.cover_url && !cover.file && (!cover.url || cover.removed || cover.remote)) setCover({ file: null, url: found.cover_url, removed: false, remote: found.cover_url });
+      setIdentity(identityJson(found));
+    }
+    if (found.genres.length && (sure || chosen.length === 0)) setChosen(found.genres.slice(0, maxGenres));
+  }
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -344,7 +254,12 @@ function TrackRow({
     data.set("id", track.id);
     data.set("active", data.get("active") ? "1" : "0");
     data.set("duck", data.get("duck") ? "1" : "0");
+    data.set("year", year);
     data.delete("audio");
+    if (cover.file) data.set("cover", cover.file);
+    else if (cover.remote) data.set("cover_url", cover.remote);
+    else if (cover.removed) data.set("remove_cover", "1");
+    if (identity) data.set("identity", identity);
     if (file) {
       if (file.size > maxMb * 1024 * 1024) {
         setResult({ error: `El audio pesa más de ${maxMb} MB.` });
@@ -359,10 +274,11 @@ function TrackRow({
       data.set("duration", String(seconds));
     }
     run(
-      () => upload(data).then((response) => {
-        if (response.reload) router.reload({ only: ["tracks"] });
-        return response;
-      }),
+      () =>
+        upload(data).then((response) => {
+          if (response.reload) router.reload({ only: ["tracks"] });
+          return response;
+        }),
       onEdit,
     );
   }
@@ -383,15 +299,20 @@ function TrackRow({
         <button
           type="button"
           onClick={onPlay}
-          className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm transition ${playing ? "bg-ink text-white" : "bg-paper text-ink hover:bg-ink hover:text-white"}`}
+          className="group relative grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-paper text-ink transition"
           aria-label={playing ? "Detener" : "Escuchar"}
         >
-          {playing ? "■" : "▶"}
+          {track.cover ? <img src={track.cover} alt="" className="absolute inset-0 h-full w-full object-cover" /> : track.kind === "musica" ? <MusicNote className="h-5 w-5 text-muted" /> : null}
+          <span
+            className={`absolute inset-0 grid place-items-center text-sm transition ${playing ? "bg-ink/75 text-white" : track.cover || track.kind === "musica" ? "bg-ink/0 text-transparent group-hover:bg-ink/60 group-hover:text-white" : "group-hover:bg-ink group-hover:text-white"}`}
+          >
+            {playing ? "■" : "▶"}
+          </span>
         </button>
         <div className="min-w-0 flex-1">
           <p className={`truncate text-[15px] font-semibold ${track.active ? "" : "text-muted line-through"}`}>{track.title}</p>
           <p className="truncate text-[12.5px] text-muted">
-            {track.artist ? `${track.artist} · ` : ""}
+            {details.length ? `${details.join(" · ")} · ` : ""}
             {duration(track.duration)}
             {track.upcoming ? ` · en ${track.upcoming} bloque(s) programado(s)` : ""}
           </p>
@@ -431,43 +352,108 @@ function TrackRow({
               Guardar como episodio
             </Link>
           ) : null}
-          <button type="button" onClick={onEdit} className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted transition hover:bg-paper hover:text-ink">{editing ? "Cerrar" : "Editar"}</button>
-          <button type="button" disabled={pending} onClick={remove} className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50">Eliminar</button>
+          <button type="button" onClick={onEdit} className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted transition hover:bg-paper hover:text-ink">
+            {editing ? "Cerrar" : "Editar"}
+          </button>
+          <button type="button" disabled={pending} onClick={remove} className="rounded-full px-3 py-1.5 text-xs font-semibold text-red-700 transition hover:bg-red-50">
+            Eliminar
+          </button>
         </div>
       </div>
       {editing ? (
-        <form onSubmit={save} className="mt-3 grid gap-3 rounded-2xl border border-line bg-white p-4 md:grid-cols-2">
-          <label className="text-xs font-semibold text-muted">
-            Título
-            <input name="title" defaultValue={track.title} required maxLength={160} className={input} />
-          </label>
-          <label className="text-xs font-semibold text-muted">
-            Artista
-            <input name="artist" defaultValue={track.artist ?? ""} maxLength={120} className={input} />
-          </label>
-          <label className="text-xs font-semibold text-muted">
-            Tipo
-            <select name="kind" value={kind} onChange={(event) => setKind(event.target.value as Kind)} className={input}>
-              {(Object.keys(kinds) as Kind[]).map((value) => (
-                <option key={value} value={value}>{kinds[value]}</option>
-              ))}
-            </select>
-          </label>
-          <label className="text-xs font-semibold text-muted">
-            Reemplazar archivo (opcional)
-            <input type="file" name="audio" accept={AUDIO_ACCEPT} onChange={(event) => setFile(event.target.files?.[0] ?? null)} className={`${input} file:mr-3 file:rounded-full file:border-0 file:bg-paper file:px-3 file:py-1 file:text-xs file:font-semibold`} />
-          </label>
-          <div className="flex flex-wrap gap-5 md:col-span-2">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="duck" value="1" defaultChecked={track.duck} /> Bajar la música cuando suene encima
+        <form onSubmit={save} className="mt-3 flex gap-4 rounded-2xl border border-line bg-white p-4">
+          {song ? <CoverPicker src={cover.url} onPick={pickCover} onRemove={() => pickCover(null)} size="h-24 w-24" /> : null}
+          <div className="grid min-w-0 flex-1 gap-3 md:grid-cols-2">
+            {song ? (
+              <div className="flex flex-wrap items-center gap-2 text-[11.5px] md:col-span-2">
+                <button
+                  type="button"
+                  disabled={lookup?.status === "searching" || fields.title.trim().length < 2}
+                  onClick={lookUp}
+                  className="rounded-full bg-paper px-3 py-1.5 text-xs font-semibold text-ink transition hover:bg-ink hover:text-white disabled:opacity-50"
+                  title="Busca la canción en internet (Apple Music, Deezer, MusicBrainz y Wikidata) con el nombre y el autor de abajo, y completa autor, coautores, álbum, año, estilos y carátula."
+                >
+                  ⌕ Buscar datos en internet
+                </button>
+                <LookupBadge state={lookup} />
+                {lookup?.status === "error" ? <span className="text-red-700">{lookup.error}</span> : null}
+              </div>
+            ) : null}
+            <label className="text-xs font-semibold text-muted">
+              {song ? "Nombre de la canción" : "Nombre"} <span className="text-red-600">*</span>
+              <input name="title" value={fields.title} onChange={(event) => setFields({ ...fields, title: event.target.value })} required maxLength={160} className={input} />
             </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="active" value="1" defaultChecked={track.active} /> Activo
+            <label className="text-xs font-semibold text-muted">
+              {song ? (
+                <>
+                  Autor <span className="text-red-600">*</span>
+                </>
+              ) : kind === "programa" ? (
+                "Programa o locutor (opcional)"
+              ) : (
+                "Autor (opcional)"
+              )}
+              <input name="artist" value={fields.artist} onChange={(event) => setFields({ ...fields, artist: event.target.value })} required={song} maxLength={120} className={input} />
             </label>
-          </div>
-          <div className="md:col-span-2">
-            <Notice result={result} onClose={() => setResult(null)} />
-            <button disabled={pending} className={`${button} mt-2`}>{pending ? "Guardando…" : "Guardar cambios"}</button>
+            {song ? (
+              <>
+                <div className="md:col-span-2">
+                  <CoAuthorsField value={featured} onChange={setFeatured} max={maxFeatured} name="featured" />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_6rem] md:col-span-2">
+                  <label className="text-xs font-semibold text-muted">
+                    Álbum <span className="font-normal">(opcional)</span>
+                    <input name="album" value={fields.album} onChange={(event) => setFields({ ...fields, album: event.target.value })} maxLength={160} className={input} />
+                  </label>
+                  <label className="text-xs font-semibold text-muted">
+                    Año
+                    <input value={year} onChange={(event) => setYear(cleanYear(event.target.value))} inputMode="numeric" placeholder="2024" className={input} />
+                  </label>
+                </div>
+                <div className="md:col-span-2">
+                  <span className="text-xs font-semibold text-muted">
+                    Estilos musicales <span className="font-normal">(hasta {maxGenres}; el primero es el principal)</span>
+                  </span>
+                  <div className="mt-1.5">
+                    <GenrePicker value={chosen} onChange={setChosen} genres={genres} families={families} max={maxGenres} name="genre_ids" />
+                  </div>
+                </div>
+              </>
+            ) : null}
+            <label className="text-xs font-semibold text-muted">
+              Tipo
+              <select name="kind" value={kind} onChange={(event) => setKind(event.target.value as Kind)} className={input}>
+                {(Object.keys(kinds) as Kind[]).map((value) => (
+                  <option key={value} value={value}>
+                    {kinds[value]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs font-semibold text-muted">
+              Reemplazar archivo (opcional)
+              <input
+                type="file"
+                name="audio"
+                accept={AUDIO_ACCEPT}
+                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                className={`${input} file:mr-3 file:rounded-full file:border-0 file:bg-paper file:px-3 file:py-1 file:text-xs file:font-semibold`}
+              />
+            </label>
+            <div className="flex flex-wrap gap-5 md:col-span-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="duck" value="1" defaultChecked={track.duck} /> Bajar la música cuando suene encima
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="active" value="1" defaultChecked={track.active} /> Activo
+              </label>
+            </div>
+            <div className="md:col-span-2">
+              <Notice result={result} onClose={() => setResult(null)} />
+              <button disabled={pending} className={`${button} mt-2`}>
+                {pending ? "Guardando…" : "Guardar cambios"}
+              </button>
+            </div>
           </div>
         </form>
       ) : result?.error ? (

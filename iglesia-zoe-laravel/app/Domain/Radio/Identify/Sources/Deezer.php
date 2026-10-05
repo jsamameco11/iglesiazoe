@@ -1,0 +1,76 @@
+<?php
+
+namespace App\Domain\Radio\Identify\Sources;
+
+use App\Domain\Radio\Identify\Candidate;
+use App\Domain\Radio\Identify\Text;
+use Illuminate\Support\Facades\Cache;
+
+/** Deezer's public API: the song, the kind of release it is on (album, EP, single or compilation), its genres and featured artists. */
+final class Deezer extends Source
+{
+    public const NAME = 'deezer';
+
+    private const TYPES = ['album' => Candidate::ALBUM, 'ep' => Candidate::EP, 'single' => Candidate::SINGLE, 'compile' => Candidate::COMPILATION];
+
+    /**
+     * @param  list<string>  $known  Known names with separators, kept whole.
+     * @return list<Candidate>
+     */
+    public function search(string $query, array $known = []): array
+    {
+        $data = $this->json('https://api.deezer.com/search', ['q' => $query, 'limit' => 25]);
+
+        return collect($data['data'] ?? [])
+            ->filter(fn ($item) => is_array($item) && ($item['type'] ?? 'track') === 'track' && ! empty($item['title']) && ! empty($item['artist']['name']))
+            ->map(fn (array $item) => new Candidate(
+                source: self::NAME,
+                id: (string) $item['id'],
+                title: (string) $item['title'],
+                artist: (string) $item['artist']['name'],
+                featured: Text::featuredIn((string) $item['title'], $known),
+                album: ! empty($item['album']['title']) ? (string) $item['album']['title'] : null,
+                duration: isset($item['duration']) ? (float) $item['duration'] : null,
+                cover: $item['album']['cover_xl'] ?? null,
+                artistId: isset($item['artist']['id']) ? (string) $item['artist']['id'] : null,
+                albumId: isset($item['album']['id']) ? (string) $item['album']['id'] : null,
+            ))
+            ->values()->all();
+    }
+
+    /** Completes a version with what its album says: kind of release, year, number of songs and genres. */
+    public function completeAlbum(Candidate $candidate): void
+    {
+        if (! $candidate->albumId) {
+            return;
+        }
+        $key = 'radio-identify:deezer-album:'.$candidate->albumId;
+        $album = Cache::get($key) ?? $this->json('https://api.deezer.com/album/'.$candidate->albumId);
+        if (! $album) {
+            return;
+        }
+        Cache::put($key, $album, now()->addDays(30));
+        $candidate->albumType = self::TYPES[$album['record_type'] ?? ''] ?? null;
+        if ($candidate->albumType === Candidate::ALBUM && preg_match(ITunes::COMPILATION, Text::key($candidate->album))) {
+            $candidate->albumType = Candidate::COMPILATION;
+        }
+        $candidate->albumTracks = isset($album['nb_tracks']) ? (int) $album['nb_tracks'] : null;
+        $candidate->year = self::year($album['release_date'] ?? null);
+        $candidate->cover = $album['cover_xl'] ?? $candidate->cover;
+        $candidate->tags = collect($album['genres']['data'] ?? [])->pluck('name')->filter()->map(fn ($name) => [(string) $name, 1.5])->values()->all();
+    }
+
+    /** Completes a version with its credits (main and featured artists) and its ISRC. */
+    public function completeCredits(Candidate $candidate): void
+    {
+        $track = $this->json('https://api.deezer.com/track/'.$candidate->id);
+        if (! $track) {
+            return;
+        }
+        $contributors = collect($track['contributors'] ?? [])->filter(fn ($person) => ! empty($person['name']));
+        $others = $contributors->reject(fn ($person) => Text::key($person['name']) === Text::key($candidate->artist))->pluck('name')->all();
+        $candidate->featured = Text::unique([...$candidate->featured, ...$others]);
+        $candidate->isrc = $track['isrc'] ?? null;
+        $candidate->year ??= self::year($track['release_date'] ?? null);
+    }
+}

@@ -254,7 +254,7 @@ final class Autopilot
             'id' => $track->id,
             'kind' => $track->kind,
             'title' => $track->title,
-            'artist' => $track->artist,
+            'artist' => $track->credit(),
             'src' => $track->file_path,
             'ms' => $ms,
             'step' => max(1000, $ms - min($crossfadeMs, intdiv($ms, 3))),

@@ -1,0 +1,222 @@
+<?php
+
+namespace App\Domain\Radio\Catalog;
+
+/**
+ * Christian singers and groups the radio library recognizes from the start, Latin and English,
+ * including artists who came to the faith after a secular career (marked as converts).
+ *
+ * Their genres are the styles they are known for; a song is classified with them when the
+ * internet has nothing more precise. Artists found on the internet are learned on top of these.
+ */
+final class Artists
+{
+    public const SOLO = 'solista';
+
+    public const GROUP = 'agrupacion';
+
+    public const KINDS = [self::SOLO => 'Solista', self::GROUP => 'Agrupación'];
+
+    /**
+     * [name, kind, country (ISO 3166-1), [genres], [other spellings], converted after a secular career].
+     *
+     * @return list<array{0: string, 1: string, 2: ?string, 3: list<string>, 4?: list<string>, 5?: bool}>
+     */
+    public static function all(): array
+    {
+        $solo = self::SOLO;
+        $group = self::GROUP;
+
+        return [
+            // Adoración y alabanza en español
+            ['Marcos Witt', $solo, 'MX', ['Adoración', 'Alabanza', 'Balada cristiana']],
+            ['Jesús Adrián Romero', $solo, 'MX', ['Adoración', 'Balada cristiana', 'Pop cristiano'], ['Jesus Adrian Romero']],
+            ['Danilo Montero', $solo, 'CR', ['Adoración', 'Alabanza']],
+            ['Marco Barrientos', $solo, 'MX', ['Adoración', 'Alabanza']],
+            ['Juan Carlos Alvarado', $solo, 'GT', ['Alabanza', 'Adoración']],
+            ['Coalo Zamorano', $solo, 'MX', ['Adoración', 'Alabanza']],
+            ['Marcela Gándara', $solo, 'MX', ['Adoración', 'Balada cristiana']],
+            ['Lilly Goodman', $solo, 'DO', ['Balada cristiana', 'Adoración']],
+            ['Christine D\'Clario', $solo, 'PR', ['Adoración'], ['Christine DClario', 'Christine D Clario']],
+            ['Jaime Murrell', $solo, 'PA', ['Alabanza', 'Adoración']],
+            ['Abel Zavala', $solo, 'MX', ['Adoración']],
+            ['Ingrid Rosario', $solo, null, ['Adoración']],
+            ['Julissa', $solo, 'MX', ['Pop cristiano', 'Balada cristiana']],
+            ['Daniel Calveti', $solo, 'VE', ['Adoración']],
+            ['Lowsan Melgar', $solo, 'MX', ['Adoración']],
+            ['Jacobo Ramos', $solo, 'MX', ['Adoración']],
+            ['Job González', $solo, 'MX', ['Adoración'], ['Job Gonzalez']],
+            ['Gilberto Daza', $solo, 'VE', ['Balada cristiana', 'Adoración']],
+            ['Nancy Amancio', $solo, 'DO', ['Adoración']],
+            ['Marcos Brunet', $solo, 'AR', ['Adoración profética', 'Adoración']],
+            ['Averly Morillo', $solo, 'VE', ['Adoración']],
+            ['Samuel Hernández', $solo, 'PR', ['Balada cristiana', 'Alabanza'], ['Samuel Hernandez']],
+            ['Paulina Aguirre', $solo, 'EC', ['Pop cristiano', 'Balada cristiana']],
+            ['Marcos Vidal', $solo, 'ES', ['Balada cristiana', 'Pop cristiano']],
+            ['Kike Pavón', $solo, 'ES', ['Pop cristiano', 'Adoración'], ['Kike Pavon']],
+            ['Alex Campos', $solo, 'CO', ['Pop cristiano', 'Balada cristiana']],
+            ['Evan Craft', $solo, 'US', ['Pop cristiano', 'Adoración']],
+            ['Jaci Velasquez', $solo, 'US', ['Pop cristiano', 'Pop latino'], ['Jaci Velásquez']],
+            ['Ericson Alexander Molano', $solo, 'CO', ['Rock cristiano', 'Pop rock cristiano']],
+            ['Montesanto', $group, 'VE', ['Pop rock alternativo', 'Pop progresivo']],
+            ['Miel San Marcos', $group, 'GT', ['Alabanza', 'Adoración']],
+            ['Barak', $group, 'DO', ['Adoración', 'Alabanza'], ['Grupo Barak']],
+            ['Su Presencia', $group, 'CO', ['Adoración']],
+            ['Generación 12', $group, 'CO', ['Adoración', 'Alabanza'], ['Generacion 12', 'G12']],
+            ['En Espíritu y en Verdad', $group, 'MX', ['Adoración'], ['En Espiritu y en Verdad']],
+            ['Rojo', $group, 'MX', ['Pop rock cristiano', 'Pop cristiano'], ['Grupo Rojo']],
+            ['Tercer Cielo', $group, 'DO', ['Pop cristiano', 'Balada cristiana']],
+            ['Majo y Dan', $group, 'MX', ['Adoración', 'Pop cristiano'], ['Majo & Dan']],
+            ['Un Corazón', $group, 'MX', ['Pop rock cristiano'], ['Un Corazon']],
+            ['Alfareros', $group, 'GT', ['Pop cristiano', 'Balada cristiana']],
+            ['Emmanuel y Linda', $group, 'MX', ['Alabanza', 'Adoración'], ['Emmanuel & Linda']],
+            ['Rescate', $group, 'AR', ['Rock cristiano', 'Pop rock cristiano']],
+            ['Pescao Vivo', $group, 'CO', ['Rock cristiano']],
+            ['Hillsong en Español', $group, 'AU', ['Adoración'], ['Hillsong En Espanol']],
+            ['Gateway Worship Español', $group, 'US', ['Adoración'], ['Gateway Worship Espanol']],
+
+            // Urbano cristiano y conversos
+            ['Funky', $solo, 'PR', ['Rap cristiano', 'Reguetón cristiano', 'Urbano cristiano']],
+            ['Redimi2', $solo, 'DO', ['Rap cristiano', 'Urbano cristiano'], ['Redimi 2', 'Redimido']],
+            ['Alex Zurdo', $solo, 'PR', ['Reguetón cristiano', 'Urbano cristiano']],
+            ['Manny Montes', $solo, 'PR', ['Reguetón cristiano', 'Rap cristiano']],
+            ['Musiko', $solo, 'PR', ['Reguetón cristiano', 'Urbano cristiano']],
+            ['Lizzy Parra', $solo, 'PR', ['Reguetón cristiano', 'Urbano cristiano']],
+            ['Indiomar', $solo, 'PR', ['Reguetón cristiano', 'Rap cristiano']],
+            ['Vico C', $solo, 'PR', ['Rap cristiano', 'Hip hop latino'], [], true],
+            ['Héctor Delgado', $solo, 'PR', ['Reguetón cristiano', 'Urbano cristiano'], ['Hector Delgado', 'Héctor el Father', 'Hector el Father', 'Héctor "El Father"'], true],
+            ['Daddy Yankee', $solo, 'PR', ['Reguetón cristiano', 'Urbano cristiano'], [], true],
+            ['Farruko', $solo, 'PR', ['Reguetón cristiano', 'Urbano cristiano'], [], true],
+            ['Almighty', $solo, 'PR', ['Trap cristiano', 'Reguetón cristiano'], [], true],
+            ['Juan Luis Guerra', $solo, 'DO', ['Merengue', 'Bachata', 'Balada'], ['Juan Luis Guerra 4.40', 'Juan Luis Guerra y 440'], true],
+            ['Kanye West', $solo, 'US', ['Hip hop', 'Gospel contemporáneo'], ['Ye'], true],
+            ['Justin Bieber', $solo, 'CA', ['Pop', 'R&B contemporáneo'], [], true],
+            ['Brian "Head" Welch', $solo, 'US', ['Metal cristiano', 'Nu metal'], ['Brian Welch', 'Head'], true],
+            ['Bob Dylan', $solo, 'US', ['Folk rock', 'Rock'], [], true],
+
+            // Adoración en inglés
+            ['Hillsong Worship', $group, 'AU', ['Adoración'], ['Hillsong Live', 'Hillsong']],
+            ['Hillsong UNITED', $group, 'AU', ['Adoración', 'Pop rock cristiano'], ['Hillsong United']],
+            ['Hillsong Young & Free', $group, 'AU', ['Pop cristiano', 'Adoración'], ['Hillsong Young and Free']],
+            ['Elevation Worship', $group, 'US', ['Adoración', 'Cristiana contemporánea (CCM)']],
+            ['Bethel Music', $group, 'US', ['Adoración']],
+            ['Maverick City Music', $group, 'US', ['Adoración', 'Gospel contemporáneo']],
+            ['Jesus Culture', $group, 'US', ['Adoración']],
+            ['Passion', $group, 'US', ['Adoración']],
+            ['Planetshakers', $group, 'AU', ['Adoración', 'Alabanza']],
+            ['Gateway Worship', $group, 'US', ['Adoración']],
+            ['Vertical Worship', $group, 'US', ['Adoración']],
+            ['UPPERROOM', $group, 'US', ['Adoración profética', 'Adoración'], ['Upperroom']],
+            ['Housefires', $group, 'US', ['Adoración', 'Folk cristiano']],
+            ['Mosaic MSC', $group, 'US', ['Adoración']],
+            ['Red Rocks Worship', $group, 'US', ['Adoración']],
+            ['We The Kingdom', $group, 'US', ['Adoración', 'Cristiana contemporánea (CCM)']],
+            ['Leeland', $group, 'US', ['Adoración', 'Rock alternativo cristiano']],
+            ['Rend Collective', $group, 'GB', ['Folk cristiano', 'Adoración']],
+            ['Delirious?', $group, 'GB', ['Rock cristiano', 'Adoración'], ['Delirious']],
+            ['Chris Tomlin', $solo, 'US', ['Adoración', 'Cristiana contemporánea (CCM)']],
+            ['Phil Wickham', $solo, 'US', ['Adoración', 'Cristiana contemporánea (CCM)']],
+            ['Brandon Lake', $solo, 'US', ['Adoración']],
+            ['Cody Carnes', $solo, 'US', ['Adoración']],
+            ['Kari Jobe', $solo, 'US', ['Adoración']],
+            ['Matt Redman', $solo, 'GB', ['Adoración']],
+            ['Tim Hughes', $solo, 'GB', ['Adoración']],
+            ['Martin Smith', $solo, 'GB', ['Adoración', 'Rock cristiano']],
+            ['Darlene Zschech', $solo, 'AU', ['Adoración']],
+            ['Don Moen', $solo, 'US', ['Adoración', 'Alabanza']],
+            ['Paul Wilbur', $solo, 'US', ['Música mesiánica', 'Adoración']],
+            ['Lincoln Brewster', $solo, 'US', ['Adoración', 'Rock cristiano']],
+            ['Kim Walker-Smith', $solo, 'US', ['Adoración'], ['Kim Walker Smith']],
+            ['Steffany Gretzinger', $solo, 'US', ['Adoración profética', 'Adoración']],
+            ['Jenn Johnson', $solo, 'US', ['Adoración']],
+            ['Kalley Heiligenthal', $solo, 'US', ['Adoración']],
+            ['Charity Gayle', $solo, 'US', ['Adoración']],
+            ['Josh Baldwin', $solo, 'US', ['Adoración']],
+            ['Pat Barrett', $solo, 'US', ['Adoración']],
+            ['Matt Maher', $solo, 'CA', ['Cristiana contemporánea (CCM)', 'Adoración']],
+
+            // CCM, pop y rock cristiano en inglés
+            ['Lauren Daigle', $solo, 'US', ['Cristiana contemporánea (CCM)', 'Pop cristiano']],
+            ['Michael W. Smith', $solo, 'US', ['Cristiana contemporánea (CCM)', 'Adoración'], ['Michael W Smith']],
+            ['Amy Grant', $solo, 'US', ['Cristiana contemporánea (CCM)', 'Pop cristiano']],
+            ['TobyMac', $solo, 'US', ['Pop cristiano', 'Rap cristiano'], ['Toby Mac', 'tobyMac']],
+            ['for KING & COUNTRY', $group, 'AU', ['Pop cristiano', 'Cristiana contemporánea (CCM)'], ['For King and Country', 'for King + Country']],
+            ['Casting Crowns', $group, 'US', ['Cristiana contemporánea (CCM)', 'Pop rock cristiano']],
+            ['MercyMe', $group, 'US', ['Cristiana contemporánea (CCM)', 'Pop rock cristiano'], ['Mercy Me']],
+            ['Newsboys', $group, 'AU', ['Pop rock cristiano', 'Cristiana contemporánea (CCM)']],
+            ['Third Day', $group, 'US', ['Rock cristiano', 'Cristiana contemporánea (CCM)']],
+            ['Building 429', $group, 'US', ['Cristiana contemporánea (CCM)', 'Pop rock cristiano']],
+            ['Big Daddy Weave', $group, 'US', ['Cristiana contemporánea (CCM)']],
+            ['Sidewalk Prophets', $group, 'US', ['Cristiana contemporánea (CCM)']],
+            ['Tenth Avenue North', $group, 'US', ['Cristiana contemporánea (CCM)']],
+            ['Hawk Nelson', $group, 'CA', ['Pop rock cristiano']],
+            ['Jars of Clay', $group, 'US', ['Rock alternativo cristiano']],
+            ['Needtobreathe', $group, 'US', ['Rock cristiano', 'Americana'], ['NEEDTOBREATHE']],
+            ['Tauren Wells', $solo, 'US', ['Cristiana contemporánea (CCM)', 'Pop cristiano']],
+            ['Zach Williams', $solo, 'US', ['Rock cristiano', 'Cristiana contemporánea (CCM)']],
+            ['Crowder', $solo, 'US', ['Cristiana contemporánea (CCM)', 'Folk cristiano'], ['David Crowder']],
+            ['David Crowder Band', $group, 'US', ['Rock cristiano', 'Adoración']],
+            ['Jeremy Camp', $solo, 'US', ['Rock cristiano', 'Cristiana contemporánea (CCM)']],
+            ['Matthew West', $solo, 'US', ['Cristiana contemporánea (CCM)', 'Pop cristiano']],
+            ['Danny Gokey', $solo, 'US', ['Cristiana contemporánea (CCM)', 'Pop cristiano']],
+            ['Natalie Grant', $solo, 'US', ['Cristiana contemporánea (CCM)', 'Pop cristiano']],
+            ['Francesca Battistelli', $solo, 'US', ['Pop cristiano', 'Cristiana contemporánea (CCM)']],
+            ['Mandisa', $solo, 'US', ['Pop cristiano', 'Cristiana contemporánea (CCM)']],
+            ['Colton Dixon', $solo, 'US', ['Pop cristiano', 'Pop rock cristiano']],
+            ['Jordan Feliz', $solo, 'US', ['Pop cristiano']],
+            ['Anne Wilson', $solo, 'US', ['Cristiana contemporánea (CCM)', 'Country cristiano']],
+            ['CAIN', $group, 'US', ['Country cristiano', 'Cristiana contemporánea (CCM)'], ['Cain']],
+            ['Skillet', $group, 'US', ['Rock cristiano', 'Hard rock']],
+            ['Switchfoot', $group, 'US', ['Rock alternativo cristiano']],
+            ['Relient K', $group, 'US', ['Pop punk', 'Rock alternativo cristiano']],
+            ['Thousand Foot Krutch', $group, 'CA', ['Rock cristiano', 'Metal alternativo']],
+            ['Red', $group, 'US', ['Rock cristiano', 'Metal alternativo']],
+            ['Petra', $group, 'US', ['Rock cristiano']],
+            ['DC Talk', $group, 'US', ['Rock cristiano', 'Rap cristiano'], ['dc Talk', 'DC-Talk']],
+            ['Stryper', $group, 'US', ['Metal cristiano', 'Heavy metal']],
+            ['P.O.D.', $group, 'US', ['Metal cristiano', 'Nu metal', 'Rap rock'], ['POD', 'Payable on Death']],
+            ['Demon Hunter', $group, 'US', ['Metal cristiano', 'Metalcore']],
+            ['August Burns Red', $group, 'US', ['Metalcore', 'Metal cristiano']],
+            ['For Today', $group, 'US', ['Metalcore', 'Metal cristiano']],
+
+            // Rap cristiano en inglés
+            ['Lecrae', $solo, 'US', ['Rap cristiano']],
+            ['Andy Mineo', $solo, 'US', ['Rap cristiano']],
+            ['KB', $solo, 'US', ['Rap cristiano']],
+            ['Trip Lee', $solo, 'US', ['Rap cristiano']],
+            ['Social Club Misfits', $group, 'US', ['Rap cristiano']],
+            ['NF', $solo, 'US', ['Rap', 'Hip hop']],
+
+            // Gospel
+            ['Kirk Franklin', $solo, 'US', ['Gospel contemporáneo']],
+            ['CeCe Winans', $solo, 'US', ['Gospel contemporáneo', 'Adoración'], ['Cece Winans']],
+            ['Tasha Cobbs Leonard', $solo, 'US', ['Gospel contemporáneo', 'Adoración'], ['Tasha Cobbs']],
+            ['Fred Hammond', $solo, 'US', ['Gospel contemporáneo']],
+            ['Donnie McClurkin', $solo, 'US', ['Gospel contemporáneo']],
+            ['Israel Houghton', $solo, 'US', ['Gospel contemporáneo', 'Adoración'], ['Israel & New Breed', 'Israel and New Breed']],
+            ['Travis Greene', $solo, 'US', ['Gospel contemporáneo']],
+            ['Jonathan McReynolds', $solo, 'US', ['Gospel contemporáneo']],
+            ['Marvin Sapp', $solo, 'US', ['Gospel contemporáneo']],
+            ['Andraé Crouch', $solo, 'US', ['Gospel contemporáneo'], ['Andrae Crouch']],
+            ['Mahalia Jackson', $solo, 'US', ['Gospel tradicional']],
+            ['Hezekiah Walker', $solo, 'US', ['Coro góspel', 'Gospel contemporáneo']],
+            ['The Brooklyn Tabernacle Choir', $group, 'US', ['Coro góspel'], ['Brooklyn Tabernacle Choir']],
+            ['Mississippi Mass Choir', $group, 'US', ['Coro góspel', 'Gospel tradicional'], ['The Mississippi Mass Choir']],
+            ['Sinach', $solo, 'NG', ['Gospel contemporáneo', 'Adoración']],
+
+            // Infantil
+            ['Seeds Family Worship', $group, 'US', ['Música cristiana infantil']],
+
+            // Brasil
+            ['Aline Barros', $solo, 'BR', ['Adoración', 'Pop cristiano']],
+            ['Fernandinho', $solo, 'BR', ['Adoración', 'Pop rock cristiano']],
+            ['Diante do Trono', $group, 'BR', ['Adoración']],
+            ['Gabriela Rocha', $solo, 'BR', ['Adoración']],
+            ['Isadora Pompeo', $solo, 'BR', ['Adoración']],
+            ['Paulo César Baruk', $solo, 'BR', ['Adoración'], ['Paulo Cesar Baruk']],
+            ['Thalles Roberto', $solo, 'BR', ['Pop cristiano', 'Gospel']],
+            ['Kleber Lucas', $solo, 'BR', ['Adoración']],
+            ['Anderson Freire', $solo, 'BR', ['Adoración', 'Balada cristiana']],
+        ];
+    }
+}

@@ -9,6 +9,7 @@ const tabs: { href: string; label: string; needs: Permission }[] = [
   { href: "/admin/radio/programacion", label: "Programación", needs: "radio.schedule" },
   { href: "/admin/radio/biblioteca", label: "Biblioteca", needs: "radio.library" },
   { href: "/admin/radio/listas", label: "Listas", needs: "radio.library" },
+  { href: "/admin/radio/catalogo", label: "Catálogo musical", needs: "radio.library" },
   { href: "/admin/radio/episodios", label: "Episodios", needs: "radio.episodes" },
   { href: "/admin/radio/ajustes", label: "Ajustes", needs: "radio.settings" },
 ];

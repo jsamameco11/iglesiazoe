@@ -125,6 +125,14 @@ export type RadioTrack = {
   kind: Exclude<RadioKind, "vivo" | "relleno" | "automatica">;
   title: string;
   artist: string | null;
+  /** Co-authors of a song, besides its main author (up to 4). */
+  featured?: string[];
+  album?: string | null;
+  /** Musical styles of a song, the main one first. */
+  genres?: RadioGenre[];
+  year?: number | null;
+  /** Cover art of a song, read from its file or uploaded. */
+  cover?: string | null;
   src: string;
   duration: number;
   rotation: boolean;
@@ -135,6 +143,25 @@ export type RadioTrack = {
   problem?: string | null;
   /** Episodes of /radio that play this audio (library only). */
   episodes?: number;
+};
+
+/** A musical style of the catalog; `family` groups them (cristiana, pop, rock…). */
+export type RadioGenre = { id: string; name: string; family: string };
+
+/** What the internet says of a song: author, co-authors, album, styles and cover. */
+export type SongIdentity = {
+  found: boolean;
+  confidence: "alta" | "media" | "baja" | null;
+  sources: string[];
+  title: string | null;
+  artist: string | null;
+  featured: string[];
+  album: string | null;
+  year: number | null;
+  cover_url: string | null;
+  genres: RadioGenre[];
+  artist_info: { name: string | null; kind: string | null; country: string | null; known: boolean; convert: boolean; musicbrainz_id: string | null };
+  identity: { confidence?: string; score?: number; sources?: string[]; ids?: Record<string, string> };
 };
 
 /** A recorded program published on /radio. */

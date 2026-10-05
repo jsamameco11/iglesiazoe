@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Domain\Shared\Models\UuidModel;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -23,11 +24,21 @@ class RadioTrack extends UuidModel
     /** Kinds that lower the music underneath by default when they play on top of it. */
     public const DUCK_BY_DEFAULT = ['anuncio', 'programa'];
 
-    protected $fillable = ['kind', 'title', 'artist', 'file_path', 'duration', 'rotation', 'duck', 'active'];
+    /** Co-authors a song credits besides its main author. */
+    public const MAX_FEATURED = 4;
+
+    /** Genres (musical styles) a song carries, in order. */
+    public const MAX_GENRES = 4;
+
+    protected $fillable = ['kind', 'title', 'artist', 'featured', 'album', 'year', 'file_path', 'cover_path', 'identity', 'identified_at', 'duration', 'rotation', 'duck', 'active'];
 
     protected function casts(): array
     {
         return [
+            'featured' => 'array',
+            'identity' => 'array',
+            'identified_at' => 'datetime',
+            'year' => 'integer',
             'duration' => 'float',
             'rotation' => 'boolean',
             'duck' => 'boolean',
@@ -57,6 +68,21 @@ class RadioTrack extends UuidModel
         return $this->hasMany(RadioEpisode::class);
     }
 
+    public function genres(): BelongsToMany
+    {
+        return $this->belongsToMany(RadioGenre::class, 'radio_genre_track')
+            ->withPivot('position')
+            ->orderByPivot('position');
+    }
+
+    /** The author followed by the co-authors, as listeners read it: «Marcos Witt, Danilo Montero». */
+    public function credit(): ?string
+    {
+        $names = array_values(array_filter([$this->artist, ...($this->featured ?? [])]));
+
+        return $names ? implode(', ', $names) : null;
+    }
+
     public function payload(): array
     {
         return [
@@ -64,6 +90,11 @@ class RadioTrack extends UuidModel
             'kind' => $this->kind,
             'title' => $this->title,
             'artist' => $this->artist,
+            'featured' => $this->featured ?? [],
+            'album' => $this->album,
+            'genres' => $this->relationLoaded('genres') ? $this->genres->map->brief()->values()->all() : [],
+            'year' => $this->year,
+            'cover' => $this->cover_path,
             'src' => $this->file_path,
             'duration' => $this->duration,
             'rotation' => $this->rotation,

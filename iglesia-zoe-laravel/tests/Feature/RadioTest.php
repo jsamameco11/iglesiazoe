@@ -90,6 +90,7 @@ class RadioTest extends TestCase
 
         $this->actingAs($admin)->post(self::ADMIN.'/admin/radio/biblioteca', [
             'title' => 'Documento',
+            'artist' => 'Coro Zoe',
             'kind' => 'musica',
             'duration' => '10',
             'audio' => UploadedFile::fake()->create('notas.pdf', 20, 'application/pdf'),

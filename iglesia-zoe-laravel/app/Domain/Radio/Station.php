@@ -1076,7 +1076,7 @@ final class Station
             'id' => 's'.$slot->id,
             'kind' => $slot->kind,
             'title' => $slot->title,
-            'artist' => $slot->track?->artist,
+            'artist' => $slot->track?->credit(),
             'src' => $slot->kind === RadioSlot::LIVE ? null : $slot->track?->file_path,
             'start' => $begin,
             'end' => $finish,
