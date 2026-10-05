@@ -27,3 +27,14 @@
 <IfModule mod_deflate.c>
     AddOutputFilterByType DEFLATE application/json
 </IfModule>
+
+# Home page media copied to this server (HotMedia). Uploads never change under the same
+# name; the built-in library may be replaced, so it is kept for a week.
+<IfModule mod_headers.c>
+    <If "%{REQUEST_URI} =~ m#^/media/# && -f '%{DOCUMENT_ROOT}%{REQUEST_URI}'">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </If>
+    <ElseIf "%{REQUEST_URI} =~ m#^/(images|videos)/# && -f '%{DOCUMENT_ROOT}%{REQUEST_URI}'">
+        Header set Cache-Control "public, max-age=604800"
+    </ElseIf>
+</IfModule>

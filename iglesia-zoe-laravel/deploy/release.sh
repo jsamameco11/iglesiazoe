@@ -1,11 +1,12 @@
 #!/bin/bash
 # Applies a code-only release (see release.ps1) on the VPS.
-# Data stays in place: .env, the database, storage/ and public/images are never touched.
+# Data stays in place: .env, the database, storage/ and the home media copies
+# (public/media, public/images, public/videos) are never touched.
 set -euo pipefail
 
 APP=/opt/iglesia-zoe-app
 ARCHIVE=${1:-/root/zoe-release.tgz}
-PARTS=(app config routes bootstrap/app.php database/migrations database/seeders resources/views public/build public/geo-data public/sw.js composer.json composer.lock)
+PARTS=(app config routes bootstrap/app.php database/migrations database/seeders resources/views public/build public/geo-data public/sw.js public/.htaccess composer.json composer.lock)
 
 cd "$APP"
 STAMP=$(date +%Y%m%d-%H%M%S)
@@ -37,7 +38,9 @@ php artisan route:cache >/dev/null
 php artisan view:cache >/dev/null
 php artisan cache:clear >/dev/null || true
 chown -R www-data:www-data storage bootstrap/cache database public/build
+install -d -o www-data -g www-data public/media public/images public/videos
 systemctl restart php8.3-fpm
+sudo -u www-data php artisan media:hot || echo "aviso: algunos archivos del inicio siguen sirviéndose desde Wasabi"
 php artisan tinker --execute='echo App\Domain\Reports\Support\WeekCalendar::currentLabel();'
 echo
 echo "RELEASE OK"

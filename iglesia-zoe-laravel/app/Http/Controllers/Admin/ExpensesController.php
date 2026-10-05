@@ -35,7 +35,7 @@ class ExpensesController extends Controller
             'categories' => self::CATEGORIES,
             'all' => $user->isSuperadmin(),
             'total' => Finance::money((float) $rows->sum('amount')),
-            'rows' => $rows->map(fn (Expense $expense) => $this->row($expense)),
+            'rows' => $rows->map->row(),
         ]);
     }
 
@@ -91,19 +91,5 @@ class ExpensesController extends Controller
         $url = MediaLibrary::cloud() ? MediaLibrary::privateUrl($expense->receipt_path, 10) : null;
 
         return $url ? redirect()->away($url) : MediaLibrary::privateDisk()->response($expense->receipt_path);
-    }
-
-    public static function row(Expense $expense): array
-    {
-        return [
-            'id' => $expense->id,
-            'spent_on' => $expense->spent_on->toDateString(),
-            'category' => $expense->category,
-            'detail' => $expense->detail,
-            'amount' => (float) $expense->amount,
-            'by' => $expense->user?->name ?? 'Cuenta eliminada',
-            'receipt' => $expense->receipt_path ? '/admin/gastos/boleta/'.$expense->id : null,
-            'is_pdf' => str_ends_with(strtolower((string) $expense->receipt_path), '.pdf'),
-        ];
     }
 }

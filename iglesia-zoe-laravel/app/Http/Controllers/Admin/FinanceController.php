@@ -42,7 +42,7 @@ class FinanceController extends Controller
             'byNetwork' => $byNetwork,
             'byCategory' => $byCategory,
             'income' => $income->sortByDesc('date')->take(300)->values(),
-            'expenses' => $expenses->map(fn ($expense) => ExpensesController::row($expense))->values(),
+            'expenses' => $expenses->map->row()->values(),
         ]);
     }
 

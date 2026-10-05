@@ -1,9 +1,10 @@
+import { Deferred } from "@inertiajs/react";
 import { CellsSection } from "@/Components/site/home/cells";
 import { EssenceSection } from "@/Components/site/home/essence";
 import { EventsSection } from "@/Components/site/home/events";
 import { GenerationsSection } from "@/Components/site/home/generations";
 import { HomeHero } from "@/Components/site/home/hero";
-import { RadioSection } from "@/Components/site/home/radio";
+import { RadioSection, RadioSectionSkeleton } from "@/Components/site/home/radio";
 import { ResourcesSection } from "@/Components/site/home/resources";
 import { VisitSection } from "@/Components/site/home/visit";
 import { ServeRail } from "@/Components/site/serve-rail";
@@ -26,7 +27,7 @@ export default function Home({
   serveAreas: ServeArea[];
   sermons: SermonSummary[];
   events: ChurchEvent[];
-  radio: RadioState;
+  radio?: RadioState;
   mediaOverrides: Record<string, MediaAsset>;
 }) {
   const media = resolveMedia(mediaOverrides);
@@ -38,7 +39,9 @@ export default function Home({
       <GenerationsSection settings={settings} ministries={ministries} media={media} />
       <ServeRail title={settings.serveRailTitle} text={settings.serveRailText} areas={serveAreas} />
       <EventsSection settings={settings} events={events} fallback={media.events} />
-      <RadioSection settings={settings} radio={radio} asset={media.radio} />
+      <Deferred data="radio" fallback={<RadioSectionSkeleton />}>
+        {radio ? <RadioSection settings={settings} radio={radio} asset={media.radio} /> : null}
+      </Deferred>
       <ResourcesSection settings={settings} sermons={sermons} />
       <VisitSection settings={settings} />
     </SiteLayout>

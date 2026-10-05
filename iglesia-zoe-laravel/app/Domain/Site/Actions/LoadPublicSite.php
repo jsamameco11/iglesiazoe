@@ -2,6 +2,7 @@
 
 namespace App\Domain\Site\Actions;
 
+use App\Domain\Media\Support\HotMedia;
 use App\Domain\Site\Design\NormalizeDesign;
 use App\Domain\Site\Support\SiteVersion;
 use App\Models\Ministry;
@@ -9,6 +10,8 @@ use App\Models\ServeArea;
 use App\Models\SitePage;
 use App\Models\SiteSetting;
 use Illuminate\Support\Facades\Cache;
+
+use function Illuminate\Support\defer;
 
 class LoadPublicSite
 {
@@ -120,11 +123,13 @@ class LoadPublicSite
         });
     }
 
+    /** Forgets the cached site and, after answering, brings the web server's copy of the home media up to date. */
     public static function flush(): void
     {
         foreach (self::KEYS as $key) {
             Cache::forget($key);
         }
         SiteVersion::bump();
+        defer(fn () => HotMedia::sync(), 'zoe.hot.sync');
     }
 }

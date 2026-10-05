@@ -28,6 +28,7 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 
-# Media lives in Wasabi
+# Media lives in Wasabi; production keeps a copy of the home media here (HotMedia)
 /public/images
 /public/videos
+/public/media

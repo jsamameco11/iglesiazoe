@@ -18,12 +18,15 @@ use App\Models\Teaching;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class SiteController extends Controller
 {
+    private const HOME_FEED_SECONDS = 60;
+
     public function home(Request $request): Response
     {
         return $this->homePage($request);
@@ -196,13 +199,17 @@ class SiteController extends Controller
         return Inertia::render($component, $this->shared($request));
     }
 
+    /**
+     * The most visited page answers without waiting on the database: the latest sermons and
+     * events are kept for a minute and the live radio snapshot loads right after the page.
+     */
     private function homePage(Request $request, bool $forceMarea = false): Response
     {
         return Inertia::render('Home', [
             ...$this->shared($request, $forceMarea),
-            'sermons' => $this->publishedSermons(3),
-            'events' => ChurchEvent::upcoming()->limit(6)->get()->map->card(),
-            'radio' => Station::state(),
+            'sermons' => Cache::remember('zoe.home.sermons', self::HOME_FEED_SECONDS, fn () => $this->publishedSermons(3)),
+            'events' => Cache::remember('zoe.home.events', self::HOME_FEED_SECONDS, fn () => ChurchEvent::upcoming()->limit(6)->get()->map->card()->all()),
+            'radio' => Inertia::defer(fn () => Station::state()),
         ]);
     }
 

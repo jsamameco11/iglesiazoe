@@ -86,6 +86,9 @@ return [
     'media' => env('WASABI_BUCKET') ? 'wasabi' : 'public',
     'vault' => env('WASABI_BUCKET') ? 'wasabi-private' : 'local',
 
+    // Where the web server keeps its own copy of the home page media (see HotMedia).
+    'hot' => public_path(),
+
     /*
     |--------------------------------------------------------------------------
     | Symbolic Links

@@ -44,6 +44,28 @@ function useRadioSnapshot(initial: RadioState) {
   return { state, now };
 }
 
+/** The frame of RadioSection while its live snapshot loads, right after the page. */
+export function RadioSectionSkeleton() {
+  return (
+    <section {...section("radio", "Radio")} className="home-section" aria-busy>
+      <div className="onair" data-tone="off">
+        <div className="onair-grid animate-pulse" aria-hidden>
+          <div className="space-y-5">
+            <div className="h-7 w-44 rounded-full bg-white/10" />
+            <div className="h-14 w-3/4 rounded-2xl bg-white/10" />
+            <div className="h-4 w-1/2 rounded-full bg-white/[0.07]" />
+            <div className="flex gap-3 pt-4">
+              <div className="h-12 w-40 rounded-full bg-white/10" />
+              <div className="h-12 w-32 rounded-full bg-white/[0.06]" />
+            </div>
+          </div>
+          <div className="h-72 rounded-3xl bg-white/[0.06]" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function RadioSection({ settings, radio, asset }: { settings: SiteSettings; radio: RadioState; asset: MediaAsset }) {
   const t = (key: CopyKey) => readCopy(settings, key);
   const { state, now } = useRadioSnapshot(radio);

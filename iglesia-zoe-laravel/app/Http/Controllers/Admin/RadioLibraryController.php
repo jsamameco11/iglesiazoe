@@ -270,7 +270,7 @@ class RadioLibraryController extends RadioController
      *
      * @return list<array{id: string, name: string, family: string}>
      */
-    public static function genreList(): array
+    private static function genreList(): array
     {
         $families = array_flip(array_keys(Genres::FAMILIES));
 

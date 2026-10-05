@@ -20,7 +20,7 @@ class PublicSiteTest extends TestCase
         DB::table('geo_countries')->insert(['code' => 'PE', 'name' => 'Perú', 'dial' => '51', 'region_label' => 'Departamento', 'city_label' => 'Provincia', 'district_label' => 'Distrito']);
     }
 
-    public function test_home_renders_the_brand_sections_with_the_latest_sermons(): void
+    public function test_home_renders_the_brand_sections_with_the_latest_sermons_and_the_radio_right_after(): void
     {
         foreach (range(1, 4) as $day) {
             Sermon::query()->create(['title' => "Mensaje $day", 'sermon_date' => "2026-09-0$day", 'published' => true]);
@@ -33,7 +33,9 @@ class PublicSiteTest extends TestCase
                 ->where('settings.heroTitle', config('zoe.settings.heroTitle'))
                 ->has('ministries', 4)
                 ->has('sermons', 3)
-                ->where('sermons.0.title', 'Mensaje 4'));
+                ->where('sermons.0.title', 'Mensaje 4')
+                ->missing('radio')
+                ->loadDeferredProps(fn (AssertableInertia $reload) => $reload->has('radio.on_air')));
     }
 
     public function test_a_visit_without_email_or_place_is_planned_for_the_chosen_service(): void
