@@ -90,10 +90,10 @@ export default function Consola({ radio, live, voice, config, autopilot, upcomin
             onClick={api.toggleAutofill}
             className="cx-btn"
             data-tone={api.config.autofill ? "green" : undefined}
-            title={api.config.autofill ? "La música continua llena los espacios sin programación. Clic para pausarla." : "La música continua está en pausa. Clic para reanudarla."}
+            title={api.config.autofill ? "El modo automático llena los espacios sin programación. Clic para detenerlo." : "Modo automático detenido: lo que no está programado es silencio. Clic para activarlo."}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${api.config.autofill ? "bg-emerald-300" : "bg-white/40"}`} />
-            {api.config.autofill ? "Música continua" : "Música continua en pausa"}
+            {api.config.autofill ? "Automático" : "Automático detenido"}
           </button>
           <button type="button" onClick={api.toggleAir} className="cx-btn" data-tone={api.config.on_air ? "green" : undefined}>
             <span className={`h-1.5 w-1.5 rounded-full ${api.config.on_air ? "bg-emerald-300" : "bg-white/40"}`} />

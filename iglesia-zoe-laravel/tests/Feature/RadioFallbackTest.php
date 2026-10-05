@@ -32,7 +32,7 @@ class RadioFallbackTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_the_music_falls_back_from_the_chosen_list_to_every_list_and_then_to_the_whole_library(): void
+    public function test_a_chosen_list_without_playable_songs_leaves_the_radio_silent(): void
     {
         $chosen = $this->playlist('Alabanza', $this->track('Alabanza 1'));
         $this->playlist('Adoración', $this->track('Adoración 1'));
@@ -43,7 +43,17 @@ class RadioFallbackTest extends TestCase
         $this->assertSame('Alabanza 1', $this->onAir());
 
         $this->breakFile('Alabanza 1');
-        $this->assertSame('lists', Station::autopilot()['level'], 'A list without playable songs falls back to every list.');
+        $this->assertSame('none', Station::autopilot()['level'], 'Nothing that was not chosen sounds in its place.');
+        $this->assertSame([], $this->listener()['queue']);
+        $this->assertSame([], $this->listener()['fallback']);
+    }
+
+    public function test_random_songs_take_every_list_and_then_the_whole_library(): void
+    {
+        $this->playlist('Adoración', $this->track('Adoración 1'));
+        $this->track('Suelta');
+
+        $this->assertSame('lists', Station::autopilot()['level']);
         $this->assertSame('Adoración 1', $this->onAir());
 
         $this->breakFile('Adoración 1');
@@ -84,6 +94,9 @@ class RadioFallbackTest extends TestCase
 
         Station::saveConfig(['autofill' => false]);
         $this->assertSame([], $this->listener()['fallback'], 'With the continuous music paused, silence is intended.');
+
+        Station::saveConfig(['autofill' => true, 'auto_repeat' => false]);
+        $this->assertSame([], $this->listener()['fallback'], 'A source that plays only once ends in silence.');
     }
 
     public function test_a_missing_file_leaves_the_air_only_after_two_checks_a_minute_apart_and_returns_when_it_is_back(): void

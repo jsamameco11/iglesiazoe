@@ -21,8 +21,26 @@ export type Reschedule = { mode: "shift"; minutes: number } | { mode: "at"; time
 
 type Notice = { tone: "error" | "info"; text: string } | null;
 
-/** Microphone of this console: level, music bed while talking, self monitoring, input device and voice processing. */
-type MicSettings = { level: number; autoBed: boolean; selfMonitor: boolean; deviceId: string; processing: boolean };
+/**
+ * Microphone of this console: level, music bed while talking, self monitoring, input device, voice
+ * processing, «Detectar voz» (the program drops while the voice is heard) and «Hablar al iniciar».
+ */
+type MicSettings = { level: number; autoBed: boolean; selfMonitor: boolean; deviceId: string; processing: boolean; voiceDuck: boolean; talkOnStart: boolean };
+
+const MIC_KEY = "radio.console.mic";
+
+const MIC_DEFAULTS: MicSettings = { level: 1, autoBed: true, selfMonitor: false, deviceId: "", processing: true, voiceDuck: true, talkOnStart: true };
+
+/** The choices of this computer survive a reload (the level and the device are chosen again each time). */
+function savedMic(): MicSettings {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(MIC_KEY) ?? "{}") as Partial<MicSettings>;
+    const pick = (key: "autoBed" | "processing" | "voiceDuck" | "talkOnStart") => (typeof saved[key] === "boolean" ? saved[key] : MIC_DEFAULTS[key]);
+    return { ...MIC_DEFAULTS, autoBed: pick("autoBed"), processing: pick("processing"), voiceDuck: pick("voiceDuck"), talkOnStart: pick("talkOnStart") };
+  } catch {
+    return MIC_DEFAULTS;
+  }
+}
 
 type PlayOptions = { volume?: number; duck?: boolean; fadeIn?: number; fadeOut?: number; loop?: boolean };
 
@@ -54,9 +72,10 @@ export function useConsole(initial: Snapshot, host: string) {
   const [monitor, setMonitor] = useState(false);
   const [monitorLevel, setMonitorLevel] = useState(0.8);
   const [micOpen, setMicOpen] = useState(false);
-  const [mic, setMic] = useState<MicSettings>({ level: 1, autoBed: true, selfMonitor: false, deviceId: "", processing: true });
+  const [mic, setMic] = useState<MicSettings>(savedMic);
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [talking, setTalking] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const [hostName, setHostName] = useState(initial.live.host || host);
   const [busy, setBusy] = useState(false);
   const [blend, setBlend] = useState(3);
@@ -85,6 +104,23 @@ export function useConsole(initial: Snapshot, host: string) {
   useEffect(() => {
     if (live.session && live.host) setHostName(live.host);
   }, [live.session]);
+
+  useEffect(() => {
+    const engine = caster.current!;
+    engine.setDetect(mic.voiceDuck);
+    engine.onVoice = (on) => {
+      setSpeaking(on);
+      player.current?.setVoice(on);
+    };
+    return () => {
+      engine.onVoice = undefined;
+    };
+  }, [mic.voiceDuck]);
+
+  useEffect(() => {
+    const { autoBed, processing, voiceDuck, talkOnStart } = mic;
+    window.localStorage.setItem(MIC_KEY, JSON.stringify({ autoBed, processing, voiceDuck, talkOnStart }));
+  }, [mic]);
 
   useEffect(() => {
     serverClock.seed(initial.radio.now);
@@ -226,6 +262,7 @@ export function useConsole(initial: Snapshot, host: string) {
     player.current.setQueue(state.queue);
     player.current.setMix(state.mix);
     player.current.setLayers(state.layers);
+    player.current.setVoice(caster.current?.speaking ?? false);
     setMonitor(true);
   }
 
@@ -262,7 +299,12 @@ export function useConsole(initial: Snapshot, host: string) {
     setNotice(null);
     if (await openMic()) {
       const data = await liveAction({ action: "start", host: hostName });
-      if (data) setNotice({ tone: "info", text: "¡Estás en vivo! Presiona «Hablar» cuando quieras salir al aire con tu voz." });
+      if (data && mic.talkOnStart) {
+        await talk(true);
+        setNotice({ tone: "info", text: mic.voiceDuck ? "¡Estás al aire! Habla cuando quieras: la música baja sola mientras se oye tu voz." : "¡Estás al aire con tu voz! Usa «Hablar» para cerrar o abrir el micrófono." });
+      } else if (data) {
+        setNotice({ tone: "info", text: "¡Estás en vivo! Presiona «Hablar» cuando quieras salir al aire con tu voz." });
+      }
     }
     setBusy(false);
   }
@@ -282,13 +324,21 @@ export function useConsole(initial: Snapshot, host: string) {
     setNotice(null);
   }
 
-  async function toggleTalk() {
-    const next = !talking;
+  /**
+   * Opens or closes the microphone on air. With «Detectar voz» the program drops only while the
+   * voice is heard; without it, «Auto fondo» keeps the music at bed level the whole time.
+   */
+  async function talk(next: boolean) {
     caster.current?.setTalking(next);
     setTalking(next);
     const at = serverClock.now();
     setTalks((list) => (next ? [...list.slice(-30), { start: at, end: null }] : list.map((span) => (span.end === null ? { ...span, end: at } : span))));
-    await liveAction(mic.autoBed ? { action: "mix", mic: next ? "1" : "0", bed: next ? "1" : "0" } : { action: "mix", mic: next ? "1" : "0" });
+    const bed = next ? mic.autoBed && !mic.voiceDuck : mic.autoBed;
+    await liveAction(bed ? { action: "mix", mic: next ? "1" : "0", bed: next ? "1" : "0" } : { action: "mix", mic: next ? "1" : "0" });
+  }
+
+  async function toggleTalk() {
+    await talk(!talking);
   }
 
   async function toggleAir() {
@@ -309,11 +359,16 @@ export function useConsole(initial: Snapshot, host: string) {
     [apply],
   );
 
-  /** Pauses or resumes the continuous music that fills the gaps of the program. */
+  /** Stops or resumes the automatic music that fills the gaps of the program. */
   async function toggleAutofill() {
     const on = !config.autofill;
-    if (!on && !window.confirm("¿Pausar la música continua? Los espacios sin programación quedarán en silencio hasta que la reanudes.")) return;
+    if (!on && !window.confirm("¿Detener el modo automático? Lo que no esté programado quedará en silencio hasta que lo inicies de nuevo.")) return;
     await musicAction({ action: "autofill", on: on ? "1" : "0" });
+  }
+
+  /** «Repetir»: the automatic music starts over at its end, or plays to its last song and then falls silent. */
+  async function setRepeat(on: boolean) {
+    await musicAction({ action: "repeat", on: on ? "1" : "0" });
   }
 
   /** Takes the song on air out of the continuous music: it fades out now and does not repeat. */
@@ -328,8 +383,8 @@ export function useConsole(initial: Snapshot, host: string) {
   }
 
   /** «Iniciar modo automático»: the source starts for every listener within seconds, from the chosen song ("" = from the top). */
-  async function startAutopilot(playlist: string, shuffle: boolean, first: string) {
-    await musicAction({ action: "start", playlist, shuffle: shuffle ? "1" : "0", first });
+  async function startAutopilot(playlist: string, shuffle: boolean, first: string, repeat: boolean) {
+    await musicAction({ action: "start", playlist, shuffle: shuffle ? "1" : "0", first, repeat: repeat ? "1" : "0" });
   }
 
   /** Calls off a scheduled change of the automatic music. */
@@ -394,6 +449,7 @@ export function useConsole(initial: Snapshot, host: string) {
     devices,
     changeMic,
     talking,
+    speaking,
     hostName,
     setHostName,
     busy,
@@ -415,6 +471,7 @@ export function useConsole(initial: Snapshot, host: string) {
     toggleTalk,
     toggleAir,
     toggleAutofill,
+    setRepeat,
     dropFromRotation,
   };
 }

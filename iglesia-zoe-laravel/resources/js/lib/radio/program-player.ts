@@ -77,6 +77,9 @@ const EARLY_END = 3000;
 /** Failed reserve songs tolerated for one item before giving up on it. */
 const MAX_COVERS = 4;
 
+/** Share of the program volume while the host speaks, when the server mix does not say. */
+const VOICE_LEVEL = 0.35;
+
 /**
  * The program as every listener hears it: two decks that follow the server timeline
  * (crossfading songs that overlap), a music bus driven by the console faders, and the
@@ -102,6 +105,9 @@ export class ProgramPlayer {
   private musicBus: GainNode | null = null;
   private duckBus: GainNode | null = null;
   private fxBus: GainNode | null = null;
+  /** Music and layers together, dropped while the host's voice is detected. */
+  private voiceBus: GainNode | null = null;
+  private speaking = false;
   private decks: Deck[] = [];
   private active = -1;
   private queue: RadioItem[] = [];
@@ -109,7 +115,7 @@ export class ProgramPlayer {
   private voices = new Map<string, Voice>();
   private skipped = new Set<string>();
   private ducking = false;
-  private mix: RadioMix = { music: 1, fx: 0.9, bed: 0.22, duck: 0.25 };
+  private mix: RadioMix = { music: 1, fx: 0.9, bed: 0.22, duck: 0.25, voice: VOICE_LEVEL };
   private volume = 0.9;
   private timer = 0;
   private lastItem: string | null = null;
@@ -137,11 +143,13 @@ export class ProgramPlayer {
       this.musicBus = ctx.createGain();
       this.duckBus = ctx.createGain();
       this.fxBus = ctx.createGain();
+      this.voiceBus = ctx.createGain();
       this.analyser = ctx.createAnalyser();
       this.analyser.fftSize = 512;
       this.analyser.smoothingTimeConstant = 0.78;
-      this.musicBus.connect(this.duckBus).connect(this.master);
-      this.fxBus.connect(this.master);
+      this.musicBus.connect(this.duckBus).connect(this.voiceBus);
+      this.fxBus.connect(this.voiceBus);
+      this.voiceBus.connect(this.master);
       this.master.connect(this.analyser);
       this.analyser.connect(ctx.destination);
       this.decks = [0, 1].map(() => {
@@ -196,6 +204,14 @@ export class ProgramPlayer {
   setMix(mix: RadioMix) {
     this.mix = mix;
     this.applyGains(0.25);
+    if (this.speaking) this.setVoice(true);
+  }
+
+  /** The host's voice: everything drops to the mix's voice level at once and comes back gently when it stops. */
+  setVoice(on: boolean) {
+    this.speaking = on;
+    if (!this.ctx || !this.voiceBus) return;
+    this.voiceBus.gain.setTargetAtTime(on ? (this.mix.voice ?? VOICE_LEVEL) : 1, this.ctx.currentTime, on ? 0.012 : 0.25);
   }
 
   setVolume(volume: number) {

@@ -207,11 +207,20 @@ class RadioScheduleController extends RadioController
             : 'Música continua vacía: los huecos de la programación quedarán en silencio.');
     }
 
-    /** The automatic music of the gaps: one list or all of them; or calls off a pending change. */
+    /**
+     * The automatic music of the gaps: one list or random songs; on or off; with or without
+     * repeat; or calls off a pending change.
+     */
     public function autopilot(Request $request): JsonResponse
     {
         if ($request->boolean('cancel')) {
             return $this->saved($this->cancelledMessage());
+        }
+        if ($request->has('on')) {
+            return $this->saved($this->autofillMessage($request->boolean('on')));
+        }
+        if ($request->has('repeat')) {
+            return $this->saved($this->repeatMessage($request->boolean('repeat')));
         }
         $message = $this->switchRequested($request);
 

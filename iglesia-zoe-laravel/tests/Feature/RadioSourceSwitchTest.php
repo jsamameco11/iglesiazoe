@@ -134,6 +134,59 @@ class RadioSourceSwitchTest extends TestCase
         $this->assertSame('A 1', $this->state('queue')[0]['title']);
     }
 
+    public function test_without_repeat_the_list_plays_to_its_last_song_and_then_the_radio_is_silent(): void
+    {
+        $console = $this->admin(['radio.console']);
+        $this->actingAs($console)->postJson(self::ADMIN.'/admin/radio/musica-continua', ['action' => 'repeat', 'on' => '0'])->assertOk()
+            ->assertJsonPath('autopilot.repeat', false)
+            ->assertJsonPath('autopilot.until', $this->ms('15:10:48'))
+            ->assertJsonPath('message', fn (string $message) => str_contains($message, 'termina a las 15:10'));
+
+        $queue = $this->state('queue');
+        $this->assertSame(['A 1', 'A 2', 'A 3'], array_column($queue, 'title'), 'After the last song of the list nothing else sounds.');
+        $this->assertSame($this->ms('15:10:52'), $queue[2]['end'], 'The last song plays to its end.');
+
+        $this->at('15:11:00');
+        $this->assertSame([], $this->state('queue'));
+        $this->assertTrue(Station::autopilot()['finished']);
+
+        $this->actingAs($console)->postJson(self::ADMIN.'/admin/radio/musica-continua', ['action' => 'repeat', 'on' => '1'])->assertOk()
+            ->assertJsonPath('autopilot.until', null);
+        $queue = $this->state('queue');
+        $this->assertSame('A 1', $queue[0]['title'], 'Turning repeat on after the silence starts the list over from its first song.');
+        $this->assertSame($this->ms('15:11:03'), $queue[0]['start']);
+    }
+
+    public function test_the_automatic_mode_can_start_without_repeat(): void
+    {
+        $this->actingAs($this->admin(['radio.console']))->postJson(self::ADMIN.'/admin/radio/musica-continua', [
+            'action' => 'start', 'playlist' => $this->new->id, 'shuffle' => '0', 'repeat' => '0',
+        ])->assertOk()
+            ->assertJsonPath('autopilot.until', $this->ms('15:06:35'))
+            ->assertJsonPath('message', fn (string $message) => str_contains($message, 'queda en silencio'));
+
+        $this->assertSame(['A 1', 'B 1', 'B 2'], array_column($this->state('queue'), 'title'));
+    }
+
+    public function test_a_chosen_list_without_songs_cannot_start(): void
+    {
+        $empty = RadioPlaylist::query()->create(['name' => 'Vacía', 'sort_order' => 3]);
+
+        $this->actingAs($this->admin(['radio.console']))->postJson(self::ADMIN.'/admin/radio/musica-continua', [
+            'action' => 'start', 'playlist' => $empty->id,
+        ])->assertStatus(409)->assertJsonPath('error', fn (string $error) => str_contains($error, '«Vacía» no tiene canciones'));
+    }
+
+    public function test_the_schedule_turns_the_automatic_music_off_and_on(): void
+    {
+        $scheduler = $this->admin(['radio.schedule']);
+        $this->actingAs($scheduler)->postJson(self::ADMIN.'/admin/radio/programacion/piloto', ['on' => '0'])->assertOk();
+        $this->assertSame([], $this->state('queue'), 'With the automatic mode off and nothing scheduled, nothing sounds.');
+
+        $this->actingAs($scheduler)->postJson(self::ADMIN.'/admin/radio/programacion/piloto', ['on' => '1'])->assertOk();
+        $this->assertSame('A 1', $this->state('queue')[0]['title']);
+    }
+
     public function test_a_spotify_playlist_left_as_the_source_gives_way_to_the_library(): void
     {
         $setting = SiteSetting::query()->findOrFail('radio');

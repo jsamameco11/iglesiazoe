@@ -7,12 +7,14 @@ const RANDOM_HINT = "Mezcla las canciones de todas tus listas y de la música co
 /** What the operator should know when the automatic music is on a fallback, or files left the air. */
 function fallbackMessages(autopilot: Autopilot) {
   const messages: string[] = [];
-  if (autopilot.level === "lists" && autopilot.playlist) {
-    messages.push("La lista elegida no tiene canciones disponibles: suena el respaldo con todas tus listas en aleatorio.");
-  } else if (autopilot.level === "library") {
-    messages.push("Tus listas no tienen canciones disponibles: suenan canciones de toda la biblioteca en aleatorio.");
+  if (autopilot.level === "library") {
+    messages.push("Tus listas no tienen canciones disponibles: las canciones aleatorias salen de toda la biblioteca.");
   } else if (autopilot.level === "none") {
-    messages.push("No hay canciones disponibles: los espacios libres quedan en silencio. Sube música en Biblioteca.");
+    messages.push(
+      autopilot.playlist
+        ? "La lista elegida no tiene canciones disponibles: los espacios libres quedan en silencio. Agrégale canciones en Listas o elige otra."
+        : "No hay canciones disponibles: los espacios libres quedan en silencio. Sube música en Biblioteca.",
+    );
   }
   const broken = autopilot.broken ?? 0;
   if (broken > 0) {
@@ -123,7 +125,7 @@ export function SourcePicker({
   ];
   const orders = [
     [true, "Aleatorio", "Todas las canciones una vez, en un orden nuevo cada vuelta"],
-    [false, "En orden", "Como están en la lista; al terminar empieza de nuevo"],
+    [false, "En orden", "Como están en la lista, de la primera a la última"],
   ] as const;
 
   const segment = (on: boolean) =>

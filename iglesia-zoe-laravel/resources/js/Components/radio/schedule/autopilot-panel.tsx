@@ -2,9 +2,11 @@ import { useEffect, useState } from "react";
 import { Notice, button, useAction } from "@/Components/admin/ui";
 import { FallbackNotice, PendingSwitch, SourcePicker, leadLabel, sourceLabel } from "@/Components/radio/source-picker";
 import { send } from "@/lib/actions";
-import type { Autopilot, RadioPlaylist } from "@/lib/radio";
+import { clock, type Autopilot, type RadioPlaylist } from "@/lib/radio";
 
-/** The station's automatic music: what fills every space without a block, 24/7. */
+const ENDPOINT = "/admin/radio/programacion/piloto";
+
+/** The station's automatic music: what fills every space without a block, on or off, repeating or once. */
 export function AutopilotPanel({ autopilot, playlists, now }: { autopilot: Autopilot; playlists: RadioPlaylist[]; now: number }) {
   const [playlist, setPlaylist] = useState(autopilot.playlist ?? "");
   const [shuffle, setShuffle] = useState(autopilot.shuffle);
@@ -13,35 +15,70 @@ export function AutopilotPanel({ autopilot, playlists, now }: { autopilot: Autop
   const scheduled = Boolean(autopilot.pending) && autopilot.since > now;
   const current = sourceLabel(playlists, autopilot.playlist ?? "", autopilot.shuffle);
   const lead = leadLabel(autopilot.lead ?? 300);
+  const on = !autopilot.paused;
+  const repeat = autopilot.repeat ?? true;
+  const status = !on ? "Detenido" : autopilot.finished ? "Terminó" : autopilot.level === "none" ? "Sin canciones" : "Activo";
 
   useEffect(() => {
     setPlaylist(autopilot.playlist ?? "");
     setShuffle(autopilot.shuffle);
   }, [autopilot.playlist, autopilot.shuffle]);
 
+  function toggleOn() {
+    if (on && !window.confirm("¿Detener el modo automático? Lo que no esté programado quedará en silencio.")) return;
+    run(() => send(ENDPOINT, { on: on ? "0" : "1" }));
+  }
+
   return (
     <section className="rounded-[1.6rem] border border-line bg-card p-5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">Piloto automático · 24/7</p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">Modo automático</p>
+        <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status === "Activo" ? "bg-emerald-100 text-emerald-800" : status === "Detenido" ? "bg-paper text-muted" : "bg-amber-100 text-amber-800"}`}>{status}</span>
+      </div>
       <p className="mt-2 text-sm font-semibold">
-        Ahora: {scheduled ? autopilot.pending?.label : current}
-        {autopilot.paused ? <span className="ml-2 text-xs font-semibold text-amber-700">en pausa desde la consola</span> : null}
+        {on ? "Suena" : "Elegido"}: {scheduled ? autopilot.pending?.label : current}
       </p>
-      <p className="mt-1 text-[12.5px] leading-5 text-muted">
-        Suena en todos los espacios libres y cuando un bloque en vivo no tiene a nadie conectado. Los periodos de «Música automática» usan su propia lista.
-        Si una fuente falla, sigue sola con todas tus listas y, si tampoco hay, con toda la biblioteca en aleatorio.
+      <p className="mt-0.5 text-[12.5px] leading-5 text-muted">
+        {!on
+          ? "Detenido: solo suena lo programado y lo demás es silencio."
+          : autopilot.finished
+            ? "Ya sonó completa y «Repetir» está apagado: la radio está en silencio."
+            : repeat
+              ? "Se repite: al terminar vuelve a empezar."
+              : `Una sola vez${autopilot.until ? `: termina a las ${clock(autopilot.until)}` : ""} y luego silencio.`}
+      </p>
+
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={toggleOn}
+          className={`rounded-xl border px-3 py-2 text-[13px] font-semibold transition disabled:opacity-50 ${on ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100" : "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"}`}
+        >
+          {on ? "Detener" : "Activar"}
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => run(() => send(ENDPOINT, { repeat: repeat ? "0" : "1" }))}
+          aria-pressed={repeat}
+          title={repeat ? "Al terminar, vuelve a empezar. Clic para que suene una sola vez." : "Suena una sola vez y luego silencio. Clic para que se repita."}
+          className={`flex items-center justify-center gap-2 rounded-xl border px-3 py-2 text-[13px] font-semibold transition disabled:opacity-50 ${repeat ? "border-ink bg-ink text-white" : "border-line bg-white text-muted hover:text-ink"}`}
+        >
+          <span className={`h-1.5 w-1.5 rounded-full ${repeat ? "bg-emerald-300" : "bg-line"}`} />
+          Repetir
+        </button>
+      </div>
+
+      <p className="mt-3 text-[12.5px] leading-5 text-muted">
+        Llena los espacios libres y los bloques en vivo sin nadie conectado. Los periodos de «Música automática» usan su propia lista. Si la lista elegida se queda sin canciones, la radio queda en silencio: solo suena lo que configures.
       </p>
       <div className="mt-2 grid gap-2 empty:hidden">
-        <PendingSwitch autopilot={autopilot} now={now} busy={pending} onCancel={() => run(() => send("/admin/radio/programacion/piloto", { cancel: "1" }))} />
+        <PendingSwitch autopilot={autopilot} now={now} busy={pending} onCancel={() => run(() => send(ENDPOINT, { cancel: "1" }))} />
         <FallbackNotice autopilot={autopilot} />
       </div>
       <div className="mt-3">
-        <SourcePicker
-          playlists={playlists}
-          playlist={playlist}
-          shuffle={shuffle}
-          onPlaylist={setPlaylist}
-          onShuffle={setShuffle}
-        />
+        <SourcePicker playlists={playlists} playlist={playlist} shuffle={shuffle} onPlaylist={setPlaylist} onShuffle={setShuffle} />
       </div>
       <div className="mt-3">
         <Notice result={result} onClose={() => setResult(null)} />
@@ -49,10 +86,10 @@ export function AutopilotPanel({ autopilot, playlists, now }: { autopilot: Autop
       <button
         type="button"
         disabled={pending || !changed}
-        onClick={() => run(() => send("/admin/radio/programacion/piloto", { playlist, shuffle: shuffle ? "1" : "0" }))}
+        onClick={() => run(() => send(ENDPOINT, { playlist, shuffle: shuffle ? "1" : "0" }))}
         className={`${button} mt-2 w-full`}
       >
-        {pending ? "Guardando…" : changed ? `Programar cambio a: ${sourceLabel(playlists, playlist, shuffle)}` : "Ya suena esta música"}
+        {pending ? "Guardando…" : changed ? `Programar cambio a: ${sourceLabel(playlists, playlist, shuffle)}` : "Ya está elegida esta música"}
       </button>
       <p className="mt-2 text-[11.5px] leading-4 text-muted">
         El cambio entra con al menos {lead} de anticipación y justo cuando termina una canción, para que no se note el corte. La anticipación se ajusta en Ajustes (de 30 s a 30 min).

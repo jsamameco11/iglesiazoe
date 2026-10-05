@@ -11,9 +11,9 @@ use Illuminate\Support\Str;
 /**
  * The automatic music: what plays when nobody is on air and nothing is scheduled.
  *
- * A source is one playlist or every playlist together (plus the songs marked for the
- * continuous music); when it has nothing playable the music falls back along the chain of
- * resolve(), down to every song of the library. Each cycle plays every song of the source once, without repeating;
+ * A source is one playlist or random songs: every playlist together (plus the songs marked for
+ * the continuous music), or every song of the library when there is none (see resolve()). Each
+ * cycle plays every song of the source once, without repeating;
  * shuffled sources draw a new order for every cycle (never starting with the song that
  * closed the previous one), ordered sources follow the playlist. The order depends only
  * on where the music started, so every listener hears the same song.
@@ -23,7 +23,7 @@ final class Autopilot
     /** Name of the source without a playlist: every song of the radio, shuffled. */
     public const RANDOM = 'Canciones aleatorias';
 
-    /** Levels of the fallback chain: the chosen playlist, every list, every song of the library. */
+    /** What sounds: the chosen playlist; for random songs every list or every song of the library; or nothing. */
     public const PLAYLIST = 'playlist';
 
     public const LISTS = 'lists';
@@ -52,18 +52,19 @@ final class Autopilot
     }
 
     /**
-     * What the automatic music really plays: the first level of the chain with a playable song.
-     * The chosen playlist; when it is missing, empty or every song of it is unplayable, every
-     * list together (and the songs marked for the continuous music); when there is none, every
-     * song of the library. Only songs that pass every check sound: active, music, long enough
-     * and with a healthy file (see RadioHealth). The fallback levels are always shuffled.
+     * What the automatic music really plays. A chosen playlist plays only its own songs: when it
+     * is missing, empty or every song of it is unplayable, the radio is silent (nothing sounds
+     * that was not configured). Random songs are every list together (and the songs marked for
+     * the continuous music); when there is none, every song of the library. Only songs that pass
+     * every check sound: active, music, long enough and with a healthy file (see RadioHealth).
+     * Random songs are always shuffled.
      *
      * @return array{level: string, shuffle: bool, songs: list<array<string, mixed>>}
      */
     public static function resolve(?string $playlist, bool $shuffle, int $crossfadeMs): array
     {
-        $chain = $playlist !== null ? [[self::PLAYLIST, $playlist]] : [];
-        foreach ([...$chain, [self::LISTS, self::LISTS], [self::LIBRARY, self::LIBRARY]] as [$level, $source]) {
+        $chain = $playlist !== null ? [[self::PLAYLIST, $playlist]] : [[self::LISTS, self::LISTS], [self::LIBRARY, self::LIBRARY]];
+        foreach ($chain as [$level, $source]) {
             $songs = self::cached($source, $crossfadeMs);
             if ($songs) {
                 return ['level' => $level, 'shuffle' => $level === self::PLAYLIST ? $shuffle : true, 'songs' => $songs];
@@ -74,13 +75,14 @@ final class Autopilot
     }
 
     /**
-     * Songs of the whole library for the listeners' players to fall back on, a new pick every hour.
+     * Songs of the source on air for the listeners' players to fall back on, a new pick every hour.
      *
+     * @param  array{playlist: ?string}  $source
      * @return list<array{id: string, title: string, artist: ?string, src: string, ms: int}>
      */
-    public static function reserve(int $now): array
+    public static function reserve(int $now, array $source): array
     {
-        $songs = self::shuffled(self::cached(self::LIBRARY, 0), 'reserve:'.intdiv($now, 3600000));
+        $songs = self::shuffled(self::resolve($source['playlist'] ?? null, true, 0)['songs'], 'reserve:'.intdiv($now, 3600000));
 
         return array_map(fn (array $song) => [
             'id' => $song['id'], 'title' => $song['title'], 'artist' => $song['artist'], 'src' => $song['src'], 'ms' => $song['ms'],

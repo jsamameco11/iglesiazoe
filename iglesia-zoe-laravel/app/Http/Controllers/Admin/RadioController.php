@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Radio\Autopilot;
 use App\Domain\Radio\Schedule;
 use App\Domain\Radio\Station;
 use App\Http\Controllers\Controller;
@@ -116,6 +117,36 @@ abstract class RadioController extends Controller
         $autopilot = Station::autopilot();
 
         return "Cambio programado: {$what} empieza a las ".Schedule::clock($since).'; justo cuando termina la canción que suene, sin cortes. Hasta entonces sigue '.$autopilot['pending']['label'].'. Puedes cancelarlo antes.';
+    }
+
+    /** Turns the automatic music on or off; off, only what is scheduled or launched sounds and the rest is silence. */
+    protected function autofillMessage(bool $on): string
+    {
+        Station::saveConfig(['autofill' => $on]);
+        $autopilot = Station::autopilot();
+        if (! $on) {
+            return 'Modo automático detenido: solo suena lo programado y lo que lances desde la consola; lo demás es silencio.';
+        }
+        if ($autopilot['level'] === Autopilot::NONE) {
+            return 'Modo automático activado, pero «'.$autopilot['label'].'» no tiene canciones disponibles: seguirá en silencio hasta que le agregues canciones.';
+        }
+
+        return 'Modo automático activado: «'.$autopilot['label'].'» llena los espacios libres.'
+            .($autopilot['finished'] ? ' Ya sonó completa y «Repetir» está apagado: activa «Repetir» o inicia de nuevo para volver a escucharla.' : '');
+    }
+
+    /** «Repetir»: the source starts over at its end, or plays this cycle to its end and then the radio falls silent. */
+    protected function repeatMessage(bool $repeat): string
+    {
+        Station::setRepeat($repeat);
+        $autopilot = Station::autopilot();
+        if ($repeat) {
+            return 'Repetir activado: «'.$autopilot['label'].'» vuelve a empezar cuando termina.';
+        }
+
+        return $autopilot['until'] !== null
+            ? 'Repetir apagado: «'.$autopilot['label'].'» termina a las '.Schedule::clock($autopilot['until']).' y luego la radio queda en silencio.'
+            : 'Repetir apagado: «'.$autopilot['label'].'» sonará una sola vez y luego la radio quedará en silencio.';
     }
 
     /** Calls off a pending change of the automatic music. */

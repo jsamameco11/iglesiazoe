@@ -131,7 +131,7 @@ export default function Programacion({ date, today, now: serverNow, blocks, dayE
             </h2>
           </div>
           <p className="text-sm text-muted">
-            {main.length} bloques · {longDuration(total)} programados{overlays ? ` · ${overlays} en capas` : ""} · {config.autofill ? `${longDuration(Math.max(0, 86400 - total))} de música continua` : "música continua apagada"}
+            {main.length} bloques · {longDuration(total)} programados{overlays ? ` · ${overlays} en capas` : ""} · {config.autofill ? `${longDuration(Math.max(0, 86400 - total))} de modo automático` : "modo automático detenido"}
           </p>
         </div>
         <LaneRuler blocks={blocks} start={start} now={now} isToday={isToday} />
@@ -141,7 +141,7 @@ export default function Programacion({ date, today, now: serverNow, blocks, dayE
         <section className="min-w-0 rounded-[1.6rem] border border-line bg-card p-4 md:p-6">
           {blocks.length === 0 ? (
             <p className="rounded-[1.4rem] border border-dashed border-line px-5 py-10 text-center text-sm text-muted">
-              Este día no tiene bloques. {config.autofill ? "Sonará la música continua todo el día." : "Con la música continua apagada, la radio estará en silencio."} Agrega bloques con el panel de la derecha.
+              Este día no tiene bloques. {config.autofill ? "Sonará el modo automático." : "Con el modo automático detenido, la radio estará en silencio."} Agrega bloques con el panel de la derecha.
             </p>
           ) : (
             <div className="space-y-1">
@@ -150,7 +150,7 @@ export default function Programacion({ date, today, now: serverNow, blocks, dayE
                   <div key={`gap-${row.from}`} className="tl-item py-2">
                     <p className="pt-1 text-right font-mono text-[11px] tabular-nums text-muted">{clock(row.from)}</p>
                     <p className="ml-6 rounded-xl border border-dashed border-line px-3 py-2 text-[12.5px] text-muted">
-                      {config.autofill ? `Piloto automático · ${autopilot.label}` : "Silencio"} · {longDuration((row.to - row.from) / 1000)}
+                      {config.autofill && autopilot.level !== "none" && !autopilot.finished ? `Modo automático · ${autopilot.label}${autopilot.until ? ` · hasta las ${clock(autopilot.until)}` : ""}` : "Silencio"} · {longDuration((row.to - row.from) / 1000)}
                     </p>
                   </div>
                 ) : (

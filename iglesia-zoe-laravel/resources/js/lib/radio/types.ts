@@ -40,7 +40,8 @@ export type RadioLayer = {
   fading?: boolean;
 };
 
-export type RadioMix = { music: number; fx: number; bed: number; duck: number };
+/** Gains of the program; `voice` is what music and sounds drop to while the host's voice is detected. */
+export type RadioMix = { music: number; fx: number; bed: number; duck: number; voice?: number };
 
 export type RadioLive = {
   on: boolean;
@@ -65,7 +66,7 @@ export type LiveSource = "consola" | "externo";
 /** A cut of the automatic music: from `start` until `end` (null until the operator returns). */
 export type LiveWindow = { start: number; end: number | null; auto: boolean; bed: boolean; slot: string | null; title: string };
 
-/** Level of the fallback chain that sounds: the chosen list, every list, or every song of the library. */
+/** What sounds: the chosen list; for random songs every list or every song of the library; or nothing. */
 export type AutopilotLevel = "playlist" | "lists" | "library" | "none";
 
 export type AutopilotMode = "lista" | "aleatorio";
@@ -86,6 +87,10 @@ export type Autopilot = {
   pending?: { label: string } | null;
   lead?: number;
   paused: boolean;
+  /** Off: the source plays each song once; `until` is when that last cycle ends and `finished` that the radio is silent. */
+  repeat?: boolean;
+  until?: number | null;
+  finished?: boolean;
   level?: AutopilotLevel;
   broken?: number;
 };

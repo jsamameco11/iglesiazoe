@@ -417,6 +417,8 @@
 .studio-btn[data-on="amber"] { background: #d97706; border-color: #fbbf24; color: #fff; }
 .studio-btn[data-on="green"] { background: #059669; border-color: #34d399; color: #fff; }
 .studio-btn[data-on="blue"] { background: #2563eb; border-color: #60a5fa; color: #fff; }
+.voice-tag { display: inline-block; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.2); padding: 0 0.45rem; font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255, 255, 255, 0.4); transition: background 80ms, color 80ms, box-shadow 80ms; }
+.voice-tag[data-on] { background: #059669; border-color: #34d399; color: #fff; box-shadow: 0 0 14px -2px rgba(16, 185, 129, 0.9); }
 .studio-talk {
   display: grid;
   place-items: center;
@@ -777,6 +779,7 @@
 }
 .cx-badge[data-tone="red"] { background: #b91c1c; color: #fff; }
 .cx-badge[data-tone="green"] { background: rgba(5, 150, 105, 0.35); color: #a7f3d0; }
+.cx-badge[data-tone="amber"] { background: rgba(217, 119, 6, 0.35); color: #fde68a; }
 .cx-seg {
   display: inline-flex;
   height: 1.5rem;

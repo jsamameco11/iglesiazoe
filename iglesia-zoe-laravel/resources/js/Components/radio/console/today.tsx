@@ -72,7 +72,7 @@ export function TodayList({ day, now, autofill, upcoming, onAlert }: { day: Radi
         </ul>
       ) : (
         <p className="mt-2 text-sm text-white/45">
-          No hay bloques para hoy. {autofill ? "Suena la música continua." : "La música continua está en pausa."}
+          No hay bloques para hoy. {autofill ? "Suena el modo automático." : "Modo automático detenido: la radio está en silencio."}
         </p>
       )}
     </div>

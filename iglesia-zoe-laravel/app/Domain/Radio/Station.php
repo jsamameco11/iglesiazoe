@@ -41,6 +41,9 @@ final class Station
     /** Longest fade in, fade out or crossfade of a console layer, in seconds. */
     public const MAX_FADE = 12;
 
+    /** Music and sounds drop to this share of their volume while the host speaks («Detectar voz»). */
+    public const VOICE_DUCK = 0.35;
+
     /** How long before a scheduled block the console warns about it, in ms. */
     public const ALERT_AHEAD = 15 * 60000;
 
@@ -67,6 +70,10 @@ final class Station
         'auto_start' => null,
         'auto_since' => 0,
         'auto_prev' => null,
+        // With auto_repeat off the source plays each song once and then the radio falls silent at
+        // auto_until (the end of that cycle, set when the music starts or repeat is turned off).
+        'auto_repeat' => true,
+        'auto_until' => null,
         'switch_lead' => 300,
         // Live switch: automatic or manual, fed by the console or an external OBS/Icecast signal.
         'live_mode' => LiveSwitch::AUTO,
@@ -173,6 +180,7 @@ final class Station
         $config = self::config();
         $now = self::nowMs();
         $playing = self::onAir($config, $now);
+        $immediately = $immediately || self::finished($config, $now);
         [$since, $boundary] = $immediately ? [$now, false] : self::switchPoint($config, $playing, $now);
         self::saveConfig([
             'auto_prev' => [...$playing, 'tail' => $boundary],
@@ -180,9 +188,74 @@ final class Station
             'auto_playlist' => $playlist,
             'auto_shuffle' => $playlist === null || $shuffle,
             'auto_start' => null,
+            'auto_until' => null,
         ]);
+        self::limitToOneCycle();
 
         return $since;
+    }
+
+    /**
+     * «Repetir»: on, the source starts over when its last song ends; off, the cycle sounding now
+     * is the last one and the radio falls silent when it ends. Turning it back on after that
+     * silence starts the source again from its first song.
+     */
+    public static function setRepeat(bool $repeat): void
+    {
+        $config = self::config();
+        if ($repeat && $config['autofill'] && self::finished($config, self::nowMs())) {
+            self::startAutopilot($config['auto_playlist'], (bool) $config['auto_shuffle'], null, true);
+
+            return;
+        }
+        self::saveConfig(['auto_repeat' => $repeat, 'auto_until' => null]);
+        self::limitToOneCycle();
+    }
+
+    /** Whether the single cycle of a source without repeat already played to its end (its last song included). */
+    private static function finished(array $config, int $now): bool
+    {
+        return ! $config['auto_repeat'] && $config['auto_until'] !== null
+            && $now >= (int) $config['auto_until'] + (int) round($config['crossfade'] * 1000);
+    }
+
+    /** With repeat off, the music stops at the end of the cycle of the current source (see cycleEnd()). */
+    private static function limitToOneCycle(): void
+    {
+        $config = self::config();
+        if (! $config['auto_repeat']) {
+            self::saveConfig(['auto_until' => self::cycleEnd($config, self::nowMs())]);
+        }
+    }
+
+    /**
+     * When the cycle of the current source that sounds now (or sounds next) ends: every song of
+     * it once from where its music started. Null when the source has no song.
+     */
+    private static function cycleEnd(array $config, int $now): ?int
+    {
+        $crossfade = (int) round($config['crossfade'] * 1000);
+        $current = self::current($config);
+        $total = array_sum(array_column(Autopilot::resolve($current['playlist'], $current['shuffle'], $crossfade)['songs'], 'step'));
+        if ($total <= 0) {
+            return null;
+        }
+        $since = (int) $config['auto_since'];
+        $at = max($now, $since);
+        self::$override = [...$config, 'auto_until' => null];
+        try {
+            foreach (self::items($at, $at + 6 * 3600000, true, 200) as $item) {
+                if ($item['kind'] === 'musica' && $item['slot'] === null && $item['block'] === null && $item['origin'] >= $since) {
+                    $at = $item['origin'];
+                    break;
+                }
+            }
+        } finally {
+            self::$override = null;
+        }
+        $anchor = max(self::anchorBefore($at, LiveSwitch::window($config, self::live(), $now), self::storedLive()['hold']), $since);
+
+        return $anchor + (intdiv(max(0, $at - $anchor), $total) + 1) * $total;
     }
 
     /**
@@ -193,13 +266,13 @@ final class Station
      *
      * @return int when the music starts (UTC ms)
      */
-    public static function startAutopilot(?string $playlist, bool $shuffle, ?string $first): int
+    public static function startAutopilot(?string $playlist, bool $shuffle, ?string $first, ?bool $repeat = null): int
     {
         $config = self::config();
         $now = self::nowMs();
         $since = $now + self::START_AHEAD;
         $cut = LiveSwitch::isOpen(self::storedLive()['window'], $now);
-        $sounding = $config['on_air'] && $config['autofill'] && ! $cut;
+        $sounding = $config['on_air'] && $config['autofill'] && ! $cut && ! self::finished($config, $now);
         self::saveConfig([
             'on_air' => true,
             'autofill' => true,
@@ -208,10 +281,13 @@ final class Station
             'auto_playlist' => $playlist,
             'auto_shuffle' => $playlist === null || $shuffle,
             'auto_start' => $first,
+            'auto_repeat' => $repeat ?? $config['auto_repeat'],
+            'auto_until' => null,
         ]);
         if ($cut) {
             LiveSwitch::resume();
         }
+        self::limitToOneCycle();
 
         return $since;
     }
@@ -242,7 +318,9 @@ final class Station
             'auto_start' => $playing['start'],
             'auto_since' => $playing['from'],
             'auto_prev' => null,
+            'auto_until' => null,
         ]);
+        self::limitToOneCycle();
 
         return true;
     }
@@ -353,6 +431,10 @@ final class Station
             'pending' => $pending ? ['label' => self::sourceLabel($pending)] : null,
             'lead' => self::lead($config),
             'paused' => ! $config['autofill'],
+            // Without repeat: when the last cycle ends (UTC ms) and whether the radio is already silent.
+            'repeat' => (bool) $config['auto_repeat'],
+            'until' => $config['auto_repeat'] || $config['auto_until'] === null ? null : (int) $config['auto_until'],
+            'finished' => self::finished($config, $now),
             // Level of the fallback chain that really sounds, and audios off the air because of their file.
             'level' => Autopilot::resolve($current['playlist'], $current['shuffle'], (int) round($config['crossfade'] * 1000))['level'],
             'broken' => RadioHealth::brokenCount(),
@@ -624,7 +706,10 @@ final class Station
         return $updated;
     }
 
-    /** Gains every listener applies: music bus (after the console faders), layers bus, bed and duck levels. */
+    /**
+     * Gains every listener applies: music bus (after the console faders), layers bus, bed and duck
+     * levels, and what everything but the voice drops to while the host's voice is detected.
+     */
     public static function mix(array $live, array $config): array
     {
         $music = $live['muted'] ? 0.0 : ($live['music'] / 100) * ($live['bed'] ? $config['bed_level'] / 100 : 1);
@@ -634,6 +719,7 @@ final class Station
             'fx' => round(($config['fx_level'] / 100) * ($live['overlay'] / 100), 3),
             'bed' => round($config['bed_level'] / 100, 3),
             'duck' => round($config['duck_level'] / 100, 3),
+            'voice' => self::VOICE_DUCK,
         ];
     }
 
@@ -751,8 +837,9 @@ final class Station
             'stream' => $config['stream_url'] ?: null,
             'previous' => $previous,
             'queue' => $queue,
-            // Healthy songs the player falls back on when a file fails or the server stops answering (none when silence is intended).
-            'fallback' => $onAir && $config['autofill'] ? Autopilot::reserve($now) : [],
+            // Healthy songs of the source the player falls back on when a file fails or the server stops
+            // answering (none when silence is intended, also when the source plays only once).
+            'fallback' => $onAir && $config['autofill'] && $config['auto_repeat'] ? Autopilot::reserve($now, self::onAir($config, $now)) : [],
             'layers' => $onAir ? self::layers($live, $now) : [],
             'next_show' => $next ? ['title' => $next->title, 'kind' => $next->kind, 'start' => $next->starts_at->getTimestampMs()] : null,
             'live' => [
@@ -1009,29 +1096,37 @@ final class Station
         $crossfade = (int) round($config['crossfade'] * 1000);
         $since = (int) $config['auto_since'];
         $current = self::current($config);
+        $until = $config['auto_repeat'] || $config['auto_until'] === null ? null : (int) $config['auto_until'];
         if (! $expand) {
-            return Autopilot::songs($current['playlist'], $crossfade) ? [self::block('gap-'.$from, 'relleno', 'Música continua', $from, $to, $from)] : [];
+            $end = $until !== null ? min($to, $until) : $to;
+
+            return $end > $from && Autopilot::songs($current['playlist'], $crossfade) ? [self::block('gap-'.$from, 'relleno', 'Música continua', $from, $end, $from)] : [];
         }
 
         $previous = is_array($config['auto_prev']) ? self::source($config['auto_prev']) : null;
         $fade = $previous !== null && ! empty($config['auto_prev']['fade']) ? max(self::START_FADE, $crossfade) : 0;
         $parts = [];
         if ($since <= $anchor) {
-            $parts[] = [$anchor, $from, $to, $current, false, 0];
+            $parts[] = [$anchor, $from, $to, $current, false, 0, $until];
         } else {
             $tail = $previous !== null && $since < $to && ! empty($config['auto_prev']['tail']);
             if ($previous !== null && ($from < $since || ($tail && $from < $since + $crossfade) || $from < $since + $fade)) {
                 $start = max($anchor, $previous['from']);
-                $parts[] = [$start, max($start, min($from, $since - 1)), min($since, $to), $previous, $tail, $fade];
+                $parts[] = [$start, max($start, min($from, $since - 1)), min($since, $to), $previous, $tail, $fade, null];
             }
             if ($since < $to) {
-                $parts[] = [$since, max($since, $from), $to, $current, false, 0];
+                $parts[] = [$since, max($since, $from), $to, $current, false, 0, $until];
             }
         }
 
         $items = [];
-        foreach ($parts as [$start, $begin, $end, $source, $tail, $fadeOut]) {
+        foreach ($parts as [$start, $begin, $end, $source, $tail, $fadeOut, $stop]) {
             $resolved = Autopilot::resolve($source['playlist'], $source['shuffle'], $crossfade);
+            if ($stop !== null && $stop < $end) {
+                array_push($items, ...self::lastCycle($resolved, $source, $start, $begin, $end, $stop, $limit - count($items)));
+
+                continue;
+            }
             $songs = Autopilot::fill($resolved['songs'], $resolved['shuffle'], $start, $begin, $end, $limit - count($items), [], $tail, $source['start']);
             if ($fadeOut > 0 && $end === $since) {
                 $lengths = array_column($resolved['songs'], 'ms', 'id');
@@ -1047,6 +1142,31 @@ final class Station
         }
 
         return $items;
+    }
+
+    /**
+     * Songs of a source without repeat between $begin and $end: those that start before $stop
+     * play to their end (never past $end), and then silence.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function lastCycle(array $resolved, array $source, int $start, int $begin, int $end, int $stop, int $limit): array
+    {
+        $songs = Autopilot::fill($resolved['songs'], $resolved['shuffle'], $start, min($begin, $stop - 1), $stop, $limit, [], true, $source['start']);
+        $heard = [];
+        foreach ($songs as $song) {
+            $song['end'] = min($song['end'], $end);
+            if ($song['end'] <= $begin) {
+                continue;
+            }
+            if ($song['start'] < $begin) {
+                $song['start'] = $begin;
+                $song['seek'] = round(($begin - $song['origin']) / 1000, 3);
+            }
+            $heard[] = $song;
+        }
+
+        return $heard;
     }
 
     private static function block(string $id, string $kind, string $title, int $begin, int $finish, int $origin): array

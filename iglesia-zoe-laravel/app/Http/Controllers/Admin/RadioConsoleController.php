@@ -158,12 +158,10 @@ class RadioConsoleController extends RadioController
                 : 'En vivo manual: la música solo se corta y vuelve cuando lo indiques desde la consola.']);
         }
         if ($action === 'autofill') {
-            $on = $request->boolean('on');
-            Station::saveConfig(['autofill' => $on]);
-
-            return response()->json(['ok' => true, ...$this->snapshot(), 'message' => $on
-                ? 'Música continua reanudada: vuelve a llenar los espacios libres.'
-                : 'Música continua en pausa: solo suena lo programado y lo que lances desde la consola.']);
+            return $this->answered($this->autofillMessage($request->boolean('on')));
+        }
+        if ($action === 'repeat') {
+            return $this->answered($this->repeatMessage($request->boolean('on')));
         }
         if ($action === 'drop') {
             $track = $this->find(RadioTrack::class, $request->input('id'));
@@ -173,15 +171,15 @@ class RadioConsoleController extends RadioController
             $track->update(['rotation' => false]);
             $lists = DB::table('radio_playlist_track')->where('radio_track_id', $track->id)->delete();
             Station::flush();
-            $level = Autopilot::resolve(null, true, 0)['level'];
+            $autopilot = Station::autopilot();
 
-            return response()->json(['ok' => true, ...$this->snapshot(), 'message' => "«{$track->title}» salió de la música automática"
+            return $this->answered("«{$track->title}» salió de la música automática"
                 .($lists ? ' (y de '.($lists === 1 ? 'su lista' : "sus {$lists} listas").')' : '').' y no se repetirá.'
-                .match ($level) {
-                    Autopilot::LIBRARY => ' Tus listas quedaron vacías: mientras tanto suenan canciones de la biblioteca en aleatorio.',
-                    Autopilot::NONE => ' La música automática quedó vacía: los espacios libres estarán en silencio.',
+                .match (true) {
+                    $autopilot['level'] === Autopilot::NONE => ' «'.$autopilot['label'].'» quedó sin canciones: los espacios libres estarán en silencio.',
+                    $autopilot['level'] === Autopilot::LIBRARY => ' Tus listas quedaron vacías: las canciones aleatorias salen de toda la biblioteca.',
                     default => '',
-                }]);
+                });
         }
 
         return $this->fail('Acción desconocida.');
@@ -201,25 +199,29 @@ class RadioConsoleController extends RadioController
         $crossfade = (int) round(Station::config()['crossfade'] * 1000);
         $source = Autopilot::resolve($playlist?->id, $shuffle, $crossfade);
         if ($source['level'] === Autopilot::NONE) {
-            return $this->fail('No hay canciones disponibles para el modo automático. Sube música en Biblioteca.', 409);
+            return $this->fail($playlist
+                ? 'La lista «'.$playlist->name.'» no tiene canciones disponibles. Agrégale canciones en Listas o elige otra.'
+                : 'No hay canciones disponibles para el modo automático. Sube música en Biblioteca.', 409);
         }
 
         $first = null;
         if ($request->filled('first')) {
             $first = collect($source['songs'])->firstWhere('id', (string) $request->input('first'));
-            if ($first === null || ($playlist && $source['level'] !== Autopilot::PLAYLIST)) {
+            if ($first === null) {
                 return $this->fail('Esa canción no está disponible en '.($playlist ? 'la lista «'.$playlist->name.'»' : 'la música automática').'. Elige otra.', 422);
             }
         }
 
-        $since = Station::startAutopilot($playlist?->id, $shuffle, $first['id'] ?? null);
+        $repeat = $request->has('repeat') ? $request->boolean('repeat') : null;
+        $since = Station::startAutopilot($playlist?->id, $shuffle, $first['id'] ?? null, $repeat);
         $what = $playlist ? 'la lista «'.$playlist->name.'» ('.($shuffle ? 'aleatorio' : 'en orden').')' : 'canciones aleatorias';
         $song = Station::firstSong($since);
         $message = $song
             ? "Modo automático iniciado: «{$song['title']}» de {$what} empieza para todos los oyentes en unos segundos."
             : "Modo automático listo: {$what} empezará".($first ? " con «{$first['title']}»" : '').' cuando termine lo que está programado ahora.';
-        if ($playlist && $source['level'] !== Autopilot::PLAYLIST) {
-            $message .= ' La lista no tiene canciones disponibles, así que suena el respaldo con tus otras canciones.';
+        $until = Station::autopilot()['until'];
+        if ($until !== null) {
+            $message .= ' Sin repetir: suena una vez y a las '.Schedule::clock($until).' la radio queda en silencio.';
         }
 
         return response()->json(['ok' => true, ...$this->snapshot(), 'message' => $message]);
@@ -357,6 +359,11 @@ class RadioConsoleController extends RadioController
         }
 
         return response()->json(['ok' => Signal::offer($session, $id, $sdp)]);
+    }
+
+    private function answered(string $message): JsonResponse
+    {
+        return response()->json(['ok' => true, ...$this->snapshot(), 'message' => $message]);
     }
 
     private function snapshot(): array

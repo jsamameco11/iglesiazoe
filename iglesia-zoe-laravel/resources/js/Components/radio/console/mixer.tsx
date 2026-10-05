@@ -37,7 +37,7 @@ function Fader({ value, min = 0, max = 100, step = 1, disabled, label, analyser,
 
 /** Channel strips: microphone, program music, layers (beds, effects, players and overlays) and the local monitor. */
 export function Mixer({ api }: { api: ConsoleApi }) {
-  const { live, config, mic, micOpen, talking, monitor, monitorLevel, caster, player, liveAction } = api;
+  const { live, config, mic, micOpen, talking, speaking, monitor, monitorLevel, caster, player, liveAction } = api;
   const session = live.session;
   const program = monitor ? player.current?.analyser ?? null : null;
   const [music, setMusic] = useSentLevel(live.music, (value) => liveAction({ action: "mix", music: String(value) }));
@@ -52,11 +52,27 @@ export function Mixer({ api }: { api: ConsoleApi }) {
         <div className="studio-strip">
           <p className="strip-name">Mic</p>
           <Fader value={mic.level} max={1.6} step={0.01} disabled={!micOpen} label="Volumen del micrófono" analyser={micOpen ? caster.current?.analyser ?? null : null} onChange={(level) => api.changeMic({ level })} />
-          <p className="strip-value">{Math.round(mic.level * 100)}%</p>
+          <p className="strip-value">
+            {talking && mic.voiceDuck ? (
+              <span className="voice-tag" data-on={speaking || undefined} title={speaking ? "Se oye tu voz: la música está al 35%" : "Esperando tu voz"}>Voz</span>
+            ) : (
+              `${Math.round(mic.level * 100)}%`
+            )}
+          </p>
           <button type="button" disabled={!session || !micOpen} onClick={api.toggleTalk} className="studio-talk" data-on={talking || undefined} title="Hablar al aire">
             <span className="flex items-center gap-1"><MicIcon className="h-3.5 w-3.5" /> {talking ? "Al aire" : "Hablar"}</span>
           </button>
-          <button type="button" onClick={() => api.changeMic({ autoBed: !mic.autoBed })} className="studio-btn" data-on={mic.autoBed ? "amber" : undefined} title="Bajar la música a fondo mientras hablas">Auto fondo</button>
+          <button type="button" onClick={() => api.changeMic({ voiceDuck: !mic.voiceDuck })} className="studio-btn" data-on={mic.voiceDuck ? "green" : undefined} aria-pressed={mic.voiceDuck} title="Al detectar tu voz, la música y los sonidos bajan al 35% de inmediato y vuelven cuando callas">Detectar voz</button>
+          <button
+            type="button"
+            disabled={mic.voiceDuck}
+            onClick={() => api.changeMic({ autoBed: !mic.autoBed })}
+            className="studio-btn"
+            data-on={mic.autoBed && !mic.voiceDuck ? "amber" : undefined}
+            title={mic.voiceDuck ? "Con «Detectar voz» la música baja sola cuando hablas" : "Bajar la música a fondo todo el tiempo que el micrófono esté al aire"}
+          >
+            Auto fondo
+          </button>
           <button type="button" disabled={!micOpen} onClick={() => api.changeMic({ selfMonitor: !mic.selfMonitor })} className="studio-btn" data-on={mic.selfMonitor ? "blue" : undefined} title="Escucharte en los audífonos">Retorno</button>
         </div>
 

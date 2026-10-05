@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { duration, shortTitle, type RadioPlaylist, type RadioTrack } from "@/lib/radio";
+import { clock, duration, shortTitle, type RadioPlaylist, type RadioTrack } from "@/lib/radio";
 import type { ConsoleApi } from "./use-console";
 
 /** Songs this short are jingles, not music (as the automatic music sees them). */
@@ -8,7 +8,8 @@ const MIN_SECONDS = 5;
 /**
  * «Iniciar modo automático»: what the automatic music plays (a list or random songs) and the
  * song it starts with. It is heard by every listener within seconds; the song on air fades out
- * under it.
+ * under it. «Repetir» starts the source over at its end (off: one time, then silence) and
+ * «Detener» leaves only what is scheduled.
  */
 export function AutoStartPanel({ api, playlists, library }: { api: ConsoleApi; playlists: RadioPlaylist[]; library: RadioTrack[] }) {
   const { autopilot, config, state, now } = api;
@@ -17,11 +18,16 @@ export function AutoStartPanel({ api, playlists, library }: { api: ConsoleApi; p
   const [pick, setPick] = useState({ list: "", id: "" });
   const first = pick.list === playlist ? pick.id : "";
   const [busy, setBusy] = useState(false);
+  const [toggling, setToggling] = useState(false);
   const list = playlists.find((item) => item.id === playlist) ?? null;
   const cut = Boolean(state.live.cut);
-  const running = config.on_air && config.autofill && !cut;
+  const repeat = autopilot.repeat ?? true;
+  const finished = Boolean(autopilot.finished);
+  const silent = autopilot.level === "none";
+  const running = config.on_air && config.autofill && !cut && !finished && !silent;
   const current = state.queue.find((item) => item.start <= now && now < item.end) ?? null;
   const automatic = current && current.kind === "musica" && !current.slot && !current.block ? current : null;
+  const status = running ? "Sonando" : cut ? "En vivo" : !config.on_air ? "Fuera del aire" : !config.autofill ? "Detenido" : finished ? "Terminó" : "Sin canciones";
 
   const songs = useMemo(() => {
     const playable = (track: RadioTrack | undefined): track is RadioTrack => Boolean(track && track.kind === "musica" && track.active && !track.problem && track.duration >= MIN_SECONDS);
@@ -37,30 +43,63 @@ export function AutoStartPanel({ api, playlists, library }: { api: ConsoleApi; p
   async function start() {
     if (cut && !window.confirm("Estás al aire en vivo. ¿Volver a la música automática ahora?")) return;
     setBusy(true);
-    await api.startAutopilot(playlist, shuffle, first);
+    await api.startAutopilot(playlist, shuffle, first, repeat);
     setBusy(false);
+  }
+
+  async function run(action: () => Promise<void>) {
+    setToggling(true);
+    await action();
+    setToggling(false);
   }
 
   return (
     <div className="cx-panel">
       <div className="cx-head">
         <p className="studio-label">Modo automático</p>
-        <span className="cx-badge" data-tone={running ? "green" : undefined}>
-          {running ? "Sonando" : cut ? "En vivo" : !config.on_air ? "Fuera del aire" : "En pausa"}
+        <span className="cx-badge" data-tone={running ? "green" : finished || silent ? "amber" : undefined}>
+          {status}
         </span>
       </div>
 
-      <p className="mt-1 truncate text-[11.5px] leading-4 text-white/50" title={automatic?.title}>
+      <p className="mt-1 text-[11.5px] leading-4 text-white/50" title={automatic?.title}>
         {running && automatic ? (
           <>
             Ahora: <span className="text-white/85">{shortTitle(automatic.title, 48)}</span> · {autopilot.label}
           </>
         ) : running ? (
           `Sigue: ${autopilot.label}`
+        ) : !config.autofill ? (
+          "Solo suena lo programado; lo demás es silencio."
+        ) : finished ? (
+          `«${autopilot.label}» ya sonó completa. Silencio hasta que la inicies o actives «Repetir».`
+        ) : silent && config.on_air ? (
+          `«${autopilot.label}» no tiene canciones: la radio está en silencio.`
         ) : (
           "Elige la lista y la canción de partida."
         )}
+        {running && autopilot.until ? <span className="block text-amber-200/80">Sin repetir · termina a las {clock(autopilot.until)}, luego silencio.</span> : null}
       </p>
+
+      <div className="mt-2 flex gap-1.5">
+        <button
+          type="button"
+          disabled={busy || toggling}
+          onClick={() => run(() => api.setRepeat(!repeat))}
+          className="cx-btn flex-1 justify-center"
+          data-tone={repeat ? "green" : undefined}
+          aria-pressed={repeat}
+          title={repeat ? "Al terminar, la lista vuelve a empezar. Clic para que suene una sola vez." : "Suena una sola vez y luego silencio. Clic para que se repita."}
+        >
+          <span className={`h-1.5 w-1.5 rounded-full ${repeat ? "bg-emerald-300" : "bg-white/40"}`} />
+          Repetir
+        </button>
+        {config.autofill ? (
+          <button type="button" disabled={busy || toggling} onClick={() => run(api.toggleAutofill)} className="cx-btn flex-1 justify-center" data-tone="red" title="Detiene el modo automático: solo suena lo programado">
+            Detener
+          </button>
+        ) : null}
+      </div>
 
       <div className="mt-2 space-y-1.5">
         <div className="flex gap-1.5">
@@ -120,7 +159,7 @@ export function AutoStartPanel({ api, playlists, library }: { api: ConsoleApi; p
           {busy ? "Iniciando…" : running ? `Empezar ahora${opening ? ` · ${shortTitle(opening.title, 26)}` : ""}` : "Iniciar modo automático"}
         </button>
         <p className="text-[10.5px] leading-4 text-white/35">
-          Al aire suenan las canciones de la Biblioteca.
+          Solo suena lo que elijas aquí. Sin modo automático ni programación, la radio queda en silencio.
         </p>
       </div>
     </div>
