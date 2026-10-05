@@ -1,7 +1,8 @@
 import { router } from "@inertiajs/react";
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { button, ghost, input } from "@/Components/admin/ui";
-import { AUDIO_ACCEPT, COVER_ACCEPT, postWithProgress, readDuration } from "@/Components/radio/admin-ui";
+import { AUDIO_ACCEPT, COVER_ACCEPT, readDuration } from "@/Components/radio/admin-ui";
+import { postAudio } from "@/Components/radio/audio-upload";
 import { duration, type RadioGenre, type RadioTrack } from "@/lib/radio";
 import { artistHints, parseFileName, recognizeSong, type SongDetails } from "@/lib/radio/audio-tags";
 import { CoAuthorsField, CoverPicker, GenrePicker, LookupBadge, MusicNote, cleanYear, identifySong, identityJson, mergeNames, plain, type LookupState } from "./song-fields";
@@ -312,7 +313,6 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
       data.set("kind", item.kind);
       data.set("duration", String(item.duration));
       data.set("duck", item.duck ? "1" : "0");
-      data.set("audio", item.file);
       if (item.kind === "musica") {
         item.featured.map((name) => name.trim()).filter(Boolean).forEach((name) => data.append("featured[]", name));
         data.set("album", item.album.trim());
@@ -327,7 +327,7 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
         data.set("episode_description", item.description);
         if (item.episodeCover) data.set("episode_cover", item.episodeCover);
       }
-      const result = await postWithProgress(LIBRARY, data, (progress) => patch(item.key, { progress }));
+      const result = await postAudio(LIBRARY, data, item.file, item.kind, (progress) => patch(item.key, { progress }));
       if (result.error) patch(item.key, { status: "ready", progress: 0, error: result.error });
       else {
         patch(item.key, { status: "done", progress: 1 });

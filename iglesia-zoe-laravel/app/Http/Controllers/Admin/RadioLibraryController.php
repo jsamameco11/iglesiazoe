@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Domain\Access\Permissions;
 use App\Domain\Media\Support\MediaLibrary;
 use App\Domain\Radio\Actions\SaveEpisode;
+use App\Domain\Radio\AudioRejected;
 use App\Domain\Radio\Catalog\Genres;
 use App\Domain\Radio\Catalog\MusicCatalog;
 use App\Domain\Radio\Identify\CoverDownload;
@@ -47,7 +48,7 @@ class RadioLibraryController extends RadioController
             'families' => Genres::FAMILIES,
             'maxGenres' => RadioTrack::MAX_GENRES,
             'maxFeatured' => RadioTrack::MAX_FEATURED,
-            'maxMb' => RadioAudio::MAX_MB,
+            'maxMb' => RadioAudio::maxMb(),
             'maxDescription' => SaveEpisode::MAX_DESCRIPTION,
         ]);
     }
@@ -111,9 +112,12 @@ class RadioLibraryController extends RadioController
             }
         }
 
-        $file = $request->file('audio');
-        if (! $existing && ! $file instanceof UploadedFile) {
+        $hasAudio = RadioAudio::sent($request);
+        if (! $existing && ! $hasAudio) {
             return $this->fail('Elige el archivo de audio.');
+        }
+        if ($hasAudio && ! isset($data['duration'])) {
+            return $this->fail('No pudimos leer la duración del audio. Prueba con otro archivo.');
         }
         $episode = ! $existing && $request->boolean('episode') && Permissions::has($request->user(), 'radio.episodes')
             ? $episodes->validate([
@@ -138,14 +142,12 @@ class RadioLibraryController extends RadioController
             $payload['rotation'] = false;
         }
 
-        if ($file instanceof UploadedFile) {
-            if ($problem = RadioAudio::problem($file)) {
-                return $this->fail($problem);
+        if ($hasAudio) {
+            try {
+                $payload['file_path'] = RadioAudio::receive($request, $data['kind']);
+            } catch (AudioRejected $rejected) {
+                return $rejected->response();
             }
-            if (! isset($data['duration'])) {
-                return $this->fail('No pudimos leer la duración del audio. Prueba con otro archivo.');
-            }
-            $payload['file_path'] = RadioAudio::store($file, $data['kind']);
             $payload['duration'] = round((float) $data['duration'], 2);
             MediaLibrary::deletePublic($existing?->file_path);
         }

@@ -4,13 +4,13 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Media\Support\MediaLibrary;
 use App\Domain\Radio\Actions\SaveEpisode;
+use App\Domain\Radio\AudioRejected;
 use App\Domain\Radio\RadioAudio;
 use App\Domain\Radio\Station;
 use App\Models\RadioEpisode;
 use App\Models\RadioTrack;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Http\UploadedFile;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -27,7 +27,7 @@ class RadioEpisodesController extends RadioController
             'kinds' => RadioTrack::KINDS,
             'prefill' => $this->find(RadioTrack::class, $request->query('audio'))?->id,
             'today' => Station::today(),
-            'maxMb' => RadioAudio::MAX_MB,
+            'maxMb' => RadioAudio::maxMb(),
             'maxDescription' => SaveEpisode::MAX_DESCRIPTION,
         ]);
     }
@@ -41,20 +41,21 @@ class RadioEpisodesController extends RadioController
         $data = $episodes->validate($request->all(), $request->file('cover'));
         $published = $request->has('published') ? $request->boolean('published') : true;
 
-        $audio = $request->file('audio');
-        if ($audio instanceof UploadedFile) {
-            if ($problem = RadioAudio::problem($audio)) {
-                return $this->fail($problem);
-            }
+        if (RadioAudio::sent($request)) {
             $seconds = (float) $request->input('duration');
             if ($seconds < 0.5 || $seconds > Station::MAX_BLOCK) {
                 return $this->fail('No pudimos leer la duración del audio. Prueba con otro archivo.');
+            }
+            try {
+                $path = RadioAudio::receive($request, 'programa');
+            } catch (AudioRejected $rejected) {
+                return $rejected->response();
             }
             $track = RadioTrack::query()->create([
                 'kind' => 'programa',
                 'title' => $data['title'],
                 'artist' => $data['program'],
-                'file_path' => RadioAudio::store($audio, 'programa'),
+                'file_path' => $path,
                 'duration' => round($seconds, 2),
                 'rotation' => false,
                 'duck' => in_array('programa', RadioTrack::DUCK_BY_DEFAULT, true),

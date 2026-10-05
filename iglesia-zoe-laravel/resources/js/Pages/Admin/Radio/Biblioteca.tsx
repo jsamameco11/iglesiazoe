@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AUDIO_ACCEPT, COVER_ACCEPT, KindTag, RadioHeader, postWithProgress, readDuration } from "@/Components/radio/admin-ui";
 import { CoAuthorsField, CoverPicker, GenrePicker, LookupBadge, MusicNote, cleanYear, identifySong, identityJson, mergeNames, type LookupState } from "@/Components/radio/library/song-fields";
 import { UploadPanel } from "@/Components/radio/library/upload-panel";
+import { postAudio } from "@/Components/radio/audio-upload";
 import { Notice, Stat, button, input, useAction } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { can, usePanelUser } from "@/lib/access";
@@ -192,6 +193,7 @@ function TrackRow({
   const { result, setResult, pending, run } = useAction();
   const [kind, setKind] = useState<Kind>(track.kind);
   const [file, setFile] = useState<File | null>(null);
+  const [sending, setSending] = useState<number | null>(null);
   const [fields, setFields] = useState({ title: track.title, artist: track.artist ?? "", album: track.album ?? "" });
   const [featured, setFeatured] = useState<string[]>(track.featured ?? []);
   const [year, setYear] = useState(track.year ? String(track.year) : "");
@@ -270,12 +272,13 @@ function TrackRow({
         setResult({ error: "No pudimos leer este audio. Prueba con MP3 o M4A." });
         return;
       }
-      data.set("audio", file);
       data.set("duration", String(seconds));
     }
+    const audio = file;
     run(
       () =>
-        upload(data).then((response) => {
+        (audio ? postAudio(LIBRARY, data, audio, String(data.get("kind") || track.kind), setSending) : upload(data)).then((response) => {
+          setSending(null);
           if (response.reload) router.reload({ only: ["tracks"] });
           return response;
         }),
@@ -451,7 +454,7 @@ function TrackRow({
             <div className="md:col-span-2">
               <Notice result={result} onClose={() => setResult(null)} />
               <button disabled={pending} className={`${button} mt-2`}>
-                {pending ? "Guardando…" : "Guardar cambios"}
+                {pending ? (sending !== null && sending < 1 ? `Subiendo audio… ${Math.round(sending * 100)}%` : "Guardando…") : "Guardar cambios"}
               </button>
             </div>
           </div>

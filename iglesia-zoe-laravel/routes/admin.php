@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\RadioLibraryController;
 use App\Http\Controllers\Admin\RadioPlaylistsController;
 use App\Http\Controllers\Admin\RadioScheduleController;
 use App\Http\Controllers\Admin\RadioSettingsController;
+use App\Http\Controllers\Admin\RadioUploadController;
 use App\Http\Controllers\Admin\RebetController;
 use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SectionsController;
@@ -130,6 +131,10 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
             Route::get('/episodios', [RadioEpisodesController::class, 'index']);
             Route::post('/episodios', [RadioEpisodesController::class, 'save']);
             Route::post('/episodios/eliminar', [RadioEpisodesController::class, 'destroy']);
+        });
+        Route::middleware($can('radio.library', 'radio.episodes'))->group(function () {
+            Route::post('/subida', [RadioUploadController::class, 'begin'])->middleware('throttle:60,1');
+            Route::post('/subida/cancelar', [RadioUploadController::class, 'cancel']);
         });
         Route::middleware($can('radio.settings'))->group(function () {
             Route::get('/ajustes', [RadioSettingsController::class, 'index']);

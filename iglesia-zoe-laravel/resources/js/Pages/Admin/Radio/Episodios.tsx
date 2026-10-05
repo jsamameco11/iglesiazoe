@@ -1,6 +1,7 @@
 import { router } from "@inertiajs/react";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AUDIO_ACCEPT, COVER_ACCEPT, RadioHeader, postWithProgress, readDuration } from "@/Components/radio/admin-ui";
+import { postAudio } from "@/Components/radio/audio-upload";
 import { EpisodeCover } from "@/Components/radio/episode-cover";
 import { Notice, Stat, button, ghost, input, useAction } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
@@ -9,6 +10,8 @@ import { duration, longDate, type RadioEpisodeAdmin, type RadioTrack } from "@/l
 import "../../../../css/radio.css";
 
 type Kind = RadioTrack["kind"];
+
+const EPISODES = "/admin/radio/episodios";
 
 type Props = {
   episodes: RadioEpisodeAdmin[];
@@ -206,13 +209,12 @@ function EpisodeForm({ episode, trackId, tracks, kinds, programs, today, maxMb, 
       if (file.size > maxMb * 1024 * 1024) return setResult({ error: `El audio pesa más de ${maxMb} MB. Expórtalo en MP3 (128–192 kbps).` });
       const seconds = await readDuration(file);
       if (!seconds) return setResult({ error: "No pudimos leer este audio. Prueba con MP3 o M4A." });
-      data.set("audio", file);
       data.set("duration", String(seconds));
       data.delete("track_id");
     }
     setResult(null);
     setProgress(0);
-    const response = await postWithProgress("/admin/radio/episodios", data, setProgress);
+    const response = source === "upload" && file ? await postAudio(EPISODES, data, file, "programa", setProgress) : await postWithProgress(EPISODES, data, setProgress);
     setProgress(null);
     setResult(response);
     if (!response.error) {
