@@ -107,7 +107,7 @@ class RadioLibraryController extends RadioController
         if (! $existing && $isSong && ! $request->boolean('duplicate_ok')) {
             $twin = SameSong::twinIn([...$data, 'ids' => self::identity($data['identity'] ?? null)['ids'] ?? []], RadioTrack::query()->where('kind', 'musica')->get());
             if ($twin) {
-                return $this->fail('Esta canción ya está en la biblioteca: «'.$twin->title.'»'.($twin->credit() ? ' de '.$twin->credit() : '').'. Quítala de la lista o marca «Subir igual» si de verdad quieres otra copia.', 409);
+                return $this->fail('Esta canción ya está en la biblioteca: «'.$twin->title.'»'.($twin->credit() ? ' de '.$twin->credit() : '').'. Elige en su tarjeta qué hacer: no subirla, reemplazar la que ya está o guardar ambas.', 409);
             }
         }
 
@@ -120,6 +120,9 @@ class RadioLibraryController extends RadioController
             if ($coverExtension === null) {
                 return $this->fail('La carátula debe ser una imagen JPG, PNG o WEBP de hasta '.self::MAX_COVER_MB.' MB.');
             }
+        }
+        if ($existing && $request->boolean('replace_audio')) {
+            return $this->replaceAudio($request, $existing, $data, $cover instanceof UploadedFile ? $cover : null, $coverExtension);
         }
 
         $hasAudio = RadioAudio::sent($request);
@@ -205,6 +208,57 @@ class RadioLibraryController extends RadioController
             (bool) $episode => 'Audio guardado en la biblioteca y publicado como episodio en la página de la radio.',
             default => 'Audio guardado en la biblioteca. No suena hasta que lo programes o lo lances desde la consola.',
         });
+    }
+
+    /**
+     * Puts a newly uploaded audio in place of the one of a song already in the library, chosen when the upload
+     * turned out to repeat it: the song keeps its name, authors, genres, cover, rotation and schedule, and only
+     * takes from the upload what it was missing (co-authors, album, year, identity, genres or cover).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function replaceAudio(Request $request, RadioTrack $track, array $data, ?UploadedFile $cover, ?string $coverExtension): JsonResponse
+    {
+        if (! RadioAudio::sent($request) || ! isset($data['duration'])) {
+            return $this->fail('Elige el audio que reemplaza al de la biblioteca.');
+        }
+        try {
+            $path = RadioAudio::receive($request, $track->kind);
+        } catch (AudioRejected $rejected) {
+            return $rejected->response();
+        }
+
+        $payload = ['file_path' => $path, 'duration' => round((float) $data['duration'], 2)];
+        $isSong = $track->kind === 'musica';
+        if ($isSong) {
+            $payload += array_filter([
+                'featured' => $track->featured ? null : (($data['featured'] ?? []) ?: null),
+                'album' => $track->album ? null : (trim((string) ($data['album'] ?? '')) ?: null),
+                'year' => $track->year ? null : ($data['year'] ?? null),
+            ]);
+            $identity = $track->identity ? null : self::identity($data['identity'] ?? null);
+            if ($identity) {
+                $payload['identity'] = $identity;
+                $payload['identified_at'] = now();
+            }
+            if (! $track->cover_path) {
+                $found = $cover ? MediaLibrary::storePublic($cover, 'radio/caratulas', $coverExtension) : CoverDownload::store($data['cover_url'] ?? null);
+                if ($found) {
+                    $payload['cover_path'] = $found;
+                }
+            }
+        }
+
+        $previous = $track->file_path;
+        $track->update($payload);
+        MediaLibrary::deletePublic($previous);
+        $track->slots()->where('starts_at', '>=', now())->update(['duration' => $payload['duration']]);
+        if ($isSong && ! empty($data['genre_ids']) && $track->genres()->doesntExist()) {
+            $track->genres()->sync(collect($data['genre_ids'])->values()->mapWithKeys(fn (string $id, int $position) => [$id => ['position' => $position]])->all());
+        }
+        Station::flush();
+
+        return $this->saved('Audio reemplazado: «'.$track->title.'» suena ahora con el archivo nuevo y conserva sus datos, su rotación y su programación.');
     }
 
     /**

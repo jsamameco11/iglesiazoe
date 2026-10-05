@@ -160,6 +160,7 @@ final class SameSong
             'year' => $track->year,
             'duration' => $track->duration,
             'cover' => $track->cover_path,
+            'src' => $track->file_path,
         ];
     }
 

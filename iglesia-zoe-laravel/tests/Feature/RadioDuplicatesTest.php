@@ -7,6 +7,7 @@ use App\Domain\Radio\Catalog\MusicCatalog;
 use App\Domain\Radio\Identify\SameSong;
 use App\Domain\Shared\Enums\Role;
 use App\Models\RadioArtist;
+use App\Models\RadioSlot;
 use App\Models\RadioTrack;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -106,12 +107,31 @@ class RadioDuplicatesTest extends TestCase
         $this->track(['title' => 'Renuévame', 'artist' => 'Marcos Witt', 'duration' => 245.4]);
 
         $this->upload(['title' => 'Renuevame', 'artist' => 'Marcos Witt'])
-            ->assertStatus(409)->assertJsonPath('error', 'Esta canción ya está en la biblioteca: «Renuévame» de Marcos Witt. Quítala de la lista o marca «Subir igual» si de verdad quieres otra copia.');
+            ->assertStatus(409)->assertJsonPath('error', 'Esta canción ya está en la biblioteca: «Renuévame» de Marcos Witt. Elige en su tarjeta qué hacer: no subirla, reemplazar la que ya está o guardar ambas.');
         $this->assertSame(1, RadioTrack::query()->count());
 
         $this->upload(['title' => 'Renuévame (En Vivo)', 'artist' => 'Marcos Witt', 'duration' => '312'])->assertOk();
         $this->upload(['title' => 'Renuevame', 'artist' => 'Marcos Witt', 'duplicate_ok' => '1'])->assertOk();
         $this->assertSame(3, RadioTrack::query()->count());
+    }
+
+    public function test_replacing_a_repeated_song_swaps_its_audio_and_keeps_its_details_and_schedule(): void
+    {
+        $disk = Storage::fake(config('filesystems.media'));
+        $disk->put('radio/musica/vieja.mp3', 'audio viejo');
+        $track = $this->track(['title' => 'Renuévame', 'artist' => 'Marcos Witt', 'file_path' => '/media/radio/musica/vieja.mp3', 'duration' => 240, 'rotation' => true]);
+        $slot = RadioSlot::query()->create(['starts_at' => now()->addDay(), 'duration' => 240, 'kind' => 'musica', 'radio_track_id' => $track->id, 'title' => $track->title]);
+
+        $this->upload(['id' => $track->id, 'replace_audio' => '1', 'title' => 'Renuevame (Official Audio)', 'artist' => 'Marcos Witt', 'album' => 'Sigues siendo Dios', 'year' => '2010'])
+            ->assertOk()->assertJsonPath('message', 'Audio reemplazado: «Renuévame» suena ahora con el archivo nuevo y conserva sus datos, su rotación y su programación.');
+
+        $track->refresh();
+        $this->assertSame(1, RadioTrack::query()->count());
+        $this->assertSame(['Renuévame', 'Marcos Witt', 'Sigues siendo Dios', 2010, true], [$track->title, $track->artist, $track->album, $track->year, $track->rotation]);
+        $this->assertNotSame('/media/radio/musica/vieja.mp3', $track->file_path);
+        $this->assertEqualsWithDelta(245.6, $track->duration, 0.01);
+        $this->assertEqualsWithDelta(245.6, $slot->refresh()->duration, 0.01);
+        $disk->assertMissing('radio/musica/vieja.mp3');
     }
 
     public function test_only_the_library_reviews_duplicates(): void

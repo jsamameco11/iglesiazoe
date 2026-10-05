@@ -6,7 +6,7 @@ import { postAudio } from "@/Components/radio/audio-upload";
 import { SearchIcon } from "@/Components/radio/icons";
 import { duration, type RadioGenre, type RadioTrack } from "@/lib/radio";
 import { artistHints, parseFileName, recognizeSong, type SongDetails } from "@/lib/radio/audio-tags";
-import { DuplicateBadge, DuplicatePanel, isBlocked, reviewDuplicates, type DuplicateReview } from "./duplicates";
+import { DuplicateBadge, DuplicatePanel, choiceOf, decide, duplicateShade, isPending, listenKey, needsDecision, replaceTarget, reviewDuplicates, type DuplicateChoice, type DuplicateDecision, type DuplicateMatch, type DuplicateReview } from "./duplicates";
 import { CoAuthorsField, CoverPicker, GenrePicker, LookupBadge, MusicNote, cleanYear, identifySong, identityJson, mergeNames, plain, type LookupState } from "./song-fields";
 
 type Kind = RadioTrack["kind"];
@@ -37,8 +37,8 @@ type Upload = {
   identity: string | null;
   /** Songs of the library or of this upload it repeats. */
   duplicates: DuplicateReview;
-  /** Uploaded even though it is the same song as another: the admin wants another copy. */
-  duplicateOk: boolean;
+  /** What the admin chose for a song that may repeat another; it is not saved until there is a choice. */
+  decision: DuplicateDecision | null;
   /** Also publish it on /radio as an episode, with this description and cover. */
   episode: boolean;
   description: string;
@@ -84,10 +84,18 @@ function missing(item: Upload) {
   return null;
 }
 
-/** Complete, searched and, if it is a song, compared with the library without being the same as another. */
+const isSongReady = (item: Upload) => item.kind === "musica" && item.status === "ready";
+
+/** The admin's choice for a song that may repeat another, as it is reviewed now. */
+const choiceFor = (item: Upload): DuplicateChoice | null => (item.kind === "musica" ? choiceOf(item.duplicates, item.decision) : null);
+
+/** A song that may repeat another and still waits for the admin's choice. */
+const waiting = (item: Upload) => isSongReady(item) && isPending(item.duplicates, item.decision);
+
+/** Complete, searched and, if it is a song, compared with the library and decided when it may repeat another. */
 function uploadable(item: Upload) {
   if (item.status !== "ready" || !item.duration || missing(item) || item.lookup?.status === "searching") return false;
-  return item.kind !== "musica" || (item.duplicates !== null && !isBlocked(item.duplicates, item.duplicateOk));
+  return item.kind !== "musica" || (item.duplicates !== null && !isPending(item.duplicates, item.decision) && choiceFor(item) !== "skip");
 }
 
 function coverName(blob: Blob) {
@@ -253,7 +261,7 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
         lookup: null,
         identity: null,
         duplicates: null,
-        duplicateOk: false,
+        decision: null,
         episode: false,
         description: "",
         episodeCover: null,
@@ -314,17 +322,38 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
     setPreviewing(null);
   }
 
+  function play(id: string, src: string) {
+    stopPreview();
+    player.current ??= new Audio();
+    player.current.src = src;
+    player.current.onended = stopPreview;
+    player.current.play().catch(() => setPreviewing(null));
+    setPreviewing(id);
+  }
+
   function togglePreview(item: Upload) {
-    if (previewing === item.key) {
+    if (previewing === item.key) stopPreview();
+    else play(item.key, objectUrl(item.file));
+  }
+
+  /** Plays the song a card may repeat (the library one or the other one of this upload), to compare them by ear. */
+  function listen(match: DuplicateMatch) {
+    const key = listenKey(match);
+    if (previewing === key) {
       stopPreview();
       return;
     }
-    stopPreview();
-    player.current ??= new Audio();
-    player.current.src = objectUrl(item.file);
-    player.current.onended = stopPreview;
-    void player.current.play();
-    setPreviewing(item.key);
+    if (match.track?.src) {
+      play(key, match.track.src);
+      return;
+    }
+    const other = current.current.find((item) => item.key === match.batch);
+    if (other) togglePreview(other);
+  }
+
+  /** The same choice for every song that may repeat another, for long uploads. */
+  function decideAll(choice: DuplicateChoice) {
+    setQueue((list) => list.map((item) => (isSongReady(item) && needsDecision(item.duplicates) ? { ...item, decision: decide(item.duplicates, choice) } : item)));
   }
 
   function applyToAll() {
@@ -341,10 +370,17 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
     setRunning(true);
     setNotice(null);
     let uploaded = 0;
+    let replaced = 0;
     for (const item of queue) {
       if (!uploadable(item)) continue;
       patch(item.key, { status: "uploading", progress: 0, error: undefined });
+      const choice = choiceFor(item);
+      const target = choice === "replace" ? replaceTarget(item.duplicates) : null;
       const data = new FormData();
+      if (target) {
+        data.set("id", target.id);
+        data.set("replace_audio", "1");
+      }
       data.set("title", item.title.trim());
       data.set("artist", item.artist.trim());
       data.set("kind", item.kind);
@@ -358,9 +394,9 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
         if (item.cover) data.set("cover", item.cover, item.cover instanceof File ? item.cover.name : coverName(item.cover));
         else if (item.remoteCover) data.set("cover_url", item.remoteCover);
         if (item.identity) data.set("identity", item.identity);
-        if (item.duplicateOk) data.set("duplicate_ok", "1");
+        if (choice === "both") data.set("duplicate_ok", "1");
       }
-      if (canEpisodes && item.episode) {
+      if (canEpisodes && item.episode && !target) {
         data.set("episode", "1");
         data.set("episode_description", item.description);
         if (item.episodeCover) data.set("episode_cover", item.episodeCover);
@@ -369,18 +405,31 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
       if (result.error) patch(item.key, { status: "ready", progress: 0, error: result.error });
       else {
         patch(item.key, { status: "done", progress: 1 });
-        uploaded++;
+        if (target) replaced++;
+        else uploaded++;
       }
     }
     setRunning(false);
     setReviewRound((round) => round + 1);
-    if (uploaded) {
+    if (uploaded || replaced) {
       router.reload({ only: ["tracks"] });
+      const left = queue.filter((item) => isSongReady(item) && choiceFor(item) === "skip").length;
       setQueue((list) => {
-        list.filter((item) => item.status === "done").forEach((item) => dropUrl(item.coverUrl));
-        return list.filter((item) => item.status !== "done");
+        const finished = (item: Upload) => item.status === "done" || (isSongReady(item) && choiceFor(item) === "skip");
+        list.filter(finished).forEach((item) => dropUrl(item.coverUrl));
+        return list.filter((item) => !finished(item));
       });
-      setNotice({ tone: "ok", text: `${uploaded === 1 ? "Se subió 1 audio" : `Se subieron ${uploaded} audios`} a la Biblioteca. Nada suena hasta que lo programes o lo lances desde la consola.` });
+      setNotice({
+        tone: "ok",
+        text: [
+          uploaded ? `${uploaded === 1 ? "Se subió 1 audio" : `Se subieron ${uploaded} audios`} a la Biblioteca.` : "",
+          replaced ? `${replaced === 1 ? "Se reemplazó el audio de 1 canción" : `Se reemplazó el audio de ${replaced} canciones`}, que conservan sus datos y su programación.` : "",
+          left ? `${left === 1 ? "1 canción repetida no se subió" : `${left} canciones repetidas no se subieron`}, como elegiste.` : "",
+          "Nada suena hasta que lo programes o lo lances desde la consola.",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      });
     }
   }
 
@@ -397,7 +446,14 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
   const ready = queue.filter(uploadable);
   const incomplete = queue.filter((item) => item.status === "ready" && missing(item)).length;
   const checking = reviewable(queue).filter((item) => item.duplicates === null).length;
-  const repeated = queue.filter((item) => item.status === "ready" && item.kind === "musica" && isBlocked(item.duplicates, item.duplicateOk)).length;
+  const flagged = queue.filter((item) => isSongReady(item) && needsDecision(item.duplicates));
+  const pending = flagged.filter(waiting);
+  const skipped = flagged.filter((item) => choiceFor(item) === "skip").length;
+  const canSave = !running && ready.length > 0 && pending.length === 0 && checking === 0;
+  const showFirstPending = () => {
+    const [first] = pending;
+    if (first) document.getElementById(`subida-${first.key}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
   const nameOf = (key: string) => {
     const item = queue.find((entry) => entry.key === key);
     return item ? `«${item.title.trim() || item.file.name}» (${item.file.name})` : "otra canción";
@@ -497,6 +553,34 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
             </div>
           ) : null}
 
+          {flagged.length ? (
+            <div className={`rounded-2xl border p-3.5 text-[13px] leading-5 ${pending.length ? "border-amber-300 bg-amber-50 text-amber-950" : "border-emerald-200 bg-emerald-50 text-emerald-950"}`} role="status">
+              <p className="font-semibold">
+                {flagged.length === 1 ? "Encontramos 1 canción que podría estar repetida." : `Encontramos ${flagged.length} canciones que podrían estar repetidas.`}{" "}
+                {pending.length
+                  ? `Están sombreadas en la lista: revisa cada una y elige si no subirla, reemplazar la de la biblioteca o guardar ambas. ${pending.length === flagged.length ? "" : `Faltan ${pending.length}. `}Nada se guarda hasta que decidas.`
+                  : "Ya decidiste qué hacer con todas; puedes guardar."}
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {pending.length ? (
+                  <button type="button" onClick={showFirstPending} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-ink shadow-sm transition hover:bg-ink hover:text-white">
+                    Ir a la {pending.length === flagged.length ? "primera" : "siguiente"} sin decidir
+                  </button>
+                ) : null}
+                {flagged.length > 1 ? (
+                  <>
+                    <button type="button" disabled={running} onClick={() => decideAll("skip")} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-ink shadow-sm transition hover:bg-ink hover:text-white">
+                      No subir ninguna repetida
+                    </button>
+                    <button type="button" disabled={running} onClick={() => decideAll("both")} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-ink shadow-sm transition hover:bg-ink hover:text-white">
+                      Guardar todas igual
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
+
           {queue.map((item) => (
             <UploadCard
               key={item.key}
@@ -511,7 +595,9 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
               canEpisodes={canEpisodes}
               running={running}
               previewing={previewing === item.key}
+              playing={previewing}
               nameOf={nameOf}
+              onListen={listen}
               onPatch={(values) => patch(item.key, values)}
               onLookUp={() => lookUp(item.key, true)}
               onCover={(file) => setCover(item, file)}
@@ -521,8 +607,8 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
           ))}
 
           <div className="flex flex-wrap items-center gap-3 pt-1">
-            <button type="button" disabled={running || ready.length === 0} onClick={uploadAll} className={button}>
-              {running ? "Subiendo…" : `Subir ${ready.length} audio${ready.length === 1 ? "" : "s"}`}
+            <button type="button" disabled={!canSave} onClick={uploadAll} className={button}>
+              {running ? "Subiendo…" : `Guardar ${ready.length} audio${ready.length === 1 ? "" : "s"} en la biblioteca`}
             </button>
             <button type="button" disabled={running} onClick={clear} className={ghost}>
               Limpiar lista
@@ -531,7 +617,8 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
               {reading ? `Reconociendo ${reading} ${reading === 1 ? "audio" : "audios"}… ` : ""}
               {searching ? `Buscando ${searching === 1 ? "1 canción" : `${searching} canciones`} en internet… ` : ""}
               {checking ? `Revisando si ${checking === 1 ? "1 canción está repetida" : `${checking} canciones están repetidas`}… ` : ""}
-              {repeated ? <span className="font-medium text-red-800">{repeated === 1 ? "1 canción ya está en la biblioteca o repetida en esta subida y no se subirá. " : `${repeated} canciones ya están en la biblioteca o repetidas en esta subida y no se subirán. `}</span> : null}
+              {pending.length ? <span className="font-medium text-amber-800">{pending.length === 1 ? "Elige qué hacer con 1 canción posiblemente repetida (sombreada) para poder guardar. " : `Elige qué hacer con ${pending.length} canciones posiblemente repetidas (sombreadas) para poder guardar. `}</span> : null}
+              {skipped ? <span className="font-medium text-slate-700">{skipped === 1 ? "1 canción repetida no se subirá. " : `${skipped} canciones repetidas no se subirán. `}</span> : null}
               {incomplete ? <span className="font-medium text-amber-800">Completa los datos obligatorios en {incomplete === 1 ? "1 audio" : `${incomplete} audios`} para subirlos.</span> : null}
             </p>
           </div>
@@ -559,7 +646,9 @@ function UploadCard({
   canEpisodes,
   running,
   previewing,
+  playing,
   nameOf,
+  onListen,
   onPatch,
   onLookUp,
   onCover,
@@ -577,7 +666,10 @@ function UploadCard({
   canEpisodes: boolean;
   running: boolean;
   previewing: boolean;
+  /** What the upload's player is playing, to mark the repeated song being heard. */
+  playing: string | null;
   nameOf: (key: string) => string;
+  onListen: (match: DuplicateMatch) => void;
   onPatch: (values: Partial<Upload>) => void;
   onLookUp: () => void;
   onCover: (file: File | null) => void;
@@ -592,10 +684,10 @@ function UploadCard({
   const required = <span className="text-red-600">*</span>;
   const titleMissing = item.status === "ready" && !item.title.trim();
   const artistMissing = item.status === "ready" && song && !item.artist.trim();
-  const repeated = song && item.status === "ready" && isBlocked(item.duplicates, item.duplicateOk);
+  const shade = song && item.status === "ready" ? duplicateShade(item.duplicates, item.decision) : null;
 
   return (
-    <article className={`rounded-2xl border bg-white p-3 transition md:p-4 ${item.error || repeated ? "border-red-200" : problem ? "border-amber-200" : "border-line"}`}>
+    <article id={`subida-${item.key}`} className={`rounded-2xl border p-3 transition md:p-4 ${item.error ? "border-red-200 bg-white" : (shade ?? (problem ? "border-amber-200 bg-white" : "border-line bg-white"))}`}>
       <div className="flex gap-3 md:gap-4">
         {song ? <CoverPicker src={item.coverUrl} disabled={locked} onPick={(file) => onCover(file)} onRemove={() => onCover(null)} /> : null}
 
@@ -613,7 +705,7 @@ function UploadCard({
               </span>
             ) : null}
             {song ? <LookupBadge state={item.lookup} /> : null}
-            {song && item.status === "ready" ? <DuplicateBadge review={item.duplicates} /> : null}
+            {song && item.status === "ready" ? <DuplicateBadge review={item.duplicates} decision={item.decision} /> : null}
             <span className="ml-auto flex items-center gap-1">
               {song && !locked && !searching && item.title.trim().length >= 2 ? (
                 <button
@@ -776,7 +868,7 @@ function UploadCard({
             </div>
           ) : null}
           {song && item.status === "ready" ? (
-            <DuplicatePanel review={item.duplicates} allowed={item.duplicateOk} disabled={running} nameOf={nameOf} onAllow={(duplicateOk) => onPatch({ duplicateOk })} onRemove={onRemove} />
+            <DuplicatePanel review={item.duplicates} decision={item.decision} disabled={running} nameOf={nameOf} playing={playing} onListen={onListen} onChoose={(decision) => onPatch({ decision })} />
           ) : null}
           {item.error ? <p className="text-xs font-medium text-red-700">{item.error}</p> : null}
           {problem ? <p className="text-xs font-medium text-amber-800">{problem}</p> : null}
