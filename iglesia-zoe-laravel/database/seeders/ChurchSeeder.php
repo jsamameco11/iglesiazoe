@@ -21,11 +21,6 @@ class ChurchSeeder extends Seeder
             ['key' => 'site'],
             ['value' => config('zoe.settings'), 'updated_at' => now()],
         );
-        SiteSetting::query()->updateOrCreate(
-            ['key' => 'admin_capabilities'],
-            ['value' => config('zoe.admin_capabilities'), 'updated_at' => now()],
-        );
-
         foreach (config('zoe.ministries') as $ministry) {
             Ministry::query()->updateOrCreate(['slug' => $ministry['slug']], $ministry);
         }

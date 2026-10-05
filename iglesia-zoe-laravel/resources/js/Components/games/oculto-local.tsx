@@ -10,7 +10,7 @@ type Seat = { name: string; impostor: boolean };
 const CLUE_PASSES = 2;
 
 /** 3 players play one round; every extra player adds one, up to 8. */
-export const maxRounds = (players: number) => (players <= 3 ? 1 : Math.min(players - 2, 8));
+const maxRounds = (players: number) => (players <= 3 ? 1 : Math.min(players - 2, 8));
 
 function tally(votes: number[], seats: Seat[]) {
   const counts = new Map<number, number>();
@@ -272,7 +272,7 @@ export function WordSummary({ word }: { word: OcultoCard }) {
   );
 }
 
-export function Hand({ kicker, title, text, children }: { kicker: string; title: string; text?: string; children?: React.ReactNode }) {
+function Hand({ kicker, title, text, children }: { kicker: string; title: string; text?: string; children?: React.ReactNode }) {
   return (
     <Rise className="panel mx-auto mt-12 max-w-xl p-8 text-center md:p-12">
       <p className="kicker">{kicker}</p>

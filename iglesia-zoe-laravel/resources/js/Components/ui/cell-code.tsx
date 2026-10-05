@@ -1,7 +1,7 @@
 export type CellLevel = "red" | "servidor" | "hijo" | "subhijo";
 
 /** Background of the number each tier adds in front of its parent's code; the same in every page. */
-export const CODE_TONES = {
+const CODE_TONES = {
   hijo: "bg-accent text-white",
   subhijo: "bg-clay-deep text-white",
 } as const;
@@ -13,7 +13,7 @@ const DEPTH: Record<CellLevel, number> = { red: 0, servidor: 0, hijo: 1, subhijo
  * prefixes two digits to its parent's code; the level, when known, wins over
  * the length of the code.
  */
-export function splitCellCode(code: string, level?: CellLevel | null) {
+function splitCellCode(code: string, level?: CellLevel | null) {
   const [, digits = "", letters = ""] = /^(\d*)(.*)$/.exec(code.trim()) ?? [];
   const wanted = level ? DEPTH[level] : digits.length >= 6 ? 2 : digits.length >= 4 ? 1 : 0;
   const depth = Math.min(wanted, Math.max(0, Math.floor((digits.length - 2) / 2)));

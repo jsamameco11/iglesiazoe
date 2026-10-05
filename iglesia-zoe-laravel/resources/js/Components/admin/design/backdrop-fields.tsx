@@ -1,15 +1,13 @@
 import { useState } from "react";
 import { send } from "@/lib/actions";
 import type { Backdrop, BackdropFit } from "@/lib/design";
-import { ColorField, RangeField, SelectField, Toggle } from "./fields";
+import { ColorField, RangeField, SelectField, Toggle, percent } from "./fields";
 
 const fits: { value: BackdropFit; label: string }[] = [
   { value: "cover", label: "Cubrir todo el espacio" },
   { value: "contain", label: "Mostrar la imagen completa" },
   { value: "repeat", label: "Repetir como mosaico" },
 ];
-
-const percent = (value: number) => `${Math.round(value * 100)} %`;
 
 /** Color, gradient, picture or GIF, video and tint of a page (the screen) or of one band. */
 export function BackdropFields({ rule, base, set, where }: { rule: Backdrop; base: string; set: (patch: Partial<Backdrop>) => void; where: "page" | "section" }) {

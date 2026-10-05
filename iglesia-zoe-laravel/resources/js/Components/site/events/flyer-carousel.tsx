@@ -141,7 +141,7 @@ export function FlyerDetails({ event }: { event: ChurchEvent }) {
   );
 }
 
-export function CalendarGlyph() {
+function CalendarGlyph() {
   return (
     <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <rect x="3.5" y="5" width="17" height="15.5" rx="3" />

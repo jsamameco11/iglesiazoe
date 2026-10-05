@@ -5,8 +5,7 @@ import { Notice, PageHeader, Panel, button, input, useAction } from "@/Component
 import { send } from "@/lib/actions";
 import { money } from "@/lib/access";
 import { limaDate } from "@/lib/dates";
-
-export type ExpenseRow = { id: string; spent_on: string; category: string; detail: string; amount: number; by: string; receipt: string | null; is_pdf: boolean };
+import type { ExpenseRow } from "@/lib/finance";
 
 export default function Gastos({ month, categories, all, total, rows }: { month: string; categories: string[]; all: boolean; total: string; rows: ExpenseRow[] }) {
   const [preview, setPreview] = useState<string | null>(null);

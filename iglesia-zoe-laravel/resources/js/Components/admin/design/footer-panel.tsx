@@ -6,7 +6,7 @@ import { saveTexts, send, type ActionResult } from "@/lib/actions";
 import { copyGroups } from "@/lib/copy";
 import { footerAlign, hex, readableInk, resolvePalette, type FooterLogo, type FooterPart, type TextAlign } from "@/lib/design";
 import type { SiteSettings } from "@/lib/types";
-import { Choice, ColorField, Group, RangeField } from "./fields";
+import { Choice, ColorField, Group, RangeField, percent } from "./fields";
 import type { Draft } from "./use-draft";
 
 const places: { key: FooterLogo | "none"; label: string }[] = [
@@ -30,8 +30,6 @@ const aligns: { key: TextAlign; label: string }[] = [
   { key: "center", label: "Centro" },
   { key: "right", label: "Derecha" },
 ];
-
-const percent = (value: number) => `${Math.round(value * 100)} %`;
 
 /** The footer every page shares: logo and its place, background, and color, size and alignment of each kind of text. */
 export function FooterPanel({ draft, onSaved }: { draft: Draft; onSaved: () => void }) {

@@ -1,5 +1,5 @@
 import { fontRoles, fontStack, type DesignPage, type FontCategory, type FontOption, type FontRole, type TextAlign, type TextPick, type TextRule } from "@/lib/design";
-import { RangeField, SelectField, Toggle } from "./fields";
+import { RangeField, SelectField, Toggle, percent } from "./fields";
 import { FontPicker } from "./font-picker";
 import type { Draft } from "./use-draft";
 
@@ -35,8 +35,6 @@ const aligns: { key: TextAlign | undefined; label: string; lines: string[] }[] =
   { key: "center", label: "Centro", lines: ["M3 5h14", "M5.5 9h9", "M3 13h14", "M6.5 17h7"] },
   { key: "right", label: "Derecha", lines: ["M3 5h14", "M8 9h9", "M3 13h14", "M10 17h7"] },
 ];
-
-const percent = (value: number) => `${Math.round(value * 100)} %`;
 
 /** An inline text (a link, a word) needs its own line to be aligned; flex and grid boxes stay so their insides keep their layout. */
 function boxFor(display: string): TextRule["box"] {

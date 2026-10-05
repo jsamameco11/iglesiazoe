@@ -12,16 +12,6 @@ return [
     'site_url' => rtrim((string) env('ZOE_SITE_URL', 'https://iglesiacristianazoe.miacademiapreu.com'), '/'),
     'admin_url' => rtrim((string) env('ZOE_ADMIN_URL', 'https://admi-iglesiazoe.miacademiapreu.com'), '/'),
 
-    'admin_capabilities' => [
-        'manageMembers' => false,
-        'viewOfferings' => false,
-        'viewCellActivity' => true,
-        'manageMedia' => true,
-        'manageContent' => true,
-        'manageCells' => true,
-        'manageUsers' => true,
-        'manageGenerosity' => true,
-    ],
     'settings' => [
         'heroTitle' => 'Vida en abundancia para ti y los tuyos.',
         'heroSubtitle' => 'No importa por dónde hayas pasado ni cuál sea tu historia. Este es un espacio seguro para conectar con Dios, con otros y empezar de nuevo. Bienvenido a casa.',

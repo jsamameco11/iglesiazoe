@@ -2,7 +2,7 @@ import { useState } from "react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { PageHeader, Panel, PeriodFilter, Stat, ghost } from "@/Components/admin/ui";
 import { money } from "@/lib/access";
-import type { ExpenseRow } from "./Gastos";
+import type { ExpenseRow } from "@/lib/finance";
 
 type Summary = { offerings: number; tithes: number; income: number; expenses: number; balance: number; reports: number };
 type Point = { label: string; offerings: number; tithes: number; expenses: number };

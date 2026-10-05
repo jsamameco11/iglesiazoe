@@ -63,6 +63,8 @@ export function RoleField({ label, value, fallback, from = "la web", original, o
   );
 }
 
+export const percent = (value: number) => `${Math.round(value * 100)} %`;
+
 /** Slider that can stay "inherited": then it shows the fallback and saves nothing. */
 export function RangeField({
   label,
