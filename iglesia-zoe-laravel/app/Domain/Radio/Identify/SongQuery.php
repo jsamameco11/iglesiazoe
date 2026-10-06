@@ -18,15 +18,23 @@ final class SongQuery
     /** @var list<string> Co-authors by social handle («@uncorazonorg»), named once a database credits them. */
     public readonly array $handles;
 
-    /** @param  list<string>  $featured */
+    /** @var list<string> Who may have sung it first, when the name says it is a cover («(Julio Melgar - Cover)»). */
+    public readonly array $originals;
+
+    /**
+     * @param  list<string>  $featured
+     * @param  list<string>  $originals
+     */
     public function __construct(
         string $title,
         public readonly string $artist = '',
         array $featured = [],
         public readonly ?float $duration = null,
+        array $originals = [],
     ) {
         $this->live = Text::isLive($title);
         $this->cuts = Text::cuts($title);
+        $this->originals = Text::unique([...$originals, ...Text::coverOf($title)]);
         $this->title = Text::cleanTitle($title) ?: trim($title);
         $names = Text::unique([...$featured, ...Text::featuredIn($title)]);
         $this->featured = array_values(array_filter($names, fn (string $name) => ! Text::isHandle($name)));
@@ -38,7 +46,7 @@ final class SongQuery
     {
         $notes = implode(' ', array_filter([$this->live ? 'live' : '', ...$this->cuts]));
 
-        return new self($notes !== '' ? "{$title} ({$notes})" : $title, $artist, [...$this->featured, ...$this->handles], $this->duration);
+        return new self($notes !== '' ? "{$title} ({$notes})" : $title, $artist, [...$this->featured, ...$this->handles], $this->duration, $this->originals);
     }
 
     /** @return list<string> */

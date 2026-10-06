@@ -170,6 +170,8 @@ export type SongIdentity = {
   year: number | null;
   cover_url: string | null;
   genres: RadioGenre[];
+  /** Fields filled by inference rather than read from a source, for the admin to check. */
+  guessed?: ("genres" | "year")[];
   artist_info: { name: string | null; kind: string | null; country: string | null; known: boolean; convert: boolean; musicbrainz_id: string | null };
   identity: { confidence?: string; score?: number; sources?: string[]; ids?: Record<string, string> };
 };

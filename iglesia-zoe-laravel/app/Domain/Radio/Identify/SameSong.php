@@ -105,14 +105,15 @@ final class SameSong
 
                 continue;
             }
+            $swapped = self::swapped($song);
             $matches = [];
             foreach ($tracks as [$track, $other]) {
-                if ($verdict = self::judge($facts, $other)) {
+                if ($verdict = self::judgeBothWays($facts, $swapped, $other)) {
                     $matches[] = [...$verdict, 'track' => self::brief($track)];
                 }
             }
             foreach ($earlier as $earlierKey => $other) {
-                if ($verdict = self::judge($facts, $other)) {
+                if ($verdict = self::judgeBothWays($facts, $swapped, $other)) {
                     $matches[] = [...$verdict, 'batch' => (string) $earlierKey];
                 }
             }
@@ -133,13 +134,51 @@ final class SameSong
     public static function twinIn(array $song, iterable $library): ?RadioTrack
     {
         $facts = self::facts($song);
+        $swapped = self::swapped($song);
         foreach ($library as $track) {
-            if ((self::judge($facts, self::facts(self::songOf($track)))['verdict'] ?? null) === self::SAME) {
+            if ((self::judgeBothWays($facts, $swapped, self::facts(self::songOf($track)))['verdict'] ?? null) === self::SAME) {
                 return $track;
             }
         }
 
         return null;
+    }
+
+    /**
+     * The song read with its name and author the other way round, as file names often come
+     * («Supe Que Me Amabas - Marcela Gándara»); null when it names no author.
+     *
+     * @param  array<string, mixed>  $song
+     * @return array{title: string, numbers: list<int>, lead: string, names: list<string>, album: string, albumName: string, year: ?int, duration: ?float, cuts: list<string>, ids: array<string, string>}|null
+     */
+    private static function swapped(array $song): ?array
+    {
+        $artist = trim((string) ($song['artist'] ?? ''));
+
+        return $artist === '' ? null : self::facts([...$song, 'title' => $artist, 'artist' => (string) ($song['title'] ?? ''), 'featured' => []]);
+    }
+
+    /**
+     * The verdict as the song was written, or as read the other way round when that makes it the same
+     * song (or a possible duplicate) of the other one; another version read backwards is not worth a word.
+     *
+     * @param  array{title: string, numbers: list<int>, lead: string, names: list<string>, album: string, albumName: string, year: ?int, duration: ?float, cuts: list<string>, ids: array<string, string>}  $facts
+     * @param  array{title: string, numbers: list<int>, lead: string, names: list<string>, album: string, albumName: string, year: ?int, duration: ?float, cuts: list<string>, ids: array<string, string>}|null  $swapped
+     * @param  array{title: string, numbers: list<int>, lead: string, names: list<string>, album: string, albumName: string, year: ?int, duration: ?float, cuts: list<string>, ids: array<string, string>}  $other
+     * @return array{verdict: string, reasons: list<string>}|null
+     */
+    private static function judgeBothWays(array $facts, ?array $swapped, array $other): ?array
+    {
+        $verdict = self::judge($facts, $other);
+        if ($swapped === null || ($verdict['verdict'] ?? null) === self::SAME) {
+            return $verdict;
+        }
+        $reversed = self::judge($swapped, $other);
+        if (! $reversed || $reversed['verdict'] === self::VERSION || ($verdict && self::RANK[$verdict['verdict']] <= self::RANK[$reversed['verdict']])) {
+            return $verdict;
+        }
+
+        return ['verdict' => $reversed['verdict'], 'reasons' => ['nombre y autor al revés', ...$reversed['reasons']]];
     }
 
     /**
@@ -168,6 +207,7 @@ final class SameSong
             'album' => $track->album,
             'year' => $track->year,
             'duration' => $track->duration,
+            'genres' => $track->genres->pluck('name')->all(),
             'cover' => $track->cover_path,
             'src' => $track->file_path,
         ];

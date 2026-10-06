@@ -149,12 +149,16 @@ final class MusicCatalog
         return $genre;
     }
 
-    /** The known artist with that name or spelling, or null. */
+    /** The known artist with that name or spelling, also written without spaces («MielSanMarcos»), or null. */
     public static function artist(?string $name): ?RadioArtist
     {
         $key = Text::key($name);
+        if ($key === '') {
+            return null;
+        }
+        $compact = str_replace(' ', '', $key);
 
-        return $key === '' ? null : self::artists()[$key] ?? null;
+        return self::artists()[$key] ?? (strlen($compact) >= 6 ? self::compactArtists()[$compact] ?? null : null);
     }
 
     /**
@@ -264,6 +268,21 @@ final class MusicCatalog
         return $memo['artists'];
     }
 
+    /** @return array<string, RadioArtist> Every name of every artist without spaces. */
+    private static function compactArtists(): array
+    {
+        $memo = self::memo();
+        if (! isset($memo['compact'])) {
+            $compact = [];
+            foreach (self::artists() as $key => $artist) {
+                $compact[str_replace(' ', '', (string) $key)] ??= $artist;
+            }
+            $memo['compact'] = $compact;
+        }
+
+        return $memo['compact'];
+    }
+
     private static function remember(RadioArtist $artist): void
     {
         $memo = self::memo();
@@ -275,6 +294,7 @@ final class MusicCatalog
             $artists[Text::key($name)] ??= $artist;
         }
         $memo['artists'] = $artists;
+        unset($memo['compact']);
     }
 
     /** What was read from the database during this request. */

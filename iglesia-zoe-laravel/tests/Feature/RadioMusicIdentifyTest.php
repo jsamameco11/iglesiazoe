@@ -75,7 +75,8 @@ class RadioMusicIdentifyTest extends TestCase
 
         $this->assertTrue($result['found']);
         $this->assertNull($result['album']);
-        $this->assertNull($result['year']);
+        $this->assertSame(2024, $result['year']);
+        $this->assertSame(['year'], $result['guessed']);
         $this->assertSame(['Reguetón cristiano'], array_column($result['genres'], 'name'));
         $this->assertSame(['kind' => 'agrupacion', 'country' => 'PE', 'known' => false], array_intersect_key($result['artist_info'], array_flip(['kind', 'country', 'known'])));
     }

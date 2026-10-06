@@ -279,7 +279,7 @@ class RadioLibraryController extends RadioController
             return $this->fail('Ese audio ya no existe. Recarga la página.', 404);
         }
         $title = trim((string) ($request->filled('title') ? $request->input('title') : $track?->title));
-        $artist = trim((string) ($request->filled('artist') ? $request->input('artist') : $track?->artist));
+        $artist = Text::cleanArtist(trim((string) ($request->filled('artist') ? $request->input('artist') : $track?->artist)));
         if (mb_strlen($title) < 2 || mb_strlen($title) > 160 || mb_strlen($artist) > 120) {
             return $this->fail('Escribe el nombre de la canción para buscarla.');
         }
@@ -294,11 +294,7 @@ class RadioLibraryController extends RadioController
             $names[0] ?? '',
             Text::unique([...array_slice($names, 1), ...$featured]),
             $duration && $duration > 0 ? $duration : null,
-        ));
-        $tagged = MusicCatalog::genre(mb_substr(trim((string) $request->input('genre')), 0, 60));
-        if ($result['genres'] === [] && $tagged) {
-            $result['genres'] = [$tagged->brief()];
-        }
+        ), is_string($request->input('genre')) ? $request->input('genre') : null);
 
         return response()->json(['ok' => true, 'result' => $result]);
     }
@@ -335,7 +331,7 @@ class RadioLibraryController extends RadioController
 
         return response()->json([
             'ok' => true,
-            'results' => (object) SameSong::review($songs, RadioTrack::query()->where('kind', 'musica')->get(), $only),
+            'results' => (object) SameSong::review($songs, RadioTrack::query()->with('genres')->where('kind', 'musica')->get(), $only),
         ]);
     }
 

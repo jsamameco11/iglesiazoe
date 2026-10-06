@@ -87,6 +87,7 @@ class RadioDuplicatesTest extends TestCase
     public function test_an_upload_is_compared_with_the_library_and_with_the_songs_before_it(): void
     {
         $track = $this->track(['title' => 'Renuévame', 'artist' => 'Marcos Witt', 'album' => 'Renuévame', 'year' => 1999, 'duration' => 245.4]);
+        $track->genres()->attach(MusicCatalog::genre('Música cristiana'));
 
         $response = $this->actingAs($this->admin())->postJson(self::ADMIN.'/admin/radio/biblioteca/duplicados', ['songs' => [
             ['key' => 'a', 'title' => 'Renuevame (Audio Oficial)', 'artist' => 'Marcos Witt', 'duration' => 245.9],
@@ -96,9 +97,25 @@ class RadioDuplicatesTest extends TestCase
         ]])->assertOk();
 
         $response->assertJsonPath('results.a.0.verdict', SameSong::SAME)->assertJsonPath('results.a.0.track.id', $track->id)
+            ->assertJsonPath('results.a.0.track.genres', ['Música cristiana'])
             ->assertJsonPath('results.b', [])
             ->assertJsonPath('results.c.0.verdict', SameSong::SAME)->assertJsonPath('results.c.0.batch', 'b')
             ->assertJsonPath('results.d.0.verdict', SameSong::VERSION)->assertJsonPath('results.d.0.track.id', $track->id);
+    }
+
+    public function test_a_song_whose_name_and_author_came_the_other_way_round_is_still_the_song_already_uploaded(): void
+    {
+        $track = $this->track(['title' => 'Supe Que Me Amabas', 'artist' => 'Marcela Gándara', 'duration' => 289.4]);
+
+        $response = $this->actingAs($this->admin())->postJson(self::ADMIN.'/admin/radio/biblioteca/duplicados', ['songs' => [
+            ['key' => 'reversed', 'title' => 'Marcela Gandara', 'artist' => 'Supe que me amabas', 'duration' => 289.4],
+            ['key' => 'other', 'title' => 'Marcela Gandara', 'artist' => 'Te Amo', 'duration' => 201.0],
+        ]])->assertOk();
+
+        $response->assertJsonPath('results.reversed.0.verdict', SameSong::SAME)->assertJsonPath('results.reversed.0.track.id', $track->id)
+            ->assertJsonPath('results.reversed.0.reasons', ['nombre y autor al revés', 'mismo nombre', 'mismo autor', 'misma duración (4:49)'])
+            ->assertJsonPath('results.other', []);
+        $this->assertTrue(SameSong::twinIn(['title' => 'Marcela Gandara', 'artist' => 'Supe que me amabas', 'duration' => 289.4], [$track])?->is($track));
     }
 
     public function test_a_long_upload_sent_as_json_judges_only_the_songs_asked_for_with_the_rest_as_the_songs_before_them(): void

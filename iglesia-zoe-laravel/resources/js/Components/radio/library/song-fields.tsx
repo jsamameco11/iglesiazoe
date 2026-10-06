@@ -233,13 +233,32 @@ export function LookupBadge({ state }: { state: LookupState | null }) {
   const info = result.artist_info;
   const who = [info.kind ? KIND_NAMES[info.kind] : "", info.country ?? "", info.convert ? "convertido" : ""].filter(Boolean).join(" · ");
   const tone = !result.found ? "bg-slate-100 text-slate-700" : result.confidence === "alta" ? "bg-emerald-50 text-emerald-800" : result.confidence === "media" ? "bg-amber-50 text-amber-800" : "bg-orange-50 text-orange-800";
-  const text = !result.found ? "Estilo según su autor" : result.confidence === "alta" ? "✓ Identificada en internet" : result.confidence === "media" ? "Identificada · revísala" : "Coincidencia dudosa · revísala";
+  const guessed = result.guessed ?? [];
+  const text = !result.found
+    ? guessed.includes("genres")
+      ? "No la encontramos en internet"
+      : "Estilo según su autor"
+    : result.confidence === "alta"
+      ? "✓ Identificada en internet"
+      : result.confidence === "media"
+        ? "Identificada · revísala"
+        : "Coincidencia dudosa · revísala";
   return (
     <>
       <span className={`rounded-full px-2 py-0.5 font-semibold ${tone}`} title={sources ? `Confirmado por: ${sources}` : undefined}>
         {text}
       </span>
       {who ? <span className="rounded-full bg-paper px-2 py-0.5 font-semibold text-ink/70">{who}</span> : null}
+      {guessed.includes("genres") ? (
+        <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800" title="Ninguna fuente dijo su estilo, así que le pusimos el general de la radio para que no quede sin categoría. Cámbialo si conoces el correcto.">
+          Estilo sugerido · revísalo
+        </span>
+      ) : null}
+      {guessed.includes("year") ? (
+        <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800" title="Las fuentes no coinciden en el álbum; el año es el del lanzamiento más antiguo de esta misma grabación (misma duración). Corrígelo si sabes otro.">
+          Año probable · revísalo
+        </span>
+      ) : null}
     </>
   );
 }

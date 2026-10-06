@@ -5,7 +5,7 @@ import { duration } from "@/lib/radio";
 export type DuplicateMatch = {
   verdict: "misma" | "version" | "posible";
   reasons: string[];
-  track?: { id: string; title: string; artist: string | null; album: string | null; year: number | null; duration: number | null; cover: string | null; src: string | null };
+  track?: { id: string; title: string; artist: string | null; album: string | null; year: number | null; duration: number | null; genres?: string[]; cover: string | null; src: string | null };
   /** Key of an earlier song of the same upload. */
   batch?: string;
 };
@@ -79,6 +79,17 @@ export function isPending(review: DuplicateReview, decision: DuplicateDecision |
 
 export function decide(review: DuplicateReview, choice: DuplicateChoice): DuplicateDecision {
   return { choice, about: concernKey(review) };
+}
+
+/** What the admin can do with a song that may repeat another; replacing only when it repeats a library song. */
+export function decisionOptions(review: DuplicateReview): { choice: DuplicateChoice; title: string; hint: string }[] {
+  const target = replaceTarget(review);
+  const inBatch = concerns(review).every((match) => match.batch);
+  return [
+    { choice: "skip", title: "No subirla", hint: inBatch ? "Se guarda solo la otra de esta subida." : "Te quedas con la que ya está en la biblioteca." },
+    ...(target ? [{ choice: "replace" as const, title: "Reemplazar la de la biblioteca", hint: `Este audio toma el lugar de «${target.title}»: conserva su nombre, carátula, estilos, rotación y programación.` }] : []),
+    { choice: "both", title: "Guardar ambas", hint: "Quedan las dos en la biblioteca, como canciones aparte." },
+  ];
 }
 
 /** What the player calls a match when it is being listened to: the library song, or the song of the upload by its key. */
@@ -171,6 +182,7 @@ export function DuplicatePanel({
   playing,
   onListen,
   onChoose,
+  onCompare,
 }: {
   review: DuplicateReview;
   decision: DuplicateDecision | null;
@@ -181,23 +193,31 @@ export function DuplicatePanel({
   playing: string | null;
   onListen: (match: DuplicateMatch) => void;
   onChoose: (decision: DuplicateDecision) => void;
+  /** Opens both songs side by side. */
+  onCompare?: () => void;
 }) {
   const matches = matchesOf(review);
   const [first] = matches;
   if (!first) return null;
   const verdict = VERDICT[first.verdict];
   const choice = choiceOf(review, decision);
-  const target = replaceTarget(review);
-  const inBatch = concerns(review).every((match) => match.batch);
-  const options: { choice: DuplicateChoice; title: string; hint: string }[] = [
-    { choice: "skip", title: "No subirla", hint: inBatch ? "Se guarda solo la otra de esta subida." : "Te quedas con la que ya está en la biblioteca." },
-    ...(target ? [{ choice: "replace" as const, title: "Reemplazar la de la biblioteca", hint: `Este audio toma el lugar de «${target.title}»: conserva su nombre, carátula, estilos, rotación y programación.` }] : []),
-    { choice: "both", title: "Guardar ambas", hint: "Quedan las dos en la biblioteca, como canciones aparte." },
-  ];
+  const options = decisionOptions(review);
 
   return (
     <div className={`rounded-xl border px-3 py-2.5 text-[12.5px] leading-5 ${verdict.tone}`} role="status">
-      <p className="font-semibold">{first.batch ? verdict.batch : verdict.library}</p>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <p className="min-w-0 flex-1 font-semibold">{first.batch ? verdict.batch : verdict.library}</p>
+        {onCompare && needsDecision(review) ? (
+          <button
+            type="button"
+            onClick={onCompare}
+            className="shrink-0 rounded-full bg-ink px-3 py-1 text-[11.5px] font-semibold text-white shadow-sm transition hover:bg-ink/85"
+            title="Abre las dos canciones juntas: sus datos campo por campo, sus ondas, escucha A/B en el mismo punto y la comparación de su sonido."
+          >
+            ⇆ Comparar lado a lado
+          </button>
+        ) : null}
+      </div>
       <ul className="mt-1.5 space-y-2">
         {matches.map((match, index) => {
           const key = listenKey(match);

@@ -44,7 +44,7 @@ class RadioIdentify extends Command
         $rows = [];
         $changed = 0;
         $this->withProgressBar($tracks, function (RadioTrack $track) use ($identifier, $force, $dry, &$rows, &$changed) {
-            $names = Text::splitNames((string) $track->artist, MusicCatalog::joinedNames());
+            $names = Text::splitNames(Text::cleanArtist((string) $track->artist), MusicCatalog::joinedNames());
             $result = $identifier->identify(new SongQuery(
                 $track->title,
                 $names[0] ?? '',
@@ -83,7 +83,7 @@ class RadioIdentify extends Command
             'musicbrainz_id' => $result['artist_info']['musicbrainz_id'] ?? null,
         ])]];
         $changed = false;
-        if ($result['artist'] && Text::key($result['artist']) === Text::key($track->artist) && $result['artist'] !== $track->artist) {
+        if ($result['artist'] && Text::key($result['artist']) === Text::key(Text::cleanArtist((string) $track->artist)) && $result['artist'] !== $track->artist) {
             $values['artist'] = $result['artist'];
             $changed = true;
         }

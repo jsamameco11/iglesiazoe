@@ -25,6 +25,8 @@ import {
   type DuplicateMatch,
   type DuplicateReview,
 } from "./duplicates";
+import { printOf } from "@/lib/radio/fingerprint";
+import { CompareDialog, type ComparePair, type CompareSide } from "./compare-dialog";
 import { CoAuthorsField, CoverPicker, GenrePicker, LookupBadge, MusicNote, cleanYear, identifySong, identityJson, mergeNames, plain, type LookupState } from "./song-fields";
 
 type Kind = RadioTrack["kind"];
@@ -269,6 +271,9 @@ function fill(current: Upload, base: Upload, state: LookupState, force: boolean,
       next.coverUrl = result.cover_url;
     }
     next.identity = identityJson(result);
+  } else {
+    if (result.title && untouched("title") && (force || current.source !== "tags")) next.title = result.title;
+    if (result.artist && untouched("artist")) next.artist = result.artist;
   }
   const sameGenres = current.genres.map((genre) => genre.id).join() === base.genres.map((genre) => genre.id).join();
   if (result.genres.length && sameGenres && (force || current.genres.length === 0)) next.genres = result.genres.slice(0, limits.genres);
@@ -291,6 +296,8 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
   const [reviewFailures, setReviewFailures] = useState(0);
   const [flash, setFlash] = useState<string | null>(null);
   const [visited, setVisited] = useState<Record<string, number>>({});
+  /** The repeated song open side by side with the ones it may repeat. */
+  const [comparing, setComparing] = useState<string | null>(null);
   const picker = useRef<HTMLInputElement>(null);
   const depth = useRef(0);
   const player = useRef<HTMLAudioElement | null>(null);
@@ -595,6 +602,11 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
     if (other) togglePreview(other);
   }
 
+  function compare(key: string) {
+    stopPreview();
+    setComparing(key);
+  }
+
   /** The same choice for every song that may repeat another, for long uploads. */
   function decideAll(choice: DuplicateChoice) {
     setQueue((list) => list.map((item) => (isSongReady(item) && needsDecision(item.duplicates) ? { ...item, decision: decide(item.duplicates, choice), blocked: false, error: undefined } : item)));
@@ -746,6 +758,49 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
   const songs = queue.filter((item) => item.kind === "musica" && item.status !== "done");
   const position = (kind: string, items: Upload[]) => (visited[kind] !== undefined && items.length > 1 ? ` (${(visited[kind] % items.length) + 1} de ${items.length})` : "");
 
+  /** Repeated songs in the order they are shown, to go through them side by side. */
+  const comparable = ordered.filter(isRepeat);
+  const compared = comparable.find((item) => item.key === comparing) ?? null;
+  const sideOf = (item: Upload, place: string): CompareSide => ({
+    key: item.key,
+    place,
+    title: item.title.trim() || item.file.name,
+    credit: [item.artist.trim(), ...item.featured].filter(Boolean).join(", "),
+    album: item.album.trim(),
+    year: item.year,
+    duration: item.duration,
+    genres: item.genres.map((genre) => genre.name),
+    cover: item.coverUrl,
+    audio: item.file,
+    bytes: item.file.size,
+    fileName: item.file.name,
+  });
+  const pairsOf = (item: Upload): ComparePair[] =>
+    concerns(item.duplicates).flatMap((match) => {
+      if (match.track) {
+        const track = match.track;
+        return [{ match, other: { key: `track:${track.id}`, place: "En la biblioteca", title: track.title, credit: track.artist ?? "", album: track.album ?? "", year: track.year ? String(track.year) : "", duration: track.duration, genres: track.genres ?? [], cover: track.cover, audio: track.src, bytes: null, fileName: null } }];
+      }
+      const other = queue.find((entry) => entry.key === match.batch);
+      return other ? [{ match, other: sideOf(other, "Otra de esta subida") }] : [];
+    });
+  const stepCompare = (from: Upload, direction: -1 | 1) => {
+    const at = comparable.findIndex((item) => item.key === from.key);
+    setComparing(comparable[(at + direction + comparable.length) % comparable.length].key);
+  };
+  /** Saves the choice and moves on to the next repeated song still waiting for one. */
+  const chooseCompared = (item: Upload, decision: DuplicateDecision) => {
+    edit(item, { decision });
+    const at = comparable.findIndex((entry) => entry.key === item.key);
+    const next = [...comparable.slice(at + 1), ...comparable.slice(0, at)].find((entry) => isPending(entry.duplicates, entry.decision));
+    if (next) setComparing(next.key);
+  };
+  const upcoming = compared ? [...comparable.slice(comparable.indexOf(compared) + 1), ...comparable.slice(0, comparable.indexOf(compared))].find((item) => isPending(item.duplicates, item.decision)) : undefined;
+  useEffect(() => {
+    if (!upcoming) return;
+    [upcoming.file, ...pairsOf(upcoming).map((pair) => pair.other.audio)].forEach((audio) => audio && printOf(audio).catch(() => null));
+  }, [upcoming?.key]);
+
   const card = (item: Upload, grouped = false) => (
     <UploadCard
       key={item.key}
@@ -772,6 +827,7 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
       onCover={(file) => setCover(item, file)}
       onPreview={() => togglePreview(item)}
       onRemove={() => remove(item)}
+      onCompare={() => compare(item.key)}
     />
   );
 
@@ -788,6 +844,16 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
           {auto ? "El resto se sigue subiendo mientras tanto: cada una de estas se sube (o no) apenas decidas." : "Al guardar, el resto se sube sin esperarlas: cada una de estas se sube (o no) apenas decidas."}
         </p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
+          {comparable.length ? (
+            <button
+              type="button"
+              onClick={() => compare((verdicts.find(isRepeat) ?? comparable[0]).key)}
+              className="rounded-full bg-ink px-3 py-1 text-[12px] font-semibold text-white shadow-sm transition hover:bg-ink/85"
+              title="Abre cada repetida junto a la que ya tienes: datos campo por campo, ondas, escucha A/B y comparación del sonido."
+            >
+              ⇆ Compararlas lado a lado, una por una
+            </button>
+          ) : null}
           {verdicts.length ? (
             <button type="button" onClick={() => goTo("verdict", verdicts)} className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-ink shadow-sm transition hover:bg-ink hover:text-white">
               Ir a la siguiente sin decidir{position("verdict", verdicts)}
@@ -814,6 +880,15 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
           <span className="rounded-full bg-ink px-2.5 py-0.5 text-white">Grupo {index + 1} de {groups.length}</span>
           <span className={same ? "text-red-800" : "text-amber-900"}>{same ? "La misma canción" : "Posible duplicado"}</span>
           <span>· {group.length > 1 ? `${group.length} canciones de esta subida` : "con una de la biblioteca"}</span>
+          {group.some(isRepeat) ? (
+            <button
+              type="button"
+              onClick={() => compare((group.find((item) => isRepeat(item) && isPending(item.duplicates, item.decision)) ?? group.find(isRepeat) ?? group[0]).key)}
+              className="ml-auto rounded-full bg-white px-2.5 py-0.5 text-[11.5px] font-semibold text-ink shadow-sm ring-1 ring-line transition hover:bg-ink hover:text-white"
+            >
+              ⇆ Comparar lado a lado
+            </button>
+          ) : null}
         </div>,
       );
       group.forEach((item) => {
@@ -1016,6 +1091,20 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
           </div>
         </div>
       )}
+      {compared ? (
+        <CompareDialog
+          song={sideOf(compared, "La nueva")}
+          pairs={pairsOf(compared)}
+          review={compared.duplicates}
+          decision={compared.decision}
+          disabled={compared.status !== "ready"}
+          position={{ index: comparable.indexOf(compared), total: comparable.length, pending: comparable.filter((item) => isPending(item.duplicates, item.decision)).length }}
+          onStep={(direction) => stepCompare(compared, direction)}
+          onChoose={(decision) => chooseCompared(compared, decision)}
+          onSwap={() => edit(compared, { title: compared.artist, artist: compared.title })}
+          onClose={() => setComparing(null)}
+        />
+      ) : null}
     </section>
   );
 }
@@ -1068,6 +1157,7 @@ function UploadCard({
   onCover,
   onPreview,
   onRemove,
+  onCompare,
 }: {
   item: Upload;
   phase: Phase;
@@ -1095,6 +1185,7 @@ function UploadCard({
   onCover: (file: File | null) => void;
   onPreview: () => void;
   onRemove: () => void;
+  onCompare: () => void;
 }) {
   const song = item.kind === "musica";
   const locked = item.status === "reading" || item.status === "uploading" || item.status === "done";
@@ -1302,7 +1393,7 @@ function UploadCard({
             </div>
           ) : null}
           {song && item.status === "ready" ? (
-            <DuplicatePanel review={item.duplicates} decision={item.decision} disabled={locked} nameOf={nameOf} playing={playing} onListen={onListen} onChoose={(decision) => onPatch({ decision })} />
+            <DuplicatePanel review={item.duplicates} decision={item.decision} disabled={locked} nameOf={nameOf} playing={playing} onListen={onListen} onChoose={(decision) => onPatch({ decision })} onCompare={onCompare} />
           ) : null}
           {item.error ? (
             <p className="flex flex-wrap items-center gap-2 text-xs font-medium text-red-700">

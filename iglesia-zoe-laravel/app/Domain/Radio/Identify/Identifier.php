@@ -47,7 +47,7 @@ final class Identifier
     private const CUT_ALBUM = '/\b(instrumental|instrumentales|instrumentals|pistas?|karaoke|performance tracks?|backing tracks?|playback|made popular|in the style of|tribute|tributo|remix|remixes|sped up|slowed|lofi|lo fi|piano)\b/';
 
 
-    private const CACHE = 'radio-identify:v2:';
+    private const CACHE = 'radio-identify:v3:';
 
     public function __construct(
         private readonly ITunes $iTunes,
@@ -57,27 +57,31 @@ final class Identifier
     ) {}
 
     /**
+     * Every song comes out with at least one genre: when nothing confirms one, the radio's general genre
+     * goes, and `guessed` says which fields are a best guess to review (genres, year).
+     *
+     * @param  string|null  $fileGenre  Genre written in the file's tags.
      * @return array{
      *     found: bool, confidence: ?string, sources: list<string>, title: ?string, artist: ?string,
      *     featured: list<string>, album: ?string, year: ?int, cover_url: ?string,
-     *     genres: list<array{id: string, name: string, family: string}>,
+     *     genres: list<array{id: string, name: string, family: string}>, guessed: list<string>,
      *     artist_info: array{name: ?string, kind: ?string, country: ?string, known: bool, convert: bool, musicbrainz_id: ?string},
      *     identity: array<string, mixed>
      * }
      */
-    public function identify(SongQuery $query): array
+    public function identify(SongQuery $query, ?string $fileGenre = null): array
     {
         $first = null;
         foreach ($this->readings($query) as $reading) {
             $found = $this->found($reading);
             if ($found['found']) {
-                return $this->classify($reading, $found);
+                return $this->classify($reading, $found, $fileGenre);
             }
             $first ??= [$reading, $found];
         }
         [$reading, $found] = $first ?? [$query, ['found' => false]];
 
-        return $this->classify($reading, $found);
+        return $this->classify($reading, $found, $fileGenre);
     }
 
     /**
@@ -230,6 +234,8 @@ final class Identifier
         };
         $first = fn (string $source) => collect($recording)->first(fn (Candidate $candidate) => $candidate->source === $source)
             ?? collect($matched)->first(fn (Candidate $candidate) => $candidate->source === $source);
+        $year = $songYear ?? $this->year($versions);
+        $likelyYear = $year === null ? $this->likelyYear($same ?: $versions, $query->duration) : null;
 
         return [
             'found' => true,
@@ -245,7 +251,8 @@ final class Identifier
             'artist' => $artistName,
             'featured' => array_slice($featured, 0, RadioTrack::MAX_FEATURED),
             'album' => $album['name'] ?? null,
-            'year' => $songYear ?? $this->year($versions),
+            'year' => $year ?? $likelyYear,
+            'guessed' => $likelyYear !== null ? ['year'] : [],
             'cover' => $album['cover'] ?? $this->cover($recording),
             'tags' => array_values($tags),
             'artist_info' => $info,
@@ -304,7 +311,8 @@ final class Identifier
     }
 
     /**
-     * Versions that are the song, best first; on a tie, albums before singles and compilations.
+     * Versions that are the song, best first; a Christian version leads one of another artist that scores
+     * just as well, and on a tie albums go before singles and compilations.
      *
      * @param  array<string, Candidate>  $candidates
      * @return list<Candidate>
@@ -323,9 +331,27 @@ final class Identifier
 
             return $candidate->artistScore >= 0.75;
         }));
-        usort($matched, fn (Candidate $a, Candidate $b) => [$b->score, self::rank($b)] <=> [$a->score, self::rank($a)]);
+        usort($matched, fn (Candidate $a, Candidate $b) => [$b->score + self::christianLead($b), self::rank($b)] <=> [$a->score + self::christianLead($a), self::rank($a)]);
 
         return $matched;
+    }
+
+    /** The lead of a version of Christian music on this church radio: its artist is in the catalog, or a database files it under a Christian genre. */
+    private static function christianLead(Candidate $candidate): float
+    {
+        $artist = MusicCatalog::artist($candidate->artist);
+        if ($artist && ! $artist->convert) {
+            return 0.03;
+        }
+        foreach ($candidate->tags as [$names]) {
+            foreach (explode('||', (string) $names) as $name) {
+                if (MusicCatalog::genre($name)?->family === 'cristiana') {
+                    return 0.03;
+                }
+            }
+        }
+
+        return 0.0;
     }
 
     /** Asks Deezer what kind of release each version is on (album, EP, single or compilation), best versions first. @param list<Candidate> $versions */
@@ -408,6 +434,7 @@ final class Identifier
                 $groups[] = ['names' => [$name], 'sources' => [$candidate->source => true]];
             }
         }
+        unset($group);
         $spelling = function (array $names): string {
             foreach ($names as $name) {
                 if ($known = MusicCatalog::artist($name)) {
@@ -535,6 +562,21 @@ final class Identifier
         return null;
     }
 
+    /**
+     * Year of the recording when no two databases agree on one: the earliest a database gives for this very
+     * recording (the same length, not a compilation), MusicBrainz's first. A best guess, to review.
+     *
+     * @param  list<Candidate>  $versions
+     */
+    private function likelyYear(array $versions, ?float $duration): ?int
+    {
+        $exact = array_filter($versions, fn (Candidate $candidate) => $candidate->year && $candidate->albumType !== Candidate::COMPILATION
+            && ($duration ? ($gap = $candidate->gap($duration)) !== null && $gap <= self::EXACT_LENGTH : $candidate->score >= self::SURE));
+        $curated = array_filter($exact, fn (Candidate $candidate) => $candidate->source === MusicBrainz::NAME);
+
+        return self::earliest(array_map(fn (Candidate $candidate) => $candidate->year, $curated ?: $exact));
+    }
+
     /** The best cover among the versions: Apple's 600 px, then Deezer's, then the Cover Art Archive. @param list<Candidate> $versions */
     private function cover(array $versions): ?string
     {
@@ -548,8 +590,12 @@ final class Identifier
         return null;
     }
 
-    /** Classifies what was found with the catalog: the canonical author, co-authors and up to three genres. */
-    private function classify(SongQuery $query, array $found): array
+    /**
+     * Classifies what was found with the catalog: the canonical author, co-authors and up to three genres. The genres
+     * weigh, in this order: the author's in the catalog, the original singer's of a cover, the databases' tags, the
+     * co-authors' and the file's tag; with none of them, the radio's general genre.
+     */
+    private function classify(SongQuery $query, array $found, ?string $fileGenre = null): array
     {
         $catalog = MusicCatalog::artist($found['artist'] ?? null) ?? MusicCatalog::artist($query->artist);
         $artist = $catalog?->name ?? ($found['artist'] ?? null) ?? ($query->artist ?: null);
@@ -572,6 +618,13 @@ final class Identifier
                 $add($genre, 1.2);
             }
         }
+        $original = collect($query->originals)->map(fn (string $name) => MusicCatalog::artist($name))->filter()->first();
+        if ($original) {
+            $christian = $christian || ! $original->convert;
+            foreach ($original->genres->take(2) as $position => $genre) {
+                $add($genre, 2.5 - 0.5 * $position);
+            }
+        }
         foreach ($found['tags'] ?? [] as [$names, $weight]) {
             foreach (explode('||', (string) $names) as $name) {
                 if ($genre = MusicCatalog::genre($name)) {
@@ -581,6 +634,11 @@ final class Identifier
                     break;
                 }
             }
+        }
+        $tagged = $fileGenre !== null ? MusicCatalog::genre(mb_substr(trim($fileGenre), 0, 60)) : null;
+        if ($tagged) {
+            $christian = $christian || $tagged->family === 'cristiana';
+            $add($tagged, 1.0);
         }
         if ($christian) {
             foreach ($scores as $id => $entry) {
@@ -598,8 +656,12 @@ final class Identifier
         uasort($scores, fn (array $a, array $b) => $b['score'] <=> $a['score']);
         $top = $scores ? reset($scores)['score'] : 0;
         $genres = collect($scores)->filter(fn (array $entry) => $entry['score'] >= max(0.9, $top * 0.4))->take(3)->pluck('genre');
-        if ($genres->isEmpty() && $christian && $general) {
+        $guessed = $found['guessed'] ?? [];
+        if ($genres->isEmpty() && $general) {
             $genres = collect([$general]);
+            if (! $christian) {
+                $guessed[] = 'genres';
+            }
         }
 
         $sources = $found['sources'] ?? [];
@@ -612,13 +674,14 @@ final class Identifier
             'found' => (bool) $found['found'],
             'confidence' => $found['confidence'] ?? null,
             'sources' => array_values(array_unique($sources)),
-            'title' => $found['title'] ?? null,
+            'title' => $found['title'] ?? ($query->title !== '' ? $query->title : null),
             'artist' => $artist,
             'featured' => array_values($featured),
             'album' => $found['album'] ?? null,
             'year' => $found['year'] ?? null,
             'cover_url' => $found['cover'] ?? null,
             'genres' => $genres->map(fn (RadioGenre $genre) => $genre->brief())->values()->all(),
+            'guessed' => array_values(array_unique($guessed)),
             'artist_info' => [
                 'name' => $artist,
                 'kind' => $catalog?->kind ?? ($info['kind'] ?? null),

@@ -22,6 +22,12 @@ final class Text
     /** Endings of a social handle that are not part of the name: @uncorazonorg → «un corazon». */
     private const HANDLE_END = '/(oficial|official|org|music|musica|tv|band|banda|ministries|ministerio|channel|vevo|records|online)$/';
 
+    /** A video label in the middle of a name, and whatever follows it: «Libre Soy Video Oficial Radical Live» → «Libre Soy». */
+    private const LABEL_INSIDE = '/(?<=[\p{L}\p{N}])\s+(?:(?:video|v[ií]deo|videoclip)\s+(?:oficial|official|musical|lyrics?|de\s+letras?|con\s+letras?)|(?:official|oficial)\s+(?:music\s+)?(?:video|v[ií]deo|audio|lyric\s+video)|lyric\s*video|video\s*lyrics?|audio\s+(?:oficial|official)|con\s+letras?|letra\s+oficial)\b.*$/iu';
+
+    /** Channel labels after an author: «Miel San Marcos - En Vivo», «Hillsong Worship - Topic», «Marcos Witt Oficial». */
+    private const ARTIST_LABEL = '/(?:\s*[\(\[]\s*(?:en vivo|ao vivo|live|oficial|official)\s*[\)\]]|\s*[-–—|:]\s*(?:topic|tema|en vivo|ao vivo|live|oficial|official|canal oficial|official channel|videos?|music|m[uú]sica)|\s+(?:oficial|official|canal oficial|official channel))\s*$/iu';
+
     /** Lowercase, without accents or punctuation: «Renuévame (En Vivo)» → «renuevame en vivo». */
     public static function key(?string $value): string
     {
@@ -40,9 +46,47 @@ final class Text
         $title = preg_replace('/\s+(feat\.?|ft\.?|featuring)\s+.+$/iu', '', $title) ?? $title;
         $title = preg_replace('/(^|\s)@[\w.]+/u', ' ', $title) ?? $title;
         $title = preg_replace('/^\s*(?:(?:video\s*-?\s*lyrics?|lyrics?\s*-?\s*video|videolyrics?|lyricvideo|(?:official|oficial)\s+(?:music\s+)?(?:video|v[ií]deo|audio)|(?:video|v[ií]deo|audio)\s+(?:official|oficial)|estreno|premiere)\b[\s:|·.-]*)+/iu', '', $title) ?? $title;
+        $title = preg_replace(self::LABEL_INSIDE, '', $title) ?? $title;
         $title = preg_replace('/\s+(?:(?:official|oficial)\s+)?(?:music\s+)?(?:video|videoclip|v[ií]deo|audio|lyric video|lyrics?|letra|visualizer)(?:\s+(?:official|oficial))?\s*$/iu', '', $title) ?? $title;
+        $title = preg_replace('/\s+(?:hd|hq|4k|1080p|720p)\s*$/iu', '', $title) ?? $title;
+        $title = preg_replace('/^\s*\d{1,3}\s*[-.)_]\s+(?=\S)/u', '', $title) ?? $title;
 
         return trim(preg_replace('/\s+/u', ' ', $title) ?? $title, " \t\n\r\0\x0B-–—|·.");
+    }
+
+    /** The author without channel labels: «Miel San Marcos - En Vivo», «Marcos Witt Oficial», «MarcosWittVEVO» → the name. */
+    public static function cleanArtist(string $artist): string
+    {
+        $artist = preg_replace(self::ARTIST_LABEL, '', $artist) ?? $artist;
+        $artist = preg_replace('/(?<=\p{L})vevo\s*$/iu', '', $artist) ?? $artist;
+
+        return trim(preg_replace('/\s+/u', ' ', $artist) ?? $artist, " \t\n\r\0\x0B-–—|·.,");
+    }
+
+    /**
+     * Who sang the song first when its name says it is a cover: «Tus Cuerdas de Amor (Julio Melgar - Cover)» → [Julio Melgar];
+     * «(Jesus I Need You de Hillsong Worship - Cover en español)» → [Jesus I Need You de Hillsong Worship, Hillsong Worship].
+     * The names are only guesses until the catalog knows one of them.
+     *
+     * @return list<string>
+     */
+    public static function coverOf(string $title): array
+    {
+        preg_match_all('/[\(\[]([^\)\]]*\bcover\b[^\)\]]*)[\)\]]/iu', $title, $notes);
+        $names = [];
+        foreach ($notes[1] as $note) {
+            if (preg_match('/\bcover\s+(?:de|by|of)\s+(.+)$/iu', $note, $match)) {
+                $names[] = $match[1];
+            }
+            if (preg_match('/^(.+?)\s*[-–—:|]?\s*\bcover\b/iu', trim($note), $match)) {
+                $names[] = $match[1];
+                if (preg_match('/\s(?:de|by|of)\s+(.+)$/iu', $match[1], $of)) {
+                    $names[] = $of[1];
+                }
+            }
+        }
+
+        return self::unique(array_map(fn (string $name) => trim($name, " \t-–—:|·.,"), $names));
     }
 
     /** Names credited as guests inside a song name: «Derramo el Perfume (feat. Averly Morillo) [Live]» → [Averly Morillo]. */
