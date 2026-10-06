@@ -19,7 +19,7 @@ export function GenerationsSection({ settings, ministries, media }: { settings: 
           {readCopy(settings, "home.generationsMore")} →
         </Link>
       </Rise>
-      <MinistryCards ministries={ministries} media={media} className="mt-12" />
+      <MinistryCards ministries={ministries} media={media} className="mt-12" rotate />
     </section>
   );
 }
