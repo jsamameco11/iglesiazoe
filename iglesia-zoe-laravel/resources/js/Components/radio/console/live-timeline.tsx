@@ -2,6 +2,7 @@ import { useState, type KeyboardEvent } from "react";
 import { StopIcon } from "@/Components/radio/icons";
 import { send } from "@/lib/actions";
 import { ALERT_AHEAD, BEDS, FADES, PLAYERS, clock, duration, laneLabel, shortTitle, type RadioItem, type RadioTrack } from "@/lib/radio";
+import { useProgram, type ProgramItem } from "@/Components/radio/use-program";
 import { useTrackDrop } from "./drag";
 import type { ConsoleApi } from "./use-console";
 
@@ -10,10 +11,21 @@ const ZOOMS = [
   { span: 180_000, tick: 30_000, label: "3 min" },
   { span: 600_000, tick: 60_000, label: "10 min" },
   { span: 1_800_000, tick: 300_000, label: "30 min" },
+  { span: 3_600_000, tick: 600_000, label: "1 h" },
+  { span: 10_800_000, tick: 1_800_000, label: "3 h" },
+  { span: 21_600_000, tick: 3_600_000, label: "6 h" },
+  { span: 43_200_000, tick: 7_200_000, label: "12 h" },
+  { span: 86_400_000, tick: 10_800_000, label: "24 h" },
 ] as const;
 
 /** Share of the window that shows what already played, left of the playhead. */
 const PLAYHEAD = 0.22;
+
+/** The server resolves the program in steps this long, so the request changes only every few minutes. */
+const PROGRAM_STEP = 300_000;
+
+/** From this zoom on (or when moved away from now) the program row shows what the server resolves beyond the queue. */
+const LONG_ZOOM = 3;
 
 type Clip = {
   id: string;
@@ -53,8 +65,17 @@ function stack(clips: Clip[]) {
   return { placed, lanes: Math.max(1, ends.length) };
 }
 
-function programClips(previous: RadioItem | null, queue: RadioItem[], now: number): Clip[] {
-  const items = [previous, ...queue].filter((item, index, list): item is RadioItem => !!item && list.findIndex((other) => other?.id === item.id) === index);
+/**
+ * The program row: the live queue (exact, with its crossfades), and around it what the server
+ * resolves for the rest of the window, song by song.
+ */
+function programClips(previous: RadioItem | null, queue: RadioItem[], now: number, resolved: ProgramItem[] = []): Clip[] {
+  const live = [previous, ...queue].filter((item, index, list): item is RadioItem => !!item && list.findIndex((other) => other?.id === item.id) === index);
+  const first = live[0]?.start ?? now;
+  const last = live.length ? Math.max(...live.map((item) => item.end)) : now;
+  const before = resolved.filter((item) => item.end <= first + 1000 && item.start < first);
+  const after = resolved.filter((item) => item.start >= last - 1000);
+  const items: ProgramItem[] = [...before, ...live, ...after].filter((item, index, list) => list.findIndex((other) => other.id === item.id) === index);
   return items.map((item, index) => {
     const start = item.start >= now ? item.start : Math.min(item.start, item.origin);
     const before = items[index - 1];
@@ -78,10 +99,18 @@ function programClips(previous: RadioItem | null, queue: RadioItem[], now: numbe
 export function LiveTimeline({ api, library, onAlert }: { api: ConsoleApi; library: RadioTrack[]; onAlert: (id: string) => void }) {
   const { state, now, blend, setBlend, talks, talking, upcoming } = api;
   const [zoom, setZoom] = useState(1);
+  /** How far the window was moved from now with the arrows, in ms. */
+  const [offset, setOffset] = useState(0);
   const { span, tick } = ZOOMS[zoom];
-  const from = now - span * PLAYHEAD;
+  const from = now - span * PLAYHEAD + offset;
   const to = from + span;
   const x = (ms: number) => ((ms - from) / span) * 100;
+  const far = zoom >= LONG_ZOOM || offset !== 0;
+  const loadFrom = far ? Math.floor(from / PROGRAM_STEP) * PROGRAM_STEP - PROGRAM_STEP : null;
+  const loadTo = far ? Math.ceil(to / PROGRAM_STEP) * PROGRAM_STEP + PROGRAM_STEP : 0;
+  const resolved = useProgram(loadFrom, loadTo, `${state.queue[0]?.id ?? ""}-${state.queue.length}-${api.config.autofill}-${state.live.cut}`);
+  const playhead = (now - from) / span;
+  const pan = (direction: number) => setOffset((value) => (direction === 0 ? 0 : Math.max(-span * 2, Math.min(36 * 3_600_000 - span, value + (direction * span) / 2))));
 
   const live = state.layers.filter((layer) => layer.source === "live");
   const laneClips = (lane: string): Clip[] =>
@@ -112,7 +141,7 @@ export function LiveTimeline({ api, library, onAlert }: { api: ConsoleApi; libra
 
   const rows: Row[] = [
     ...(upcoming.length ? [{ id: "alert", label: "Programado", hint: "", clips: alertClips }] : []),
-    { id: "main", label: "Programa", hint: "Suelta aquí para ponerlo al aire ya", clips: programClips(state.previous, state.queue, now), lane: "main" },
+    { id: "main", label: "Programa", hint: "Suelta aquí para ponerlo al aire ya", clips: programClips(state.previous, state.queue, now, far ? resolved ?? [] : []), lane: "main" },
     {
       id: "sched",
       label: "Capas prog.",
@@ -150,8 +179,23 @@ export function LiveTimeline({ api, library, onAlert }: { api: ConsoleApi; libra
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="cx-seg" role="group" aria-label="Zoom">
             {ZOOMS.map((item, index) => (
-              <button key={item.label} type="button" onClick={() => setZoom(index)} data-on={zoom === index || undefined}>{item.label}</button>
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => {
+                  setZoom(index);
+                  setOffset(0);
+                }}
+                data-on={zoom === index || undefined}
+              >
+                {item.label}
+              </button>
             ))}
+          </div>
+          <div className="cx-seg" role="group" aria-label="Mover la línea de tiempo">
+            <button type="button" onClick={() => pan(-1)} title="Ver lo anterior" aria-label="Ver lo anterior">‹</button>
+            <button type="button" onClick={() => pan(0)} data-on={offset === 0 || undefined} title="Volver a lo que suena ahora">Ahora</button>
+            <button type="button" onClick={() => pan(1)} title="Ver lo que sigue" aria-label="Ver lo que sigue">›</button>
           </div>
           <label className="cx-seg !gap-1.5 !px-2 text-[10.5px] text-white/55" title="Empalme: fundido de entrada y cruce al soltar o enviar un sonido">
             Empalme
@@ -173,7 +217,7 @@ export function LiveTimeline({ api, library, onAlert }: { api: ConsoleApi; libra
             {ticks.map((t) => (
               <span key={t} className="cx-tick" style={{ left: `${x(t)}%` }}>{clock(t, span <= 600_000)}</span>
             ))}
-            <span className="cx-now-label" style={{ left: `${PLAYHEAD * 100}%` }}>{clock(now, true)}</span>
+            {playhead >= 0 && playhead <= 1 ? <span className="cx-now-label" style={{ left: `${playhead * 100}%` }}>{clock(now, true)}</span> : null}
           </div>
         </div>
         {ahead.map((block) => {
@@ -196,7 +240,8 @@ export function LiveTimeline({ api, library, onAlert }: { api: ConsoleApi; libra
             {shortTitle(beyond[0].title, 24)} · {clock(beyond[0].start)} →
           </button>
         ) : null}
-        <div className="cx-playhead" style={{ left: `calc(var(--cx-head) + (100% - var(--cx-head)) * ${PLAYHEAD})` }} aria-hidden />
+        {playhead >= 0 && playhead <= 1 ? <div className="cx-playhead" style={{ left: `calc(var(--cx-head) + (100% - var(--cx-head)) * ${playhead})` }} aria-hidden /> : null}
+        {far && !resolved ? <span className="cx-timeline-loading">Cargando la programación…</span> : null}
       </div>
     </div>
   );

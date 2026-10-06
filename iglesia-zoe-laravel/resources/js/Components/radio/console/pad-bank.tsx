@@ -4,6 +4,7 @@ import { DuckIcon, StopIcon } from "@/Components/radio/icons";
 import { send } from "@/lib/actions";
 import { KIND_LABEL, duration, shortTitle, type RadioTrack } from "@/lib/radio";
 import { useTrackDrop } from "./drag";
+import { EffectsLibrary } from "./effects-library";
 import type { ConsoleApi } from "./use-console";
 
 const MAX_PADS = 16;
@@ -22,6 +23,7 @@ export async function addPad(pads: RadioTrack[], track: RadioTrack): Promise<{ p
 export function PadBank({ api, pads, setPads, library, onAdd }: { api: ConsoleApi; pads: RadioTrack[]; setPads: (pads: RadioTrack[]) => void; library: RadioTrack[]; onAdd: (track: RadioTrack) => void }) {
   const { state, now, layerAction } = api;
   const [picking, setPicking] = useState(false);
+  const [effects, setEffects] = useState<"browse" | "starter" | null>(null);
   const drop = useTrackDrop(library, onAdd);
   const [fired, setFired] = useState<string | null>(null);
   const sounding = state.layers.filter((layer) => layer.lane === "pad" && layer.start <= now && now < layer.end);
@@ -35,7 +37,7 @@ export function PadBank({ api, pads, setPads, library, onAdd }: { api: ConsoleAp
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
-      if (picking || event.ctrlKey || event.metaKey || event.altKey || target?.closest("input, select, textarea, [contenteditable]")) return;
+      if (picking || effects || event.ctrlKey || event.metaKey || event.altKey || target?.closest("input, select, textarea, [contenteditable]")) return;
       const index = KEYS.indexOf(event.key);
       if (index >= 0 && pads[index]) {
         event.preventDefault();
@@ -51,6 +53,7 @@ export function PadBank({ api, pads, setPads, library, onAdd }: { api: ConsoleAp
       <div className="cx-head">
         <p className="studio-label">Botonera · {pads.length}/{MAX_PADS}</p>
         <div className="flex gap-1">
+          <button type="button" onClick={() => setEffects("browse")} className="cx-btn" data-tone="green" title="Efectos de fábrica por categoría">Efectos</button>
           <button type="button" onClick={() => setPicking(true)} className="cx-btn" data-tone="blue">Editar</button>
           <button type="button" disabled={!sounding.length} onClick={() => api.stop({ lane: "pad" }, 1)} className="cx-btn" data-tone="amber">Fundir</button>
           <button type="button" disabled={!sounding.length} onClick={() => layerAction({ action: "stop", lane: "pad" })} className="cx-btn" data-tone="red" aria-label="Cortar la botonera">
@@ -88,13 +91,18 @@ export function PadBank({ api, pads, setPads, library, onAdd }: { api: ConsoleAp
           })}
         </div>
       ) : (
-        <p className="mt-2 rounded-lg border border-dashed border-white/15 px-3 py-5 text-center text-xs text-white/45">
-          Suelta aquí sonidos de la biblioteca o usa «Editar» para armar tu botonera.
-        </p>
+        <div className="mt-2 rounded-lg border border-dashed border-white/15 px-3 py-4 text-center">
+          <p className="text-xs text-white/55">La botonera está vacía. Cárgala con efectos listos para hacer radio o elige los tuyos.</p>
+          <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
+            <button type="button" onClick={() => setEffects("starter")} className="cx-btn" data-tone="green">Cargar botonera básica</button>
+            <button type="button" onClick={() => setEffects("browse")} className="cx-btn">Ver todos los efectos</button>
+          </div>
+        </div>
       )}
-      <p className="mt-2 text-[10.5px] leading-4 text-white/35">Teclas 1–0 · suelta un sonido aquí para agregarlo.</p>
+      <p className="mt-2 text-[10.5px] leading-4 text-white/35">Teclas 1–0 · suelta un sonido aquí para agregarlo · «Efectos» abre los sonidos de fábrica.</p>
 
       {picking ? <PadPicker library={library} chosen={pads} onClose={() => setPicking(false)} onSaved={setPads} /> : null}
+      {effects ? <EffectsLibrary pads={pads} onSaved={setPads} onClose={() => setEffects(null)} starter={effects === "starter"} /> : null}
     </div>
   );
 }

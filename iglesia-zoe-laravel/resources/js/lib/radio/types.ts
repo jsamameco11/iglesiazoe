@@ -46,7 +46,8 @@ export type RadioMix = { music: number; fx: number; bed: number; duck: number; v
 export type RadioLive = {
   on: boolean;
   session: string | null;
-  host: string;
+  /** Name of the episode or transmission on air: the one written in the console, or the scheduled live block. */
+  title: string;
   mic: boolean;
   started_at: number | null;
   rev: number;

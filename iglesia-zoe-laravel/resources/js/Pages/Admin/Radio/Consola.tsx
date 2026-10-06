@@ -2,7 +2,7 @@ import { useState } from "react";
 import { RadioHeader } from "@/Components/radio/admin-ui";
 import { AutoStartPanel } from "@/Components/radio/console/auto-start-panel";
 import { Decks } from "@/Components/radio/console/decks";
-import { LivePanel } from "@/Components/radio/console/live-panel";
+import { EpisodeField, LivePanel } from "@/Components/radio/console/live-panel";
 import { LiveTimeline } from "@/Components/radio/console/live-timeline";
 import { Mixer } from "@/Components/radio/console/mixer";
 import { PadBank, addPad } from "@/Components/radio/console/pad-bank";
@@ -22,11 +22,13 @@ type Props = Snapshot & {
   today: string;
   day: RadioBlock[];
   host: string;
+  /** Name of the live block scheduled now or about to start, to suggest it for the transmission. */
+  episode: string;
   playlists: RadioPlaylist[];
 };
 
-export default function Consola({ radio, live, voice, config, autopilot, upcoming, pads: initialPads, library, day, host, playlists }: Props) {
-  const api = useConsole({ radio, live, voice, config, autopilot, upcoming }, host);
+export default function Consola({ radio, live, voice, config, autopilot, upcoming, pads: initialPads, library, day, episode, playlists }: Props) {
+  const api = useConsole({ radio, live, voice, config, autopilot, upcoming }, episode);
   const { notice, setNotice, now, state } = api;
   const [pads, setPads] = useState(initialPads);
   const [alert, setAlert] = useState<string | null>(null);
@@ -59,6 +61,7 @@ export default function Consola({ radio, live, voice, config, autopilot, upcomin
             <span className="h-2 w-2 rounded-full bg-current" /> {state.live.cut ? "En vivo" : session ? "On air" : "Piloto automático"}
           </span>
           {session ? <span className="cx-stat font-mono tabular-nums text-white">{api.live.started_at ? duration((now - api.live.started_at) / 1000) : "0:00"}</span> : null}
+          <EpisodeField api={api} />
           <span className="cx-stat font-mono tabular-nums" title="Hora de Lima">{clock(now, true)}</span>
           <span className="cx-stat min-w-0 flex-1" title={current?.title}>
             <span className="cx-stat-key">Ahora</span>

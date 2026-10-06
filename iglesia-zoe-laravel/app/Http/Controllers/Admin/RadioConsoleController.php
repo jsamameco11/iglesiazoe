@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Radio\Autopilot;
 use App\Domain\Radio\LiveSwitch;
+use App\Domain\Radio\RadioAudio;
 use App\Domain\Radio\Schedule;
 use App\Domain\Radio\Signal;
 use App\Domain\Radio\Station;
@@ -12,6 +13,7 @@ use App\Models\RadioTrack;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -20,6 +22,13 @@ use Inertia\Response;
 class RadioConsoleController extends RadioController
 {
     private const MAX_SDP = 20000;
+
+    /** Factory effects: longest one, heaviest WAV, and the author they are filed under in the library. */
+    private const MAX_EFFECT_SECONDS = 30;
+
+    private const MAX_EFFECT_MB = 6;
+
+    private const EFFECTS_ARTIST = 'Efectos Zoe';
 
     public function index(Request $request): Response
     {
@@ -32,6 +41,7 @@ class RadioConsoleController extends RadioController
             'today' => $today,
             'day' => Schedule::day($today),
             'host' => $request->user()->full_name ?: $request->user()->username,
+            'episode' => Station::scheduledLiveTitle(Station::nowMs()) ?? '',
             'playlists' => $this->playlists(true),
         ]);
     }
@@ -44,7 +54,7 @@ class RadioConsoleController extends RadioController
             if (! Station::config()['on_air']) {
                 Station::saveConfig(['on_air' => true]);
             }
-            Station::startLive($host);
+            Station::startLive($host, $this->episodeTitle($request));
         } elseif ($action === 'stop') {
             Station::endLive();
         } elseif ($action === 'air') {
@@ -68,6 +78,7 @@ class RadioConsoleController extends RadioController
                 'bed' => $request->has('bed') ? $request->boolean('bed') : null,
                 'mic' => $request->has('mic') ? $request->boolean('mic') : null,
                 'host' => $request->filled('host') ? mb_substr(trim((string) $request->input('host')), 0, 80) : null,
+                'title' => $request->has('title') ? $this->episodeTitle($request) : null,
             ], fn ($value) => $value !== null));
         } else {
             return $this->fail('Acción desconocida.');
@@ -245,7 +256,7 @@ class RadioConsoleController extends RadioController
             if (! $external && ! Station::live()['session']) {
                 return $this->fail('Abre la transmisión en vivo (micrófono) antes de cortar la música.', 409);
             }
-            LiveSwitch::cut(Station::live()['host'] ?: 'En vivo');
+            LiveSwitch::cut(Station::live()['title'] ?: 'En vivo');
 
             return response()->json(['ok' => true, ...$this->snapshot(), 'message' => $external
                 ? 'Al aire la señal externa: la música automática se cortó para todos los oyentes.'
@@ -319,6 +330,61 @@ class RadioConsoleController extends RadioController
         return response()->json(['ok' => true, 'pads' => Station::pads()->map->payload()->values(), 'message' => 'Botonera guardada.']);
     }
 
+    /**
+     * A factory effect of the botonera, rendered in the browser: stored once in the library (as
+     * «Efectos Zoe · category») and added at the end of the pad bank.
+     */
+    public function effect(Request $request): JsonResponse
+    {
+        $title = mb_substr(trim((string) $request->input('title')), 0, 160);
+        $category = mb_substr(trim((string) $request->input('category')), 0, 60);
+        $duration = (float) $request->input('duration');
+        if ($title === '' || $category === '' || $duration < 0.1 || $duration > self::MAX_EFFECT_SECONDS) {
+            return $this->fail('Ese efecto no es válido. Recarga la página.');
+        }
+
+        $pads = Station::pads()->pluck('id')->all();
+        $artist = self::EFFECTS_ARTIST.' · '.$category;
+        $track = RadioTrack::query()->where('kind', 'efecto')->where('title', $title)->where('artist', $artist)->first();
+        if ($track && in_array($track->id, $pads, true)) {
+            return $this->fail("«{$title}» ya está en la botonera.", 409);
+        }
+        if (count($pads) >= Station::MAX_PADS) {
+            return $this->fail('La botonera tiene hasta '.Station::MAX_PADS.' botones. Quita uno con «Editar» para agregar este efecto.', 409);
+        }
+
+        if (! $track) {
+            $file = $request->file('audio');
+            $problem = $file instanceof UploadedFile ? RadioAudio::problem($file) : 'No llegó el audio del efecto. Inténtalo de nuevo.';
+            if ($problem === null && $file->getSize() > self::MAX_EFFECT_MB * 1024 * 1024) {
+                $problem = 'El efecto pesa demasiado.';
+            }
+            if ($problem !== null) {
+                return $this->fail($problem);
+            }
+            $track = RadioTrack::query()->create([
+                'kind' => 'efecto',
+                'title' => $title,
+                'artist' => $artist,
+                'file_path' => RadioAudio::store($file, 'efecto'),
+                'duration' => round($duration, 2),
+                'rotation' => false,
+                'duck' => false,
+                'active' => true,
+            ]);
+        } elseif (! $track->active) {
+            $track->update(['active' => true]);
+        }
+        Station::saveConfig(['pads' => [...$pads, $track->id]]);
+
+        return response()->json([
+            'ok' => true,
+            'track' => $track->payload(),
+            'pads' => Station::pads()->map->payload()->values(),
+            'message' => "«{$title}» agregado a la botonera.",
+        ]);
+    }
+
     /** «Al aire ahora»: the chosen audios replace what plays on the main program right away. */
     public function launch(Request $request): JsonResponse
     {
@@ -359,6 +425,11 @@ class RadioConsoleController extends RadioController
         }
 
         return response()->json(['ok' => Signal::offer($session, $id, $sdp)]);
+    }
+
+    private function episodeTitle(Request $request): string
+    {
+        return mb_substr(trim(preg_replace('/\s+/u', ' ', (string) $request->input('title'))), 0, 120);
     }
 
     private function answered(string $message): JsonResponse

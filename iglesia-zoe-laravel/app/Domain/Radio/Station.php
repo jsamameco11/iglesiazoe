@@ -42,7 +42,7 @@ final class Station
     public const MAX_FADE = 12;
 
     /** Music and sounds drop to this share of their volume while the host speaks («Detectar voz»). */
-    public const VOICE_DUCK = 0.35;
+    public const VOICE_DUCK = 0.25;
 
     /** How long before a scheduled block the console warns about it, in ms. */
     public const ALERT_AHEAD = 15 * 60000;
@@ -84,6 +84,7 @@ final class Station
     private const LIVE_DEFAULTS = [
         'session' => null,
         'host' => '',
+        'title' => '',
         'started_at' => null,
         'music' => 100,
         'overlay' => 100,
@@ -546,18 +547,32 @@ final class Station
         return ! in_array($slot->kind, [RadioSlot::LIVE, RadioSlot::AUTO], true) && $slot->starts_at->getTimestampMs() >= $hold;
     }
 
-    public static function startLive(string $host): array
+    /** Opens the live session; without a title it takes the name of the live block scheduled now or about to start. */
+    public static function startLive(string $host, string $title = ''): array
     {
         self::heartbeat();
+        $title = $title !== '' ? $title : (self::scheduledLiveTitle(self::nowMs()) ?? '');
 
-        return self::updateLive(fn (array $live) => $live['session'] ? ['host' => $host] : [
+        return self::updateLive(fn (array $live) => $live['session'] ? ['host' => $host, 'title' => $title ?: $live['title']] : [
             'session' => Str::lower(Str::random(24)),
             'host' => $host,
+            'title' => $title,
             'started_at' => self::nowMs(),
             'mic' => false,
             'bed' => false,
             'muted' => false,
         ]);
+    }
+
+    /** Title of the live block on the program now, or of the next one starting within ALERT_AHEAD. */
+    public static function scheduledLiveTitle(int $now): ?string
+    {
+        $slot = LiveSwitch::liveSlot($now) ?? RadioSlot::query()->where('layer', RadioSlot::MAIN)->where('kind', RadioSlot::LIVE)
+            ->where('starts_at', '>', CarbonImmutable::createFromTimestampMs($now))
+            ->where('starts_at', '<=', CarbonImmutable::createFromTimestampMs($now + self::ALERT_AHEAD))
+            ->orderBy('starts_at')->first();
+
+        return $slot?->title ?: null;
     }
 
     public static function endLive(): array
@@ -569,7 +584,7 @@ final class Station
         $config = self::config();
 
         return self::updateLive(fn (array $live) => [
-            'session' => null, 'host' => '', 'started_at' => null, 'mic' => false, 'bed' => false, 'muted' => false,
+            'session' => null, 'host' => '', 'title' => '', 'started_at' => null, 'mic' => false, 'bed' => false, 'muted' => false,
             ...LiveSwitch::closeOnHangUp($live, $config),
         ]);
     }
@@ -845,7 +860,7 @@ final class Station
             'live' => [
                 'on' => $onAir && ($live['session'] !== null || $external),
                 'session' => $onAir ? $live['session'] : null,
-                'host' => $live['host'],
+                'title' => $live['title'] ?: (string) ($window['title'] ?? ''),
                 'mic' => $onAir && $live['session'] !== null && $live['mic'],
                 'started_at' => $live['started_at'],
                 'rev' => $live['rev'],

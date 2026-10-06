@@ -96,12 +96,14 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
             Route::post('/vivo', [RadioConsoleController::class, 'live']);
             Route::post('/capa', [RadioConsoleController::class, 'layer']);
             Route::post('/botonera', [RadioConsoleController::class, 'pads']);
+            Route::post('/botonera/efecto', [RadioConsoleController::class, 'effect'])->middleware('throttle:60,1');
             Route::post('/lanzar', [RadioConsoleController::class, 'launch']);
             Route::post('/musica-continua', [RadioConsoleController::class, 'music']);
             Route::post('/reprogramar', [RadioConsoleController::class, 'reschedule']);
             Route::get('/senal', [RadioConsoleController::class, 'signal']);
             Route::post('/senal/oferta', [RadioConsoleController::class, 'offer']);
         });
+        Route::middleware([$can('radio.console', 'radio.schedule'), 'throttle:120,1'])->get('/linea', [RadioScheduleController::class, 'program']);
         Route::middleware($can('radio.schedule'))->prefix('programacion')->group(function () {
             Route::get('/', [RadioScheduleController::class, 'index']);
             Route::post('/', [RadioScheduleController::class, 'store']);

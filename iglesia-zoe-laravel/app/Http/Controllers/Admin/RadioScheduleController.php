@@ -14,6 +14,11 @@ use Inertia\Response;
 /** The timeline of each day: the main program, the overlay layers and the continuous music. */
 class RadioScheduleController extends RadioController
 {
+    /** Longest stretch the program view resolves at once, in ms, and the most items it returns. */
+    private const PROGRAM_SPAN = 36 * 3600000;
+
+    private const PROGRAM_LIMIT = 900;
+
     public function index(Request $request): Response
     {
         $today = Station::today();
@@ -31,6 +36,21 @@ class RadioScheduleController extends RadioController
             'playlists' => $this->playlists(),
             'autopilot' => Station::autopilot(),
         ]);
+    }
+
+    /** What will sound between two moments, song by song (the automatic music already resolved), for the console and the day view. */
+    public function program(Request $request): JsonResponse
+    {
+        $from = (int) $request->query('desde');
+        $to = (int) $request->query('hasta');
+        if ($from <= 0 || $to <= $from || $to - $from > self::PROGRAM_SPAN) {
+            return $this->fail('Elige un tramo de hasta 36 horas.');
+        }
+
+        $items = array_map(fn (array $item) => array_intersect_key($item, array_flip(['id', 'kind', 'title', 'artist', 'start', 'end', 'origin', 'bed', 'block', 'slot', 'track'])),
+            Station::items($from, $to, true, self::PROGRAM_LIMIT));
+
+        return response()->json(['items' => $items, 'now' => Station::nowMs()]);
     }
 
     public function store(Request $request): JsonResponse

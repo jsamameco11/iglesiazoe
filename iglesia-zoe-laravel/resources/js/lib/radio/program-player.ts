@@ -78,7 +78,15 @@ const EARLY_END = 3000;
 const MAX_COVERS = 4;
 
 /** Share of the program volume while the host speaks, when the server mix does not say. */
-const VOICE_LEVEL = 0.35;
+const VOICE_LEVEL = 0.25;
+
+/** iPhone, iPad and Safari can leave a remote voice silent inside Web Audio, so there it keeps its own element. */
+function mixesRemoteVoice() {
+  const agent = navigator.userAgent;
+  const apple = /iP(hone|ad|od)/.test(agent) || (/Macintosh/.test(agent) && navigator.maxTouchPoints > 1);
+  const safari = /Safari/.test(agent) && !/Chrome|Chromium|Edg|OPR|Firefox/.test(agent);
+  return !apple && !safari;
+}
 
 /**
  * The program as every listener hears it: two decks that follow the server timeline
@@ -107,6 +115,9 @@ export class ProgramPlayer {
   private fxBus: GainNode | null = null;
   /** Music and layers together, dropped while the host's voice is detected. */
   private voiceBus: GainNode | null = null;
+  /** Program and live voice summed before the volume, so together they never clip. */
+  private limiter: DynamicsCompressorNode | null = null;
+  private liveVoice: MediaStreamAudioSourceNode | null = null;
   private speaking = false;
   private decks: Deck[] = [];
   private active = -1;
@@ -147,9 +158,15 @@ export class ProgramPlayer {
       this.analyser = ctx.createAnalyser();
       this.analyser.fftSize = 512;
       this.analyser.smoothingTimeConstant = 0.78;
+      this.limiter = ctx.createDynamicsCompressor();
+      this.limiter.threshold.value = -1;
+      this.limiter.knee.value = 0;
+      this.limiter.ratio.value = 20;
+      this.limiter.attack.value = 0.002;
+      this.limiter.release.value = 0.12;
       this.musicBus.connect(this.duckBus).connect(this.voiceBus);
       this.fxBus.connect(this.voiceBus);
-      this.voiceBus.connect(this.master);
+      this.voiceBus.connect(this.limiter).connect(this.master);
       this.master.connect(this.analyser);
       this.analyser.connect(ctx.destination);
       this.decks = [0, 1].map(() => {
@@ -212,6 +229,20 @@ export class ProgramPlayer {
     this.speaking = on;
     if (!this.ctx || !this.voiceBus) return;
     this.voiceBus.gain.setTargetAtTime(on ? (this.mix.voice ?? VOICE_LEVEL) : 1, this.ctx.currentTime, on ? 0.012 : 0.25);
+  }
+
+  /** The live microphone joins the mix above the dropped program; false when it must play on its own. */
+  attachVoice(stream: MediaStream | null): boolean {
+    this.liveVoice?.disconnect();
+    this.liveVoice = null;
+    if (!stream || !this.ctx || !this.limiter || !mixesRemoteVoice()) return false;
+    try {
+      this.liveVoice = this.ctx.createMediaStreamSource(stream);
+      this.liveVoice.connect(this.limiter);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   setVolume(volume: number) {

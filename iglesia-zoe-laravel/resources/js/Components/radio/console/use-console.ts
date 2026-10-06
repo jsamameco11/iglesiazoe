@@ -5,6 +5,7 @@ import { BEDS, Broadcaster, ProgramPlayer, postForm, useServerClock, type Autopi
 export type ConsoleLive = {
   session: string | null;
   host: string;
+  title: string;
   started_at: number | null;
   music: number;
   overlay: number;
@@ -53,7 +54,7 @@ type Signal = Snapshot & { pending: string[]; answers: { id: string; answer: str
  * State and engines of the live console: the server snapshot (polled every 1.5 s), the
  * monitor player, the microphone broadcaster and the actions that change what is on air.
  */
-export function useConsole(initial: Snapshot, host: string) {
+export function useConsole(initial: Snapshot, episode: string) {
   const serverClock = useServerClock();
   const player = useRef<ProgramPlayer | null>(null);
   const caster = useRef<Broadcaster | null>(null);
@@ -76,7 +77,7 @@ export function useConsole(initial: Snapshot, host: string) {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const [talking, setTalking] = useState(false);
   const [speaking, setSpeaking] = useState(false);
-  const [hostName, setHostName] = useState(initial.live.host || host);
+  const [episodeTitle, setEpisodeTitle] = useState(initial.live.title || episode);
   const [busy, setBusy] = useState(false);
   const [blend, setBlend] = useState(3);
   const [talks, setTalks] = useState<TalkSpan[]>([]);
@@ -102,7 +103,7 @@ export function useConsole(initial: Snapshot, host: string) {
   }, []);
 
   useEffect(() => {
-    if (live.session && live.host) setHostName(live.host);
+    if (live.session && live.title) setEpisodeTitle(live.title);
   }, [live.session]);
 
   useEffect(() => {
@@ -298,7 +299,7 @@ export function useConsole(initial: Snapshot, host: string) {
     setBusy(true);
     setNotice(null);
     if (await openMic()) {
-      const data = await liveAction({ action: "start", host: hostName });
+      const data = await liveAction({ action: "start", title: episodeTitle });
       if (data && mic.talkOnStart) {
         await talk(true);
         setNotice({ tone: "info", text: mic.voiceDuck ? "¡Estás al aire! Habla cuando quieras: la música baja sola mientras se oye tu voz." : "¡Estás al aire con tu voz! Usa «Hablar» para cerrar o abrir el micrófono." });
@@ -450,8 +451,8 @@ export function useConsole(initial: Snapshot, host: string) {
     changeMic,
     talking,
     speaking,
-    hostName,
-    setHostName,
+    episodeTitle,
+    setEpisodeTitle,
     busy,
     player,
     caster,

@@ -307,7 +307,7 @@ class RadioTest extends TestCase
 
         auth()->logout();
         $state = $this->getJson(self::SITE.'/radio/estado?oyente='.$listener)->assertOk();
-        $state->assertJsonPath('live.on', true)->assertJsonPath('live.mic', true)->assertJsonPath('live.host', 'Pastor Luis')
+        $state->assertJsonPath('live.on', true)->assertJsonPath('live.mic', true)->assertJsonMissingPath('live.host')
             ->assertJsonPath('mix.music', 0.22)->assertJsonPath('mix.fx', 0.45);
         $this->postJson(self::SITE.'/radio/voz', ['oyente' => $listener, 'session' => $session])->assertOk();
 

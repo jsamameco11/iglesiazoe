@@ -4,6 +4,8 @@ import { KindTag } from "@/Components/radio/admin-ui";
 import { DuckIcon } from "@/Components/radio/icons";
 import { send } from "@/lib/actions";
 import { SourcePicker } from "@/Components/radio/source-picker";
+import { UpcomingSongs } from "@/Components/radio/schedule/upcoming-songs";
+import type { ProgramItem } from "@/Components/radio/use-program";
 import { LAYERS, clock, duration, layerLabel, type RadioBlock, type RadioPlaylist } from "@/lib/radio";
 
 /** One block of the timeline: details, preview, edit (time, layer, volume, music lowering, playlist) and remove. */
@@ -14,6 +16,7 @@ export function BlockRow({
   editing,
   previewing,
   playlists,
+  songs = [],
   onEdit,
   onPreview,
 }: {
@@ -23,6 +26,8 @@ export function BlockRow({
   editing: boolean;
   previewing: boolean;
   playlists: RadioPlaylist[];
+  /** Songs of the automatic music inside the block (an automatic period, or a live block nobody took). */
+  songs?: ProgramItem[];
   onEdit: () => void;
   onPreview: () => void;
 }) {
@@ -86,6 +91,7 @@ export function BlockRow({
               {block.artist ? ` · ${block.artist}` : ""}
               {block.note ? ` · ${block.note}` : ""}
             </p>
+            <UpcomingSongs songs={songs} now={now} />
           </div>
           <div className="flex items-center gap-1">
             {block.src ? (

@@ -37,6 +37,13 @@ const VOICE_ATTACK_MS = 12;
 const VOICE_HANG_MS = 550;
 
 /**
+ * Gain after the leveling compressor (+9 dB): any microphone from -48 to -16 dBFS of speech
+ * reaches the listeners between -22 and -13 dBFS, above the music dropped under it, with the
+ * limiter keeping the peaks under -1 dBFS.
+ */
+const VOICE_MAKEUP = 2.8;
+
+/**
  * Speech detection on the audio thread, so it answers within milliseconds even with the tab in
  * the background. The noise floor follows quiet moments fast and loud ones slowly; voice is
  * what rises 10 dB above it (never below -52 dBFS, always from -20 dBFS).
@@ -92,6 +99,11 @@ export class VoiceLink {
   onStop?: (ids: string[]) => void;
   /** The host started or stopped speaking: the program drops under the voice. */
   onVoice?: (on: boolean) => void;
+  /**
+   * Hands the voice to the program mixer (null when it ends); true when it took it, so the
+   * voice and the music share one volume and one limiter. Otherwise this element plays it.
+   */
+  route?: (stream: MediaStream | null) => boolean;
   private speaking = false;
 
   private pc: RTCPeerConnection | null = null;
@@ -147,7 +159,9 @@ export class VoiceLink {
   close() {
     this.pc?.close();
     this.pc = null;
+    if (this.audio.srcObject) this.route?.(null);
     this.audio.srcObject = null;
+    this.audio.muted = false;
     this.setSpeaking(false);
     this.setStatus("off");
   }
@@ -171,7 +185,10 @@ export class VoiceLink {
       const pc = new RTCPeerConnection({ iceServers: ice });
       this.pc = pc;
       pc.ontrack = (event) => {
-        this.audio.srcObject = event.streams[0] ?? new MediaStream([event.track]);
+        const stream = event.streams[0] ?? new MediaStream([event.track]);
+        // Chrome only feeds a remote stream to Web Audio while a media element plays it, so it stays attached, muted.
+        this.audio.srcObject = stream;
+        this.audio.muted = this.route?.(stream) ?? false;
         void this.audio.play().catch(() => undefined);
       };
       pc.ondatachannel = (event) => {
@@ -272,11 +289,19 @@ export class Broadcaster {
     presence.frequency.value = 3200;
     presence.gain.value = 2.5;
     const compressor = ctx.createDynamicsCompressor();
-    compressor.threshold.value = -24;
-    compressor.knee.value = 12;
-    compressor.ratio.value = 4;
-    compressor.attack.value = 0.005;
-    compressor.release.value = 0.2;
+    compressor.threshold.value = -36;
+    compressor.knee.value = 8;
+    compressor.ratio.value = 3.5;
+    compressor.attack.value = 0.008;
+    compressor.release.value = 0.25;
+    const makeup = ctx.createGain();
+    makeup.gain.value = VOICE_MAKEUP;
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -6;
+    limiter.knee.value = 0;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.001;
+    limiter.release.value = 0.06;
     this.fader ??= ctx.createGain();
     this.gate = ctx.createGain();
     this.gate.gain.value = this.talking ? 1 : 0;
@@ -285,7 +310,7 @@ export class Broadcaster {
     this.returnGain = ctx.createGain();
     this.returnGain.gain.value = 0;
     this.dest ??= ctx.createMediaStreamDestination();
-    this.source.connect(highpass).connect(presence).connect(compressor).connect(this.fader).connect(this.analyser);
+    this.source.connect(highpass).connect(presence).connect(compressor).connect(makeup).connect(limiter).connect(this.fader).connect(this.analyser);
     this.analyser.connect(this.gate).connect(this.dest);
     this.analyser.connect(this.returnGain).connect(ctx.destination);
     await this.listenForVoice(ctx, compressor);

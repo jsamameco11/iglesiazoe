@@ -153,7 +153,7 @@ export function RadioSection({ settings, radio, asset }: { settings: SiteSetting
                   </>
                 ) : (
                   <>
-                    <p className="onair-now">{state.on_air ? (live ? state.live.host : t("radio.paused")) : t("radio.offAir")}</p>
+                    <p className="onair-now">{state.on_air ? (live ? state.live.title || t("radio.liveTitle") : t("radio.paused")) : t("radio.offAir")}</p>
                     <p className="onair-sub">{t("radio.continuousNote")}</p>
                   </>
                 )}
@@ -177,8 +177,8 @@ export function RadioSection({ settings, radio, asset }: { settings: SiteSetting
                     <MicIcon />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[#ff8a8e]">{t("radio.host")}</p>
-                    <p className="truncate text-[15px] font-semibold text-white">{state.live.host}</p>
+                    <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[#ff8a8e]">{t("radio.episode")}</p>
+                    <p className="truncate text-[15px] font-semibold text-white">{state.live.title || t("radio.liveTitle")}</p>
                   </div>
                 </div>
               ) : null}

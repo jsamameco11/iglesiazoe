@@ -38,7 +38,7 @@ export function LiveDeck({
           </>
         ) : (
           <>
-            <p className="text-[1.65rem] font-semibold leading-tight tracking-[-0.03em] text-white md:text-3xl">{state.on_air ? (live ? state.live.host : t("radio.paused")) : t("radio.offAir")}</p>
+            <p className="text-[1.65rem] font-semibold leading-tight tracking-[-0.03em] text-white md:text-3xl">{state.on_air ? (live ? state.live.title || t("radio.liveTitle") : t("radio.paused")) : t("radio.offAir")}</p>
             {state.next_show ? (
               <p className="mt-1.5 text-[15px] text-white/60">
                 {state.next_show.title} · {dayLabel(limaDate(state.next_show.start), today)} {clock(state.next_show.start)}
@@ -91,11 +91,8 @@ export function LiveDeck({
             <MicIcon />
           </span>
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff8a8e]">{t("radio.host")}</p>
-            <p className="truncate text-[15px] font-semibold text-white">
-              {state.live.host}
-              {state.live.mic ? <span className="font-normal text-white/60"> · {t("radio.talking")}</span> : null}
-            </p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#ff8a8e]">{t("radio.episode")}</p>
+            <p className="truncate text-[15px] font-semibold text-white">{state.live.title || t("radio.liveTitle")}</p>
             {playing && voice === "connecting" ? <p className="text-xs text-white/50">Conectando con la cabina…</p> : null}
           </div>
         </div>

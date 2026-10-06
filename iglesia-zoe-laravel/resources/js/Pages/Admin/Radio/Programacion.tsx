@@ -7,6 +7,8 @@ import { BlockRow } from "@/Components/radio/schedule/block-row";
 import { DayTools } from "@/Components/radio/schedule/day-tools";
 import { LaneRuler } from "@/Components/radio/schedule/lane-ruler";
 import { RotationPanel } from "@/Components/radio/schedule/rotation-panel";
+import { UpcomingSongs } from "@/Components/radio/schedule/upcoming-songs";
+import { useProgram } from "@/Components/radio/use-program";
 import AdminLayout from "@/Layouts/AdminLayout";
 import {
   DAY_MS,
@@ -60,6 +62,9 @@ export default function Programacion({ date, today, now: serverNow, blocks, dayE
   const isPast = date < today;
   const main = blocks.filter((block) => block.layer === 0);
   const overlays = blocks.length - main.length;
+  const program = useProgram(start, end, `${blocks.map((block) => `${block.id}:${block.start}:${block.end}`).join(",")}|${config.autofill}|${autopilot.label}|${autopilot.until ?? ""}`, 120_000);
+  const songs = useMemo(() => (program ?? []).filter((item) => !item.slot), [program]);
+  const songsBetween = (from: number, to: number) => songs.filter((song) => song.start < to && song.end > from);
   const total = main.reduce((sum, block) => sum + (Math.min(block.end, end) - Math.max(block.start, start)), 0) / 1000;
 
   function go(next: string) {
@@ -134,26 +139,20 @@ export default function Programacion({ date, today, now: serverNow, blocks, dayE
             {main.length} bloques · {longDuration(total)} programados{overlays ? ` · ${overlays} en capas` : ""} · {config.autofill ? `${longDuration(Math.max(0, 86400 - total))} de modo automático` : "modo automático detenido"}
           </p>
         </div>
-        <LaneRuler blocks={blocks} start={start} now={now} isToday={isToday} />
+        <LaneRuler blocks={blocks} start={start} now={now} isToday={isToday} songs={songs} />
       </section>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_25rem]">
         <section className="min-w-0 rounded-[1.6rem] border border-line bg-card p-4 md:p-6">
           {blocks.length === 0 ? (
-            <p className="rounded-[1.4rem] border border-dashed border-line px-5 py-10 text-center text-sm text-muted">
-              Este día no tiene bloques. {config.autofill ? "Sonará el modo automático." : "Con el modo automático detenido, la radio estará en silencio."} Agrega bloques con el panel de la derecha.
+            <p className="mb-3 rounded-[1.4rem] border border-dashed border-line px-5 py-6 text-center text-sm text-muted">
+              Este día no tiene bloques. {config.autofill ? "Suenan estas canciones del modo automático." : "Con el modo automático detenido, la radio estará en silencio."} Agrega bloques con el panel de la derecha.
             </p>
-          ) : (
-            <div className="space-y-1">
-              {rows.map((row) =>
-                row.type === "gap" ? (
-                  <div key={`gap-${row.from}`} className="tl-item py-2">
-                    <p className="pt-1 text-right font-mono text-[11px] tabular-nums text-muted">{clock(row.from)}</p>
-                    <p className="ml-6 rounded-xl border border-dashed border-line px-3 py-2 text-[12.5px] text-muted">
-                      {config.autofill && autopilot.level !== "none" && !autopilot.finished ? `Modo automático · ${autopilot.label}${autopilot.until ? ` · hasta las ${clock(autopilot.until)}` : ""}` : "Silencio"} · {longDuration((row.to - row.from) / 1000)}
-                    </p>
-                  </div>
-                ) : (
+          ) : null}
+          <div className="space-y-1">
+            {rows.map((row) => {
+              if (row.type === "block") {
+                return (
                   <BlockRow
                     key={row.block.id}
                     block={row.block}
@@ -162,13 +161,27 @@ export default function Programacion({ date, today, now: serverNow, blocks, dayE
                     editing={editing === row.block.id}
                     previewing={preview === row.block.id}
                     playlists={playlists}
+                    songs={row.block.layer === 0 ? songsBetween(row.block.start, row.block.end) : []}
                     onEdit={() => setEditing(editing === row.block.id ? null : row.block.id)}
                     onPreview={() => togglePreview(row.block)}
                   />
-                ),
-              )}
-            </div>
-          )}
+                );
+              }
+              const gapSongs = songsBetween(row.from, row.to);
+              const automatic = config.autofill && autopilot.level !== "none" && !autopilot.finished;
+              return (
+                <div key={`gap-${row.from}`} className="tl-item py-2">
+                  <p className="pt-1 text-right font-mono text-[11px] tabular-nums text-muted">{clock(row.from)}</p>
+                  <div className="ml-6 rounded-xl border border-dashed border-line px-3 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+                      {gapSongs.length ? "Canciones que suenan" : automatic && !program ? "Cargando las canciones…" : "Silencio"} · {longDuration((row.to - row.from) / 1000)}
+                    </p>
+                    <UpcomingSongs songs={gapSongs} now={now} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </section>
 
         <aside className="space-y-6">

@@ -151,6 +151,7 @@ export function useStation(initial: RadioState) {
         voice.current.onLayer = (layer) => player.current?.pushLayer(layer);
         voice.current.onStop = (ids) => player.current?.dropLayers(ids);
         voice.current.onVoice = (on) => player.current?.setVoice(on);
+        voice.current.route = (incoming) => player.current?.attachVoice(incoming) ?? false;
       }
       await Promise.all([player.current.start(), voice.current.unlock()]);
       player.current.setVolume(volume);
