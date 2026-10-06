@@ -43,6 +43,12 @@ function savedMic(): MicSettings {
   }
 }
 
+/** Id of a layer fired here, in the form the server accepts (12 lowercase letters and digits). */
+function layerId() {
+  const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
+  return Array.from(crypto.getRandomValues(new Uint8Array(12)), (byte) => alphabet[byte % alphabet.length]).join("");
+}
+
 type PlayOptions = { volume?: number; duck?: boolean; fadeIn?: number; fadeOut?: number; loop?: boolean };
 
 /** A stretch of this console's voice on air, for the timeline. */
@@ -82,9 +88,13 @@ export function useConsole(initial: Snapshot, episode: string) {
   const [blend, setBlend] = useState(3);
   const [talks, setTalks] = useState<TalkSpan[]>([]);
   const [, force] = useState(0);
+  /** Pads fired here that the server has not confirmed yet: they stay on the timeline meanwhile. */
+  const firing = useRef<RadioLayer[]>([]);
+  const padSounds = useRef<RadioTrack[]>([]);
 
   const apply = useCallback((data: Snapshot, broadcast = false) => {
-    setState(data.radio);
+    const waiting = firing.current.filter((layer) => !data.radio.layers.some((item) => item.id === layer.id));
+    setState(waiting.length ? { ...data.radio, layers: [...data.radio.layers, ...waiting] } : data.radio);
     setLive(data.live);
     setConfig(data.config);
     if (data.autopilot) setAutopilot(data.autopilot);
@@ -243,6 +253,56 @@ export function useConsole(initial: Snapshot, episode: string) {
     [play, state.layers, blend, serverClock],
   );
 
+  /**
+   * A pad sounds in the monitor and shows on the timeline the instant it is pressed (its audio is
+   * already decoded); the server then confirms it with the same id and start for every listener.
+   */
+  const firePad = useCallback(
+    async (track: RadioTrack) => {
+      const at = Math.round(serverClock.now());
+      const length = Math.round(track.duration * 1000);
+      const layer: RadioLayer = {
+        id: layerId(),
+        lane: "pad",
+        track_id: track.id,
+        title: track.title,
+        kind: track.kind,
+        src: track.src,
+        start: at,
+        end: at + length,
+        volume: 100,
+        duck: track.duck,
+        source: "live",
+        fade_in: 0,
+        fade_out: 0,
+        loop: false,
+        length,
+      };
+      firing.current = [...firing.current, layer];
+      setState((value) => ({ ...value, layers: [...value.layers, layer] }));
+      player.current?.pushLayer(layer);
+      caster.current?.broadcast({ t: "layer", layer });
+      let confirmed = false;
+      try {
+        confirmed = Boolean((await layerAction({ action: "play", id: track.id, lane: "pad", layer: layer.id, at: String(at) }))?.layer);
+      } catch {
+        setNotice({ tone: "error", text: "No se pudo enviar el efecto a los oyentes. Revisa tu conexión e inténtalo de nuevo." });
+      }
+      firing.current = firing.current.filter((item) => item.id !== layer.id);
+      if (confirmed) return;
+      player.current?.dropLayers([layer.id]);
+      caster.current?.broadcast({ t: "stop", ids: [layer.id] });
+      setState((value) => ({ ...value, layers: value.layers.filter((item) => item.id !== layer.id) }));
+    },
+    [layerAction, serverClock],
+  );
+
+  /** The botonera keeps its sounds decoded in the monitor, ready to fire without loading. */
+  const warmPads = useCallback((tracks: RadioTrack[]) => {
+    padSounds.current = tracks;
+    player.current?.warm(tracks);
+  }, []);
+
   /** Stops a layer, a lane or every console sound: cut at once, or faded out over some seconds. */
   const stop = useCallback(
     (target: { lane?: string; layer?: string }, seconds = 0) =>
@@ -256,7 +316,8 @@ export function useConsole(initial: Snapshot, episode: string) {
       setMonitor(false);
       return;
     }
-    player.current ??= new ProgramPlayer(serverClock);
+    player.current ??= new ProgramPlayer(serverClock, "interactive");
+    player.current.warm(padSounds.current);
     await player.current.start();
     player.current.setVolume(monitorLevel);
     player.current.setReserve(state.fallback ?? []);
@@ -460,6 +521,8 @@ export function useConsole(initial: Snapshot, episode: string) {
     layerAction,
     play,
     drop,
+    firePad,
+    warmPads,
     stop,
     blend,
     setBlend,

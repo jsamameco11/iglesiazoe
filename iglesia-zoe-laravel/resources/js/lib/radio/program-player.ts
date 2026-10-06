@@ -56,7 +56,17 @@ type Deck = {
   covers: number;
 };
 
-type Voice = { layer: RadioLayer; el: HTMLAudioElement; gain: GainNode; source: MediaElementAudioSourceNode; started: boolean; done: boolean };
+/** A layer sounding: an effect kept decoded in memory plays from its `buffer`, anything else streams through `el`. */
+type Voice = {
+  layer: RadioLayer;
+  el: HTMLAudioElement | null;
+  source: MediaElementAudioSourceNode | null;
+  buffer: AudioBuffer | null;
+  node: AudioBufferSourceNode | null;
+  gain: GainNode;
+  started: boolean;
+  done: boolean;
+};
 
 /** Layers up to this long are effects: they always play from the start, unless they arrive too late. */
 const SHORT_LAYER = 20000;
@@ -113,6 +123,8 @@ export class ProgramPlayer {
   private musicBus: GainNode | null = null;
   private duckBus: GainNode | null = null;
   private fxBus: GainNode | null = null;
+  /** The botonera, with its own fader next to the rest of the layers. */
+  private padBus: GainNode | null = null;
   /** Music and layers together, dropped while the host's voice is detected. */
   private voiceBus: GainNode | null = null;
   /** Program and live voice summed before the volume, so together they never clip. */
@@ -135,9 +147,16 @@ export class ProgramPlayer {
   private reserveTurn = 0;
   private badSources = new Set<string>();
   private reported = new Set<string>();
+  private latency: AudioContextLatencyCategory;
+  /** Effects decoded ahead (the botonera), by absolute address, so they sound the instant they fire. */
+  private decoded = new Map<string, AudioBuffer>();
+  private decoding = new Set<string>();
+  private warmed = new Set<string>();
 
-  constructor(clock: ServerClock) {
+  /** The console asks for an `interactive` output so what the operator fires is heard at once. */
+  constructor(clock: ServerClock, latency: AudioContextLatencyCategory = "playback") {
     this.clock = clock;
+    this.latency = latency;
   }
 
   get running() {
@@ -148,12 +167,13 @@ export class ProgramPlayer {
   async start() {
     if (!this.ctx) {
       const Context = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const ctx = new Context({ latencyHint: "playback" });
+      const ctx = new Context({ latencyHint: this.latency });
       this.ctx = ctx;
       this.master = ctx.createGain();
       this.musicBus = ctx.createGain();
       this.duckBus = ctx.createGain();
       this.fxBus = ctx.createGain();
+      this.padBus = ctx.createGain();
       this.voiceBus = ctx.createGain();
       this.analyser = ctx.createAnalyser();
       this.analyser.fftSize = 512;
@@ -166,6 +186,7 @@ export class ProgramPlayer {
       this.limiter.release.value = 0.12;
       this.musicBus.connect(this.duckBus).connect(this.voiceBus);
       this.fxBus.connect(this.voiceBus);
+      this.padBus.connect(this.voiceBus);
       this.voiceBus.connect(this.limiter).connect(this.master);
       this.master.connect(this.analyser);
       this.analyser.connect(ctx.destination);
@@ -185,6 +206,7 @@ export class ProgramPlayer {
       });
     }
     await this.ctx.resume();
+    this.decodeWarmed();
     await Promise.all(this.decks.map((deck) => unlock(deck.el)));
     this.decks.forEach((deck) => (deck.item = null));
     this.active = -1;
@@ -263,6 +285,32 @@ export class ProgramPlayer {
     if (this.running) this.syncLayers(this.clock.now());
   }
 
+  /** Effects to keep downloaded and decoded (the botonera); long audios and the ones no longer listed are left out. */
+  warm(sounds: { src: string; duration: number }[]) {
+    this.warmed = new Set(sounds.filter((sound) => sound.src && sound.duration * 1000 <= SHORT_LAYER).map((sound) => absolute(sound.src)));
+    [...this.decoded.keys()].forEach((key) => {
+      if (!this.warmed.has(key)) this.decoded.delete(key);
+    });
+    this.decodeWarmed();
+  }
+
+  private decodeWarmed() {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    this.warmed.forEach((key) => {
+      if (this.decoded.has(key) || this.decoding.has(key)) return;
+      this.decoding.add(key);
+      fetch(key)
+        .then((res) => (res.ok ? res.arrayBuffer() : Promise.reject(new Error(String(res.status)))))
+        .then((data) => ctx.decodeAudioData(data))
+        .then((buffer) => {
+          if (this.warmed.has(key)) this.decoded.set(key, buffer);
+        })
+        .catch(() => undefined)
+        .finally(() => this.decoding.delete(key));
+    });
+  }
+
   dropLayers(ids: string[]) {
     this.layers = this.layers.filter((layer) => !ids.includes(layer.id));
     ids.forEach((id) => this.release(id, 0.25));
@@ -284,6 +332,7 @@ export class ProgramPlayer {
     this.master.gain.setTargetAtTime(this.volume, t, 0.05);
     this.musicBus.gain.setTargetAtTime(this.mix.music, t, Math.max(0.01, seconds / 3));
     this.fxBus.gain.setTargetAtTime(this.mix.fx, t, 0.05);
+    this.padBus?.gain.setTargetAtTime(this.mix.pads ?? this.mix.fx, t, 0.05);
     this.duckBus?.gain.setTargetAtTime(this.ducking ? this.mix.duck : 1, t, this.ducking ? 0.12 : 0.45);
     this.decks.forEach((deck, index) => {
       if (index === this.active) deck.gain.gain.setTargetAtTime(this.gainFor(deck.item), t, Math.max(0.01, seconds / 3));
@@ -545,21 +594,28 @@ export class ProgramPlayer {
 
   private voice(layer: RadioLayer): Voice {
     const ctx = this.ctx!;
+    const gain = ctx.createGain();
+    gain.gain.value = this.envelope(layer, this.clock.now());
+    gain.connect(layer.lane === "pad" ? this.padBus! : this.fxBus!);
+    const short = layer.end - layer.start <= SHORT_LAYER;
+    const buffer = short && !layer.loop ? (this.decoded.get(absolute(layer.src)) ?? null) : null;
+    if (buffer) return { layer, el: null, source: null, buffer, node: null, gain, started: false, done: false };
+
     const el = new Audio();
     el.crossOrigin = "anonymous";
     el.preload = "auto";
     el.src = layer.src;
     el.loop = Boolean(layer.loop);
-    const gain = ctx.createGain();
-    gain.gain.value = this.envelope(layer, this.clock.now());
     const source = ctx.createMediaElementSource(el);
-    source.connect(gain).connect(this.fxBus!);
-    const voice: Voice = { layer, el, gain, source, started: false, done: false };
-    el.onended = el.onerror = () => {
-      voice.done = true;
-      if (this.running) this.syncLayers(this.clock.now());
-    };
+    source.connect(gain);
+    const voice: Voice = { layer, el, source, buffer: null, node: null, gain, started: false, done: false };
+    el.onended = el.onerror = () => this.finished(voice);
     return voice;
+  }
+
+  private finished(voice: Voice) {
+    voice.done = true;
+    if (this.running) this.syncLayers(this.clock.now());
   }
 
   /** Volume of a layer at a moment: its level shaped by the fade in after the start and the fade out before the end. */
@@ -589,6 +645,16 @@ export class ProgramPlayer {
     const short = layer.end - layer.start <= SHORT_LAYER;
     if (!voice.started) {
       voice.started = true;
+      if (voice.buffer) {
+        const node = this.ctx!.createBufferSource();
+        node.buffer = voice.buffer;
+        node.connect(gain);
+        node.onended = () => this.finished(voice);
+        node.start();
+        voice.node = node;
+        return;
+      }
+      if (!el) return;
       const begin = () => {
         if (!short) el.currentTime = this.position(layer, el, this.clock.now());
         void el.play().catch(() => this.onBlocked?.());
@@ -597,7 +663,7 @@ export class ProgramPlayer {
       else el.addEventListener("loadedmetadata", begin, { once: true });
       return;
     }
-    if (short || el.readyState < 2 || el.seeking) return;
+    if (short || !el || el.readyState < 2 || el.seeking) return;
     const expected = this.position(layer, el, now);
     let drift = Math.abs(el.currentTime - expected);
     if (layer.loop && Number.isFinite(el.duration)) drift = Math.min(drift, el.duration - drift);
@@ -609,9 +675,15 @@ export class ProgramPlayer {
     if (!voice) return;
     this.voices.delete(id);
     const done = () => {
-      voice.el.pause();
-      voice.el.removeAttribute("src");
-      voice.source.disconnect();
+      voice.el?.pause();
+      voice.el?.removeAttribute("src");
+      voice.source?.disconnect();
+      if (voice.node) {
+        voice.node.onended = null;
+        if (!voice.done) voice.node.stop();
+        voice.node.disconnect();
+      }
+      voice.gain.disconnect();
     };
     if (!this.ctx || seconds <= 0 || voice.done) return done();
     voice.gain.gain.setTargetAtTime(0, this.ctx.currentTime, seconds / 3);

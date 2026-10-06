@@ -110,6 +110,8 @@ class RadioConsoleController extends RadioController
                 (float) $request->input('fade_in', 0),
                 (float) $request->input('fade_out', 0),
                 $request->boolean('loop'),
+                is_string($request->input('layer')) ? $request->input('layer') : null,
+                is_numeric($request->input('at')) ? (int) $request->input('at') : null,
             );
 
             return response()->json(['ok' => true, 'layer' => $layer, ...$this->snapshot()]);

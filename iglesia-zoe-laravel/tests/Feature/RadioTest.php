@@ -275,6 +275,28 @@ class RadioTest extends TestCase
         $this->getJson(self::SITE.'/radio/estado')->assertJsonPath('layers', []);
     }
 
+    public function test_a_pad_keeps_the_id_and_start_the_console_fired_it_with(): void
+    {
+        $admin = $this->admin('visuales', ['visuales']);
+        $applause = $this->track('Aplausos', 'efecto', 4, false);
+        $firedAt = CarbonImmutable::now()->getTimestampMs() - 400;
+
+        $layer = $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/capa', ['action' => 'play', 'id' => $applause->id, 'lane' => 'pad', 'layer' => 'k3v9q0x1m2b7', 'at' => $firedAt])
+            ->assertOk()->json('layer');
+        $this->assertSame('k3v9q0x1m2b7', $layer['id']);
+        $this->assertSame($firedAt, $layer['start']);
+        $this->assertSame($firedAt + 4000, $layer['end']);
+
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/capa', ['action' => 'play', 'id' => $applause->id, 'lane' => 'pad', 'layer' => 'k3v9q0x1m2b7', 'at' => $firedAt])->assertOk();
+        $stale = $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/capa', ['action' => 'play', 'id' => $applause->id, 'lane' => 'pad', 'layer' => '<bad id>', 'at' => $firedAt - 60000])
+            ->assertOk()->json('layer');
+        $this->assertMatchesRegularExpression('/^[a-z0-9]{12}$/', $stale['id']);
+        $this->assertSame(CarbonImmutable::now()->getTimestampMs(), $stale['start']);
+
+        auth()->logout();
+        $this->assertSame(['k3v9q0x1m2b7', $stale['id']], array_column($this->getJson(self::SITE.'/radio/estado')->json('layers'), 'id'));
+    }
+
     public function test_background_beds_loop_and_change_with_a_crossfade(): void
     {
         $admin = $this->admin('visuales', ['visuales']);

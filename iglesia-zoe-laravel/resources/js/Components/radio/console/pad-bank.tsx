@@ -21,7 +21,7 @@ export async function addPad(pads: RadioTrack[], track: RadioTrack): Promise<{ p
 
 /** The effects bank: one button per chosen audio, played on top of the program for every listener. */
 export function PadBank({ api, pads, setPads, library, onAdd }: { api: ConsoleApi; pads: RadioTrack[]; setPads: (pads: RadioTrack[]) => void; library: RadioTrack[]; onAdd: (track: RadioTrack) => void }) {
-  const { state, now, layerAction } = api;
+  const { state, now, layerAction, firePad, warmPads } = api;
   const [picking, setPicking] = useState(false);
   const [effects, setEffects] = useState<"browse" | "starter" | null>(null);
   const drop = useTrackDrop(library, onAdd);
@@ -31,8 +31,10 @@ export function PadBank({ api, pads, setPads, library, onAdd }: { api: ConsoleAp
   function fire(track: RadioTrack) {
     setFired(track.id);
     window.setTimeout(() => setFired((value) => (value === track.id ? null : value)), 650);
-    void layerAction({ action: "play", id: track.id, lane: "pad" });
+    void firePad(track);
   }
+
+  useEffect(() => warmPads(pads), [pads, warmPads]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {

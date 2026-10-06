@@ -121,6 +121,9 @@ final class Station
     /** Scheduled overlays this far ahead travel with the state so listeners can preload them. */
     private const LAYER_LOOKAHEAD = 60000;
 
+    /** A start the console reports is trusted only this close to the server clock (ms). */
+    private const LAYER_CLOCK_SKEW = 5000;
+
     /** Listeners see what sounded before the item on air: this far back, at most this many (newest first). */
     private const RECENT_WINDOW = 60 * 60000;
 
@@ -602,15 +605,19 @@ final class Station
     /**
      * Puts a library audio on air on top of the program: a pad, or one of the players or beds.
      * What the lane played stops at once, or fades out over the new fade in (a crossfade).
-     * A looped layer repeats until it is stopped.
+     * A looped layer repeats until it is stopped. The console may name the layer and the moment
+     * it already started sounding there, so every listener hears it in step with the operator.
      */
-    public static function playLayer(RadioTrack $track, string $lane, int $volume, bool $duck, float $fadeIn = 0, float $fadeOut = 0, bool $loop = false): array
+    public static function playLayer(RadioTrack $track, string $lane, int $volume, bool $duck, float $fadeIn = 0, float $fadeOut = 0, bool $loop = false, ?string $id = null, ?int $at = null): array
     {
         $now = self::nowMs();
+        if ($at !== null && abs($at - $now) <= self::LAYER_CLOCK_SKEW) {
+            $now = $at;
+        }
         $length = (int) round($track->duration * 1000);
         $fadeIn = self::fade($fadeIn);
         $layer = [
-            'id' => Str::lower(Str::random(12)),
+            'id' => $id !== null && preg_match('/^[a-z0-9]{12}$/', $id) ? $id : Str::lower(Str::random(12)),
             'lane' => $lane,
             'track_id' => $track->id,
             'title' => $track->title,
@@ -629,6 +636,9 @@ final class Station
         self::updateLive(function (array $live) use ($layer, $lane, $now, $fadeIn) {
             $layers = [];
             foreach (self::sounding($live['layers'], $now) as $item) {
+                if ($item['id'] === $layer['id']) {
+                    continue;
+                }
                 if ($lane === 'pad' || $item['lane'] !== $lane) {
                     $layers[] = $item;
                 } elseif ($fadeIn > 0) {
