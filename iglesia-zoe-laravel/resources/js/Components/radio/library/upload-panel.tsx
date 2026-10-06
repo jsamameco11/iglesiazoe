@@ -1,81 +1,14 @@
-import { router } from "@inertiajs/react";
-import { useEffect, useMemo, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import { button, ghost, input } from "@/Components/admin/ui";
-import { AUDIO_ACCEPT, COVER_ACCEPT, readDuration } from "@/Components/radio/admin-ui";
-import { postAudio } from "@/Components/radio/audio-upload";
+import { AUDIO_ACCEPT, COVER_ACCEPT } from "@/Components/radio/admin-ui";
 import { SearchIcon } from "@/Components/radio/icons";
-import { duration, type RadioGenre, type RadioTrack } from "@/lib/radio";
-import { artistHints, parseFileName, recognizeSong, type SongDetails } from "@/lib/radio/audio-tags";
-import {
-  DuplicateBadge,
-  DuplicatePanel,
-  LibraryTwin,
-  choiceOf,
-  concernKey,
-  concerns,
-  decide,
-  duplicateShade,
-  isPending,
-  listenKey,
-  needsDecision,
-  replaceTarget,
-  reviewDuplicates,
-  type DuplicateChoice,
-  type DuplicateDecision,
-  type DuplicateMatch,
-  type DuplicateReview,
-} from "./duplicates";
+import { duration, type RadioGenre } from "@/lib/radio";
+import type { SongDetails } from "@/lib/radio/audio-tags";
+import { DuplicateBadge, DuplicatePanel, LibraryTwin, concerns, duplicateShade, isPending, listenKey, type DuplicateChoice, type DuplicateDecision, type DuplicateMatch } from "./duplicates";
 import { printOf } from "@/lib/radio/fingerprint";
 import { CompareDialog, type ComparePair, type CompareSide } from "./compare-dialog";
-import { CoAuthorsField, CoverPicker, GenrePicker, LookupBadge, MusicNote, cleanYear, identifySong, identityJson, mergeNames, plain, type LookupState } from "./song-fields";
-
-type Kind = RadioTrack["kind"];
-
-type Upload = {
-  key: string;
-  file: File;
-  kind: Kind;
-  duck: boolean;
-  duration: number | null;
-  progress: number;
-  status: "reading" | "ready" | "uploading" | "done" | "error";
-  error?: string;
-  /** The last upload failed: it is not tried again on its own until the admin changes something or retries. */
-  blocked: boolean;
-  title: string;
-  artist: string;
-  featured: string[];
-  album: string;
-  year: string;
-  genres: RadioGenre[];
-  /** Genre written in the file's tags, used when the internet gives none. */
-  tagGenre: string;
-  cover: Blob | null;
-  coverUrl: string | null;
-  /** Cover found on the internet; the server downloads it when the song is uploaded without its own cover. */
-  remoteCover: string | null;
-  source: SongDetails["source"] | null;
-  lookup: LookupState | null;
-  identity: string | null;
-  /** Songs of the library or of this upload it repeats. */
-  duplicates: DuplicateReview;
-  /** What the song and the ones before it were like when `duplicates` was given (see `reviewContexts`). */
-  reviewedAs: string | null;
-  /** What the admin chose for a song that may repeat another; it is not saved until there is a choice. */
-  decision: DuplicateDecision | null;
-  /** Title of the library song whose audio this upload replaced. */
-  replaced: string | null;
-  /** Also publish it on /radio as an episode, with this description and cover. */
-  episode: boolean;
-  description: string;
-  episodeCover: File | null;
-};
-
-/** Where an audio is on its way to the library. */
-type Phase = "reading" | "searching" | "checking" | "incomplete" | "verdict" | "blocked" | "skip" | "queued" | "uploading" | "done" | "unreadable";
-
-/** Whether the review of repeated songs covers the song as the list is now, or was given up after failing several times in a row. */
-type ReviewState = { fresh: boolean; gaveUp: boolean };
+import { CoAuthorsField, CoverPicker, GenrePicker, LookupBadge, MusicNote, cleanYear } from "./song-fields";
+import { WORKING, duckFor, groupRepeats, isRepeat, missing, missingField, uploadQueue, useUploadQueue, type Kind, type Phase, type Upload } from "./upload-queue";
 
 type Props = {
   kinds: Record<Kind, string>;
@@ -90,210 +23,24 @@ type Props = {
   knownArtists: string[];
 };
 
-const LIBRARY = "/admin/radio/biblioteca";
-const AUDIO_FILE = /\.(mp3|m4a|aac|ogg|oga|opus|wav|webm|flac)$/i;
-const MAX_COVER_BYTES = 8 * 1024 * 1024;
 const small = `${input} !mt-0 !py-2`;
-/** Pause between a change and its review, so the changes of that moment are asked about together. */
-const REVIEW_DELAY_MS = 900;
-const REVIEW_RETRY_MS = 5000;
-/** Failed reviews in a row before uploading without it (the server still refuses an exact repeat). */
-const REVIEW_ATTEMPTS = 3;
-/** Songs judged per review, the first of the list first since they go up first: each one is compared with the whole library. */
-const REVIEW_CHUNK = 40;
-const LOOKUP_ATTEMPTS = 3;
-const LOOKUP_RETRY_MS = 2500;
-/** Uploads between refreshes of the library list below, during a long upload. */
-const RELOAD_EVERY = 15;
-/** Phases that move on by themselves. */
-const WORKING = new Set<Phase>(["reading", "searching", "checking", "queued", "uploading"]);
-/** Phases that wait for the admin. */
-const WAITING = new Set<Phase>(["incomplete", "verdict", "blocked"]);
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** Spoken audio lowers the music by default when it plays on top of it. */
-const duckFor = (kind: Kind) => kind === "anuncio" || kind === "programa";
-
-/** Songs of the duplicate review, in upload order; the ones already uploaded stay, as the songs after them were compared with them. */
-const inReview = (item: Upload) => item.kind === "musica" && (item.status === "ready" || item.status === "uploading" || item.status === "done") && item.title.trim().length >= 2;
-
-/** FNV-1a fingerprint of a text. */
-function fingerprint(text: string) {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < text.length; index++) {
-    hash ^= text.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(36);
-}
-
-/**
- * What the review of each song rests on: its data and that of the songs before it. A song is compared again only when
- * this changes, so in a long upload a change asks again for the songs after it, not for the whole list.
- */
-function reviewContexts(list: Upload[]) {
-  const contexts = new Map<string, string>();
-  let chain = "";
-  list.filter(inReview).forEach((item) => {
-    chain = fingerprint(`${chain}|${JSON.stringify([item.key, item.title.trim(), item.artist.trim(), item.featured, item.album.trim(), item.year, item.duration, item.identity])}`);
-    contexts.set(item.key, chain);
-  });
-  return contexts;
-}
-
-/** A song whose review is missing or out of date, and whose data is settled (not being searched). */
-const needsReview = (item: Upload, contexts: Map<string, string>) =>
-  item.status === "ready" && item.lookup?.status !== "searching" && contexts.has(item.key) && item.reviewedAs !== contexts.get(item.key);
-
-/** Songs of the upload this song was found to match, by their keys. */
-const batchMatches = (item: Upload) => (Array.isArray(item.duplicates) ? item.duplicates.flatMap((match) => (match.batch ? [match.batch] : [])) : []);
 
 function sizeLabel(bytes: number) {
   return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
-/** What keeps an audio from being uploaded, or null when it is complete. */
-function missing(item: Upload) {
-  if (!item.title.trim()) return item.kind === "musica" ? "Falta el nombre de la canción." : "Falta el nombre del audio.";
-  if (item.kind === "musica" && !item.artist.trim()) return "Falta el autor de la canción.";
-  if (item.year && item.year.length !== 4) return "El año va con 4 cifras (por ejemplo 2024).";
-  return null;
-}
-
-/** The field to fill first in an incomplete audio. */
-function missingField(item: Upload) {
-  if (!item.title.trim()) return "title";
-  if (item.kind === "musica" && !item.artist.trim()) return "artist";
-  return "year";
-}
-
-const isSongReady = (item: Upload) => item.kind === "musica" && item.status === "ready";
-
-/** The admin's choice for a song that may repeat another, as it is reviewed now. */
-const choiceFor = (item: Upload): DuplicateChoice | null => (item.kind === "musica" ? choiceOf(item.duplicates, item.decision) : null);
-
-/** A song not uploaded yet that may repeat another, whether or not the admin decided already. */
-const isRepeat = (item: Upload) => item.kind === "musica" && (item.status === "ready" || item.status === "uploading") && needsDecision(item.duplicates);
-
-/**
- * Where an audio is: it goes up on its own once it was read, searched on the internet, compared with the library
- * and is complete; it waits for the admin only when data is missing, it may repeat another song or its upload failed.
- */
-function phaseOf(item: Upload, review: ReviewState): Phase {
-  if (item.status === "done") return "done";
-  if (item.status === "uploading") return "uploading";
-  if (item.status === "reading") return "reading";
-  if (item.status === "error") return "unreadable";
-  if (item.lookup?.status === "searching") return "searching";
-  if (missing(item)) return "incomplete";
-  if (item.blocked) return "blocked";
-  if (item.kind !== "musica") return "queued";
-  if (item.title.trim().length >= 2 && !review.gaveUp && !review.fresh) return "checking";
-  if (isPending(item.duplicates, item.decision)) return "verdict";
-  return choiceFor(item) === "skip" ? "skip" : "queued";
-}
-
-/**
- * Keeps a choice when the song it was made about was uploaded in the meantime: «the other song of this upload»
- * becomes that same song in the library, so the admin is not asked again.
- */
-function carry(decision: DuplicateDecision | null, review: DuplicateReview, uploaded: Map<string, string>): DuplicateDecision | null {
-  if (!decision || !needsDecision(review)) return decision;
-  const now = concernKey(review);
-  if (decision.about === now) return decision;
-  const sorted = (parts: string[]) => [...parts].sort().join("|");
-  const before = decision.about.split("|").map((part) => (part.startsWith("b:") && uploaded.has(part.slice(2)) ? `t:${uploaded.get(part.slice(2))}` : part));
-  return sorted(before) === sorted(now.split("|")) ? { ...decision, about: now } : decision;
-}
-
-/** Songs that may repeat each other, together and in upload order (the first one, then its repeats), so they can be compared one after the other. */
-function groupRepeats(active: Upload[]): Upload[][] {
-  const position = new Map(active.map((item, index) => [item.key, index]));
-  const parent = new Map<string, string>();
-  const root = (key: string) => {
-    let at = key;
-    while (parent.get(at) !== at) at = parent.get(at) as string;
-    return at;
-  };
-  const link = (first: string, second: string) => {
-    [first, second].forEach((key) => parent.has(key) || parent.set(key, key));
-    const [head, tail] = [root(first), root(second)].sort((a, b) => (position.get(a) ?? 0) - (position.get(b) ?? 0));
-    if (head !== tail) parent.set(tail, head);
-  };
-  active.filter(isRepeat).forEach((item) => {
-    link(item.key, item.key);
-    concerns(item.duplicates).forEach((match) => {
-      if (match.batch && position.has(match.batch)) link(item.key, match.batch);
-    });
-  });
-  const groups = new Map<string, Upload[]>();
-  active.forEach((item) => {
-    if (!parent.has(item.key)) return;
-    const head = root(item.key);
-    groups.set(head, [...(groups.get(head) ?? []), item]);
-  });
-  return [...groups.values()];
-}
-
-function coverName(blob: Blob) {
-  return `caratula.${blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg"}`;
-}
-
-const nameKey = (name: string) => plain(name).replace(/[^a-z0-9]/g, "");
-const sameList = (first: string[], second: string[]) => first.join("\n") === second.join("\n");
 const plural = (count: number, one: string, many: string) => (count === 1 ? `1 ${one}` : `${count} ${many}`);
 
 /**
- * Completes a song with what the internet said, without stepping on what the admin typed while it searched:
- * a field is only filled when it is still as it was when the search started, and (unless `force`) when it was empty.
- */
-function fill(current: Upload, base: Upload, state: LookupState, force: boolean, limits: { featured: number; genres: number }): Upload {
-  const next: Upload = { ...current, lookup: state };
-  if (state.status !== "found") return next;
-  const result = state.result;
-  const untouched = (field: "title" | "artist" | "album" | "year") => current[field] === base[field];
-  if (result.found) {
-    if (result.title && untouched("title") && (force || current.source !== "tags" || !current.title.trim())) next.title = result.title;
-    if (result.artist && untouched("artist")) next.artist = result.artist;
-    if (sameList(current.featured, base.featured)) {
-      const main = nameKey(next.artist);
-      next.featured = mergeNames(
-        base.featured.filter((name) => nameKey(name) !== main),
-        result.featured.filter((name) => nameKey(name) !== main),
-        limits.featured,
-      );
-    }
-    if (result.album && untouched("album") && (force || !current.album.trim())) next.album = result.album;
-    if (result.year && untouched("year") && (force || !current.year)) next.year = String(result.year);
-    if (result.cover_url && !current.cover) {
-      next.remoteCover = result.cover_url;
-      next.coverUrl = result.cover_url;
-    }
-    next.identity = identityJson(result);
-  } else {
-    if (result.title && untouched("title") && (force || current.source !== "tags")) next.title = result.title;
-    if (result.artist && untouched("artist")) next.artist = result.artist;
-  }
-  const sameGenres = current.genres.map((genre) => genre.id).join() === base.genres.map((genre) => genre.id).join();
-  if (result.genres.length && sameGenres && (force || current.genres.length === 0)) next.genres = result.genres.slice(0, limits.genres);
-  return next;
-}
-
-/**
  * Upload area of the library: drop or pick files, each song is recognized from its tags or its name and searched on the internet.
- * «Guardar» starts an upload that runs on its own: every audio goes up, one at a time, as soon as its search and its
- * duplicate review end; songs that may repeat another wait together for the admin's verdict, and incomplete ones for their data.
+ * It shows the upload kept in `uploadQueue`, which goes on while the admin is in other sections or browser tabs.
  */
 export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, maxMb, maxDescription, canEpisodes, knownArtists }: Props) {
-  const [queue, setQueue] = useState<Upload[]>([]);
+  const { queue, auto, notice } = useUploadQueue();
   const [uploadKind, setUploadKind] = useState<Kind>("musica");
-  const [auto, setAuto] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [notice, setNotice] = useState<{ tone: "ok" | "warn"; text: string } | null>(null);
   const [previewing, setPreviewing] = useState<string | null>(null);
   const [bulk, setBulk] = useState<{ artist: string; album: string; genres: RadioGenre[]; year: string }>({ artist: "", album: "", genres: [], year: "" });
-  const [reviewFailures, setReviewFailures] = useState(0);
   const [flash, setFlash] = useState<string | null>(null);
   const [visited, setVisited] = useState<Record<string, number>>({});
   /** The repeated song open side by side with the ones it may repeat. */
@@ -301,275 +48,42 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
   const picker = useRef<HTMLInputElement>(null);
   const depth = useRef(0);
   const player = useRef<HTMLAudioElement | null>(null);
-  const urls = useRef(new Set<string>());
-  const current = useRef(queue);
-  const lookups = useRef<Promise<void>>(Promise.resolve());
-  const asking = useRef(false);
-  const reviewTimer = useRef(0);
-  const retry = useRef(0);
-  const busy = useRef(false);
-  const running = useRef(false);
   const flashTimer = useRef(0);
-  /** Library id each song of this upload got, by its key. */
-  const uploadedAs = useRef(new Map<string, string>());
-  /** Keys of the songs uploaded, in the order they went up. */
-  const uploads = useRef<string[]>([]);
-  const tally = useRef({ uploaded: 0, replaced: 0, unsynced: 0 });
-  const [reviewRound, setReviewRound] = useState(0);
-  current.current = queue;
-  running.current = auto;
 
   const kindList = Object.keys(kinds) as Kind[];
-  const contexts = useMemo(() => reviewContexts(queue), [queue]);
-  const gaveUp = reviewFailures >= REVIEW_ATTEMPTS;
-  const phases = new Map(queue.map((item) => [item.key, phaseOf(item, { fresh: item.reviewedAs === contexts.get(item.key), gaveUp })]));
-  const pendingReview = queue
-    .filter((item) => needsReview(item, contexts))
-    .slice(0, REVIEW_CHUNK)
-    .map((item) => contexts.get(item.key))
-    .join();
+  const { phases } = uploadQueue.progress();
   const phase = (item: Upload) => phases.get(item.key) as Phase;
 
+  useEffect(() => uploadQueue.configure({ featured: maxFeatured, genres: maxGenres, canEpisodes }), [maxFeatured, maxGenres, canEpisodes]);
+  useEffect(() => uploadQueue.view(), []);
   useEffect(
     () => () => {
-      player.current?.pause();
-      urls.current.forEach((url) => URL.revokeObjectURL(url));
-      [retry, reviewTimer, flashTimer].forEach((timer) => {
-        window.clearTimeout(timer.current);
-        timer.current = 0;
-      });
+      stopPreview();
+      window.clearTimeout(flashTimer.current);
     },
     [],
   );
 
-  /**
-   * Each song is compared with the library and with the songs before it once its data is settled, and again when it or
-   * a song before it changes; one review at a time, a failed one is asked again. A result is kept only if the song is
-   * still as it was asked and no song it could repeat reached the library meanwhile.
-   */
-  useEffect(() => {
-    if (!pendingReview || asking.current || reviewTimer.current || retry.current) return;
-    reviewTimer.current = window.setTimeout(async () => {
-      reviewTimer.current = 0;
-      const list = current.current;
-      const asked = reviewContexts(list);
-      const judge = list.filter((item) => needsReview(item, asked)).slice(0, REVIEW_CHUNK);
-      if (!judge.length) return;
-      const songs = list.slice(0, list.indexOf(judge[judge.length - 1]) + 1).filter((item) => inReview(item) && item.status !== "done");
-      const from = uploads.current.length;
-      asking.current = true;
-      const results = await reviewDuplicates(songs, judge.map((item) => item.key));
-      asking.current = false;
-      if (!results) {
-        setReviewFailures((count) => count + 1);
-        retry.current = window.setTimeout(() => {
-          retry.current = 0;
-          setReviewRound((round) => round + 1);
-        }, REVIEW_RETRY_MS);
-        return;
-      }
-      const since = new Set(uploads.current.slice(from));
-      const judged = new Set(judge.map((item) => item.key));
-      setReviewFailures(0);
-      setQueue((now) => {
-        const contextsNow = reviewContexts(now);
-        const lastUploaded = now.reduce((last, item, index) => (since.has(item.key) ? index : last), -1);
-        return now.map((item, index) => {
-          const context = asked.get(item.key);
-          if (!judged.has(item.key) || item.status !== "ready" || !context || contextsNow.get(item.key) !== context) return item;
-          const found = results[item.key] ?? [];
-          if (index < lastUploaded || found.some((match) => match.batch && since.has(match.batch))) return item;
-          return { ...item, duplicates: found, reviewedAs: context, decision: carry(item.decision, found, uploadedAs.current) };
-        });
-      });
-      setReviewRound((round) => round + 1);
-    }, REVIEW_DELAY_MS);
-  }, [pendingReview, reviewRound]);
-
-  /**
-   * The upload in course: the next audio that finished its searches goes up, one at a time, until only what needs the
-   * admin is left. It does not go past a song still being compared, which could turn out to repeat it.
-   */
-  useEffect(() => {
-    if (!auto || busy.current) return;
-    const next = queue.find((item) => phase(item) === "queued" || phase(item) === "checking");
-    if (next && phase(next) === "queued") {
-      void upload(next);
-      return;
-    }
-    const now = queue.map(phase);
-    if (now.some((value) => WORKING.has(value))) return;
-    syncLibrary();
-    if (!now.some((value) => WAITING.has(value))) finish();
-  });
-
-  const inFlight = auto && queue.some((item) => WORKING.has(phase(item)));
-  useEffect(() => {
-    if (!inFlight) return;
-    const unload = (event: BeforeUnloadEvent) => event.preventDefault();
-    window.addEventListener("beforeunload", unload);
-    const off = router.on("before", (event) => {
-      if (event.detail.visit.only.length) return;
-      if (!window.confirm("La subida sigue en curso. Si sales de esta página se detiene (lo que ya se subió queda guardado). ¿Salir igual?")) event.preventDefault();
-    });
-    return () => {
-      window.removeEventListener("beforeunload", unload);
-      off();
-    };
-  }, [inFlight]);
-
-  function objectUrl(blob: Blob) {
-    const url = URL.createObjectURL(blob);
-    urls.current.add(url);
-    return url;
-  }
-
-  function dropUrl(url: string | null) {
-    if (!url) return;
-    URL.revokeObjectURL(url);
-    urls.current.delete(url);
-  }
-
-  function patch(key: string, values: Partial<Upload>) {
-    const update = (list: Upload[]) => list.map((item) => (item.key === key ? { ...item, ...values } : item));
-    current.current = update(current.current);
-    setQueue(update);
-  }
-
-  /** A change made by the admin: a failed upload may go up again with it. */
-  function edit(item: Upload, values: Partial<Upload>) {
-    patch(item.key, item.status === "ready" ? { ...values, blocked: false, error: undefined } : values);
-  }
-
-  /** One song at a time, so the music services are asked politely; each one reads the song as it is when its turn comes, and a failed search is tried again. */
-  function lookUp(key: string, force = false) {
-    patch(key, { lookup: { status: "searching" } });
-    lookups.current = lookups.current.then(async () => {
-      const base = current.current.find((item) => item.key === key);
-      if (!base || base.kind !== "musica" || base.status !== "ready" || base.title.trim().length < 2) {
-        patch(key, { lookup: null });
-        return;
-      }
-      const song = { title: base.title, artist: base.artist, featured: base.featured, duration: base.duration, genre: base.tagGenre };
-      let state = await identifySong(song);
-      for (let attempt = 1; state.status === "error" && attempt < LOOKUP_ATTEMPTS; attempt++) {
-        await wait(LOOKUP_RETRY_MS * attempt);
-        if (!current.current.some((item) => item.key === key)) return;
-        state = await identifySong(song);
-      }
-      setQueue((list) => list.map((item) => (item.key === key ? fill(item, base, state, force, { featured: maxFeatured, genres: maxGenres }) : item)));
-    });
-  }
+  const edit = (item: Upload, values: Partial<Upload>) => uploadQueue.edit(item.key, values);
 
   function addFiles(list: FileList | File[] | null) {
-    if (!list?.length) return;
-    const files = Array.from(list);
-    const audio = files.filter((file) => AUDIO_FILE.test(file.name) || file.type.startsWith("audio/"));
-    const known = new Set(queue.map((item) => `${item.file.name}:${item.file.size}`));
-    const fresh = audio.filter((file) => !known.has(`${file.name}:${file.size}`));
-    const skipped = files.length - audio.length;
-    const repeated = audio.length - fresh.length;
-    setNotice(
-      skipped || repeated
-        ? {
-            tone: "warn",
-            text: [skipped ? `${skipped} ${skipped === 1 ? "archivo no es audio y se dejó" : "archivos no son audio y se dejaron"} fuera.` : "", repeated ? `${repeated} ya ${repeated === 1 ? "estaba" : "estaban"} en la lista.` : ""].filter(Boolean).join(" "),
-          }
-        : null,
-    );
-
-    const hints = artistHints(
-      [...queue.map((item) => item.file.name), ...fresh.map((file) => file.name)],
-      [...knownArtists, ...queue.flatMap((item) => (item.kind === "musica" && item.status !== "reading" ? [item.artist, ...item.featured] : []))],
-    );
-    const items: Upload[] = fresh.map((file, index) => {
-      const guess = parseFileName(file.name, hints);
-      const tooBig = file.size > maxMb * 1024 * 1024;
-      return {
-        key: `${Date.now()}-${index}-${file.name}`,
-        file,
-        kind: uploadKind,
-        duck: duckFor(uploadKind),
-        duration: null,
-        progress: 0,
-        status: tooBig ? "error" : "reading",
-        error: tooBig ? `Pesa más de ${maxMb} MB. Expórtalo en MP3 (128–192 kbps).` : undefined,
-        blocked: false,
-        title: guess.title,
-        artist: uploadKind === "musica" ? guess.artist : "",
-        featured: uploadKind === "musica" ? guess.featured : [],
-        album: "",
-        year: "",
-        genres: [],
-        tagGenre: "",
-        cover: null,
-        coverUrl: null,
-        remoteCover: null,
-        source: null,
-        lookup: null,
-        identity: null,
-        duplicates: null,
-        reviewedAs: null,
-        decision: null,
-        replaced: null,
-        episode: false,
-        description: "",
-        episodeCover: null,
-      };
-    });
-    setQueue((current) => [...current, ...items]);
-
-    items
-      .filter((item) => item.status === "reading")
-      .forEach(async (item) => {
-        const [seconds, details] = await Promise.all([readDuration(item.file), recognizeSong(item.file, hints)]);
-        if (!seconds) {
-          patch(item.key, { status: "error", error: "No pudimos leer este audio. Prueba con MP3 o M4A." });
-          return;
-        }
-        patch(item.key, {
-          duration: seconds,
-          status: "ready",
-          title: details.title || item.title,
-          artist: details.artist,
-          featured: details.featured.slice(0, maxFeatured),
-          album: details.album,
-          year: details.year,
-          tagGenre: details.genre,
-          cover: details.cover,
-          coverUrl: details.cover ? objectUrl(details.cover) : null,
-          source: details.source,
-        });
-        if (item.kind === "musica" && (details.title || item.title).trim().length >= 2) lookUp(item.key);
-      });
+    uploadQueue.configure({ featured: maxFeatured, genres: maxGenres, canEpisodes });
+    uploadQueue.addFiles(list, { kind: uploadKind, maxMb, knownArtists });
   }
 
   function remove(item: Upload) {
     if (previewing === item.key) stopPreview();
-    dropUrl(item.coverUrl);
-    setQueue((list) => list.filter((entry) => entry.key !== item.key));
+    uploadQueue.remove(item.key);
   }
 
   function clear() {
     stopPreview();
-    queue.forEach((item) => dropUrl(item.coverUrl));
-    setQueue([]);
-    setNotice(null);
-    syncLibrary();
-  }
-
-  function setCover(item: Upload, file: File | null) {
-    if (file && (file.size > MAX_COVER_BYTES || !COVER_ACCEPT.split(",").includes(file.type))) {
-      setNotice({ tone: "warn", text: "La carátula debe ser una imagen JPG, PNG o WEBP de hasta 8 MB." });
-      return;
-    }
-    dropUrl(item.coverUrl);
-    edit(item, { cover: file, coverUrl: file ? objectUrl(file) : null, remoteCover: null });
+    uploadQueue.clear();
   }
 
   function stopPreview() {
     player.current?.pause();
-    if (player.current?.src) dropUrl(player.current.src);
+    if (player.current?.src) uploadQueue.dropUrl(player.current.src);
     setPreviewing(null);
   }
 
@@ -584,7 +98,7 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
 
   function togglePreview(item: Upload) {
     if (previewing === item.key) stopPreview();
-    else play(item.key, objectUrl(item.file));
+    else play(item.key, uploadQueue.objectUrl(item.file));
   }
 
   /** Plays the song a card may repeat (the library one or the other one of this upload), to compare them by ear. */
@@ -598,7 +112,7 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
       play(key, match.track.src);
       return;
     }
-    const other = current.current.find((item) => item.key === match.batch);
+    const other = queue.find((item) => item.key === match.batch);
     if (other) togglePreview(other);
   }
 
@@ -609,7 +123,7 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
 
   /** The same choice for every song that may repeat another, for long uploads. */
   function decideAll(choice: DuplicateChoice) {
-    setQueue((list) => list.map((item) => (isSongReady(item) && needsDecision(item.duplicates) ? { ...item, decision: decide(item.duplicates, choice), blocked: false, error: undefined } : item)));
+    uploadQueue.decideAll(choice);
   }
 
   function applyToAll() {
@@ -618,100 +132,16 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
     if (bulk.album.trim()) values.album = bulk.album.trim();
     if (bulk.genres.length) values.genres = bulk.genres;
     if (bulk.year) values.year = bulk.year;
-    setQueue((list) => list.map((item) => (item.kind === "musica" && (item.status === "ready" || item.status === "error") ? { ...item, ...values, blocked: false } : item)));
-  }
-
-  /** Refreshes the library list below with what was uploaded since the last time. */
-  function syncLibrary() {
-    if (!tally.current.unsynced) return;
-    tally.current.unsynced = 0;
-    router.reload({ only: ["tracks"] });
+    uploadQueue.applyToAll(values);
   }
 
   function start() {
     stopPreview();
-    setNotice(null);
-    setQueue((list) => list.map((item) => (item.blocked ? { ...item, blocked: false } : item)));
-    setAuto(true);
+    uploadQueue.start();
   }
 
   function pause() {
-    setAuto(false);
-    syncLibrary();
-    setNotice({ tone: "warn", text: "Subida en pausa. Lo que se estaba subiendo termina; el resto queda en la lista, con sus búsquedas listas, para cuando la retomes." });
-  }
-
-  async function upload(item: Upload) {
-    busy.current = true;
-    patch(item.key, { status: "uploading", progress: 0, error: undefined });
-    const choice = choiceFor(item);
-    const target = choice === "replace" ? replaceTarget(item.duplicates) : null;
-    const data = new FormData();
-    if (target) {
-      data.set("id", target.id);
-      data.set("replace_audio", "1");
-    }
-    data.set("title", item.title.trim());
-    data.set("artist", item.artist.trim());
-    data.set("kind", item.kind);
-    data.set("duration", String(item.duration));
-    data.set("duck", item.duck ? "1" : "0");
-    if (item.kind === "musica") {
-      item.featured.map((name) => name.trim()).filter(Boolean).forEach((name) => data.append("featured[]", name));
-      data.set("album", item.album.trim());
-      item.genres.forEach((genre) => data.append("genre_ids[]", genre.id));
-      data.set("year", item.year);
-      if (item.cover) data.set("cover", item.cover, item.cover instanceof File ? item.cover.name : coverName(item.cover));
-      else if (item.remoteCover) data.set("cover_url", item.remoteCover);
-      if (item.identity) data.set("identity", item.identity);
-      if (choice === "both") data.set("duplicate_ok", "1");
-    }
-    if (canEpisodes && item.episode && !target) {
-      data.set("episode", "1");
-      data.set("episode_description", item.description);
-      if (item.episodeCover) data.set("episode_cover", item.episodeCover);
-    }
-    const result = await postAudio(LIBRARY, data, item.file, item.kind, (progress) => patch(item.key, { progress }));
-    busy.current = false;
-    if (result.error) {
-      patch(item.key, { status: "ready", progress: 0, error: result.error, blocked: true, reviewedAs: null });
-      return;
-    }
-    uploads.current.push(item.key);
-    if (typeof result.id === "string") uploadedAs.current.set(item.key, result.id);
-    const linked = new Set(batchMatches(item));
-    setQueue((list) => list.map((other) => (other.reviewedAs && (linked.has(other.key) || batchMatches(other).includes(item.key)) ? { ...other, reviewedAs: null } : other)));
-    if (target) tally.current.replaced++;
-    else tally.current.uploaded++;
-    tally.current.unsynced++;
-    patch(item.key, { status: "done", progress: 1, replaced: target?.title ?? null });
-    if (tally.current.unsynced >= RELOAD_EVERY || !running.current) syncLibrary();
-  }
-
-  /** Nothing is left to do on its own nor waits for the admin: the upload ends with its summary. */
-  function finish() {
-    const { uploaded, replaced } = tally.current;
-    tally.current = { uploaded: 0, replaced: 0, unsynced: 0 };
-    const skipped = queue.filter((item) => phase(item) === "skip").length;
-    const unreadable = queue.filter((item) => phase(item) === "unreadable").length;
-    setAuto(false);
-    setQueue((list) => {
-      const finished = (item: Upload) => item.status === "done" || phases.get(item.key) === "skip";
-      list.filter(finished).forEach((item) => dropUrl(item.coverUrl));
-      return list.filter((item) => !finished(item));
-    });
-    setNotice({
-      tone: unreadable ? "warn" : "ok",
-      text: [
-        uploaded ? `Listo: ${uploaded === 1 ? "se subió 1 audio" : `se subieron ${uploaded} audios`} a la biblioteca.` : "",
-        replaced ? `${replaced === 1 ? "Se reemplazó el audio de 1 canción" : `Se reemplazó el audio de ${replaced} canciones`}, que conservan sus datos y su programación.` : "",
-        skipped ? `${skipped === 1 ? "1 canción repetida no se subió" : `${skipped} canciones repetidas no se subieron`}, como elegiste.` : "",
-        unreadable ? `${unreadable === 1 ? "1 archivo no se pudo leer y sigue" : `${unreadable} archivos no se pudieron leer y siguen`} en la lista.` : "",
-        uploaded || replaced ? "Nada suena hasta que lo programes o lo lances desde la consola." : "",
-      ]
-        .filter(Boolean)
-        .join(" ") || "No había audios para subir.",
-    });
+    uploadQueue.pause();
   }
 
   /** Takes the admin to the next audio of a kind (they cycle), with its card highlighted and, if data is missing, the empty field ready to type. */
@@ -822,9 +252,9 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
       nameOf={nameOf}
       onListen={listen}
       onPatch={(values) => edit(item, values)}
-      onRetry={() => patch(item.key, { blocked: false, error: undefined })}
-      onLookUp={() => lookUp(item.key, true)}
-      onCover={(file) => setCover(item, file)}
+      onRetry={() => uploadQueue.patch(item.key, { blocked: false, error: undefined })}
+      onLookUp={() => uploadQueue.lookUp(item.key, true)}
+      onCover={(file) => uploadQueue.setCover(item.key, file)}
       onPreview={() => togglePreview(item)}
       onRemove={() => remove(item)}
       onCompare={() => compare(item.key)}
@@ -1085,8 +515,8 @@ export function UploadPanel({ kinds, genres, families, maxGenres, maxFeatured, m
               {auto && !working && (incomplete.length || verdicts.length || problems.length)
                 ? "Todo lo demás ya está en la biblioteca. Apenas completes los datos, des tu veredicto o corrijas lo que falló, se sube solo."
                 : auto
-                  ? "Cada audio se sube solo, uno por uno, apenas terminan su búsqueda en internet (álbum, año, estilos y carátula) y la revisión de repetidas. Puedes seguir revisando y agregando audios mientras tanto."
-                  : "Al guardar, cada audio se sube solo apenas terminen su búsqueda en internet (álbum, año, estilos y carátula) y la revisión de repetidas; las que podrían estar repetidas esperan tu veredicto."}
+                  ? "Cada audio se sube solo, uno por uno, apenas terminan su búsqueda en internet (álbum, año, estilos y carátula) y la revisión de repetidas. Sigue en segundo plano aunque vayas a otra sección del panel o cambies de pestaña; solo se detiene si cierras o recargas el panel."
+                  : "Al guardar, cada audio se sube solo apenas terminen su búsqueda en internet (álbum, año, estilos y carátula) y la revisión de repetidas, también en segundo plano mientras usas otras secciones o pestañas; las que podrían estar repetidas esperan tu veredicto."}
             </p>
           </div>
         </div>

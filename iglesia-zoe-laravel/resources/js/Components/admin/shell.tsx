@@ -3,6 +3,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import type { PanelUser } from "@/lib/access";
 import { useInboxPulse, useInboxShared, useUnread } from "@/lib/inbox";
 import { useSiteDesign } from "@/lib/design";
+import { UploadDock } from "@/Components/radio/library/upload-dock";
 import { AdminNav } from "./admin-nav";
 import { PrayerBubble } from "./prayer-bubble";
 import { PushPrompt } from "./push-notifications";
@@ -137,6 +138,7 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
         {children}
       </main>
       {inbox?.prayers && <PrayerBubble />}
+      <UploadDock />
     </div>
   );
 }
