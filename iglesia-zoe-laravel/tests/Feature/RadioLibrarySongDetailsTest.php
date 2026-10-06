@@ -42,7 +42,7 @@ class RadioLibrarySongDetailsTest extends TestCase
         $this->upload([
             'title' => '  Renuévame ',
             'artist' => 'Marcos Witt',
-            'featured' => ['Danilo Montero', '', 'Coalo Zamorano', 'Danilo Montero'],
+            'featured' => ['Danilo Montero', '', 'Coalo Zamorano (1)', 'danilo montero', 'Marcos Witt', 'Coalo Zamorano'],
             'album' => 'Sigues siendo Dios',
             'genre_ids' => [RadioGenre::query()->where('name', 'Adoración')->value('id')],
             'year' => '2004',

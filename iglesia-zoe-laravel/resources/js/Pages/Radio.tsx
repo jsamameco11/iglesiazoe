@@ -1,32 +1,29 @@
 import { Link } from "@inertiajs/react";
-import { useState } from "react";
 import { Rise } from "@/Components/motion/rise";
 import { UsersIcon } from "@/Components/radio/icons";
 import { EpisodeDeck } from "@/Components/radio/listener/episode-deck";
 import { EpisodeList } from "@/Components/radio/listener/episode-list";
 import { LiveDeck } from "@/Components/radio/listener/live-deck";
-import { ProgramList } from "@/Components/radio/listener/program-list";
+import { PlayedList } from "@/Components/radio/listener/played-list";
 import { useEpisode } from "@/Components/radio/listener/use-episode";
 import { useStation } from "@/Components/radio/listener/use-station";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import { section, useArt } from "@/lib/design";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
-import { KIND_LABEL, clock, dayLabel, type RadioEpisode, type RadioItem, type RadioState } from "@/lib/radio";
+import { KIND_LABEL, clock, type RadioEpisode, type RadioState } from "@/lib/radio";
 import type { SiteSettings } from "@/lib/types";
 import "../../css/radio.css";
 
-type ProgramDay = { date: string; items: RadioItem[] };
-
 export default function Radio({
   radio,
-  program,
+  today,
   episodes,
   settings,
   mediaOverrides,
 }: {
   radio: RadioState;
-  program: ProgramDay[];
+  today: string;
   episodes: RadioEpisode[];
   settings: SiteSettings;
   mediaOverrides: Record<string, MediaAsset>;
@@ -39,9 +36,6 @@ export default function Radio({
   const { state, now } = station;
   const upcoming = state.queue.filter((entry) => entry.start > now).slice(0, 3);
   const tone = !state.on_air ? "off" : state.live.on ? "live" : "air";
-  const [day, setDay] = useState(0);
-  const today = program[0]?.date;
-
   /** The live radio and an episode never sound together: starting one stops the other. */
   function playEpisode(episode: RadioEpisode) {
     if (station.playing) void station.toggle();
@@ -92,6 +86,14 @@ export default function Radio({
       <div className="page-wrap">
         <EpisodeList episodes={episodes} current={player.episode?.id ?? null} playing={player.playing} onPlay={playEpisode} t={t} />
 
+        <section {...section("program", "Programación")} className="mt-24">
+          <Rise>
+            <p className="kicker">{t("radio.programKicker")}</p>
+            <h2 className="editorial mt-4 text-4xl leading-[1.05] md:text-5xl">{t("radio.programTitle")}</h2>
+          </Rise>
+          <PlayedList state={state} now={now} t={t} />
+        </section>
+
         {upcoming.length ? (
           <section {...section("next", "Lo que viene")} className="mt-24">
             <Rise>
@@ -108,28 +110,6 @@ export default function Radio({
             </div>
           </section>
         ) : null}
-
-        <section {...section("program", "Programación")} className="mt-24">
-          <Rise className="flex flex-wrap items-end justify-between gap-6">
-            <div>
-              <p className="kicker">{t("radio.programKicker")}</p>
-              <h2 className="editorial mt-4 text-4xl leading-[1.05] md:text-5xl">{t("radio.programTitle")}</h2>
-            </div>
-            <div className="flex rounded-full border border-line bg-card p-1">
-              {program.map((entry, index) => (
-                <button
-                  key={entry.date}
-                  type="button"
-                  onClick={() => setDay(index)}
-                  className={`rounded-full px-5 py-2 text-sm font-semibold capitalize transition ${day === index ? "bg-ink text-white" : "text-muted hover:text-ink"}`}
-                >
-                  {dayLabel(entry.date, today)}
-                </button>
-              ))}
-            </div>
-          </Rise>
-          <ProgramList items={program[day]?.items ?? []} now={now} t={t} />
-        </section>
 
         <Rise className="ink-band mt-24 rounded-[2rem] px-8 py-14 md:px-14">
           <div className="flex flex-wrap items-end justify-between gap-8">

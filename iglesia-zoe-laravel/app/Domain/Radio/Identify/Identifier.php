@@ -676,7 +676,7 @@ final class Identifier
             'sources' => array_values(array_unique($sources)),
             'title' => $found['title'] ?? ($query->title !== '' ? $query->title : null),
             'artist' => $artist,
-            'featured' => array_values($featured),
+            'featured' => Text::unique(array_values(array_filter(array_map(fn (string $name) => Text::cleanArtist($name), $featured), fn (string $name) => Text::key($name) !== Text::key($artist)))),
             'album' => $found['album'] ?? null,
             'year' => $found['year'] ?? null,
             'cover_url' => $found['cover'] ?? null,

@@ -62,6 +62,9 @@ export async function recognizeSong(file: File, hints: ArtistHints = new Map()):
 
 /* ------------------------------------------------------------------ names */
 
+/** What the computer adds to a copied or re-downloaded file: «… (1)», «… - copia», «… - Copy (2)». */
+const COPY_MARK = /(?:\s*[-–—]\s*(?:copia|copy)(?:\s*\(\d{1,2}\))?|\s*\(\d{1,2}\))\s*$/i;
+
 const NOISE = /\s*[([][^)\]]*\b(?:official|oficial|video|vídeo|audio|lyrics?|letra|visualizer|videoclip|hd|hq|4k|1080p|720p|kbps|mp3)\b[^)\]]*[)\]]/gi;
 const FEAT_IN_TITLE = /\s*[([]\s*(?:feat\.?|ft\.?|featuring|con)\s+([^)\]]+)[)\]]/i;
 const FEAT_AT_END = /\s+(?:feat\.?|ft\.?|featuring)\s+(.+)$/i;
@@ -74,6 +77,7 @@ const key = (name: string) => clean(name).toLocaleLowerCase("es");
 function baseName(name: string): string {
   return name
     .replace(/\.[a-z0-9]{2,4}$/i, "")
+    .replace(COPY_MARK, "")
     .replace(/_+/g, " ")
     .replace(NOISE, "")
     .replace(/[([]?\s*\b(?:feat\.?|ft\.?|featuring)\s+@[\w.]+(?:\s*(?:,|&|\by\b|\band\b|\bx\b)\s*@[\w.]+)*\s*[)\]]?/giu, " ")

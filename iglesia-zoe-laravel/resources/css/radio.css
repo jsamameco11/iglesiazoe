@@ -194,7 +194,7 @@
 @media (min-width: 768px) {
   .radio-row { grid-template-columns: 8rem 1fr auto; padding: 1.15rem 0.5rem; }
 }
-.radio-row[data-past] { opacity: 0.45; }
+.radio-row[data-past] { opacity: 0.62; }
 .radio-row[data-now] {
   border-radius: 1rem;
   border-bottom-color: transparent;

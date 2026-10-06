@@ -68,7 +68,8 @@ class RadioLibraryController extends RadioController
         $request->merge([
             'title' => trim((string) $request->input('title')),
             'artist' => trim((string) $request->input('artist')),
-            'featured' => collect((array) $request->input('featured', []))->map(fn ($name) => trim((string) $name))->filter()->unique()->values()->all(),
+            'featured' => Text::unique(collect((array) $request->input('featured', []))->map(fn ($name) => Text::cleanArtist((string) $name))
+                ->reject(fn (string $name) => Text::key($name) === Text::key((string) $request->input('artist')))->all()),
         ]);
         $validator = Validator::make($request->all(), [
             'title' => 'required|string|max:160',

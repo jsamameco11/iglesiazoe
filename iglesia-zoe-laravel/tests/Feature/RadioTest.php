@@ -205,18 +205,31 @@ class RadioTest extends TestCase
         $this->assertSame(CarbonImmutable::parse('2026-10-02 15:20:00', Station::TZ)->getTimestampMs(), $state['queue'][1]['start']);
         $this->assertEquals(0, $state['queue'][1]['seek']);
         $this->assertContains($state['previous']['title'], $songs->pluck('title')->all());
+        $this->assertSame($state['previous']['id'], $state['recent'][0]['id']);
+        $this->assertCount(6, $state['recent']);
+        $this->assertSame(['musica'], array_values(array_unique(array_column($state['recent'], 'kind'))));
+        $this->assertSame(array_column($state['recent'], 'origin'), collect($state['recent'])->sortByDesc('origin')->pluck('origin')->all());
 
-        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-02 15:25:00', Station::TZ));
-        $a = $this->getJson(self::SITE.'/radio/estado')->json('queue.0');
+        $notice = $this->track('Aviso del retiro', 'anuncio', 30);
+        RadioSlot::query()->create([
+            'starts_at' => CarbonImmutable::parse('2026-10-02 15:20:00', Station::TZ)->utc(),
+            'duration' => 30, 'kind' => 'anuncio', 'radio_track_id' => $notice->id, 'title' => $notice->title,
+        ]);
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-10-02 15:22:00', Station::TZ));
+        $a = $this->getJson(self::SITE.'/radio/estado')->json();
         $b = $this->getJson(self::SITE.'/radio/estado')->json('queue.0');
-        $this->assertSame($a['id'], $b['id']);
-        $this->assertContains($a['title'], $songs->pluck('title')->all());
+        $this->assertSame($a['queue'][0]['id'], $b['id']);
+        $this->assertContains($a['queue'][0]['title'], $songs->pluck('title')->all());
+        $this->assertSame('Prédica del domingo', $a['recent'][0]['title']);
+        $this->assertSame(CarbonImmutable::parse('2026-10-02 14:50:00', Station::TZ)->getTimestampMs(), $a['recent'][0]['origin']);
+        $this->assertContains($a['recent'][1]['title'], $songs->pluck('title')->all());
 
         $this->get(self::SITE.'/radio')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Radio')
             ->where('radio.name', 'Radio Zoe')
-            ->has('program', 2)
-            ->where('program.0.date', '2026-10-02'));
+            ->where('radio.recent.0.title', 'Prédica del domingo')
+            ->where('today', '2026-10-02')
+            ->missing('program'));
     }
 
     public function test_continuous_music_crossfades_the_songs(): void

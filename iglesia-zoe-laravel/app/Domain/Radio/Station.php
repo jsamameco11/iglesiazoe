@@ -121,6 +121,11 @@ final class Station
     /** Scheduled overlays this far ahead travel with the state so listeners can preload them. */
     private const LAYER_LOOKAHEAD = 60000;
 
+    /** Listeners see what sounded before the item on air: this far back, at most this many (newest first). */
+    private const RECENT_WINDOW = 60 * 60000;
+
+    private const RECENT_ITEMS = 6;
+
     /** 2026-01-01 00:00 in Lima: start of the music rotation when the timeline has never had a block. */
     private const ROTATION_EPOCH = 1767243600000;
 
@@ -837,7 +842,7 @@ final class Station
         RadioHealth::sweepSoon();
         $now = self::nowMs();
         $onAir = (bool) $config['on_air'];
-        [$previous, $queue] = $onAir ? self::program($now) : [null, []];
+        [$previous, $queue, $recent] = $onAir ? self::program($now) : [null, [], []];
         $live = self::storedLive();
         $window = $onAir && LiveSwitch::isOpen($live['window'], $now) ? $live['window'] : null;
         $external = $window && $config['live_source'] === LiveSwitch::EXTERNAL && $config['live_url'] !== '';
@@ -852,6 +857,7 @@ final class Station
             'stream' => $config['stream_url'] ?: null,
             'previous' => $previous,
             'queue' => $queue,
+            'recent' => $recent,
             // Healthy songs of the source the player falls back on when a file fails or the server stops
             // answering (none when silence is intended, also when the source plays only once).
             'fallback' => $onAir && $config['autofill'] && $config['auto_repeat'] ? Autopilot::reserve($now, self::onAir($config, $now)) : [],
@@ -915,14 +921,15 @@ final class Station
     }
 
     /**
-     * The song before the one on air and the items from now on (the one on air first;
-     * during a crossfade the song fading out comes first and keeps playing).
+     * The song before the one on air, the items from now on (the one on air first; during a
+     * crossfade the song fading out comes first and keeps playing) and what sounded before the
+     * one on air, newest first: songs, programs and live shows, not announcements or effects.
      *
-     * @return array{0: ?array, 1: list<array>}
+     * @return array{0: ?array, 1: list<array>, 2: list<array>}
      */
     private static function program(int $now): array
     {
-        $items = self::items($now - 20 * 60000, $now + 4 * 3600000, true, 60);
+        $items = self::items($now - self::RECENT_WINDOW, $now + 4 * 3600000, true, 90);
         $current = null;
         foreach ($items as $index => $item) {
             if ($item['start'] <= $now && $now < $item['end']) {
@@ -936,8 +943,19 @@ final class Station
                 $queue[] = $item['start'] < $now ? [...$item, 'start' => $now, 'seek' => round(($now - $item['origin']) / 1000, 3)] : $item;
             }
         }
+        $before = $current !== null ? array_slice($items, 0, $current) : array_filter($items, fn (array $item) => $item['end'] <= $now);
+        $recent = [];
+        foreach (array_reverse($before) as $item) {
+            if (in_array($item['kind'], ['anuncio', 'efecto'], true) || ($recent && $recent[count($recent) - 1]['id'] === $item['id'])) {
+                continue;
+            }
+            $recent[] = $item;
+            if (count($recent) >= self::RECENT_ITEMS) {
+                break;
+            }
+        }
 
-        return [$previous, $queue];
+        return [$previous, $queue, $recent];
     }
 
     /** @return Collection<int, RadioSlot> main-timeline blocks overlapping [from, to) */

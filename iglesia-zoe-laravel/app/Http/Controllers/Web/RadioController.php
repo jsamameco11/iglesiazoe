@@ -10,7 +10,6 @@ use App\Domain\Site\Actions\ResolveSiteSkin;
 use App\Http\Controllers\Controller;
 use App\Models\RadioEpisode;
 use App\Models\RadioTrack;
-use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -23,9 +22,6 @@ class RadioController extends Controller
 
     public function page(Request $request): Response
     {
-        $today = Station::today();
-        $tomorrow = CarbonImmutable::parse($today, Station::TZ)->addDay()->toDateString();
-
         return Inertia::render('Radio', [
             'settings' => LoadPublicSite::settings(),
             'ministries' => LoadPublicSite::ministries(),
@@ -33,19 +29,9 @@ class RadioController extends Controller
             'mediaOverrides' => LoadPublicSite::mediaOverrides(),
             'skin' => ResolveSiteSkin::fromRequest($request),
             'radio' => Station::state(),
-            'program' => [
-                ['date' => $today, 'items' => $this->program($today)],
-                ['date' => $tomorrow, 'items' => $this->program($tomorrow)],
-            ],
+            'today' => Station::today(),
             'episodes' => RadioEpisode::published()->limit(60)->get()->map->card(),
         ]);
-    }
-
-    private function program(string $date): array
-    {
-        [$from, $to] = Station::dayBounds($date);
-
-        return Station::items($from, $to, false);
     }
 
     public function state(Request $request): JsonResponse

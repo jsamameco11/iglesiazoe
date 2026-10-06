@@ -51,6 +51,15 @@ class RadioSongCategoriesTest extends TestCase
             ->assertJsonPath('result.guessed', ['genres']);
     }
 
+    public function test_co_authors_come_out_once_without_copy_numbers_or_live_labels(): void
+    {
+        $this->fakeNothingFound();
+
+        $this->identify(['title' => 'Derramo el perfume', 'artist' => 'Montesanto', 'featured' => ['Averly Morillo (1)', 'Averly Morillo', 'Manny Montes (2)', 'Coalo Zamorano (Live)']])
+            ->assertOk()
+            ->assertJsonPath('result.featured', ['Averly Morillo', 'Manny Montes', 'Coalo Zamorano']);
+    }
+
     public function test_a_cover_takes_the_genres_of_who_sang_it_first(): void
     {
         $this->fakeNothingFound();

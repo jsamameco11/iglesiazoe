@@ -28,6 +28,9 @@ final class Text
     /** Channel labels after an author: «Miel San Marcos - En Vivo», «Hillsong Worship - Topic», «Marcos Witt Oficial». */
     private const ARTIST_LABEL = '/(?:\s*[\(\[]\s*(?:en vivo|ao vivo|live|oficial|official)\s*[\)\]]|\s*[-–—|:]\s*(?:topic|tema|en vivo|ao vivo|live|oficial|official|canal oficial|official channel|videos?|music|m[uú]sica)|\s+(?:oficial|official|canal oficial|official channel))\s*$/iu';
 
+    /** What the computer adds to a copied or re-downloaded file: «… (1)», «… - copia», «… - Copy (2)». */
+    private const COPY_MARK = '/(?:\s*[-–—]\s*(?:copia|copy)(?:\s*\(\d{1,2}\))?|\s*\(\d{1,2}\))\s*$/iu';
+
     /** Lowercase, without accents or punctuation: «Renuévame (En Vivo)» → «renuevame en vivo». */
     public static function key(?string $value): string
     {
@@ -54,9 +57,10 @@ final class Text
         return trim(preg_replace('/\s+/u', ' ', $title) ?? $title, " \t\n\r\0\x0B-–—|·.");
     }
 
-    /** The author without channel labels: «Miel San Marcos - En Vivo», «Marcos Witt Oficial», «MarcosWittVEVO» → the name. */
+    /** The author without channel labels or file-copy marks: «Miel San Marcos - En Vivo», «Marcos Witt Oficial», «MarcosWittVEVO», «Averly Morillo (1)» → the name. */
     public static function cleanArtist(string $artist): string
     {
+        $artist = preg_replace(self::COPY_MARK, '', $artist) ?? $artist;
         $artist = preg_replace(self::ARTIST_LABEL, '', $artist) ?? $artist;
         $artist = preg_replace('/(?<=\p{L})vevo\s*$/iu', '', $artist) ?? $artist;
 

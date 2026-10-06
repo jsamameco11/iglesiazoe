@@ -116,6 +116,8 @@ export type RadioState = {
   stream: string | null;
   previous: RadioItem | null;
   queue: RadioItem[];
+  /** What sounded before the item on air, newest first: songs, programs and live shows. */
+  recent?: RadioItem[];
   fallback?: RadioReserveSong[];
   layers: RadioLayer[];
   next_show: { title: string; kind: RadioKind; start: number } | null;
