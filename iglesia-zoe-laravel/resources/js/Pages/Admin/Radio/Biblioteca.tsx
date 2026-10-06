@@ -1,7 +1,8 @@
 import { Link, router } from "@inertiajs/react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { AUDIO_ACCEPT, COVER_ACCEPT, KindTag, RadioHeader, postWithProgress, readDuration } from "@/Components/radio/admin-ui";
-import { CoAuthorsField, CoverPicker, GenrePicker, LookupBadge, MusicNote, cleanYear, identifySong, identityJson, mergeNames, type LookupState } from "@/Components/radio/library/song-fields";
+import { ShelfBrowser, ShelfHeader, artistShelves, styleShelves, type LibraryView } from "@/Components/radio/library/shelves";
+import { CoAuthorsField, CoverPicker, GenrePicker, LookupBadge, MusicNote, cleanYear, identifySong, identityJson, mergeNames, plain, type LookupState } from "@/Components/radio/library/song-fields";
 import { UploadPanel } from "@/Components/radio/library/upload-panel";
 import { postAudio } from "@/Components/radio/audio-upload";
 import { SearchIcon } from "@/Components/radio/icons";
@@ -41,6 +42,8 @@ function styles(track: RadioTrack) {
 
 export default function Biblioteca({ tracks, kinds, genres, families, maxGenres, maxFeatured, maxMb, maxDescription }: Props) {
   const canEpisodes = can(usePanelUser(), "radio.episodes");
+  const [view, setView] = useState<LibraryView>("audios");
+  const [opened, setOpened] = useState<string | null>(null);
   const [tab, setTab] = useState<Kind | "">("");
   const [genre, setGenre] = useState("");
   const [query, setQuery] = useState("");
@@ -62,6 +65,32 @@ export default function Biblioteca({ tracks, kinds, genres, families, maxGenres,
       `${track.title} ${credit(track)} ${track.album ?? ""} ${styles(track)}`.toLowerCase().includes(needle),
   );
   const kindList = Object.keys(kinds) as Kind[];
+  const artists = useMemo(() => artistShelves(tracks.filter((track) => track.kind === "musica")), [tracks]);
+  const styleList = useMemo(() => styleShelves(tracks.filter((track) => track.kind === "musica")), [tracks]);
+  const shelves = view === "autores" ? artists : styleList;
+  const open = view !== "audios" ? shelves.find((item) => item.key === opened) : undefined;
+  const openSongs = open
+    ? [...open.songs]
+        .filter((track) => !needle || plain(`${track.title} ${credit(track)} ${track.album ?? ""}`).includes(plain(needle)))
+        .sort((a, b) => Number(plain(b.artist ?? "") === open.key) - Number(plain(a.artist ?? "") === open.key) || a.title.localeCompare(b.title, "es"))
+    : [];
+  const views: [LibraryView, string, number][] = [
+    ["audios", "Todos los audios", tracks.length],
+    ["autores", "Por autor", artists.length],
+    ["estilos", "Por estilo", styleList.filter((item) => item.family).length],
+  ];
+
+  function changeView(next: LibraryView) {
+    setView(next);
+    setOpened(null);
+    setQuery("");
+  }
+
+  function openShelf(key: string | null) {
+    setOpened(key);
+    setQuery("");
+    setEditing(null);
+  }
 
   function togglePlay(track: RadioTrack) {
     audio.current ??= new Audio();
@@ -108,60 +137,101 @@ export default function Biblioteca({ tracks, kinds, genres, families, maxGenres,
       />
 
       <section className="mt-6 rounded-[1.6rem] border border-line bg-card p-4 md:p-6">
-        <div className="flex flex-wrap items-center gap-2">
-          {(["", ...kindList] as const).map((kind) => (
-            <button
-              key={kind || "all"}
-              type="button"
-              onClick={() => setTab(kind)}
-              className={`rounded-full px-4 py-2 text-xs font-semibold transition ${tab === kind ? "bg-ink text-white" : "bg-paper text-muted hover:text-ink"}`}
-            >
-              {kind ? kinds[kind] : "Todo"} · {kind ? tracks.filter((track) => track.kind === kind).length : tracks.length}
-            </button>
-          ))}
-          <div className="ml-auto flex w-full flex-wrap gap-2 sm:w-auto">
-            {usedGenres.length ? (
-              <select value={genre} onChange={(event) => setGenre(event.target.value)} className={`${input} !mt-0 !w-auto`} aria-label="Filtrar por estilo musical">
-                <option value="">Todos los estilos</option>
-                {usedGenres.map((value) => (
-                  <option key={value.id} value={value.id}>
-                    {value.name}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre, autor, álbum o estilo…" className={`${input} !mt-0 min-w-0 flex-1 sm:!w-72`} />
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
+          <div className="inline-flex flex-wrap rounded-full border border-line bg-paper p-1" role="tablist" aria-label="Ver la biblioteca">
+            {views.map(([key, label, total]) => (
+              <button
+                key={key}
+                type="button"
+                role="tab"
+                aria-selected={view === key}
+                onClick={() => changeView(key)}
+                className={`rounded-full px-4 py-2 text-xs font-semibold transition ${view === key ? "bg-ink text-white shadow-sm" : "text-muted hover:text-ink"}`}
+              >
+                {label} <span className={view === key ? "text-white/70" : "text-muted/70"}>· {total}</span>
+              </button>
+            ))}
           </div>
+          {view !== "audios" ? <p className="text-[12px] text-muted">Solo canciones · {view === "autores" ? "cuenta también cuando cantan como invitados" : "una canción aparece en cada uno de sus estilos"}</p> : null}
         </div>
 
-        {shown.length === 0 ? (
-          <p className="mt-5 rounded-[1.4rem] border border-dashed border-line px-5 py-10 text-center text-sm text-muted">
-            {tracks.length === 0 ? "Aún no hay audios. Sube tus primeras canciones, anuncios y efectos arriba." : "No hay audios con ese filtro."}
-          </p>
+        {view !== "audios" ? (
+          open ? (
+            <>
+              <ShelfHeader view={view} shelf={open} families={families} onBack={() => openShelf(null)} />
+              {open.songs.length > 6 ? (
+                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar en estas canciones…" className={`${input} !mt-4 sm:!w-72`} />
+              ) : null}
+              {list(openSongs)}
+            </>
+          ) : (
+            <ShelfBrowser view={view} shelves={shelves} families={families} query={query} onQuery={setQuery} onOpen={openShelf} />
+          )
         ) : (
-          <ul className="mt-4 divide-y divide-line">
-            {shown.map((track) => (
-              <TrackRow
-                key={track.id}
-                track={track}
-                kinds={kinds}
-                genres={genres}
-                families={families}
-                maxGenres={maxGenres}
-                maxFeatured={maxFeatured}
-                maxMb={maxMb}
-                canEpisodes={canEpisodes}
-                playing={playing === track.id}
-                editing={editing === track.id}
-                onPlay={() => togglePlay(track)}
-                onEdit={() => setEditing(editing === track.id ? null : track.id)}
-              />
-            ))}
-          </ul>
+          <>
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {(["", ...kindList] as const).map((kind) => (
+                <button
+                  key={kind || "all"}
+                  type="button"
+                  onClick={() => setTab(kind)}
+                  className={`rounded-full px-4 py-2 text-xs font-semibold transition ${tab === kind ? "bg-ink text-white" : "bg-paper text-muted hover:text-ink"}`}
+                >
+                  {kind ? kinds[kind] : "Todo"} · {kind ? tracks.filter((track) => track.kind === kind).length : tracks.length}
+                </button>
+              ))}
+              <div className="ml-auto flex w-full flex-wrap gap-2 sm:w-auto">
+                {usedGenres.length ? (
+                  <select value={genre} onChange={(event) => setGenre(event.target.value)} className={`${input} !mt-0 !w-auto`} aria-label="Filtrar por estilo musical">
+                    <option value="">Todos los estilos</option>
+                    {usedGenres.map((value) => (
+                      <option key={value.id} value={value.id}>
+                        {value.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar por nombre, autor, álbum o estilo…" className={`${input} !mt-0 min-w-0 flex-1 sm:!w-72`} />
+              </div>
+            </div>
+
+            {list(shown)}
+          </>
         )}
       </section>
     </AdminLayout>
   );
+
+  function list(items: RadioTrack[]) {
+    if (items.length === 0) {
+      return (
+        <p className="mt-5 rounded-[1.4rem] border border-dashed border-line px-5 py-10 text-center text-sm text-muted">
+          {tracks.length === 0 ? "Aún no hay audios. Sube tus primeras canciones, anuncios y efectos arriba." : open ? "Ninguna de sus canciones coincide con la búsqueda." : "No hay audios con ese filtro."}
+        </p>
+      );
+    }
+    return (
+      <ul className="mt-4 divide-y divide-line">
+        {items.map((track) => (
+          <TrackRow
+            key={track.id}
+            track={track}
+            kinds={kinds}
+            genres={genres}
+            families={families}
+            maxGenres={maxGenres}
+            maxFeatured={maxFeatured}
+            maxMb={maxMb}
+            canEpisodes={canEpisodes}
+            playing={playing === track.id}
+            editing={editing === track.id}
+            onPlay={() => togglePlay(track)}
+            onEdit={() => setEditing(editing === track.id ? null : track.id)}
+          />
+        ))}
+      </ul>
+    );
+  }
 }
 
 function TrackRow({
