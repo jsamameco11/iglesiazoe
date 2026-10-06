@@ -374,6 +374,8 @@ export const copyGroups = [
       { key: "prayer.email", label: "Oración · campo correo", value: "Correo" },
       { key: "prayer.request", label: "Oración · campo de la petición", value: "Tu petición" },
       { key: "prayer.requestPlaceholder", label: "Oración · petición (texto de ayuda)", value: "Cuéntanos por quién o por qué situación quieres que oremos.", area: true },
+      { key: "prayer.onAir", label: "Oración · opción de orar al aire", value: "Quiero que oren por mí al aire, en la radio" },
+      { key: "prayer.onAirHint", label: "Oración · nota de orar al aire", value: "Solo mencionaremos tu nombre y tu motivo; nunca tu teléfono ni tu correo.", area: true },
       { key: "prayer.submit", label: "Oración · botón", value: "Enviar mi petición" },
       { key: "prayer.thanksHello", label: "Oración · saludo al enviar", value: "Gracias, {nombre}.", hint: "{nombre} se reemplaza por el primer nombre de la persona." },
       { key: "prayer.again", label: "Oración · botón para enviar otra", value: "Enviar otra petición" },

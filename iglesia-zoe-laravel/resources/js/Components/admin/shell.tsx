@@ -4,6 +4,7 @@ import type { PanelUser } from "@/lib/access";
 import { useInboxPulse, useInboxShared, useUnread } from "@/lib/inbox";
 import { useSiteDesign } from "@/lib/design";
 import { AdminNav } from "./admin-nav";
+import { PrayerBubble } from "./prayer-bubble";
 import { PushPrompt } from "./push-notifications";
 
 type ShellProps = { flash?: { denied?: boolean }; entrance?: { admin: boolean; siteUrl: string } };
@@ -135,6 +136,7 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
         <PushPrompt />
         {children}
       </main>
+      {inbox?.prayers && <PrayerBubble />}
     </div>
   );
 }

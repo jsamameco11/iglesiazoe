@@ -4,8 +4,23 @@ import { send, type ActionResult } from "@/lib/actions";
 
 export type InboxKind = "visitas" | "bautismos" | "oraciones" | "servidores";
 
+export type PendingPrayer = {
+  id: string;
+  full_name: string;
+  age: number | null;
+  topic: string | null;
+  request: string;
+  phone: string | null;
+  on_air: boolean;
+  created_at: string | null;
+  network: { key: string; label: string; color: string };
+};
+
+export type PendingPrayers = { total: number; onAir: number; items: PendingPrayer[] };
+
 type InboxShared = {
   unread: Partial<Record<InboxKind, number>>;
+  prayers?: PendingPrayers | null;
   push: { publicKey: string | null; muted: boolean; canMute: boolean };
 } | null;
 
@@ -36,6 +51,29 @@ export function useUnread(initial: Partial<Record<InboxKind, number>> | undefine
   );
 }
 
+/* Prayer requests waiting in the floating bubble, shared by every panel page. */
+let prayers: PendingPrayers | null = null;
+const prayerListeners = new Set<() => void>();
+
+export function setPrayers(next: PendingPrayers | null) {
+  prayers = next;
+  prayerListeners.forEach((listener) => listener());
+}
+
+export function usePendingPrayers(initial: PendingPrayers | null | undefined) {
+  useEffect(() => {
+    if (initial !== undefined) setPrayers(initial);
+  }, [initial]);
+  return useSyncExternalStore(
+    (listener) => {
+      prayerListeners.add(listener);
+      return () => prayerListeners.delete(listener);
+    },
+    () => prayers ?? initial ?? null,
+    () => initial ?? null,
+  );
+}
+
 const PULSE_MS = 25000;
 
 /** Polls for new submissions and refreshes the open tab when one arrives. */
@@ -49,7 +87,8 @@ export function useInboxPulse(enabled: boolean) {
       try {
         const response = await fetch("/admin/formularios/novedades", { headers: { Accept: "application/json", "X-Requested-With": "XMLHttpRequest" } });
         if (!response.ok || !alive) return;
-        const data = (await response.json()) as { unread: Partial<Record<InboxKind, number>> };
+        const data = (await response.json()) as { unread: Partial<Record<InboxKind, number>>; prayers?: PendingPrayers | null };
+        if (data.prayers !== undefined) setPrayers(data.prayers);
         const open = window.location.pathname.match(/^\/admin\/formularios\/(visitas|bautismos|oraciones|servidores)$/)?.[1] as InboxKind | undefined;
         if (open && (data.unread[open] ?? 0) > 0) {
           router.reload({ only: ["rows", "seenBefore", "inbox"] });

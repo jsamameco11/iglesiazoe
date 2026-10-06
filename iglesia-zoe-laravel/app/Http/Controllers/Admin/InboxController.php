@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Domain\Access\Permissions;
 use App\Domain\Inbox\Inbox;
 use App\Domain\Inbox\NetworkRoute;
+use App\Domain\Inbox\PrayerBubble;
 use App\Http\Controllers\Controller;
 use App\Models\PushSubscription;
 use App\Models\ServeArea;
@@ -77,7 +78,30 @@ class InboxController extends Controller
 
     public function pulse(Request $request): JsonResponse
     {
-        return response()->json(['unread' => Inbox::unread($request->user())]);
+        $user = $request->user();
+
+        return response()->json([
+            'unread' => Inbox::unread($user),
+            'prayers' => PrayerBubble::reaches($user) ? PrayerBubble::pending($user) : null,
+        ]);
+    }
+
+    /** Removes prayer requests from the floating bubble of this account; they stay under Peticiones de oración. */
+    public function dismissPrayers(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'ids' => 'required_without:all|array|max:'.PrayerBubble::LIMIT,
+            'ids.*' => 'string|max:64',
+            'all' => 'nullable|boolean',
+        ], ['ids.required_without' => 'Elige qué petición quieres quitar.']);
+        $user = $request->user();
+        $removed = PrayerBubble::dismiss($user, $request->boolean('all') ? null : array_values($data['ids'] ?? []));
+
+        return response()->json([
+            'ok' => true,
+            'removed' => $removed,
+            'prayers' => PrayerBubble::pending($user),
+        ]);
     }
 
     public function subscribe(Request $request): JsonResponse

@@ -154,6 +154,7 @@ final class Inbox
                     ...$base,
                     'topic' => $row->topic,
                     'request' => $row->request,
+                    'on_air' => (bool) $row->on_air,
                 ],
                 'servidores' => [
                     ...$base,
@@ -185,7 +186,10 @@ final class Inbox
                 'body' => implode(' · ', array_filter([$who, $row->service, self::place($row)])),
             ],
             'bautismos' => ['title' => "Nueva inscripción de bautismo · {$route['label']}", 'body' => $who],
-            'oraciones' => ['title' => "Nueva petición de oración · {$route['label']}", 'body' => $who.($row->topic ? " · {$row->topic}" : '')],
+            'oraciones' => [
+                'title' => ($row->on_air ? 'Petición de oración para orar al aire' : 'Nueva petición de oración')." · {$route['label']}",
+                'body' => $who.($row->topic ? " · {$row->topic}" : ''),
+            ],
             'servidores' => ['title' => "Quiere servir en {$row->area_name} · {$route['label']}", 'body' => $who.($row->team ? " · {$row->team}" : '')],
         };
     }

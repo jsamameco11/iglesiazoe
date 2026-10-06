@@ -178,6 +178,7 @@ class FormsController extends Controller
             'email' => 'nullable|email|max:160',
             'topic' => ['nullable', Rule::in(LoadPublicSite::prayerTopics())],
             'request' => 'required|string|min:8|max:2000',
+            'on_air' => 'nullable|boolean',
         ], [
             'first_name.required' => 'Escribe tus nombres.',
             'first_name.min' => 'Escribe tus nombres.',
@@ -200,6 +201,7 @@ class FormsController extends Controller
             'first_name' => trim($data['first_name']),
             'last_name' => trim($data['last_name']),
             'full_name' => trim(trim($data['first_name']).' '.trim($data['last_name'])),
+            'on_air' => $request->boolean('on_air'),
         ]);
         defer(fn () => PushNotifier::announce('oraciones', $prayer));
 

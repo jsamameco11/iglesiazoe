@@ -1,5 +1,5 @@
 import { usePage } from "@inertiajs/react";
-import { useRef, useState, useTransition, type FormEvent } from "react";
+import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import { MARITAL } from "@/Components/site/person-fields";
 import { SelectField } from "@/Components/ui/select-field";
 import { submitPrayer } from "@/lib/actions";
@@ -33,10 +33,15 @@ export function PrayerRequestForm() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [text, setText] = useState("");
+  const [onAir, setOnAir] = useState(false);
   const [errors, setErrors] = useState<Errors>({});
   const [error, setError] = useState("");
   const [sentTo, setSentTo] = useState("");
   const [pending, start] = useTransition();
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).has("al-aire")) setOnAir(true);
+  }, []);
 
   const clearError = (key: keyof Errors) => setErrors((current) => (current[key] ? { ...current, [key]: undefined } : current));
 
@@ -61,6 +66,7 @@ export function PrayerRequestForm() {
     setPhone("");
     setEmail("");
     setText("");
+    setOnAir(false);
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -82,6 +88,7 @@ export function PrayerRequestForm() {
     data.set("phone", phone.trim());
     data.set("email", email.trim());
     data.set("request", text.trim());
+    if (onAir) data.set("on_air", "1");
 
     setError("");
     start(async () => {
@@ -247,6 +254,15 @@ export function PrayerRequestForm() {
         <span className="mt-1.5 flex justify-between gap-3 text-[11px]">
           <span className="select-field-error">{errors.request}</span>
           <span className="text-muted">{text.length} / {MAX}</span>
+        </span>
+      </label>
+
+      <label className="prayer-air" data-on={onAir ? "true" : "false"}>
+        <input type="checkbox" checked={onAir} onChange={(event) => setOnAir(event.target.checked)} className="sr-only" />
+        <span className="prayer-air-switch" aria-hidden="true" />
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">{t("prayer.onAir")}</span>
+          <span className="mt-0.5 block text-[12.5px] leading-5 text-muted">{t("prayer.onAirHint")}</span>
         </span>
       </label>
 

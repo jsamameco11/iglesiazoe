@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use App\Domain\Access\Permissions;
 use App\Domain\Auth\Support\Entrance;
 use App\Domain\Inbox\Inbox;
+use App\Domain\Inbox\PrayerBubble;
 use App\Domain\Inbox\PushNotifier;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Actions\ResolveSiteSkin;
@@ -56,6 +57,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'inbox' => fn () => $user && Inbox::kindsFor($user) ? [
                 'unread' => Inbox::unread($user),
+                'prayers' => $request->is('admin', 'admin/*') && PrayerBubble::reaches($user) ? PrayerBubble::pending($user) : null,
                 'push' => [
                     'publicKey' => PushNotifier::publicKey(),
                     'muted' => (bool) $user->push_muted,

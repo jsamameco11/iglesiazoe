@@ -210,6 +210,7 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::post('/notificaciones/suscribir', [InboxController::class, 'subscribe']);
     });
     Route::post('/formularios/servidores/estado', [InboxController::class, 'serveStatus'])->middleware($can('inbox.serve'));
+    Route::post('/formularios/oraciones/quitar', [InboxController::class, 'dismissPrayers'])->middleware($can('inbox.prayers'));
     Route::post('/notificaciones/silenciar', [InboxController::class, 'mute'])->middleware(EnsureRole::class.':superadmin');
     Route::redirect('/bandeja', '/admin/formularios');
 

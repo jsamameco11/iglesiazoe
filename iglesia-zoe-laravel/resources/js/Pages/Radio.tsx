@@ -137,7 +137,7 @@ export default function Radio({
               <h2 className="editorial text-4xl leading-[1.05] text-white md:text-5xl">{t("radio.prayerTitle")}</h2>
               <p className="mt-4 text-[15px] leading-7 text-white/70">{t("radio.prayerText")}</p>
             </div>
-            <Link href="/contacto" className="btn-accent rounded-full px-6 py-3 text-sm font-semibold">{t("radio.prayerCta")} →</Link>
+            <Link href="/contacto?al-aire=1#peticion" className="btn-accent rounded-full px-6 py-3 text-sm font-semibold">{t("radio.prayerCta")} →</Link>
           </div>
         </Rise>
       </div>

@@ -35,6 +35,7 @@ type Row = {
   notes?: string | null;
   topic?: string | null;
   request?: string;
+  on_air?: boolean;
   area_id?: string | null;
   area?: string;
   team?: string | null;
@@ -176,6 +177,12 @@ function Card({ row, kind, isNew, onNetwork, statuses }: { row: Row; kind: Inbox
         <div className="flex flex-wrap items-center gap-2">
           <NetworkButton network={row.network} onClick={onNetwork} />
           {isNew && <span className="rounded-full bg-orange/15 px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.12em] text-orange-deep">Nuevo</span>}
+          {kind === "oraciones" && row.on_air && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#c62f2f] px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.12em] text-white" title="Pidió que oren por esta petición en la radio">
+              <span className="h-1.5 w-1.5 rounded-full bg-white" aria-hidden />
+              Orar al aire
+            </span>
+          )}
           {kind === "servidores" && statuses && row.status && (
             <span className={`rounded-full px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-[0.12em] ${STATUS_TONE[row.status]}`}>{statuses[row.status]}</span>
           )}
@@ -263,6 +270,7 @@ export default function Formularios({ kind, title, tabs, rows, limit, seenBefore
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<ServeStatus | "all">("all");
   const [area, setArea] = useState("all");
+  const [onAirOnly, setOnAirOnly] = useState(false);
   const unread = useUnread(useInboxShared()?.unread);
   const seen = seenBefore ? new Date(seenBefore).getTime() : null;
   const serve = kind === "servidores" && statuses !== null;
@@ -289,12 +297,16 @@ export default function Formularios({ kind, title, tabs, rows, limit, seenBefore
     return result;
   }, [rows]);
 
+  const onAirCount = useMemo(() => (kind === "oraciones" ? rows.filter((row) => row.on_air).length : 0), [rows, kind]);
+  const airFilter = onAirOnly && onAirCount > 0;
+
   const list = useMemo(() => {
     const text = query.trim().toLowerCase();
     return rows.filter((row) => {
       if (route !== "all" && row.network.key !== route) return false;
       if (serve && status !== "all" && row.status !== status) return false;
       if (serve && area !== "all" && (row.area_id || row.area) !== area) return false;
+      if (airFilter && !row.on_air) return false;
       if (!text) return true;
       return [row.full_name, row.phone, row.email, row.topic, row.service, row.country, row.region, row.city, row.district, row.area, row.team]
         .filter(Boolean)
@@ -302,7 +314,7 @@ export default function Formularios({ kind, title, tabs, rows, limit, seenBefore
         .toLowerCase()
         .includes(text);
     });
-  }, [rows, route, query, serve, status, area]);
+  }, [rows, route, query, serve, status, area, airFilter]);
 
   const pill = (on: boolean) => `shrink-0 rounded-full px-3.5 py-2 text-xs font-semibold transition ${on ? "bg-ink text-white" : "border border-line bg-white text-muted hover:text-ink"}`;
 
@@ -377,6 +389,17 @@ export default function Formularios({ kind, title, tabs, rows, limit, seenBefore
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {onAirCount > 0 && (
+          <div className="flex gap-2 overflow-x-auto [scrollbar-width:none]" role="group" aria-label="Filtrar por radio">
+            <button type="button" onClick={() => setOnAirOnly(false)} aria-pressed={!airFilter} className={pill(!airFilter)}>
+              Todas · {rows.length}
+            </button>
+            <button type="button" onClick={() => setOnAirOnly(true)} aria-pressed={airFilter} className={pill(airFilter)}>
+              Para orar al aire · {onAirCount}
+            </button>
           </div>
         )}
 
