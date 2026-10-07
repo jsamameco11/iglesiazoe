@@ -2,6 +2,7 @@ import { Link } from "@inertiajs/react";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { CellCode } from "@/Components/ui/cell-code";
 import { can, SERVER_TREE, usePanelUser, type Permission } from "@/lib/access";
+import { panelPrefetch } from "@/lib/prefetch";
 
 type Card = { label: string; value: string; href: string; note: string; accent: string };
 type Recent = { id: string; code: string | null; met: boolean; theme_title: string | null; week: number; year: number; photos: number };
@@ -44,7 +45,7 @@ export default function Dashboard({ cards, recent, name }: { cards: Card[]; rece
             </p>
             <div className="mt-7 flex flex-wrap gap-2.5">
               {links.slice(0, 3).map((item, index) => (
-                <Link key={item.href} href={item.href} className={index === 0 ? "rounded-full bg-orange px-5 py-2.5 text-sm font-semibold text-white" : "rounded-full border border-white/20 px-5 py-2.5 text-sm font-semibold text-white/90 hover:bg-white/10"}>
+                <Link key={item.href} href={item.href} {...panelPrefetch(item.href)} className={index === 0 ? "rounded-full bg-orange px-5 py-2.5 text-sm font-semibold text-white" : "rounded-full border border-white/20 px-5 py-2.5 text-sm font-semibold text-white/90 hover:bg-white/10"}>
                   {item.label}
                 </Link>
               ))}
@@ -55,7 +56,7 @@ export default function Dashboard({ cards, recent, name }: { cards: Card[]; rece
         {cards.length > 0 && (
           <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {cards.map((card) => (
-              <Link key={card.label} href={card.href} className={`${card.accent} group rounded-[1.6rem] border border-black/5 p-6 transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_45px_rgba(42,39,36,0.09)]`}>
+              <Link key={card.label} href={card.href} {...panelPrefetch(card.href)} className={`${card.accent} group rounded-[1.6rem] border border-black/5 p-6 transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_45px_rgba(42,39,36,0.09)]`}>
                 <div className="flex items-start justify-between">
                   <p className="text-sm font-semibold">{card.label}</p>
                   <span className="text-lg transition group-hover:translate-x-1">↗</span>
@@ -75,7 +76,7 @@ export default function Dashboard({ cards, recent, name }: { cards: Card[]; rece
                   <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-orange-deep">Actividad</p>
                   <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">Informes recientes</h2>
                 </div>
-                {can(user, "reports.all") && <Link href="/admin/informes" className="text-sm font-semibold text-orange-deep">Ver todos</Link>}
+                {can(user, "reports.all") && <Link href="/admin/informes" {...panelPrefetch("/admin/informes")} className="text-sm font-semibold text-orange-deep">Ver todos</Link>}
               </div>
               <div className="mt-5 divide-y divide-line">
                 {recent.map((row) => (
@@ -95,7 +96,7 @@ export default function Dashboard({ cards, recent, name }: { cards: Card[]; rece
             <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">Accesos rápidos</h2>
             <div className={`mt-5 grid gap-2 ${recent.length ? "" : "sm:grid-cols-2 xl:grid-cols-3"}`}>
               {links.map((item) => (
-                <Link key={item.href} href={item.href} className="group flex items-center justify-between gap-3 rounded-2xl bg-paper px-4 py-3.5 transition hover:bg-orange/10">
+                <Link key={item.href} href={item.href} {...panelPrefetch(item.href)} className="group flex items-center justify-between gap-3 rounded-2xl bg-paper px-4 py-3.5 transition hover:bg-orange/10">
                   <span>
                     <span className="block text-sm font-semibold">{item.label}</span>
                     <span className="mt-0.5 block text-xs text-muted">{item.text}</span>

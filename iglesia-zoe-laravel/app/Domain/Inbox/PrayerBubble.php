@@ -29,8 +29,12 @@ final class PrayerBubble
      */
     public static function pending(User $user): array
     {
-        $items = self::query($user)->latest()->limit(self::LIMIT)
-            ->get(['id', 'full_name', 'age', 'marital_status', 'topic', 'request', 'phone', 'on_air', 'created_at'])
+        $rows = self::query($user)->latest()->limit(self::LIMIT)
+            ->select(['id', 'full_name', 'age', 'marital_status', 'topic', 'request', 'phone', 'on_air', 'created_at'])
+            ->selectSub(self::query($user)->toBase()->selectRaw('count(*)'), 'pending_total')
+            ->selectSub(self::query($user)->where('on_air', true)->toBase()->selectRaw('count(*)'), 'pending_on_air')
+            ->get();
+        $items = $rows
             ->map(fn (PrayerRequest $prayer) => [
                 'id' => (string) $prayer->id,
                 'full_name' => $prayer->full_name,
@@ -45,8 +49,8 @@ final class PrayerBubble
             ->all();
 
         return [
-            'total' => self::query($user)->count(),
-            'onAir' => self::query($user)->where('on_air', true)->count(),
+            'total' => (int) ($rows->first()?->pending_total ?? 0),
+            'onAir' => (int) ($rows->first()?->pending_on_air ?? 0),
             'items' => $items,
         ];
     }

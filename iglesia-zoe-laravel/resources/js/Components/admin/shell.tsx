@@ -3,6 +3,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import type { PanelUser } from "@/lib/access";
 import { useInboxPulse, useInboxShared, useUnread } from "@/lib/inbox";
 import { useSiteDesign } from "@/lib/design";
+import { useFreshPrefetch } from "@/lib/prefetch";
 import { UploadDock } from "@/Components/radio/library/upload-dock";
 import { AdminNav } from "./admin-nav";
 import { PrayerBubble } from "./prayer-bubble";
@@ -25,6 +26,7 @@ export function AdminShell({ children, user }: { children: React.ReactNode; user
   const unread = useUnread(inbox?.unread);
   const fresh = Object.values(unread).reduce((sum, value) => sum + (value ?? 0), 0);
   useInboxPulse(Boolean(inbox));
+  useFreshPrefetch();
 
   useEffect(() => {
     if (!open) return;

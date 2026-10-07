@@ -9,6 +9,7 @@ use App\Domain\Inbox\Inbox;
 use App\Domain\Reports\Support\Period;
 use App\Domain\Reports\Support\WeekCalendar;
 use App\Domain\Shared\Enums\Role;
+use App\Domain\Shared\Support\Counts;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Http\Controllers\Controller;
 use App\Models\Cell;
@@ -17,9 +18,7 @@ use App\Models\Report;
 use App\Models\StudyStudent;
 use App\Models\Theme;
 use App\Models\User;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -40,7 +39,13 @@ class DashboardController extends Controller
         $monthRange = [now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString()];
         $mine = fn () => Expense::query()->where('user_id', $user->id)->whereBetween('spent_on', $monthRange);
 
-        $counts = $this->countAll(array_filter([
+        $studies = $can('studies.students') || $can('studies.grades') || $can('studies.board');
+        $inbox = [];
+        foreach (Inbox::unreadQueries($user) as $kind => $query) {
+            $inbox["inbox_$kind"] = $query;
+        }
+
+        $counts = Counts::all([...array_filter([
             'sent' => $reports ? Report::query()->where('year', $now['year'])->where('week', $now['week'])
                 ->when($cellIds !== null, fn ($query) => $query->whereIn('cell_id', $cellIds ?: [CellScope::NONE])) : null,
             'activeCells' => $reports && $cellIds === null ? Cell::query()->where('active', true) : null,
@@ -48,8 +53,12 @@ class DashboardController extends Controller
             'myExpenses' => ! $user->isSuperadmin() && $can('expenses.manage') ? $mine() : null,
             'cells' => $servers ? Cell::query()->where('active', true)->when($tree !== null, fn ($query) => $query->whereIn('id', $tree ?: [CellScope::NONE])) : null,
             'themes' => $can('themes.manage') || $can('content.manage') ? Theme::query()->where('active', true) : null,
-        ]));
-        $unread = Inbox::unread($user);
+            'students' => $studies ? StudyStudent::query()->where('status', 'cursando') : null,
+        ]), ...$inbox]);
+        $unread = [];
+        foreach (array_keys($inbox) as $key) {
+            $unread[substr($key, strlen('inbox_'))] = $counts[$key];
+        }
 
         if ($reports) {
             $total = $cellIds === null ? $counts['activeCells'] : count($cellIds);
@@ -80,8 +89,8 @@ class DashboardController extends Controller
             $latest = Theme::query()->where('active', true)->orderByDesc('theme_date')->first();
             $cards[] = ['label' => 'Temas de célula', 'value' => (string) $counts['themes'], 'href' => '/admin/temas', 'note' => $latest ? 'Último: '.$latest->title : 'Aún no hay temas', 'accent' => 'bg-blush'];
         }
-        if ($can('studies.students') || $can('studies.grades') || $can('studies.board')) {
-            $students = StudyStudent::query()->where('status', 'cursando')->count();
+        if ($studies) {
+            $students = $counts['students'];
             $href = $can('studies.students') ? '/admin/estudios' : ($can('studies.grades') ? '/admin/estudios/notas' : '/admin/estudios/avisos');
             $cards[] = ['label' => 'Ruta del Servidor', 'value' => $students.' '.($students === 1 ? 'estudiante' : 'estudiantes'), 'href' => $href, 'note' => 'Cursando un nivel ahora', 'accent' => 'bg-sky'];
         }
@@ -117,23 +126,5 @@ class DashboardController extends Controller
             'recent' => $recent,
             'name' => $user->name,
         ]);
-    }
-
-    /**
-     * @param  array<string, Builder>  $queries
-     * @return array<string, int>
-     */
-    private function countAll(array $queries): array
-    {
-        if ($queries === []) {
-            return [];
-        }
-        $select = DB::query();
-        foreach ($queries as $name => $query) {
-            $select->selectSub($query->toBase()->selectRaw('count(*)'), $name);
-        }
-        $row = (array) $select->first();
-
-        return array_map(fn ($value) => (int) $value, $row);
     }
 }

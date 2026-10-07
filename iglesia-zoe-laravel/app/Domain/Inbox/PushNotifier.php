@@ -7,6 +7,7 @@ use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Minishlink\WebPush\Subscription;
 use Minishlink\WebPush\VAPID;
@@ -22,9 +23,21 @@ final class PushNotifier
 {
     private const SETTING = 'webpush';
 
+    private const PUBLIC_KEY_CACHE = 'zoe.webpush.public_key';
+
+    /** Shared with every panel page, so it is kept in the cache once the keys exist instead of read from the database on each visit. */
     public static function publicKey(): ?string
     {
-        return self::keys()['publicKey'] ?? null;
+        $cached = Cache::get(self::PUBLIC_KEY_CACHE);
+        if (is_string($cached)) {
+            return $cached;
+        }
+        $key = self::keys()['publicKey'] ?? null;
+        if ($key !== null) {
+            Cache::forever(self::PUBLIC_KEY_CACHE, $key);
+        }
+
+        return $key;
     }
 
     public static function announce(string $kind, Model $row): void

@@ -4,6 +4,7 @@ namespace App\Domain\Inbox;
 
 use App\Domain\Access\Permissions;
 use App\Domain\Geo\GeoDirectory;
+use App\Domain\Shared\Support\Counts;
 use App\Models\BaptismEvent;
 use App\Models\BaptismRegistration;
 use App\Models\PrayerRequest;
@@ -77,15 +78,23 @@ final class Inbox
     /** @return array<string, int> */
     public static function unread(User $user): array
     {
-        $counts = [];
+        return Counts::all(self::unreadQueries($user));
+    }
+
+    /**
+     * What is new in each tab this account receives, to be counted together with other figures.
+     *
+     * @return array<string, Builder>
+     */
+    public static function unreadQueries(User $user): array
+    {
+        $queries = [];
         foreach (self::kindsFor($user) as $kind) {
             $seen = self::seenAt($user, $kind);
-            $counts[$kind] = self::query($kind, $user)
-                ->when($seen, fn ($query) => $query->where('created_at', '>', $seen))
-                ->count();
+            $queries[$kind] = self::query($kind, $user)->when($seen, fn ($query) => $query->where('created_at', '>', $seen));
         }
 
-        return $counts;
+        return $queries;
     }
 
     public static function seenAt(User $user, string $kind): ?CarbonImmutable

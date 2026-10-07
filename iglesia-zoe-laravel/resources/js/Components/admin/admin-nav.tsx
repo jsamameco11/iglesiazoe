@@ -1,6 +1,7 @@
 import { Link, usePage } from "@inertiajs/react";
 import { can, SERVER_TREE, type PanelUser, type Permission } from "@/lib/access";
 import { useInboxShared, useUnread, type InboxKind } from "@/lib/inbox";
+import { panelPrefetch } from "@/lib/prefetch";
 
 type Item = { href: string; label: string; needs: (Permission | "superadmin" | "administrator")[] | null; inbox?: InboxKind };
 
@@ -114,6 +115,7 @@ export function AdminNav({ user, onNavigate }: { user: PanelUser; onNavigate?: (
                 <Link
                   key={item.href}
                   href={item.href}
+                  {...panelPrefetch(item.href)}
                   onClick={onNavigate}
                   className={`flex items-center justify-between rounded-xl px-3 py-2 text-[13.5px] font-medium tracking-[-0.01em] transition ${
                     active ? "bg-white text-ink shadow-sm" : "text-white/65 hover:bg-white/10 hover:text-white"

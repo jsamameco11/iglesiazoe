@@ -170,6 +170,24 @@ class WebInboxTest extends TestCase
         $this->actingAs($red)->getJson(self::SITE.'/admin/formularios/novedades')->assertJsonPath('unread.visitas', 1);
     }
 
+    public function test_the_panel_home_counts_every_tab_in_a_single_query(): void
+    {
+        $super = $this->user('super', Role::Superadmin, [], []);
+        $this->visit('Rosa', 15, 'Soltero(a)');
+        $this->visit('Pedro', 40, 'Casado(a)');
+
+        DB::enableQueryLog();
+        $this->actingAs($super)->get(self::ADMIN.'/admin')
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Admin/Dashboard')
+                ->where('cards', fn ($cards) => collect($cards)->firstWhere('label', 'Visitas planificadas')['value'] === '2'
+                    && collect($cards)->firstWhere('label', 'Inscripciones de bautismo')['value'] === '0')
+                ->where('inbox.unread.visitas', 2));
+
+        $inboxQueries = collect(DB::getQueryLog())->filter(fn (array $query) => str_contains($query['query'], 'visit_plans'));
+        $this->assertCount(2, $inboxQueries, 'one for the home cards, one for the menu badges');
+        $this->assertTrue($inboxQueries->every(fn (array $query) => str_contains($query['query'], 'baptism_registrations')));
+    }
+
     public function test_a_device_registers_for_notifications(): void
     {
         $red = $this->account('red');
