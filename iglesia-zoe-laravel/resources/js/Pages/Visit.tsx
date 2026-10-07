@@ -1,11 +1,11 @@
 import { VisitForm } from "@/Components/site/visit-form";
 import { Rise } from "@/Components/motion/rise";
-import { IconMail, IconPhone, IconPin } from "@/Components/site/icons";
+import { IconMail, IconMessenger, IconPin } from "@/Components/site/icons";
 import { LeadTitle } from "@/Components/site/lead-title";
 import { MediaView } from "@/Components/site/media-view";
 import { PageIntro } from "@/Components/site/page-intro";
 import SiteLayout from "@/Layouts/SiteLayout";
-import { mapEmbedUrl, telHref } from "@/lib/contact";
+import { mapEmbedUrl } from "@/lib/contact";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import { useCopy } from "@/lib/copy";
 import { useSocial } from "@/lib/social";
@@ -27,10 +27,8 @@ export default function Visit({
   const media = resolveMedia(mediaOverrides);
   const t = useCopy();
   const social = useSocial();
-  const phone = settings.phone?.trim() || "(074) 252525";
   const email = settings.email?.trim().toLowerCase() || "iglesiacristianazoe@gmail.com";
   const address = settings.address?.trim() || "Simón Bolívar 750, Chiclayo";
-  const call = telHref(phone);
   const mapSrc = mapEmbedUrl(address);
 
   return (
@@ -71,20 +69,20 @@ export default function Visit({
           </div>
         </Rise>
 
-        <div {...section("contact-cards", "Tarjetas de contacto")} className="mt-10 grid gap-4 md:grid-cols-3">
-          <Rise className="h-full">
-            <div className="swatch visit-card h-full" style={{ background: "var(--sage)" }}>
-              <span className="visit-icon"><IconPhone /></span>
-              <div className="visit-card-body">
-                <p className="headline text-[1.7rem] leading-none">{t("visit.phoneTitle")}</p>
-                <p className="editorial mt-3 text-2xl italic">{t("visit.phoneCall")}</p>
-                {call ? <a href={call} className="mt-3 block text-[15px]">{phone}</a> : <p className="mt-3 text-[15px]">{phone}</p>}
-                {(social.messenger || social.whatsapp) && <p className="editorial mt-5 text-2xl italic">{t("visit.phoneWrite")}</p>}
-                {social.whatsapp && <a href={social.whatsapp} className="mt-2 block text-[15px]" target="_blank" rel="noreferrer">{t("visit.whatsapp")}</a>}
-                {social.messenger && <a href={social.messenger} className="mt-2 block text-[15px]" target="_blank" rel="noreferrer">{t("visit.messenger")}</a>}
-              </div>
-            </div>
-          </Rise>
+        <div {...section("contact-cards", "Tarjetas de contacto")} className={`mt-10 grid gap-4 ${social.messenger ? "md:grid-cols-3" : "md:grid-cols-2"}`}>
+          {social.messenger && (
+            <Rise className="h-full">
+              <a href={social.messenger} target="_blank" rel="noreferrer" className="swatch visit-card h-full" style={{ background: "var(--sage)" }}>
+                <span className="visit-icon"><IconMessenger /></span>
+                <div className="visit-card-body">
+                  <p className="headline text-[1.7rem] leading-none">{t("visit.messengerTitle")}</p>
+                  <p className="editorial mt-3 text-2xl italic">{t("visit.messengerSub")}</p>
+                  <p className="mt-3 text-[15px]">{t("visit.messenger")} →</p>
+                  <p className="mt-4 text-sm opacity-70">{t("visit.messengerNote")}</p>
+                </div>
+              </a>
+            </Rise>
+          )}
           <Rise delay={90} className="h-full">
             <a href={settings.mapUrl || mapSrc} target="_blank" rel="noreferrer" className="swatch visit-card h-full" style={{ background: "var(--dusk)" }}>
               <span className="visit-icon"><IconPin /></span>

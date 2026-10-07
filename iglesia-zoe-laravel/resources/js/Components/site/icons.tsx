@@ -18,6 +18,15 @@ export function IconPhone(props: IconProps) {
   );
 }
 
+export function IconMessenger(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path strokeLinejoin="round" d="M12 3.8c-4.6 0-8.2 3.4-8.2 7.7 0 2.4 1.1 4.5 2.9 5.9v3l2.8-1.5c.8.2 1.6.3 2.5.3 4.6 0 8.2-3.4 8.2-7.7S16.6 3.8 12 3.8Z" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="m7.9 13.5 2.9-3.1 2.3 2 3-3.1" />
+    </Icon>
+  );
+}
+
 export function IconPin(props: IconProps) {
   return (
     <Icon {...props}>
