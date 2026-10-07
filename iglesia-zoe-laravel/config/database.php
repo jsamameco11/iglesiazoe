@@ -97,6 +97,9 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => env('DB_SCHEMA', 'public'),
+            // The schema also travels with the connection itself, so no «set search_path» round trip
+            // to the remote database follows each connection (see PostgresConnector).
+            'server_options' => ['search_path' => env('DB_SCHEMA', 'public')],
             'sslmode' => env('DB_SSLMODE', 'prefer'),
             // Server-side prepares cost three round trips per query (prepare, execute, deallocate);
             // against a remote database that triples every page load.

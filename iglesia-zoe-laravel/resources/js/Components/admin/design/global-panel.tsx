@@ -31,7 +31,7 @@ const navWeights = [
 
 const px = (value: number) => `${value} px`;
 
-const samples = { heading: "Vida en abundancia", text: "Una familia que se reúne cada semana para crecer en Cristo.", accent: "PRÓXIMO DOMINGO · 10 AM" };
+const samples = { heading: "Vida en abundancia", text: "Una familia que se reúne cada semana para crecer en Cristo.", accent: "PRÓXIMO DOMINGO · 10:30 AM" };
 
 function Group({ title, text, children }: { title: string; text: string; children: React.ReactNode }) {
   return (

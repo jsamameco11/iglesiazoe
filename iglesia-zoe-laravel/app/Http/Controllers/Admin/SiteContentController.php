@@ -31,7 +31,7 @@ class SiteContentController extends Controller
     /** Editable lists posted as numbered fields, e.g. route_title_1 / route_text_1. Each item keeps its slot so its photo stays with it. */
     private const LIST_FIELDS = ['routeLevels' => ['route', 6]];
 
-    private const URL_KEYS = ['facebook', 'youtube', 'instagram', 'tiktok', 'messengerUrl', 'liveUrl', 'mapUrl', 'cardUrl', 'yapeQr'];
+    private const URL_KEYS = ['facebook', 'youtube', 'instagram', 'tiktok', 'messengerUrl', 'mapUrl', 'cardUrl', 'yapeQr'];
 
     private const VALUE_SLOTS = 6;
 
@@ -60,13 +60,6 @@ class SiteContentController extends Controller
             if ($value !== '' && ! preg_match('~^(https?://|/)~i', $value)) {
                 return $this->fail('Revisa el enlace de «'.$key.'»: debe empezar con https://');
             }
-        }
-        if (($input['liveYoutubeId'] ?? '') !== '') {
-            $live = YouTube::id($input['liveYoutubeId']);
-            if (! $live) {
-                return $this->fail('No reconocemos el enlace de YouTube en vivo. Pega el enlace del video o su ID.');
-            }
-            $input['liveYoutubeId'] = $live;
         }
         if (($input['baptismVideo'] ?? '') !== '') {
             $video = YouTube::id($input['baptismVideo']);

@@ -1,5 +1,7 @@
+import { router } from "@inertiajs/react";
 import { useState } from "react";
 import { RadioHeader } from "@/Components/radio/admin-ui";
+import { CaptureDialog } from "@/Components/radio/console/capture-dialog";
 import { AutoStartPanel } from "@/Components/radio/console/auto-start-panel";
 import { Decks } from "@/Components/radio/console/decks";
 import { EpisodeField, LivePanel } from "@/Components/radio/console/live-panel";
@@ -11,9 +13,11 @@ import { SwitchPanel } from "@/Components/radio/console/switch-panel";
 import { LaunchNow, TodayList } from "@/Components/radio/console/today";
 import { UpcomingBubble } from "@/Components/radio/console/upcoming-bubble";
 import { useConsole, type Snapshot } from "@/Components/radio/console/use-console";
+import { usePads } from "@/Components/radio/console/use-pads";
 import { HeadphonesIcon, MicIcon, UsersIcon } from "@/Components/radio/icons";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { KIND_LABEL, clock, duration, shortTitle, type RadioBlock, type RadioPlaylist, type RadioTrack } from "@/lib/radio";
+import type { CaptureBrief } from "@/lib/radio/capture";
 import "../../../../css/radio.css";
 
 type Props = Snapshot & {
@@ -25,12 +29,15 @@ type Props = Snapshot & {
   /** Name of the live block scheduled now or about to start, to suggest it for the transmission. */
   episode: string;
   playlists: RadioPlaylist[];
+  capture: CaptureBrief | null;
+  canEpisodes: boolean;
+  maxDescription: number;
 };
 
-export default function Consola({ radio, live, voice, config, autopilot, upcoming, pads: initialPads, library, day, episode, playlists }: Props) {
-  const api = useConsole({ radio, live, voice, config, autopilot, upcoming }, episode);
+export default function Consola({ radio, live, voice, config, autopilot, upcoming, pads: initialPads, library, day, host, episode, playlists, capture: pendingCapture, canEpisodes, maxDescription }: Props) {
+  const api = useConsole({ radio, live, voice, config, autopilot, upcoming }, episode, pendingCapture);
   const { notice, setNotice, now, state } = api;
-  const [pads, setPads] = useState(initialPads);
+  const bank = usePads(initialPads);
   const [alert, setAlert] = useState<string | null>(null);
   const session = api.live.session;
   const caster = api.caster.current;
@@ -39,8 +46,7 @@ export default function Consola({ radio, live, voice, config, autopilot, upcomin
   const rotating = current && !current.slot && current.track ? current.track : null;
 
   async function onPad(track: RadioTrack) {
-    const result = await addPad(pads, track);
-    if (result.pads) setPads(result.pads);
+    const result = await bank.exclusive((pads) => addPad(pads, track));
     setNotice(result.error ? { tone: "error", text: result.error } : { tone: "info", text: `«${track.title}» agregado a la botonera.` });
   }
 
@@ -115,7 +121,7 @@ export default function Consola({ radio, live, voice, config, autopilot, upcomin
           <Mixer api={api} />
           <Decks api={api} library={library} />
           <div className="xl:col-span-2 2xl:col-span-1">
-            <PadBank api={api} pads={pads} setPads={setPads} library={library} onAdd={onPad} />
+            <PadBank api={api} bank={bank} library={library} onAdd={onPad} />
           </div>
         </div>
 
@@ -127,6 +133,21 @@ export default function Consola({ radio, live, voice, config, autopilot, upcomin
         </div>
         <UpcomingBubble api={api} openId={alert} onOpen={setAlert} />
       </div>
+      {api.capture?.status === "ready" ? (
+        <CaptureDialog
+          recording={api.capture}
+          canEpisodes={canEpisodes}
+          maxDescription={maxDescription}
+          host={host}
+          episode={api.episodeTitle}
+          onClose={() => api.clearCapture()}
+          onDone={(message) => {
+            api.clearCapture();
+            setNotice({ tone: "info", text: message });
+            router.reload({ only: ["library"] });
+          }}
+        />
+      ) : null}
     </AdminLayout>
   );
 }

@@ -11,6 +11,7 @@ use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Actions\ResolveSiteSkin;
 use App\Domain\Site\Design\NormalizeDesign;
 use App\Domain\Site\Support\SiteVersion;
+use App\Domain\Stream\LiveState;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -32,7 +33,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'skin' => $skin,
-            'settings' => LoadPublicSite::settings(),
+            'settings' => LoadPublicSite::publicSettings(),
             'ministries' => LoadPublicSite::ministries(),
             'sitePages' => LoadPublicSite::pages(),
             'design' => [...$design, 'fontHref' => NormalizeDesign::fontHref($design)],
@@ -54,7 +55,9 @@ class HandleInertiaRequests extends Middleware
             ],
             'flash' => [
                 'denied' => (bool) $request->session()->get('denied'),
+                'notice' => $request->session()->get('notice'),
             ],
+            'onAir' => fn () => LiveState::onAir(),
             'inbox' => fn () => $user && Inbox::kindsFor($user) ? [
                 'unread' => Inbox::unread($user),
                 'prayers' => $request->is('admin', 'admin/*') && PrayerBubble::reaches($user) ? PrayerBubble::pending($user) : null,

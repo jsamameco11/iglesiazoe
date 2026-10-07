@@ -25,4 +25,9 @@ class SiteMediaController extends Controller
     {
         return response()->json($media->save($request));
     }
+
+    public function saveSlides(Request $request, ManageSiteMedia $media): JsonResponse
+    {
+        return response()->json($media->slides($request));
+    }
 }

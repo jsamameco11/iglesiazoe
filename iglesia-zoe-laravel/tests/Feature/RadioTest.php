@@ -59,6 +59,21 @@ class RadioTest extends TestCase
         $this->actingAs($other)->get(self::ADMIN.'/admin/radio/biblioteca')->assertRedirect('/admin');
     }
 
+    public function test_the_settings_choose_whether_listeners_see_the_song_on_air(): void
+    {
+        $this->getJson(self::SITE.'/radio/estado')->assertJsonPath('show_titles', true);
+
+        $admin = $this->admin('visuales', ['visuales']);
+        $payload = ['name' => 'Radio Zoe', 'bed_level' => 22, 'fx_level' => 90, 'duck_level' => 25, 'crossfade' => 4, 'max_voice' => 60, 'autofill' => '1', 'on_air' => '1'];
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/ajustes', $payload)->assertOk();
+        auth()->logout();
+        $this->getJson(self::SITE.'/radio/estado')->assertJsonPath('show_titles', false);
+
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/ajustes', [...$payload, 'show_titles' => '1'])->assertOk();
+        auth()->logout();
+        $this->getJson(self::SITE.'/radio/estado')->assertJsonPath('show_titles', true);
+    }
+
     public function test_uploading_only_stores_the_audio_and_nothing_goes_on_air(): void
     {
         $admin = $this->admin('visuales', ['visuales']);
@@ -338,12 +353,15 @@ class RadioTest extends TestCase
             ->assertOk()->json('live.session');
         $this->assertNotEmpty($session);
 
-        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/vivo', ['action' => 'mix', 'bed' => '1', 'mic' => '1', 'overlay' => 50])->assertOk();
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/vivo', ['action' => 'mix', 'bed' => '1', 'mic' => '1', 'overlay' => 50])
+            ->assertJsonPath('live.pads', 100);
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/radio/vivo', ['action' => 'mix', 'pads' => 30])
+            ->assertJsonPath('live.overlay', 50)->assertJsonPath('live.pads', 30);
 
         auth()->logout();
         $state = $this->getJson(self::SITE.'/radio/estado?oyente='.$listener)->assertOk();
         $state->assertJsonPath('live.on', true)->assertJsonPath('live.mic', true)->assertJsonMissingPath('live.host')
-            ->assertJsonPath('mix.music', 0.22)->assertJsonPath('mix.fx', 0.45);
+            ->assertJsonPath('mix.music', 0.22)->assertJsonPath('mix.fx', 0.45)->assertJsonPath('mix.pads', 0.27);
         $this->postJson(self::SITE.'/radio/voz', ['oyente' => $listener, 'session' => $session])->assertOk();
 
         $signal = $this->actingAs($admin)->getJson(self::ADMIN.'/admin/radio/senal')->assertOk();

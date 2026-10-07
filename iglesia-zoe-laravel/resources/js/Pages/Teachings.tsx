@@ -1,55 +1,30 @@
 import { Link } from "@inertiajs/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Rise } from "@/Components/motion/rise";
 import { PageBand } from "@/Components/site/media-view";
 import { PageIntro } from "@/Components/site/page-intro";
+import { LiveStage } from "@/Components/site/teachings/live-stage";
+import { TeachingCard } from "@/Components/site/teachings/teaching-card";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
+import { useLiveState, type LiveState } from "@/lib/live";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
 import type { SiteSettings, Teaching, TeachingKind } from "@/lib/types";
 import { fold } from "@/lib/text";
-import { formatSermonDate } from "@/lib/youtube";
 import { section } from "@/lib/design";
 import { useSitePages } from "@/lib/site-pages";
 
 type Filter = "all" | TeachingKind;
 
-function TeachingCard({ item, t }: { item: Teaching; t: (key: CopyKey) => string }) {
-  const video = item.youtube_id ? `https://www.youtube.com/watch?v=${item.youtube_id}` : null;
-  return (
-    <article className="teaching-card lift">
-      <div className="flex items-start justify-between gap-4">
-        <span className="file-badge" data-kind={item.file_url ? undefined : "video"}>
-          {item.file_type || "VIDEO"}
-        </span>
-        <span className="teaching-tag">{item.kind === "gc" ? t("teachings.kindGroups") : t("teachings.kindSermon")}</span>
-      </div>
-      <p className="mt-6 text-[11px] uppercase tracking-[0.18em] text-muted">{formatSermonDate(item.teaching_date)}</p>
-      <h3 className="mt-2 text-[1.3rem] font-medium leading-snug tracking-[-0.02em] text-ink">{item.title}</h3>
-      {item.summary ? <p className="mt-3 text-[0.95rem] font-light leading-7">{item.summary}</p> : null}
-      <div className="mt-auto flex flex-wrap gap-2 pt-6">
-        {item.file_url ? (
-          <a href={item.file_url} target="_blank" rel="noreferrer" className="btn-accent rounded-full px-4 py-2 text-[13px] font-semibold">
-            {t("teachings.download")} ↓
-          </a>
-        ) : null}
-        {video ? (
-          <a href={video} target="_blank" rel="noreferrer" className="rounded-full border border-line px-4 py-2 text-[13px] font-semibold text-ink transition hover:border-ink/40">
-            {t("teachings.watch")} ▶
-          </a>
-        ) : null}
-      </div>
-    </article>
-  );
-}
-
 export default function Teachings({
   teachings,
+  live,
   settings,
   mediaOverrides,
   skin,
 }: {
   teachings: Teaching[];
+  live: LiveState;
   settings: SiteSettings;
   mediaOverrides: Record<string, MediaAsset>;
   skin: "aire" | "marea";
@@ -57,8 +32,16 @@ export default function Teachings({
   const pages = useSitePages();
   const media = resolveMedia(mediaOverrides);
   const t = (key: CopyKey) => readCopy(settings, key);
+  const state = useLiveState(live);
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
+
+  const latest = useMemo(() => teachings.find((item) => item.youtube_id) ?? teachings[0] ?? null, [teachings]);
+
+  useEffect(() => {
+    const target = window.location.hash ? document.getElementById(decodeURIComponent(window.location.hash.slice(1))) : null;
+    if (target) window.requestAnimationFrame(() => target.scrollIntoView({ behavior: "smooth", block: "start" }));
+  }, []);
 
   const counts = useMemo(
     () => ({ all: teachings.length, predica: teachings.filter((item) => item.kind === "predica").length, gc: teachings.filter((item) => item.kind === "gc").length }),
@@ -67,7 +50,8 @@ export default function Teachings({
   const shown = useMemo(() => {
     const needle = fold(query.trim());
     return teachings.filter(
-      (item) => (filter === "all" || item.kind === filter) && (!needle || fold(`${item.title} ${item.summary ?? ""}`).includes(needle)),
+      (item) =>
+        (filter === "all" || item.kind === filter) && (!needle || fold(`${item.title} ${item.preacher ?? ""} ${item.summary ?? ""}`).includes(needle)),
     );
   }, [teachings, filter, query]);
 
@@ -89,25 +73,9 @@ export default function Teachings({
           </PageIntro>
         </Rise>
 
-        <Rise {...section("more", "Más recursos")} className="mt-16">
-          <p className="kicker">{pages.section("teachings", "more")}</p>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            {[
-              { href: "/galeria", label: pages.name("gallery"), note: pages.note("gallery") },
-              { href: "/devocionales", label: pages.name("devotionals"), note: pages.note("devotionals") },
-              { href: "/predicas", label: pages.name("sermons"), note: pages.note("sermons") },
-            ].map((link, index) => (
-              <Link key={link.href} href={link.href} className="resource-link group">
-                <span className="resource-link-num">{String(index + 1).padStart(2, "0")}</span>
-                <span className="min-w-0">
-                  <span className="block text-[1.25rem] font-medium tracking-[-0.03em] text-ink">{link.label}</span>
-                  <span className="mt-0.5 block text-[13.5px] text-muted">{link.note}</span>
-                </span>
-                <span className="resource-link-arrow" aria-hidden>→</span>
-              </Link>
-            ))}
-          </div>
-        </Rise>
+        <section id="en-vivo" {...section("stage", "En vivo y última enseñanza")} className="teach-stage mt-14" data-on-air={state.live || undefined} aria-live="polite">
+          <LiveStage state={state} latest={latest} t={t} />
+        </section>
 
         <section {...section("list", "Enseñanzas")} className="mt-20">
           <Rise>
@@ -145,6 +113,26 @@ export default function Teachings({
             </Rise>
           )}
         </section>
+
+        <Rise {...section("more", "Más recursos")} className="mt-20">
+          <p className="kicker">{pages.section("teachings", "more")}</p>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            {[
+              { href: "/galeria", label: pages.name("gallery"), note: pages.note("gallery") },
+              { href: "/devocionales", label: pages.name("devotionals"), note: pages.note("devotionals") },
+              { href: "/predicas", label: pages.name("sermons"), note: pages.note("sermons") },
+            ].map((link, index) => (
+              <Link key={link.href} href={link.href} className="resource-link group">
+                <span className="resource-link-num">{String(index + 1).padStart(2, "0")}</span>
+                <span className="min-w-0">
+                  <span className="block text-[1.25rem] font-medium tracking-[-0.03em] text-ink">{link.label}</span>
+                  <span className="mt-0.5 block text-[13.5px] text-muted">{link.note}</span>
+                </span>
+                <span className="resource-link-arrow" aria-hidden>→</span>
+              </Link>
+            ))}
+          </div>
+        </Rise>
       </article>
     </SiteLayout>
   );

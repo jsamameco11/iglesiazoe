@@ -19,6 +19,7 @@ export type Permission =
   | "notices.manage"
   | "events.manage"
   | "devotionals.manage"
+  | "live.manage"
   | "radio.console"
   | "radio.schedule"
   | "radio.library"

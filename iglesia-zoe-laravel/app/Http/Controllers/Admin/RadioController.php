@@ -94,7 +94,9 @@ abstract class RadioController extends Controller
 
     /**
      * Switches the automatic music to the requested source (a list or random songs) and says when
-     * the change is heard; a failure when the list no longer exists.
+     * the change is heard: when the song on air ends («when» = song, the default) or at a song
+     * boundary the operator chose («when» = at, «at» in UTC ms, one of Station::switchPoints()).
+     * A failure when the list no longer exists, has no songs to play, or the chosen place passed.
      */
     protected function switchRequested(Request $request, bool $immediately = false): JsonResponse|string
     {
@@ -102,21 +104,43 @@ abstract class RadioController extends Controller
         if ($playlist === false) {
             return $this->fail('Esa lista de reproducción ya no existe.', 404);
         }
+        $shuffle = $request->boolean('shuffle', true);
+        if ($empty = $this->withoutSongs($playlist, $shuffle)) {
+            return $empty;
+        }
+        $points = $immediately ? [] : Station::switchPoints();
+        $chosen = null;
+        if (! $immediately && $request->input('when') === 'at') {
+            $at = (int) $request->input('at');
+            $chosen = collect($points)->first(fn (array $point) => abs($point['at'] - $at) <= 2000);
+            if ($chosen === null) {
+                return $this->fail('Ese punto de cambio ya pasó o la programación cambió. Vuelve a elegir dónde hacer el cambio.', 409);
+            }
+        }
 
-        return $this->switchedMessage($playlist, $request->boolean('shuffle', true), $immediately);
-    }
-
-    /** Changes the automatic music of the gaps and says when the change is heard. */
-    protected function switchedMessage(?RadioPlaylist $playlist, bool $shuffle, bool $immediately = false): string
-    {
-        $since = Station::switchAutopilot($playlist?->id, $shuffle, $immediately);
+        $since = Station::switchAutopilot($playlist?->id, $shuffle, $immediately, $chosen['at'] ?? null);
         $what = $playlist !== null ? 'lista «'.$playlist->name.'» '.($shuffle ? 'en aleatorio' : 'en orden') : 'canciones aleatorias';
         if ($since <= Station::nowMs() + 1000) {
             return "Música automática: {$what}. Ya está sonando.";
         }
-        $autopilot = Station::autopilot();
+        $after = collect($points)->firstWhere('at', $since)['after'] ?? null;
+        $when = $after ? 'cuando termina «'.$after['title'].'»' : 'cuando termina lo que suena';
 
-        return "Cambio programado: {$what} empieza a las ".Schedule::clock($since).'; justo cuando termina la canción que suene, sin cortes. Hasta entonces sigue '.$autopilot['pending']['label'].'. Puedes cancelarlo antes.';
+        return "Cambio programado: {$what} empieza a las ".Schedule::clock($since).", {$when}, sin cortes. Hasta entonces sigue "
+            .Station::autopilot()['pending']['label'].'. Puedes cancelarlo antes.';
+    }
+
+    /** A failure when the automatic music would have nothing to play with this source: a list without songs, or no music at all. */
+    protected function withoutSongs(?RadioPlaylist $playlist, bool $shuffle): ?JsonResponse
+    {
+        $crossfade = (int) round(Station::config()['crossfade'] * 1000);
+        if (Autopilot::resolve($playlist?->id, $shuffle, $crossfade)['level'] !== Autopilot::NONE) {
+            return null;
+        }
+
+        return $this->fail($playlist
+            ? 'La lista «'.$playlist->name.'» no tiene canciones disponibles. Agrégale canciones en Listas o elige otra.'
+            : 'No hay canciones disponibles para el modo automático. Sube música en Biblioteca.', 409);
     }
 
     /** Turns the automatic music on or off; off, only what is scheduled or launched sounds and the rest is silence. */

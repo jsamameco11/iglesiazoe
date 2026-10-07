@@ -2,11 +2,11 @@ import { VisitForm } from "@/Components/site/visit-form";
 import { Rise } from "@/Components/motion/rise";
 import { IconMail, IconMessenger, IconPin } from "@/Components/site/icons";
 import { LeadTitle } from "@/Components/site/lead-title";
-import { MediaView } from "@/Components/site/media-view";
+import { MediaView, PageBand } from "@/Components/site/media-view";
 import { PageIntro } from "@/Components/site/page-intro";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { mapEmbedUrl } from "@/lib/contact";
-import { resolveMedia, type MediaAsset } from "@/lib/media";
+import { resolveMedia, slidesOf, type MediaAsset } from "@/lib/media";
 import { useCopy } from "@/lib/copy";
 import { useSocial } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
@@ -35,7 +35,7 @@ export default function Visit({
     <SiteLayout>
       <article className="page-wrap pb-8">
         <Rise>
-          <PageIntro skin={skin} kicker={pages.kicker("visit")} title={settings.visitTitle} media={<MediaView asset={media.visit} />}>
+          <PageIntro skin={skin} kicker={pages.kicker("visit")} title={settings.visitTitle} media={slidesOf(media.visit).length > 1 ? <PageBand asset={media.visit} /> : <MediaView asset={media.visit} />}>
             <p className="mt-6 max-w-md text-lg font-light leading-8 text-muted">{settings.visitText}</p>
           </PageIntro>
         </Rise>

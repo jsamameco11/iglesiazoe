@@ -52,6 +52,8 @@ final class Station
         'tagline' => 'Música, Palabra y esperanza las 24 horas.',
         'on_air' => true,
         'autofill' => true,
+        // Listeners see the name and artist of the song on air (off: only that music plays live).
+        'show_titles' => true,
         'bed_level' => 22,
         'fx_level' => 90,
         'duck_level' => 25,
@@ -63,7 +65,7 @@ final class Station
         'turn_credential' => '',
         'max_voice' => 60,
         // Automatic music of the gaps: a playlist id (null = every list), shuffled or in order. A change
-        // applies from auto_since (a song boundary at least switch_lead seconds ahead); before it, auto_prev played.
+        // applies from auto_since (a song boundary: when the song on air ends or one the operator chose); before it, auto_prev played.
         // auto_start is the song the operator chose to start the music with (null = from the top).
         'auto_playlist' => null,
         'auto_shuffle' => true,
@@ -74,7 +76,6 @@ final class Station
         // auto_until (the end of that cycle, set when the music starts or repeat is turned off).
         'auto_repeat' => true,
         'auto_until' => null,
-        'switch_lead' => 300,
         // Live switch: automatic or manual, fed by the console or an external OBS/Icecast signal.
         'live_mode' => LiveSwitch::AUTO,
         'live_source' => LiveSwitch::CONSOLE,
@@ -87,7 +88,9 @@ final class Station
         'title' => '',
         'started_at' => null,
         'music' => 100,
+        // Console faders of the layers: beds, players and scheduled layers (overlay) and the botonera (pads).
         'overlay' => 100,
+        'pads' => 100,
         'muted' => false,
         'bed' => false,
         'mic' => false,
@@ -99,10 +102,14 @@ final class Station
         'rev' => 0,
     ];
 
-    /** Bounds of the lead time of a source change, in seconds. */
-    public const MIN_LEAD = 30;
+    /**
+     * A change of the automatic music lands on a song boundary at least this many seconds ahead:
+     * listeners poll every few seconds and line up the next song before it starts.
+     */
+    public const SWITCH_AHEAD = 30;
 
-    public const MAX_LEAD = 1800;
+    /** Song boundaries offered to place a change of the automatic music by hand. */
+    public const SWITCH_POINTS = 12;
 
     /** «Iniciar modo automático» starts this far ahead, so every listener (polling every ~2.5 s) hears the first song from its beginning. */
     private const START_AHEAD = 3000;
@@ -174,23 +181,28 @@ final class Station
     public static function flush(): void
     {
         Autopilot::flush();
+        Timeline::flush();
     }
 
     /**
-     * Changes the automatic music of the gaps without cutting a song: the new source starts at the
-     * first song boundary at least switch_lead seconds ahead (so when the song on air ends too soon,
-     * the next one plays to its end as well), and the last song of the old source fades into it.
-     * With $immediately it is at once.
+     * Changes the automatic music of the gaps without cutting a song, and the last song of the old
+     * source fades into the new one. It lands where the song on air ends (when it ends within
+     * SWITCH_AHEAD seconds, the next one plays to its end as well), or at $at: one of the
+     * boundaries of switchPoints(), chosen by the operator. With $immediately it is at once.
      *
      * @return int when the new source starts (UTC ms)
      */
-    public static function switchAutopilot(?string $playlist, bool $shuffle, bool $immediately = false): int
+    public static function switchAutopilot(?string $playlist, bool $shuffle, bool $immediately = false, ?int $at = null): int
     {
         $config = self::config();
         $now = self::nowMs();
         $playing = self::onAir($config, $now);
         $immediately = $immediately || self::finished($config, $now);
-        [$since, $boundary] = $immediately ? [$now, false] : self::switchPoint($config, $playing, $now);
+        [$since, $boundary] = match (true) {
+            $immediately => [$now, false],
+            $at !== null => [$at, true],
+            default => self::switchPoint($config, $playing, $now),
+        };
         self::saveConfig([
             'auto_prev' => [...$playing, 'tail' => $boundary],
             'auto_since' => $since,
@@ -334,12 +346,6 @@ final class Station
         return true;
     }
 
-    /** Seconds ahead a source change is due, within MIN_LEAD and MAX_LEAD. */
-    public static function lead(array $config): int
-    {
-        return max(self::MIN_LEAD, min(self::MAX_LEAD, (int) $config['switch_lead']));
-    }
-
     /**
      * The source of the automatic music on air at $now and since when it plays.
      *
@@ -380,14 +386,50 @@ final class Station
     }
 
     /**
-     * Where a change of source lands: the first automatic song that would start at least the lead
-     * time from now (a song boundary, where the song before fades into the new source).
+     * Where a change of source lands by default: when the song on air ends (the first automatic
+     * song that starts at least SWITCH_AHEAD seconds from now, where the song before fades into
+     * the new source).
      *
      * @return array{0: int, 1: bool} the time and whether it is a song boundary
      */
     private static function switchPoint(array $config, array $playing, int $now): array
     {
-        $due = $now + self::lead($config) * 1000;
+        $due = $now + self::SWITCH_AHEAD * 1000;
+        [$points, $sounding, $lastEnd] = self::boundaries($config, $playing, $now, $due, 1);
+        if ($points) {
+            return [$points[0]['at'], true];
+        }
+
+        // No song boundary ahead: the program takes over, so the change waits for the end of this music.
+        return [$sounding ? max($due, $lastEnd) : $now, false];
+    }
+
+    /**
+     * The song boundaries of the automatic music on air where a change of source can land, from
+     * the next one at least SWITCH_AHEAD seconds ahead: when each one starts and what ends there.
+     * Empty when the automatic music is not sounding in the next hours.
+     *
+     * @return list<array{at: int, after: ?array{title: string, artist: ?string, kind: string}}>
+     */
+    public static function switchPoints(int $limit = self::SWITCH_POINTS): array
+    {
+        $config = self::config();
+        $now = self::nowMs();
+        if (! $config['on_air'] || ! $config['autofill'] || self::finished($config, $now)) {
+            return [];
+        }
+
+        return self::boundaries($config, self::onAir($config, $now), $now, $now + self::SWITCH_AHEAD * 1000, $limit)[0];
+    }
+
+    /**
+     * Song boundaries of the automatic music of $playing from $due on (up to $limit), whether that
+     * music sounds now, and when the last of it before the first boundary ends.
+     *
+     * @return array{0: list<array{at: int, after: ?array{title: string, artist: ?string, kind: string}}>, 1: bool, 2: int}
+     */
+    private static function boundaries(array $config, array $playing, int $now, int $due, int $limit): array
+    {
         self::$override = [
             ...$config,
             'auto_playlist' => $playing['playlist'],
@@ -397,26 +439,33 @@ final class Station
             'auto_prev' => null,
         ];
         try {
-            $items = self::items($now, $due + 2 * 3600000, true, 120);
+            $items = self::items($now, $due + 3 * 3600000, true, 200);
         } finally {
             self::$override = null;
         }
 
+        $points = [];
         $sounding = false;
         $lastEnd = $now;
+        $before = null;
         foreach ($items as $item) {
-            if ($item['kind'] !== 'musica' || $item['slot'] !== null || $item['block'] !== null) {
-                continue;
+            $automatic = $item['kind'] === 'musica' && $item['slot'] === null && $item['block'] === null;
+            if ($automatic && $item['origin'] >= $due) {
+                $points[] = [
+                    'at' => (int) $item['origin'],
+                    'after' => $before ? ['title' => (string) $before['title'], 'artist' => $before['artist'] ?? null, 'kind' => (string) $before['kind']] : null,
+                ];
+                if (count($points) >= $limit) {
+                    break;
+                }
+            } elseif ($automatic && ! $points) {
+                $sounding = $sounding || $item['start'] <= $now;
+                $lastEnd = max($lastEnd, $item['end']);
             }
-            if ($item['origin'] >= $due) {
-                return [$item['origin'], true];
-            }
-            $sounding = $sounding || $item['start'] <= $now;
-            $lastEnd = max($lastEnd, $item['end']);
+            $before = $item;
         }
 
-        // No song boundary ahead: the program takes over, so the change waits for the end of this music.
-        return [$sounding ? max($due, $lastEnd) : $now, false];
+        return [$points, $sounding, $lastEnd];
     }
 
     /** The automatic music of the gaps, for the console and the schedule. */
@@ -438,7 +487,6 @@ final class Station
             'since' => (int) $config['auto_since'],
             // What keeps playing until a scheduled change starts.
             'pending' => $pending ? ['label' => self::sourceLabel($pending)] : null,
-            'lead' => self::lead($config),
             'paused' => ! $config['autofill'],
             // Without repeat: when the last cycle ends (UTC ms) and whether the radio is already silent.
             'repeat' => (bool) $config['auto_repeat'],
@@ -737,8 +785,9 @@ final class Station
     }
 
     /**
-     * Gains every listener applies: music bus (after the console faders), layers bus, bed and duck
-     * levels, and what everything but the voice drops to while the host's voice is detected.
+     * Gains every listener applies: music bus (after the console faders), layers bus (beds, players
+     * and scheduled layers), botonera bus, bed and duck levels, and what everything but the voice
+     * drops to while the host's voice is detected.
      */
     public static function mix(array $live, array $config): array
     {
@@ -747,6 +796,7 @@ final class Station
         return [
             'music' => round($music, 3),
             'fx' => round(($config['fx_level'] / 100) * ($live['overlay'] / 100), 3),
+            'pads' => round(($config['fx_level'] / 100) * ($live['pads'] / 100), 3),
             'bed' => round($config['bed_level'] / 100, 3),
             'duck' => round($config['duck_level'] / 100, 3),
             'voice' => self::VOICE_DUCK,
@@ -805,10 +855,7 @@ final class Station
     {
         $layers = array_map(fn (array $layer) => [...$layer, 'source' => 'live'], self::sounding($live['layers'], $now));
 
-        $scheduled = RadioSlot::query()->with('track')->where('layer', '>', RadioSlot::MAIN)
-            ->where('starts_at', '>=', CarbonImmutable::createFromTimestampMs($now - self::MAX_BLOCK * 1000))
-            ->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($now + self::LAYER_LOOKAHEAD))
-            ->orderBy('starts_at')->get()
+        $scheduled = Timeline::blocks($now - self::MAX_BLOCK * 1000, $now + self::LAYER_LOOKAHEAD, false)
             ->filter(fn (RadioSlot $slot) => self::playable($slot->track) && $slot->endsAt()->getTimestampMs() > $now);
 
         foreach ($scheduled as $slot) {
@@ -856,13 +903,13 @@ final class Station
         $live = self::storedLive();
         $window = $onAir && LiveSwitch::isOpen($live['window'], $now) ? $live['window'] : null;
         $external = $window && $config['live_source'] === LiveSwitch::EXTERNAL && $config['live_url'] !== '';
-        $next = $onAir ? RadioSlot::query()->where('layer', RadioSlot::MAIN)->where('kind', '!=', RadioSlot::AUTO)
-            ->where('starts_at', '>', CarbonImmutable::createFromTimestampMs($now))->orderBy('starts_at')->first() : null;
+        $next = $onAir ? Timeline::nextShow($now) : null;
 
         return [
             'now' => $now,
             'name' => $config['name'],
             'tagline' => $config['tagline'],
+            'show_titles' => (bool) $config['show_titles'],
             'on_air' => $onAir,
             'stream' => $config['stream_url'] ?: null,
             'previous' => $previous,
@@ -971,11 +1018,7 @@ final class Station
     /** @return Collection<int, RadioSlot> main-timeline blocks overlapping [from, to) */
     private static function slotsBetween(int $from, int $to): Collection
     {
-        return RadioSlot::query()->with('track')->where('layer', RadioSlot::MAIN)
-            ->where('starts_at', '>=', CarbonImmutable::createFromTimestampMs($from - self::MAX_BLOCK * 1000))
-            ->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($to))
-            ->orderBy('starts_at')
-            ->get()
+        return Timeline::blocks($from - self::MAX_BLOCK * 1000, $to, true)
             ->filter(fn (RadioSlot $slot) => $slot->endsAt()->getTimestampMs() > $from
                 && (in_array($slot->kind, [RadioSlot::LIVE, RadioSlot::AUTO], true) || self::playable($slot->track)))
             ->values();
@@ -1058,10 +1101,7 @@ final class Station
     {
         $start = $slot->starts_at->getTimestampMs();
         for ($step = 0; $step < 8; $step++) {
-            $previous = RadioSlot::query()->where('layer', RadioSlot::MAIN)
-                ->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($start))
-                ->where('starts_at', '>=', CarbonImmutable::createFromTimestampMs($start - self::MAX_BLOCK * 1000))
-                ->orderByDesc('starts_at')->first();
+            $previous = Timeline::previous($start);
             if (! $previous || $previous->kind !== RadioSlot::AUTO || ! self::sameSource($previous, $slot)
                 || abs($previous->endsAt()->getTimestampMs() - $start) > 50) {
                 break;
@@ -1113,10 +1153,7 @@ final class Station
      */
     private static function anchorBefore(int $at, ?array $window, ?int $hold = null): int
     {
-        $previous = RadioSlot::query()->where('layer', RadioSlot::MAIN)->where('kind', '!=', RadioSlot::LIVE)
-            ->when($hold !== null, fn ($query) => $query->where(fn ($query) => $query->where('kind', RadioSlot::AUTO)
-                ->orWhere('starts_at', '<', CarbonImmutable::createFromTimestampMs($hold))))
-            ->where('starts_at', '<', CarbonImmutable::createFromTimestampMs($at))->orderByDesc('starts_at')->first();
+        $previous = Timeline::lastBefore($at, $hold);
         $ends = array_filter(
             [$previous?->endsAt()->getTimestampMs(), $window['end'] ?? null],
             fn (?int $end) => $end !== null && $end <= $at,

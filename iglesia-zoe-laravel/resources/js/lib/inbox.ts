@@ -118,7 +118,7 @@ export function useInboxPulse(enabled: boolean) {
 
 export type PushState = "unsupported" | "default" | "denied" | "granted";
 
-function pushSupported() {
+export function pushSupported() {
   return typeof window !== "undefined" && window.isSecureContext && "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
 }
 
@@ -149,7 +149,8 @@ async function registration() {
   return navigator.serviceWorker.ready;
 }
 
-async function subscription(publicKey: string) {
+/** This browser's push subscription, renewed when the server key changed. */
+export async function subscription(publicKey: string) {
   const worker = await registration();
   let current = await worker.pushManager.getSubscription();
   if (current && !sameKey(current, publicKey)) {
@@ -159,15 +160,20 @@ async function subscription(publicKey: string) {
   return current ?? worker.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(publicKey) });
 }
 
-async function register(current: PushSubscription): Promise<ActionResult> {
+/** What the server stores to reach this browser. */
+export function subscriptionFields(current: PushSubscription) {
   const json = current.toJSON();
   const encodings = (PushManager as unknown as { supportedContentEncodings?: string[] }).supportedContentEncodings ?? ["aes128gcm"];
-  return send("/admin/notificaciones/suscribir", {
+  return {
     endpoint: json.endpoint ?? current.endpoint,
     "keys[p256dh]": json.keys?.p256dh ?? "",
     "keys[auth]": json.keys?.auth ?? "",
     contentEncoding: encodings.includes("aes128gcm") ? "aes128gcm" : "aesgcm",
-  });
+  };
+}
+
+async function register(current: PushSubscription): Promise<ActionResult> {
+  return send("/admin/notificaciones/suscribir", subscriptionFields(current));
 }
 
 /** Asks for permission (needs a tap) and registers this device. */

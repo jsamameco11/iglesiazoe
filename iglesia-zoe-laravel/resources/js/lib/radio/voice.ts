@@ -253,6 +253,9 @@ export class Broadcaster {
   private fallbackTimer = 0;
   private talking = false;
   private detect = true;
+  private recorder: MediaRecorder | null = null;
+  private recordStarted = 0;
+  private recordMime = "";
 
   get open() {
     return this.stream !== null;
@@ -387,7 +390,44 @@ export class Broadcaster {
     this.onVoice?.(on);
   }
 
+  /** Records exactly the microphone the listeners hear, in pieces, until stopRecording(). */
+  startRecording(onChunk: (blob: Blob, index: number) => void): boolean {
+    const stream = this.dest?.stream;
+    if (!stream || this.recorder || typeof MediaRecorder === "undefined") return false;
+    const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) => MediaRecorder.isTypeSupported(type));
+    if (!mime) return false;
+    const recorder = new MediaRecorder(stream, { mimeType: mime, audioBitsPerSecond: 64_000 });
+    this.recordMime = mime;
+    let index = 0;
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) onChunk(event.data, index++);
+    };
+    recorder.start(10_000);
+    this.recorder = recorder;
+    this.recordStarted = performance.now();
+    return true;
+  }
+
+  /** Stops the recorder and resolves after its last piece has been handed to onChunk. */
+  stopRecording(): Promise<number> {
+    const recorder = this.recorder;
+    const duration = this.recordStarted ? (performance.now() - this.recordStarted) / 1000 : 0;
+    this.recorder = null;
+    this.recordStarted = 0;
+    if (!recorder || recorder.state === "inactive") return Promise.resolve(duration);
+    return new Promise((resolve) => {
+      recorder.addEventListener("stop", () => resolve(duration), { once: true });
+      recorder.stop();
+    });
+  }
+
+  recordingExtension() {
+    return this.recordMime.includes("mp4") ? "m4a" : "webm";
+  }
+
   closeMic() {
+    if (this.recorder && this.recorder.state !== "inactive") this.recorder.stop();
+    this.recorder = null;
     this.stream?.getTracks().forEach((track) => track.stop());
     this.stream = null;
     this.source?.disconnect();

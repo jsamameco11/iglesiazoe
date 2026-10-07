@@ -1,10 +1,10 @@
 import { Link } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import { Rise } from "@/Components/motion/rise";
-import { HeadphonesIcon, MicIcon, PlayIcon, UsersIcon } from "@/Components/radio/icons";
+import { MicIcon, PlayIcon, UsersIcon } from "@/Components/radio/icons";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import type { MediaAsset } from "@/lib/media";
-import { KIND_LABEL, clock, currentItem, dayLabel, duration, limaDate, useServerClock, type RadioState } from "@/lib/radio";
+import { KIND_LABEL, clock, currentItem, dayLabel, hidesSong, limaDate, useServerClock, type RadioState } from "@/lib/radio";
 import type { SiteSettings } from "@/lib/types";
 import "../../../../css/radio.css";
 import { section } from "@/lib/design";
@@ -73,8 +73,7 @@ export function RadioSection({ settings, radio, asset }: { settings: SiteSetting
   const upcoming = state.on_air ? state.queue.find((entry) => entry.start > now) ?? null : null;
   const live = state.live.on;
   const tone = !state.on_air ? "off" : live ? "live" : "air";
-  const length = item ? Math.max(1, item.end - item.start) : 1;
-  const elapsed = item ? Math.min(length, Math.max(0, now - item.start)) : 0;
+  const hidden = item ? hidesSong(state, item) : false;
 
   return (
     <section {...section("radio", "Radio")} className="home-section">
@@ -134,7 +133,7 @@ export function RadioSection({ settings, radio, asset }: { settings: SiteSetting
             <div className="onair-player">
               <div className="flex items-center justify-between gap-3">
                 <span className="onair-chip">
-                  <HeadphonesIcon className="h-3.5 w-3.5" /> {t("radio.nowPlaying")}
+                  <span className="radio-live-dot" data-on={state.on_air || undefined} aria-hidden /> {t("radio.nowPlaying")}
                 </span>
                 {item?.block ? <span className="onair-block">{item.block}</span> : null}
               </div>
@@ -148,8 +147,8 @@ export function RadioSection({ settings, radio, asset }: { settings: SiteSetting
               <div className="min-h-[4.25rem]">
                 {item ? (
                   <>
-                    <p className="onair-now">{item.title}</p>
-                    <p className="onair-sub">{item.artist || (item.kind === "musica" ? t("radio.continuousNote") : KIND_LABEL[item.kind])}</p>
+                    <p className="onair-now">{hidden ? t("radio.songHidden") : item.title}</p>
+                    <p className="onair-sub">{hidden ? t("radio.continuousNote") : item.artist || (item.kind === "musica" ? t("radio.continuousNote") : KIND_LABEL[item.kind])}</p>
                   </>
                 ) : (
                   <>
@@ -158,18 +157,6 @@ export function RadioSection({ settings, radio, asset }: { settings: SiteSetting
                   </>
                 )}
               </div>
-
-              {item ? (
-                <div className="mt-4">
-                  <div className="onair-progress">
-                    <span style={{ width: `${(elapsed / length) * 100}%` }} />
-                  </div>
-                  <div className="mt-2 flex justify-between font-mono text-[11px] tabular-nums text-white/45">
-                    <span>{duration(elapsed / 1000)}</span>
-                    <span>-{duration((length - elapsed) / 1000)}</span>
-                  </div>
-                </div>
-              ) : null}
 
               {live ? (
                 <div className="onair-host">
@@ -186,7 +173,7 @@ export function RadioSection({ settings, radio, asset }: { settings: SiteSetting
               {upcoming ? (
                 <div className="onair-up">
                   <span className="onair-up-label">{t("radio.nextTitle")}</span>
-                  <span className="min-w-0 flex-1 truncate text-white/80">{upcoming.title}</span>
+                  <span className="min-w-0 flex-1 truncate text-white/80">{hidesSong(state, upcoming) ? t("radio.songHidden") : upcoming.title}</span>
                   <span className="shrink-0 font-mono text-[11px] tabular-nums text-white/45">{clock(upcoming.start)}</span>
                 </div>
               ) : null}

@@ -2,7 +2,8 @@
 import { useActionState, useEffect, useState } from "react";
 import { saveMediaAsset } from "@/lib/actions";
 import { ImageComposer } from "@/Components/admin/image-composer";
-import { clampFocus, normalizeFeather, normalizeRadius, normalizeZoom, parseRatio, ratioPresets, fitPresets, normalizeFit, type MediaAsset, type MediaFit, type MediaKind } from "@/lib/media";
+import { MediaSlidesEditor } from "@/Components/admin/media-slides-editor";
+import { CAROUSEL_SLOTS, clampFocus, normalizeFeather, normalizeRadius, normalizeZoom, parseRatio, ratioPresets, fitPresets, normalizeFit, type MediaAsset, type MediaFit, type MediaKind } from "@/lib/media";
 
 export type AdminMediaSlot = {
   id: string;
@@ -282,7 +283,10 @@ export function MediaSlotCard({ slot, compact = false, onSaved }: { slot: AdminM
               value="restore"
               className="text-sm text-muted underline-offset-4 hover:underline"
               onClick={(event) => {
-                if (!window.confirm("¿Volver al archivo original de esta sección?")) event.preventDefault();
+                const message = slot.asset.slides?.length
+                  ? "¿Volver al archivo original de esta sección? También se quitarán las fotos del carrusel."
+                  : "¿Volver al archivo original de esta sección?";
+                if (!window.confirm(message)) event.preventDefault();
               }}
             >
               Restaurar original
@@ -290,6 +294,8 @@ export function MediaSlotCard({ slot, compact = false, onSaved }: { slot: AdminM
           )}
         </div>
       </div>
+
+      {CAROUSEL_SLOTS.has(slot.id) && <MediaSlidesEditor slot={slot} compact={compact} onSaved={onSaved} />}
     </form>
   );
 }

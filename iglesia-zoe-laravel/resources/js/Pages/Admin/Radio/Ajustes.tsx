@@ -1,6 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { RadioHeader } from "@/Components/radio/admin-ui";
-import { leadLabel } from "@/Components/radio/source-picker";
 import { Notice, Panel, button, input, useAction } from "@/Components/admin/ui";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { send } from "@/lib/actions";
@@ -60,7 +59,6 @@ export default function Ajustes({ config }: { config: RadioConfig }) {
   const [fx, setFx] = useState(config.fx_level);
   const [duck, setDuck] = useState(config.duck_level);
   const [crossfade, setCrossfade] = useState(config.crossfade);
-  const [lead, setLead] = useState(config.switch_lead ?? 300);
   const [liveMode, setLiveMode] = useState(config.live_mode);
   const [liveSource, setLiveSource] = useState(config.live_source);
 
@@ -86,6 +84,12 @@ export default function Ajustes({ config }: { config: RadioConfig }) {
               <input name="tagline" defaultValue={config.tagline} maxLength={160} className={input} />
             </label>
             <Toggle name="on_air" defaultChecked={config.on_air} title="Radio al aire" text="Si lo apagas, la página muestra «Fuera del aire» y no suena nada. Al abrir una transmisión en vivo se enciende sola." />
+            <Toggle
+              name="show_titles"
+              defaultChecked={config.show_titles}
+              title="Mostrar la canción que suena"
+              text="Los oyentes ven el nombre y el artista de cada canción en el reproductor, en «A continuación» y en la programación. Si lo apagas, solo ven que suena música en vivo; los programas, anuncios y el locutor se siguen mostrando."
+            />
             <Toggle
               name="autofill"
               defaultChecked={config.autofill}
@@ -153,17 +157,6 @@ export default function Ajustes({ config }: { config: RadioConfig }) {
             <Slider name="duck_level" label="Música bajo anuncios y capas" min={5} max={80} value={duck} onChange={setDuck} hint="A qué nivel queda la música mientras suena un audio que «baja la música» (anuncios, programas, capas y reproductores). Recomendado: 20–35%." />
             <Slider name="fx_level" label="Volumen general de efectos y capas" min={10} max={100} value={fx} onChange={setFx} hint="Tope de la botonera, los reproductores simultáneos y las capas programadas." />
             <Slider name="crossfade" label="Empalme entre canciones" min={0} max={10} value={crossfade} onChange={setCrossfade} unit=" s" hint="Segundos en que una canción de la música continua se funde con la siguiente. 0 = sin fundido. Recomendado: 3–5 s." />
-            <Slider
-              name="switch_lead"
-              label="Anticipación del cambio de música"
-              min={30}
-              max={1800}
-              step={30}
-              value={lead}
-              onChange={setLead}
-              display={leadLabel}
-              hint="Al cambiar la música automática (una lista o aleatorio), el cambio se programa con al menos este tiempo y entra justo cuando termina una canción, sin cortes. Si a la canción le falta menos, termina también la siguiente. De 30 s a 30 min; recomendado: 5 min."
-            />
             <label className="text-xs font-semibold text-muted">
               Oyentes de voz en vivo (máximo)
               <input name="max_voice" type="number" min={1} max={200} defaultValue={config.max_voice} required className={input} />

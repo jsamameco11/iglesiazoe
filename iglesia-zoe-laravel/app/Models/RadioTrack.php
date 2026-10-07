@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Radio\Timeline;
 use App\Domain\Shared\Models\UuidModel;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -51,7 +52,7 @@ class RadioTrack extends UuidModel
         ];
     }
 
-    /** A new file starts with a clean health record (see RadioHealth). */
+    /** A new file starts with a clean health record (see RadioHealth); scheduled blocks and episodes show the audio as it is now. */
     protected static function booted(): void
     {
         static::saving(function (RadioTrack $track) {
@@ -59,6 +60,14 @@ class RadioTrack extends UuidModel
                 $track->forceFill(['file_checked_at' => null, 'file_problem' => null, 'file_problem_at' => null]);
             }
         });
+        static::saved(fn () => self::changed());
+        static::deleted(fn () => self::changed());
+    }
+
+    private static function changed(): void
+    {
+        Timeline::flush();
+        RadioEpisode::flushCards();
     }
 
     public function slots(): HasMany

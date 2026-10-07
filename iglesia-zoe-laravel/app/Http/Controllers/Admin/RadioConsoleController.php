@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Access\Permissions;
+use App\Domain\Radio\Actions\SaveEpisode;
 use App\Domain\Radio\Autopilot;
+use App\Domain\Radio\Capture;
 use App\Domain\Radio\LiveSwitch;
 use App\Domain\Radio\RadioAudio;
 use App\Domain\Radio\Schedule;
@@ -43,6 +46,9 @@ class RadioConsoleController extends RadioController
             'host' => $request->user()->full_name ?: $request->user()->username,
             'episode' => Station::scheduledLiveTitle(Station::nowMs()) ?? '',
             'playlists' => $this->playlists(true),
+            'capture' => Capture::pending($request->user()),
+            'canEpisodes' => Permissions::has($request->user(), 'radio.episodes'),
+            'maxDescription' => SaveEpisode::MAX_DESCRIPTION,
         ]);
     }
 
@@ -74,6 +80,7 @@ class RadioConsoleController extends RadioController
             Station::updateLive(fn () => array_filter([
                 'music' => $level('music'),
                 'overlay' => $level('overlay'),
+                'pads' => $level('pads'),
                 'muted' => $request->has('muted') ? $request->boolean('muted') : null,
                 'bed' => $request->has('bed') ? $request->boolean('bed') : null,
                 'mic' => $request->has('mic') ? $request->boolean('mic') : null,
@@ -159,6 +166,9 @@ class RadioConsoleController extends RadioController
         if ($action === 'cancel') {
             return response()->json(['ok' => true, 'message' => $this->cancelledMessage(), ...$this->snapshot()]);
         }
+        if ($action === 'points') {
+            return response()->json(['ok' => true, 'points' => Station::switchPoints()]);
+        }
         if ($action === 'cut') {
             return $this->cut($request);
         }
@@ -209,13 +219,10 @@ class RadioConsoleController extends RadioController
             return $this->fail('Esa lista de reproducción ya no existe.', 404);
         }
         $shuffle = $request->boolean('shuffle', true);
-        $crossfade = (int) round(Station::config()['crossfade'] * 1000);
-        $source = Autopilot::resolve($playlist?->id, $shuffle, $crossfade);
-        if ($source['level'] === Autopilot::NONE) {
-            return $this->fail($playlist
-                ? 'La lista «'.$playlist->name.'» no tiene canciones disponibles. Agrégale canciones en Listas o elige otra.'
-                : 'No hay canciones disponibles para el modo automático. Sube música en Biblioteca.', 409);
+        if ($empty = $this->withoutSongs($playlist, $shuffle)) {
+            return $empty;
         }
+        $source = Autopilot::resolve($playlist?->id, $shuffle, (int) round(Station::config()['crossfade'] * 1000));
 
         $first = null;
         if ($request->filled('first')) {

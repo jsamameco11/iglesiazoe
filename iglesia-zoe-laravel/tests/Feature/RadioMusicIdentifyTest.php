@@ -150,6 +150,44 @@ class RadioMusicIdentifyTest extends TestCase
         Http::assertNotSent(fn (Request $request) => str_contains(urldecode($request->url()), 'Cancion sin nombre'));
     }
 
+    public function test_a_song_whose_name_and_author_came_the_other_way_round_is_still_found(): void
+    {
+        config(['services.music.musicbrainz_gap_ms' => 0]);
+        Http::preventStrayRequests();
+        Http::fake($this->mielSanMarcos());
+
+        $result = $this->identify(['title' => 'Miel San Marcos', 'artist' => 'VideoLyric Danzo En El Rio', 'duration' => '284'])
+            ->assertOk()->json('result');
+
+        $this->assertTrue($result['found']);
+        $this->assertSame('Danzo en el río', $result['title']);
+        $this->assertSame('Miel San Marcos', $result['artist']);
+        $this->assertSame(['Alabanza', 'Adoración'], array_column($result['genres'], 'name'));
+    }
+
+    public function test_a_live_recording_one_database_lists_without_its_live_label_is_still_the_same_recording(): void
+    {
+        config(['services.music.musicbrainz_gap_ms' => 0]);
+        Http::preventStrayRequests();
+        Http::fake($this->mielSanMarcos());
+
+        $result = $this->identify(['title' => 'Danzo En El Rio', 'artist' => 'Miel San Marcos', 'duration' => '284'])
+            ->assertOk()->json('result');
+
+        $this->assertSame('alta', $result['confidence']);
+        $this->assertSame(['Josh Morales'], $result['featured']);
+        $this->assertSame('Pentecostés', $result['album']);
+        $this->assertSame(2017, $result['year']);
+    }
+
+    public function test_the_library_reads_file_names_knowing_the_artists_of_the_catalog_and_their_aliases(): void
+    {
+        RadioArtist::query()->where('name', 'Miel San Marcos')->update(['aliases' => ['MSM']]);
+
+        $this->actingAs($this->admin())->get(self::ADMIN.'/admin/radio/biblioteca')
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('catalogArtists', fn ($names) => collect($names)->contains('Miel San Marcos') && collect($names)->contains('MSM')));
+    }
+
     public function test_another_cut_of_the_song_never_wins_and_a_guest_of_one_database_is_not_a_co_author(): void
     {
         config(['services.music.musicbrainz_gap_ms' => 0]);

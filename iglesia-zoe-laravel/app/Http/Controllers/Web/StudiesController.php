@@ -109,7 +109,7 @@ class StudiesController extends Controller
     private function shared(Request $request): array
     {
         return [
-            'settings' => LoadPublicSite::settings(),
+            'settings' => LoadPublicSite::publicSettings(),
             'ministries' => LoadPublicSite::ministries(),
             'serveAreas' => LoadPublicSite::serveAreas(),
             'mediaOverrides' => LoadPublicSite::mediaOverrides(),

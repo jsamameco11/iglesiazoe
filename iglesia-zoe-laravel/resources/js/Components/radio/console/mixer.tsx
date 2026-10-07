@@ -35,13 +35,14 @@ function Fader({ value, min = 0, max = 100, step = 1, disabled, label, analyser,
   );
 }
 
-/** Channel strips: microphone, program music, layers (beds, effects, players and overlays) and the local monitor. */
+/** Channel strips: microphone, program music, layers (beds, players and overlays), the botonera and the local monitor. */
 export function Mixer({ api }: { api: ConsoleApi }) {
   const { live, config, mic, micOpen, talking, speaking, monitor, monitorLevel, caster, player, liveAction } = api;
   const session = live.session;
   const program = monitor ? player.current?.analyser ?? null : null;
   const [music, setMusic] = useSentLevel(live.music, (value) => liveAction({ action: "mix", music: String(value) }));
   const [overlay, setOverlay] = useSentLevel(live.overlay, (value) => liveAction({ action: "mix", overlay: String(value) }));
+  const [pads, setPads] = useSentLevel(live.pads ?? 100, (value) => liveAction({ action: "mix", pads: String(value) }));
 
   return (
     <div className="cx-panel">
@@ -88,9 +89,16 @@ export function Mixer({ api }: { api: ConsoleApi }) {
 
         <div className="studio-strip">
           <p className="strip-name">Capas</p>
-          <Fader value={overlay} label="Volumen de fondos, efectos, reproductores y capas" analyser={program} onChange={setOverlay} />
+          <Fader value={overlay} label="Volumen de fondos, reproductores y capas programadas" analyser={program} onChange={setOverlay} />
           <p className="strip-value">{overlay}%</p>
-          <p className="text-center text-[9.5px] leading-3 text-white/35">Fondos, botonera y reproductores · tope {config.fx_level}%</p>
+          <p className="strip-hint">Fondos, reproductores y capas</p>
+        </div>
+
+        <div className="studio-strip">
+          <p className="strip-name">Botonera</p>
+          <Fader value={pads} label="Volumen de la botonera" analyser={program} onChange={setPads} />
+          <p className="strip-value">{pads}%</p>
+          <p className="strip-hint" title={`El volumen general de efectos y capas (Ajustes) pone el tope: ${config.fx_level}%`}>Efectos · tope {config.fx_level}%</p>
         </div>
 
         <div className="studio-strip">

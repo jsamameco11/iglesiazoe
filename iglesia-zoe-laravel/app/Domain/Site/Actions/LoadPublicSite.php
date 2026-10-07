@@ -9,6 +9,7 @@ use App\Models\Ministry;
 use App\Models\ServeArea;
 use App\Models\SitePage;
 use App\Models\SiteSetting;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
 
 use function Illuminate\Support\defer;
@@ -18,6 +19,15 @@ class LoadPublicSite
     private const KEYS = ['zoe.site.settings', 'zoe.site.ministries', 'zoe.site.serve', 'zoe.site.media', 'zoe.site.design', 'zoe.site.notice', 'zoe.site.pages'];
 
     public const LIST_SETTINGS = ['values', 'prayerTopics', 'routeLevels'];
+
+    /** Kept for the team in the panel but never sent to visitors: they reach the church through Messenger instead of calling. */
+    private const INTERNAL_SETTINGS = ['phone'];
+
+    /** The settings that visitors' pages receive. */
+    public static function publicSettings(): array
+    {
+        return Arr::except(self::settings(), self::INTERNAL_SETTINGS);
+    }
 
     public static function settings(): array
     {

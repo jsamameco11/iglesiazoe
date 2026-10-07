@@ -16,6 +16,7 @@ use App\Domain\Radio\Identify\SongQuery;
 use App\Domain\Radio\Identify\Text;
 use App\Domain\Radio\RadioAudio;
 use App\Domain\Radio\Station;
+use App\Models\RadioArtist;
 use App\Models\RadioGenre;
 use App\Models\RadioSlot;
 use App\Models\RadioTrack;
@@ -55,6 +56,9 @@ class RadioLibraryController extends RadioController
             'maxFeatured' => RadioTrack::MAX_FEATURED,
             'maxMb' => RadioAudio::maxMb(),
             'maxDescription' => SaveEpisode::MAX_DESCRIPTION,
+            'catalogArtists' => RadioArtist::query()->get(['name', 'aliases'])
+                ->flatMap(fn (RadioArtist $artist) => [$artist->name, ...($artist->aliases ?? [])])
+                ->filter()->unique()->values(),
         ]);
     }
 

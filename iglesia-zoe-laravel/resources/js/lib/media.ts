@@ -14,7 +14,45 @@ export type MediaAsset = {
   zoom?: number;
   radius?: number;
   feather?: number;
+  slides?: MediaSlide[];
 };
+
+/** Another photo of a slot; it shares the frame, fit and corners of the main photo. */
+export type MediaSlide = {
+  src: string;
+  alt: string;
+  posX?: number;
+  posY?: number;
+  zoom?: number;
+};
+
+/** Single-photo slots that also take more photos and then show as a carousel (same list as ManageSiteMedia::CAROUSEL). */
+export const CAROUSEL_SLOTS = new Set([
+  "hero", "home-cells", "about-pastors", "visit", "sermons", "giving", "contact", "events", "teachings",
+  "gallery", "devotionals", "serve-cover", "route-cover", "route-1", "route-2", "route-3", "route-4", "route-5", "route-6",
+]);
+
+export const MAX_SLIDES = 12;
+
+/** Every photo of a slot, the main one first. Videos never rotate. */
+export function slidesOf(asset: MediaAsset): MediaAsset[] {
+  if (!asset?.src) return [];
+  if (asset.kind !== "image" || !asset.slides?.length) return [asset];
+  return [
+    asset,
+    ...asset.slides
+      .filter((slide) => slide?.src)
+      .map((slide) => ({
+        ...asset,
+        src: slide.src,
+        alt: slide.alt?.trim() || asset.alt,
+        posX: clampFocus(slide.posX),
+        posY: clampFocus(slide.posY),
+        zoom: normalizeZoom(slide.zoom),
+        slides: undefined,
+      })),
+  ];
+}
 
 type MediaSlotMeta = {
   id: string;
@@ -288,6 +326,7 @@ function normalize(asset: MediaAsset, fallback: MediaAsset): MediaAsset {
     zoom: normalizeZoom(asset.zoom ?? fallback.zoom),
     radius: normalizeRadius(asset.radius ?? fallback.radius),
     feather: normalizeFeather(asset.feather ?? fallback.feather),
+    slides: Array.isArray(asset.slides) ? asset.slides.filter((slide) => typeof slide?.src === "string" && slide.src) : undefined,
   };
 }
 

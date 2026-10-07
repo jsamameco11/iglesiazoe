@@ -11,7 +11,7 @@ import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
 import { section, useArt } from "@/lib/design";
 import { resolveMedia, type MediaAsset } from "@/lib/media";
-import { KIND_LABEL, clock, type RadioEpisode, type RadioState } from "@/lib/radio";
+import { KIND_LABEL, clock, hidesSong, type RadioEpisode, type RadioState } from "@/lib/radio";
 import type { SiteSettings } from "@/lib/types";
 import "../../css/radio.css";
 
@@ -36,6 +36,7 @@ export default function Radio({
   const { state, now } = station;
   const upcoming = state.queue.filter((entry) => entry.start > now).slice(0, 3);
   const tone = !state.on_air ? "off" : state.live.on ? "live" : "air";
+
   /** The live radio and an episode never sound together: starting one stops the other. */
   function playEpisode(episode: RadioEpisode) {
     if (station.playing) void station.toggle();
@@ -100,13 +101,16 @@ export default function Radio({
               <p className="kicker">{t("radio.nextTitle")}</p>
             </Rise>
             <div className="radio-next mt-6">
-              {upcoming.map((entry) => (
-                <Rise key={entry.id} className="radio-next-card">
-                  <p className="text-sm font-semibold tabular-nums text-muted">{clock(entry.start)}</p>
-                  <p className="mt-2 text-lg font-semibold leading-snug tracking-[-0.02em] text-ink">{entry.title}</p>
-                  <p className="mt-1 text-sm text-muted">{entry.block ?? entry.artist ?? KIND_LABEL[entry.kind]}</p>
-                </Rise>
-              ))}
+              {upcoming.map((entry) => {
+                const hidden = hidesSong(state, entry);
+                return (
+                  <Rise key={entry.id} className="radio-next-card">
+                    <p className="text-sm font-semibold tabular-nums text-muted">{clock(entry.start)}</p>
+                    <p className="mt-2 text-lg font-semibold leading-snug tracking-[-0.02em] text-ink">{hidden ? t("radio.songHidden") : entry.title}</p>
+                    <p className="mt-1 text-sm text-muted">{entry.block ?? (hidden ? t("radio.continuousNote") : entry.artist ?? KIND_LABEL[entry.kind])}</p>
+                  </Rise>
+                );
+              })}
             </div>
           </section>
         ) : null}

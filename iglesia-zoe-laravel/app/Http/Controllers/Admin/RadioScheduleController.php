@@ -229,10 +229,13 @@ class RadioScheduleController extends RadioController
 
     /**
      * The automatic music of the gaps: one list or random songs; on or off; with or without
-     * repeat; or calls off a pending change.
+     * repeat; calls off a pending change; or lists the song boundaries where a change can land.
      */
     public function autopilot(Request $request): JsonResponse
     {
+        if ($request->boolean('points')) {
+            return response()->json(['ok' => true, 'points' => Station::switchPoints()]);
+        }
         if ($request->boolean('cancel')) {
             return $this->saved($this->cancelledMessage());
         }

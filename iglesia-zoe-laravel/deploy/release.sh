@@ -41,6 +41,8 @@ chown -R www-data:www-data storage bootstrap/cache database public/build
 install -d -o www-data -g www-data public/media public/images public/videos
 systemctl restart php8.3-fpm
 sudo -u www-data php artisan media:hot || echo "aviso: algunos archivos del inicio siguen sirviéndose desde Wasabi"
+# The stream worker finishes the upload it is on, then restarts with the new code.
+if systemctl is-active --quiet zoe-queue; then sudo -u www-data php artisan queue:restart >/dev/null; fi
 php artisan tinker --execute='echo App\Domain\Reports\Support\WeekCalendar::currentLabel();'
 echo
 echo "RELEASE OK"

@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AccesoController;
 use App\Http\Controllers\Web\FormsController;
 use App\Http\Controllers\Web\GameRoomsController;
 use App\Http\Controllers\Web\GamesController;
+use App\Http\Controllers\Web\NotificationsController;
 use App\Http\Controllers\Web\RadioController;
 use App\Http\Controllers\Web\SiteController;
 use App\Http\Controllers\Web\StudiesController;
@@ -32,6 +33,7 @@ Route::post('/involucrate', [FormsController::class, 'storeServe'])->middleware(
 Route::get('/involucrate/{slug}', [SiteController::class, 'serveArea'])->where('slug', '[a-z0-9-]+')->name('serve-area');
 Route::get('/ruta-del-servidor', [StudiesController::class, 'route'])->name('server-route');
 Route::redirect('/estudios', '/ruta-del-servidor');
+Route::redirect('/en-vivo', '/predicas#en-vivo');
 Route::get('/estudios/acceso', [StudiesController::class, 'login'])->name('studies.login');
 Route::post('/estudios/acceso', [StudiesController::class, 'authenticate']);
 Route::middleware(EnsureRole::class.':student')->group(function () {
@@ -69,6 +71,11 @@ Route::prefix('juegos')->group(function () {
 Route::get('/dar', [SiteController::class, 'give'])->name('give');
 Route::get('/contacto', [SiteController::class, 'contact'])->name('contact');
 Route::post('/contacto', [FormsController::class, 'storePrayer'])->middleware('throttle:web-forms');
+Route::middleware('throttle:30,1')->prefix('notificaciones')->group(function () {
+    Route::get('/clave', [NotificationsController::class, 'key']);
+    Route::post('/', [NotificationsController::class, 'subscribe']);
+    Route::post('/quitar', [NotificationsController::class, 'unsubscribe']);
+});
 
 Route::get('/ingresar', fn () => redirect('/acceso'));
 Route::get('/acceso', [AccesoController::class, 'create'])->name('login');

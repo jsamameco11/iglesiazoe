@@ -24,6 +24,8 @@ type Props = {
   maxFeatured: number;
   maxMb: number;
   maxDescription: number;
+  /** Christian artists the station knows (names and other spellings), to tell the author from the song in file names. */
+  catalogArtists: string[];
 };
 
 const LIBRARY = "/admin/radio/biblioteca";
@@ -40,7 +42,7 @@ function styles(track: RadioTrack) {
   return (track.genres ?? []).map((genre) => genre.name).join(" / ");
 }
 
-export default function Biblioteca({ tracks, kinds, genres, families, maxGenres, maxFeatured, maxMb, maxDescription }: Props) {
+export default function Biblioteca({ tracks, kinds, genres, families, maxGenres, maxFeatured, maxMb, maxDescription, catalogArtists }: Props) {
   const canEpisodes = can(usePanelUser(), "radio.episodes");
   const [view, setView] = useState<LibraryView>("audios");
   const [opened, setOpened] = useState<string | null>(null);
@@ -55,7 +57,7 @@ export default function Biblioteca({ tracks, kinds, genres, families, maxGenres,
 
   const music = tracks.filter((track) => track.kind === "musica");
   const rotation = music.filter((track) => track.rotation && track.active);
-  const knownArtists = music.flatMap((track) => [track.artist ?? "", ...(track.featured ?? [])]).filter(Boolean);
+  const knownArtists = [...music.flatMap((track) => [track.artist ?? "", ...(track.featured ?? [])]), ...(catalogArtists ?? [])].filter(Boolean);
   const usedGenres = [...new Map(music.flatMap((track) => track.genres ?? []).map((value) => [value.id, value])).values()].sort((a, b) => a.name.localeCompare(b.name, "es"));
   const needle = query.trim().toLowerCase();
   const shown = tracks.filter(

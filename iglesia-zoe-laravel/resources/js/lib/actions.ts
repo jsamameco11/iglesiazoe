@@ -162,20 +162,6 @@ export async function deleteDevotional(id: string): Promise<ActionResult> {
   return send("/admin/devocionales/eliminar", { id });
 }
 
-export async function saveSermon(formData: FormData) {
-  const data = await postJson("/admin/predicas", formData);
-  if (data?.error) throw new Error(data.error);
-  router.reload();
-}
-
-export async function deleteSermon(id: string) {
-  const formData = new FormData();
-  formData.set("id", id);
-  const data = await postJson("/admin/predicas/eliminar", formData);
-  if (data?.error) throw new Error(data.error);
-  router.reload();
-}
-
 export async function saveBaptismEvent(formData: FormData) {
   const data = await postJson("/admin/bautismos", formData);
   if (data?.error) throw new Error(data.error);

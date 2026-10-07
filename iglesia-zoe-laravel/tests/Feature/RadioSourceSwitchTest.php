@@ -19,7 +19,7 @@ use Tests\TestCase;
 
 /**
  * Changing what the automatic music plays (a list or random songs) never cuts
- * a song: the change lands on a song boundary at least the lead time ahead.
+ * a song: the change lands when the song on air ends or at the song boundary the operator picks.
  *
  * The music starts at 14:50 after a program, with the list «A» in order and a 4 s crossfade:
  * A 1 (11 min) sounds from 14:50:00, A 2 from 15:00:56 and A 3 from 15:05:52.
@@ -52,32 +52,73 @@ class RadioSourceSwitchTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_when_the_song_on_air_ends_before_the_lead_the_next_one_finishes_too(): void
+    public function test_by_default_the_change_lands_when_the_song_on_air_ends(): void
     {
         $this->actingAs($this->admin(['radio.console']))->postJson(self::ADMIN.'/admin/radio/musica-continua', [
-            'action' => 'source', 'playlist' => $this->new->id, 'shuffle' => '0',
+            'action' => 'source', 'playlist' => $this->new->id, 'shuffle' => '0', 'when' => 'song',
         ])->assertOk()
             ->assertJsonPath('autopilot.label', 'B')
             ->assertJsonPath('autopilot.pending.label', 'A')
-            ->assertJsonPath('message', fn (string $message) => str_contains($message, 'empieza a las 15:05:52'));
+            ->assertJsonPath('message', fn (string $message) => str_contains($message, 'empieza a las 15:00:56, cuando termina «A 1»'));
 
         $queue = $this->state('queue');
-        $this->assertSame(['A 1', 'A 2', 'B 1'], array_slice(array_column($queue, 'title'), 0, 3), 'A 1 has a minute left: A 2 plays to its end before the change.');
-        $this->assertSame($this->ms('15:05:56'), $queue[1]['end'], 'The last song of the old list is not cut.');
-        $this->assertSame($this->ms('15:05:52'), $queue[2]['start'], 'The new list fades in over its last seconds.');
+        $this->assertSame(['A 1', 'B 1'], array_slice(array_column($queue, 'title'), 0, 2));
+        $this->assertSame($this->ms('15:01:00'), $queue[0]['end'], 'The song on air is not cut.');
+        $this->assertSame($this->ms('15:00:56'), $queue[1]['start'], 'The new list fades in over its last seconds.');
     }
 
-    public function test_the_lead_is_editable_down_to_thirty_seconds(): void
+    public function test_when_the_song_on_air_is_about_to_end_the_change_waits_for_the_next_one(): void
     {
-        $settings = $this->admin(['radio.settings'], 'ajustes');
-        $payload = ['name' => 'Radio Zoe', 'bed_level' => 22, 'fx_level' => 90, 'duck_level' => 25, 'crossfade' => 4, 'max_voice' => 60, 'autofill' => '1', 'on_air' => '1'];
-        $this->actingAs($settings)->postJson(self::ADMIN.'/admin/radio/ajustes', [...$payload, 'switch_lead' => 29])->assertStatus(422);
-        $this->actingAs($settings)->postJson(self::ADMIN.'/admin/radio/ajustes', [...$payload, 'switch_lead' => 30])->assertOk();
+        $this->at('15:00:40');
 
-        $since = Station::switchAutopilot($this->new->id, false);
+        $this->actingAs($this->admin(['radio.console']))->postJson(self::ADMIN.'/admin/radio/musica-continua', [
+            'action' => 'source', 'playlist' => $this->new->id, 'shuffle' => '0',
+        ])->assertOk()
+            ->assertJsonPath('message', fn (string $message) => str_contains($message, 'empieza a las 15:05:52, cuando termina «A 2»'));
 
-        $this->assertSame($this->ms('15:00:56'), $since, 'With 30 s of lead the change lands when A 1 ends.');
-        $this->assertSame(['A 1', 'B 1'], array_slice(array_column($this->state('queue'), 'title'), 0, 2));
+        $queue = $this->state('queue');
+        $this->assertSame(['A 1', 'A 2', 'B 1'], array_slice(array_column($queue, 'title'), 0, 3), 'A 1 fades out in seconds: A 2 plays to its end before the change.');
+        $this->assertSame($this->ms('15:05:56'), $queue[1]['end']);
+    }
+
+    public function test_the_operator_picks_the_song_boundary_where_the_change_lands(): void
+    {
+        $scheduler = $this->admin(['radio.schedule']);
+        $points = $this->actingAs($scheduler)->postJson(self::ADMIN.'/admin/radio/programacion/piloto', ['points' => '1'])->assertOk()->json('points');
+
+        $this->assertSame([$this->ms('15:00:56'), $this->ms('15:05:52'), $this->ms('15:10:48')], array_slice(array_column($points, 'at'), 0, 3));
+        $this->assertSame(['A 1', 'A 2', 'A 3'], array_slice(array_column(array_column($points, 'after'), 'title'), 0, 3));
+        $this->assertSame('A', Station::autopilot()['label'], 'Asking for the points changes nothing.');
+
+        $this->actingAs($scheduler)->postJson(self::ADMIN.'/admin/radio/programacion/piloto', [
+            'playlist' => $this->new->id, 'shuffle' => '0', 'when' => 'at', 'at' => $points[2]['at'],
+        ])->assertOk()
+            ->assertJsonPath('message', fn (string $message) => str_contains($message, 'empieza a las 15:10:48, cuando termina «A 3»'));
+
+        $queue = $this->state('queue');
+        $this->assertSame(['A 1', 'A 2', 'A 3', 'B 1'], array_slice(array_column($queue, 'title'), 0, 4));
+        $this->assertSame($this->ms('15:10:52'), $queue[2]['end'], 'The song before the chosen point plays to its end.');
+    }
+
+    public function test_a_point_that_is_not_a_song_boundary_is_refused(): void
+    {
+        $this->actingAs($this->admin(['radio.console']))->postJson(self::ADMIN.'/admin/radio/musica-continua', [
+            'action' => 'source', 'playlist' => $this->new->id, 'shuffle' => '0', 'when' => 'at', 'at' => $this->ms('15:03:00'),
+        ])->assertStatus(409)->assertJsonPath('error', fn (string $error) => str_contains($error, 'Vuelve a elegir'));
+
+        $this->assertSame($this->old->id, Station::config()['auto_playlist']);
+        $this->assertNull(Station::autopilot()['pending']);
+    }
+
+    public function test_the_automatic_music_cannot_switch_to_a_list_without_songs(): void
+    {
+        $empty = RadioPlaylist::query()->create(['name' => 'Vacía', 'sort_order' => 3]);
+
+        $this->actingAs($this->admin(['radio.console']))->postJson(self::ADMIN.'/admin/radio/musica-continua', [
+            'action' => 'source', 'playlist' => $empty->id, 'shuffle' => '1',
+        ])->assertStatus(409)->assertJsonPath('error', fn (string $error) => str_contains($error, '«Vacía» no tiene canciones'));
+
+        $this->assertSame($this->old->id, Station::config()['auto_playlist']);
     }
 
     public function test_a_pending_change_can_be_cancelled(): void

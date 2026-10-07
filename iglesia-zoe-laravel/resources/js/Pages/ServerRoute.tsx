@@ -2,7 +2,7 @@ import { Link } from "@inertiajs/react";
 import { Rise } from "@/Components/motion/rise";
 import { ClassroomPreview } from "@/Components/classroom/preview";
 import { LeadTitle } from "@/Components/site/lead-title";
-import { MediaView, PageBand } from "@/Components/site/media-view";
+import { MediaSlides, PageBand } from "@/Components/site/media-view";
 import { PageIntro } from "@/Components/site/page-intro";
 import SiteLayout from "@/Layouts/SiteLayout";
 import { readCopy, type CopyKey } from "@/lib/copy";
@@ -74,7 +74,7 @@ export default function ServerRoute({
                     <span className="route-node" aria-hidden>
                       {index + 1}
                     </span>
-                    <div className="route-photo">{asset.src ? <MediaView asset={asset} fit="raw" /> : null}</div>
+                    <div className="route-photo">{asset.src ? <MediaSlides asset={asset} fit="raw" /> : null}</div>
                     <div>
                       <p className="kicker">
                         {t("route.level")} {index + 1}
@@ -94,9 +94,9 @@ export default function ServerRoute({
           </div>
         </section>
 
-        <section {...section("classroom", "Aula virtual")} id="aula" className="route-access scroll-mt-24 px-6 py-24 md:px-16 md:py-28">
-          <div className="section-wrap grid items-center gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-20">
-            <Rise>
+        <section {...section("classroom", "Aula virtual")} id="aula" className="route-access scroll-mt-24 px-6 py-16 sm:py-24 md:px-16 md:py-28">
+          <div className="section-wrap grid items-center gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16 xl:gap-20">
+            <Rise className="min-w-0">
               <p className="kicker">{pages.section("route", "access")}</p>
               <h2 className="editorial mt-4 text-4xl leading-[1.05] text-white md:text-5xl">{t("route.accessTitle")}</h2>
               <p className="mt-4 max-w-lg text-base font-light leading-7 text-white/70">{t("route.accessText")}</p>
@@ -120,19 +120,19 @@ export default function ServerRoute({
                 <p className="max-w-xs text-[13px] leading-5 text-white/55">{t("route.accessHelp")}</p>
               </div>
             </Rise>
-            <Rise from="right" delay={120}>
+            <Rise from="right" delay={120} className="min-w-0">
               <ClassroomPreview levels={studyLevels.map((level) => level.name)} />
             </Rise>
           </div>
         </section>
 
-        <section {...section("cta", "Invitación final")} className="px-6 py-20 md:px-16 md:py-24">
-          <Rise className="section-wrap flex flex-wrap items-end justify-between gap-8">
-            <div className="max-w-2xl">
-              <h2 className="editorial text-4xl leading-[1.05] md:text-5xl">{t("route.ctaTitle")}</h2>
+        <section {...section("cta", "Invitación final")} className="px-6 py-16 sm:py-20 md:px-16 md:py-24">
+          <Rise className="section-wrap flex flex-col items-start gap-8 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+            <div className="min-w-0 max-w-2xl">
+              <h2 className="editorial text-[clamp(2rem,6vw,3rem)] leading-[1.05] md:text-5xl">{t("route.ctaTitle")}</h2>
               <p className="mt-4 text-base font-light leading-7 text-muted">{t("route.ctaText")}</p>
             </div>
-            <a href={talkUrlOf(settings, t("route.message"))} target="_blank" rel="noreferrer" className="btn-accent rounded-full px-6 py-3 text-sm font-semibold">
+            <a href={talkUrlOf(settings, t("route.message"))} target="_blank" rel="noreferrer" className="btn-accent inline-flex w-full shrink-0 items-center justify-center rounded-full px-6 py-3.5 text-center text-sm font-semibold sm:w-auto">
               {t("route.cta")} →
             </a>
           </Rise>

@@ -10,14 +10,6 @@ function Icon({ className = "h-5 w-5", children }: IconProps & { children: React
   );
 }
 
-export function IconPhone(props: IconProps) {
-  return (
-    <Icon {...props}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M6.6 4.8h2.2l1.1 2.7-1.4 1.4a12.6 12.6 0 0 0 6 6l1.4-1.4 2.7 1.1v2.2c0 .7-.5 1.4-1.2 1.5A15.4 15.4 0 0 1 5.1 6c.1-.7.8-1.2 1.5-1.2Z" />
-    </Icon>
-  );
-}
-
 export function IconMessenger(props: IconProps) {
   return (
     <Icon {...props}>

@@ -23,14 +23,14 @@ class RadioController extends Controller
     public function page(Request $request): Response
     {
         return Inertia::render('Radio', [
-            'settings' => LoadPublicSite::settings(),
+            'settings' => LoadPublicSite::publicSettings(),
             'ministries' => LoadPublicSite::ministries(),
             'serveAreas' => LoadPublicSite::serveAreas(),
             'mediaOverrides' => LoadPublicSite::mediaOverrides(),
             'skin' => ResolveSiteSkin::fromRequest($request),
             'radio' => Station::state(),
             'today' => Station::today(),
-            'episodes' => RadioEpisode::published()->limit(60)->get()->map->card(),
+            'episodes' => RadioEpisode::publishedCards(),
         ]);
     }
 

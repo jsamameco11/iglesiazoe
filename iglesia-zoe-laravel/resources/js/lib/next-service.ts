@@ -6,10 +6,12 @@ type NextService = {
   at: number;
 };
 
-function clockFromText(text: string, fallbackHour: number) {
+type Clock = { hour: number; minute: number };
+
+function clockFromText(text: string, fallback: Clock): Clock {
   const raw = fold(text);
   const match = raw.match(/(\d{1,2})(?::(\d{2}))?\s*(a\.?\s*m\.?|p\.?\s*m\.?)?/);
-  if (!match) return { hour: fallbackHour, minute: 0 };
+  if (!match) return fallback;
   let hour = Number(match[1]);
   const minute = Number(match[2] || 0);
   const meridiem = match[3] || "";
@@ -81,8 +83,8 @@ export function nextService(
 ): NextService {
   const mainDay = weekday(days.main, 0);
   const weekDay = weekday(days.week, 3);
-  const mainClock = clockFromText(mainText, 10);
-  const weekClock = clockFromText(weekText, 20);
+  const mainClock = clockFromText(mainText, { hour: 10, minute: 30 });
+  const weekClock = clockFromText(weekText, { hour: 20, minute: 0 });
   const main = occurrence(now, mainDay, mainClock.hour, mainClock.minute, WEEKDAYS[mainDay]);
   const week = occurrence(now, weekDay, weekClock.hour, weekClock.minute, WEEKDAYS[weekDay]);
   if (main.live) return main;

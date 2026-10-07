@@ -110,19 +110,22 @@ class SiteSectionsTest extends TestCase
         $this->assertSame(0, ChurchEvent::query()->count());
     }
 
-    public function test_a_teaching_needs_a_file_or_a_video(): void
+    public function test_a_teaching_reaches_the_site_only_with_a_file_or_a_video(): void
     {
         $admin = $this->superadmin();
         $base = ['title' => 'Enseñanza del domingo', 'kind' => 'predica', 'teaching_date' => '2026-09-27', 'active' => '1'];
 
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/recursos', $base)
-            ->assertUnprocessable()
-            ->assertJsonPath('error', 'Adjunta el archivo de la enseñanza o pega el enlace del video.');
+            ->assertOk()
+            ->assertJsonPath('message', 'Enseñanza guardada. No se mostrará en la web hasta que tenga su video de YouTube (no privado) o un archivo.');
+        $waiting = Teaching::query()->sole();
+        $this->assertSame(0, Teaching::query()->onSite()->count());
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/recursos', [...$base, 'kind' => 'otro', 'youtube' => 'dQw4w9WgXcQ'])->assertUnprocessable();
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/recursos', [...$base, 'youtube' => 'https://example.com/video'])->assertUnprocessable();
 
-        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/recursos', [...$base, 'youtube' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'])->assertOk();
+        $this->actingAs($admin)->postJson(self::ADMIN.'/admin/recursos', [...$base, 'id' => $waiting->id, 'youtube' => 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'])->assertOk();
         $this->assertSame('dQw4w9WgXcQ', Teaching::query()->sole()->youtube_id);
+        $this->assertSame(1, Teaching::query()->onSite()->count());
 
         $this->actingAs($admin)->postJson(self::ADMIN.'/admin/recursos', [
             ...$base,

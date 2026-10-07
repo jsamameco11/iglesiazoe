@@ -61,14 +61,14 @@ function ContentFields({ settings }: { settings: SiteSettings }) {
 
       <Block title="Casa, horarios y contacto" note="Estos datos se repiten en el inicio, el pie y Contacto.">
         <div className="grid gap-4 md:grid-cols-2">
-          <Field name="sunday" label="Horario del culto principal" defaultValue={settings.sunday} hint="Ejemplo: Domingo 10:00 a. m." />
+          <Field name="sunday" label="Horario del culto principal" defaultValue={settings.sunday} hint="Ejemplo: Domingos 10:30 a.m. El contador del inicio toma la hora de aquí." />
           <Field name="wednesday" label="Horario entre semana" defaultValue={settings.wednesday} hint="Ejemplo: Miércoles 7:30 p. m." />
           <DaySelect name="serviceDayMain" label="Día del culto principal (cuenta regresiva)" value={settings.serviceDayMain} fallback="0" />
           <DaySelect name="serviceDayWeek" label="Día del culto entre semana (cuenta regresiva)" value={settings.serviceDayWeek} fallback="3" />
           <Field name="address" label="Dirección" defaultValue={settings.address} />
           <Field name="city" label="Ciudad" defaultValue={settings.city} />
           <Field name="pastorsLabel" label="Pastores" defaultValue={settings.pastorsLabel} />
-          <Field name="phone" label="Teléfono" defaultValue={settings.phone} />
+          <Field name="phone" label="Teléfono" defaultValue={settings.phone} hint="Uso interno: no se muestra en la web. Los visitantes escriben por Messenger." />
           <Field name="whatsapp" label="WhatsApp" defaultValue={settings.whatsapp} hint="Solo el número, por ejemplo 987654321. Si lo dejas vacío no se muestra." />
           <Field name="email" label="Correo" defaultValue={settings.email} />
           <Field name="mapUrl" label="Enlace de mapa" defaultValue={settings.mapUrl} />
@@ -76,16 +76,14 @@ function ContentFields({ settings }: { settings: SiteSettings }) {
         <Field name="footerTagline" label="Frase del pie de página" defaultValue={settings.footerTagline} area />
       </Block>
 
-      <Block title="Redes, En vivo y Messenger" note="Los enlaces deben empezar con https://. Una red vacía no se muestra en la web.">
+      <Block title="Redes y Messenger" note="Los enlaces deben empezar con https://. Una red vacía no se muestra en la web. La transmisión en vivo se maneja en Transmisión.">
         <div className="grid gap-4 md:grid-cols-2">
           <Field name="facebook" label="Facebook" defaultValue={settings.facebook} />
           <Field name="youtube" label="Canal de YouTube" defaultValue={settings.youtube} />
           <Field name="instagram" label="Instagram" defaultValue={settings.instagram} />
           <Field name="tiktok" label="TikTok" defaultValue={settings.tiktok} />
           <Field name="messengerUrl" label="Enlace de Messenger" defaultValue={settings.messengerUrl} hint="Botón flotante y enlaces «Escríbenos». Vacío: se ocultan." />
-          <Field name="liveUrl" label="Enlace del botón En vivo" defaultValue={settings.liveUrl} hint="Si lo dejas vacío, el botón abre el canal de YouTube." />
         </div>
-        <Field name="liveYoutubeId" label="Enlace o ID de YouTube en vivo" defaultValue={settings.liveYoutubeId} hint="Pega el enlace del video o transmisión; se muestra arriba en Prédicas." />
       </Block>
 
       <Block title="Conócenos">

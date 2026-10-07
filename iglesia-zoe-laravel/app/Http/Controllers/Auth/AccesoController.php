@@ -44,7 +44,7 @@ class AccesoController extends Controller
         }
 
         $notice = LoadPublicSite::weeklyNotice();
-        $visible = $notice['points'] && ($notice['enabled'] || $preview);
+        $visible = $notice['points'] && ($notice['enabled'] || $preview) && ! $request->has('vista-diseno');
 
         return Inertia::render('Acceso', [
             'next' => $request->query('next'),

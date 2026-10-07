@@ -35,7 +35,6 @@ export default function Contact({
               <p>{settings.address}</p>
               <p>{settings.sunday}</p>
               <p>{settings.wednesday}</p>
-              {settings.phone && <p>{settings.phone}</p>}
               {settings.email && (
                 <p>
                   <a href={`mailto:${settings.email.trim().toLowerCase()}`} className="[overflow-wrap:anywhere] transition hover:text-ink">

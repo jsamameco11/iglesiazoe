@@ -41,7 +41,8 @@ export type RadioLayer = {
 };
 
 /** Gains of the program; `voice` is what music and sounds drop to while the host's voice is detected. */
-export type RadioMix = { music: number; fx: number; bed: number; duck: number; voice?: number };
+/** `fx` drives beds, players and scheduled layers; `pads` the botonera (the layers level when absent). */
+export type RadioMix = { music: number; fx: number; pads?: number; bed: number; duck: number; voice?: number };
 
 export type RadioLive = {
   on: boolean;
@@ -72,10 +73,15 @@ export type AutopilotLevel = "playlist" | "lists" | "library" | "none";
 
 export type AutopilotMode = "lista" | "aleatorio";
 
+/** A song boundary of the automatic music where a change of source can land: when, and what ends there. */
+export type SwitchPoint = { at: number; after: { title: string; artist: string | null; kind: RadioKind } | null };
+
+/** When a change of the automatic music lands: when the song on air ends, or at a boundary chosen by hand. */
+export type SwitchTiming = { when: "song" } | { when: "at"; at: number };
+
 /**
  * The automatic music of the gaps; `broken` counts audios off the air because their file failed the checks.
- * While a change is scheduled (`since` ahead), `pending` is what keeps playing until then; `lead` is the
- * minimum notice of a change, in seconds.
+ * While a change is scheduled (`since` ahead), `pending` is what keeps playing until then.
  */
 export type Autopilot = {
   mode?: AutopilotMode;
@@ -86,7 +92,6 @@ export type Autopilot = {
   label: string;
   since: number;
   pending?: { label: string } | null;
-  lead?: number;
   paused: boolean;
   /** Off: the source plays each song once; `until` is when that last cycle ends and `finished` that the radio is silent. */
   repeat?: boolean;
@@ -112,6 +117,8 @@ export type RadioState = {
   now: number;
   name: string;
   tagline: string;
+  /** Listeners see the name and artist of the song on air. */
+  show_titles: boolean;
   on_air: boolean;
   stream: string | null;
   previous: RadioItem | null;
@@ -197,6 +204,7 @@ export type RadioConfig = {
   tagline: string;
   on_air: boolean;
   autofill: boolean;
+  show_titles: boolean;
   bed_level: number;
   fx_level: number;
   duck_level: number;
@@ -210,7 +218,6 @@ export type RadioConfig = {
   auto_playlist: string | null;
   auto_shuffle: boolean;
   /** Minimum notice of a change of the automatic music, in seconds (30 to 1800). */
-  switch_lead?: number;
   live_mode: LiveMode;
   live_source: LiveSource;
   live_url: string;

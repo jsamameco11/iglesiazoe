@@ -329,6 +329,218 @@
   letter-spacing: 0.14em;
   color: var(--ink);
 }
+.teaching-card[data-video] {
+  padding: 0.75rem 0.75rem 1.5rem;
+}
+.teaching-card[data-video] > :not(.teach-thumb) {
+  margin-inline: 0.75rem;
+}
+.teach-thumb {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  border-radius: 1rem;
+  background: #0d0d0d;
+}
+.teach-thumb img,
+.teach-thumb iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: cover;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.teach-thumb button:hover img {
+  transform: scale(1.04);
+}
+.teach-thumb-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  width: 3.25rem;
+  height: 3.25rem;
+  place-items: center;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 92%, transparent);
+  color: #fff;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.6);
+}
+.teach-duration {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.6rem;
+  border-radius: 0.4rem;
+  background: rgba(0, 0, 0, 0.78);
+  padding: 0.15rem 0.45rem;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fff;
+}
+.teach-live-mark {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: #d61f33;
+}
+
+/* Escenario: transmisión en vivo o la última enseñanza */
+.teach-stage {
+  position: relative;
+  overflow: hidden;
+  scroll-margin-top: 6rem;
+  border-radius: 2rem;
+  background:
+    radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 55%),
+    #121010;
+  padding: 0.75rem;
+  color: #fff;
+  box-shadow: 0 50px 90px -50px rgba(20, 16, 12, 0.8);
+}
+.teach-stage[data-on-air] {
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgba(214, 31, 51, 0.28), transparent 55%),
+    #121010;
+}
+@media (min-width: 768px) {
+  .teach-stage {
+    padding: 1.25rem;
+  }
+}
+.teach-stage-grid {
+  display: grid;
+  gap: 1.25rem;
+}
+@media (min-width: 1024px) {
+  .teach-stage-grid {
+    grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+    align-items: center;
+    gap: 2.5rem;
+  }
+}
+.teach-stage .video-frame {
+  border-radius: 1.25rem;
+  box-shadow: none;
+}
+.teach-stage-meta {
+  padding: 0.5rem 0.75rem 1.25rem;
+}
+@media (min-width: 1024px) {
+  .teach-stage-meta {
+    padding: 1rem 1.5rem 1rem 0;
+  }
+}
+.stage-poster {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(150deg, #2a2420, #0f0d0c);
+}
+.stage-poster img {
+  opacity: 0.55;
+}
+.stage-file {
+  position: relative;
+  width: 4.5rem;
+  height: 5.4rem;
+  font-size: 12px;
+}
+.stage-waiting {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(10, 8, 8, 0.72);
+  padding: 1.5rem;
+  text-align: center;
+  backdrop-filter: blur(6px);
+}
+.stage-waiting img {
+  opacity: 0.25;
+}
+.stage-waiting p {
+  position: relative;
+  display: grid;
+  max-width: 26rem;
+  justify-items: center;
+  gap: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+}
+.stage-spinner {
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #fff;
+  border-radius: 999px;
+  animation: stage-spin 0.9s linear infinite;
+}
+@keyframes stage-spin {
+  to { transform: rotate(360deg); }
+}
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  background: #d61f33;
+  padding: 0.38rem 0.85rem;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: #fff;
+  box-shadow: 0 10px 24px -10px rgba(214, 31, 51, 0.9);
+}
+.live-badge i {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: #fff;
+  animation: live-pulse 1.4s ease-in-out infinite;
+}
+.live-badge[data-idle] {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+.live-badge[data-idle] i {
+  animation: none;
+  opacity: 0.6;
+}
+.stage-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  background: #fff;
+  padding: 0.6rem 1.1rem;
+  font-size: 13px;
+  font-weight: 600;
+  color: #121010;
+  transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+}
+.stage-btn:hover {
+  transform: translateY(-1px);
+}
+.stage-btn[data-ghost] {
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  color: #fff;
+}
+.stage-btn[data-ghost]:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-badge i,
+  .stage-spinner {
+    animation: none;
+  }
+}
 
 /* ---------- Somos una iglesia en movimiento (áreas de servicio) ---------- */
 .serve-rail {
@@ -339,6 +551,16 @@
 }
 @media (min-width: 768px) {
   .serve-rail { padding: 6rem 3rem 6.25rem; }
+}
+/* Right after the generations cards, both paddings shrink to 75% so the gap between them is not too tall. */
+.home-section[data-section="generations"]:has(+ .serve-rail) { padding-bottom: 4.125rem; }
+.home-section[data-section="generations"] + .serve-rail { padding-top: 3.375rem; }
+@media (min-width: 768px) {
+  .home-section[data-section="generations"]:has(+ .serve-rail) { padding-bottom: 5.625rem; }
+  .home-section[data-section="generations"] + .serve-rail { padding-top: 4.5rem; }
+}
+@media (min-width: 1024px) {
+  .home-section[data-section="generations"]:has(+ .serve-rail) { padding-bottom: 6.75rem; }
 }
 /* Right before the radio band, the light gap under the arrows stays short. */
 .serve-rail:has(+ .home-section[data-section="radio"]) { padding-bottom: 2.5rem; }
@@ -380,7 +602,7 @@
  * Every card, plate included, sits on the same baseline. The featured one grows a plate the
  * color of the band around it (no shadow, no border): its photo stays centred inside and the
  * plate cuts a thin, clean gap into the edges of the two photos tucked behind it.
- * --band is the background chosen in Dise├▒o for the page or the band.
+ * --band is the background chosen in Diseño for the page or the band.
  */
 .serve-rail-card {
   --rail-frame: 0px;
@@ -1044,6 +1266,7 @@
   box-shadow: 0 0 0 6px var(--paper), 0 0 0 7px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 .route-photo {
+  position: relative;
   overflow: hidden;
   aspect-ratio: 16 / 10;
   border-radius: 1.5rem;
@@ -1147,29 +1370,48 @@
   color: #fff;
 }
 
-/* ---------- Aula � vista previa ---------- */
+/* ---------- Aula · vista previa ---------- */
+.study-preview-stage {
+  width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.7rem 0.7rem;
+  container-type: inline-size;
+  container-name: preview;
+}
 .study-preview {
   position: relative;
+  max-width: 100%;
   border-radius: 1.8rem;
   border: 1px solid color-mix(in srgb, var(--ink) 8%, transparent);
   background: var(--art-background, var(--sage));
-  padding: 1rem;
+  padding: 0.9rem;
   color: var(--ink);
   box-shadow: 0 40px 90px -50px rgba(23, 24, 28, 0.55);
 }
-@media (min-width: 768px) {
-  .study-preview { padding: 1.25rem; transform: rotate(-1.2deg); }
+@container preview (min-width: 28rem) {
+  .study-preview { padding: 1.15rem 1.2rem 1.1rem; }
+}
+@container preview (min-width: 42rem) {
+  .study-preview { transform: rotate(-1deg); }
 }
 .study-preview-top {
   display: flex;
   align-items: center;
+  min-width: 0;
   gap: 0.55rem;
-  padding: 0.2rem 0.4rem 0.9rem;
+  padding: 0.2rem 0.35rem 0.85rem;
   font-size: 0.78rem;
   font-weight: 600;
   color: var(--muted);
 }
+.study-preview-top span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .study-preview-dot {
+  flex-shrink: 0;
   width: 0.55rem;
   height: 0.55rem;
   border-radius: 999px;
@@ -1180,14 +1422,15 @@
   display: grid;
   gap: 0.7rem;
 }
-@media (min-width: 480px) {
-  .study-preview-grid { grid-template-columns: 1.15fr 1fr; }
+@container preview (min-width: 36rem) {
+  .study-preview-grid { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.95fr); }
 }
 .study-preview-card {
   min-width: 0;
+  overflow: hidden;
   border-radius: 1.2rem;
   background: #fff;
-  padding: 1rem 1.05rem;
+  padding: 0.95rem 1rem 1rem;
 }
 .study-preview-main {
   background:
@@ -1207,8 +1450,8 @@
 .study-preview-big {
   margin-top: 0.5rem;
   font-family: var(--font-heading);
-  font-size: 1.9rem;
-  line-height: 1;
+  font-size: clamp(1.55rem, 8cqi, 1.9rem);
+  line-height: 1.05;
   letter-spacing: -0.03em;
 }
 .study-preview-big span {
@@ -1234,20 +1477,33 @@
   color: rgba(255, 255, 255, 0.7);
 }
 .study-preview-score {
-  display: flex;
-  justify-content: space-between;
-  gap: 0.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
   margin-top: 0.55rem;
   border-bottom: 1px dashed color-mix(in srgb, var(--ink) 10%, transparent);
-  padding-bottom: 0.4rem;
-  font-size: 0.8rem;
+  padding-bottom: 0.45rem;
+  font-size: 0.82rem;
 }
 .study-preview-score:last-child { border-bottom: 0; padding-bottom: 0; }
-.study-preview-score b { font-variant-numeric: tabular-nums; }
+.study-preview-score span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.study-preview-score b {
+  min-width: 1.7rem;
+  padding-right: 0.1rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
 .study-preview-verse p {
   font-family: var(--font-heading);
-  font-size: 1rem;
+  font-size: clamp(0.92rem, 3.4cqi, 1rem);
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 .study-preview-verse span {
   display: block;
@@ -1266,17 +1522,23 @@
 .study-preview-route {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-top: 0.9rem;
-  padding: 0 0.2rem 0.1rem;
+  gap: 0.4rem;
+  max-width: 100%;
+  margin-top: 0.85rem;
+  padding: 0.05rem 0.1rem 0.05rem;
 }
 .study-preview-route span {
+  max-width: 100%;
+  overflow: hidden;
   border-radius: 999px;
   background: #fff;
-  padding: 0.3rem 0.65rem;
-  font-size: 0.7rem;
+  padding: 0.38rem 0.72rem;
+  font-size: 0.72rem;
   font-weight: 600;
+  line-height: 1.25;
   color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .study-preview-route span[data-on] {
   background: var(--accent);
@@ -1784,6 +2046,346 @@
 @keyframes lightbox-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* ---------- Prédicas de YouTube ---------- */
+.yt-card {
+  --yt-text: var(--ink);
+  --yt-soft: var(--muted);
+  --yt-thumb: var(--clay);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  color: var(--yt-text);
+}
+.yt-card[data-tone="dark"] {
+  --yt-text: #fff;
+  --yt-soft: rgba(255, 255, 255, 0.62);
+  --yt-thumb: color-mix(in srgb, #fff 8%, var(--ink));
+}
+.yt-card[data-compact] {
+  display: grid;
+  grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+  align-items: start;
+  gap: 0.75rem;
+}
+.yt-card-thumb {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 1.1rem;
+  background: var(--yt-thumb);
+  isolation: isolate;
+}
+.yt-card[data-compact] .yt-card-thumb { border-radius: 0.7rem; }
+.yt-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), filter 0.4s ease;
+}
+.yt-card-thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.45), transparent 55%);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.yt-card-thumb:hover img,
+.yt-card-thumb:focus-visible img { transform: scale(1.045); }
+.yt-card-thumb:hover::after,
+.yt-card-thumb:focus-visible::after { opacity: 1; }
+.yt-card-thumb:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.yt-card-play {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  width: 3.4rem;
+  height: 3.4rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.6);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.85);
+  transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.yt-card[data-compact] .yt-card-play { width: 2.4rem; height: 2.4rem; }
+.yt-card-thumb:hover .yt-card-play,
+.yt-card-thumb:focus-visible .yt-card-play {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+@media (hover: none) {
+  .yt-card-play { opacity: 0.92; transform: translate(-50%, -50%) scale(1); }
+}
+.yt-card-time {
+  position: absolute;
+  z-index: 1;
+  right: 0.55rem;
+  bottom: 0.55rem;
+  border-radius: 0.4rem;
+  background: rgba(0, 0, 0, 0.82);
+  padding: 0.12rem 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  color: #fff;
+}
+.yt-card-body {
+  display: flex;
+  gap: 0.8rem;
+}
+.yt-avatar {
+  display: grid;
+  flex: none;
+  width: 2.35rem;
+  height: 2.35rem;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--accent);
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.18);
+}
+.yt-card-title {
+  font-size: 1.02rem;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+.yt-card[data-compact] .yt-card-title { font-size: 0.88rem; }
+.yt-card-title button {
+  display: -webkit-box;
+  overflow: hidden;
+  text-align: left;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.yt-card-title button:hover { text-decoration: underline; text-underline-offset: 3px; }
+.yt-card-channel,
+.yt-card-meta {
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--yt-soft);
+}
+.yt-card-channel { margin-top: 0.3rem; }
+.yt-card[data-compact] .yt-card-channel,
+.yt-card[data-compact] .yt-card-meta { font-size: 0.75rem; }
+
+.yt-feature {
+  display: grid;
+  gap: 2rem;
+  align-items: center;
+}
+@media (min-width: 1024px) {
+  .yt-feature { grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 3rem; }
+}
+.yt-feature-thumb {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  background: #000;
+  box-shadow: 0 40px 80px -40px rgba(20, 16, 12, 0.7);
+}
+.yt-feature-thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.yt-feature-thumb:hover img { transform: scale(1.03); }
+.yt-feature-thumb .yt-card-time { right: 1rem; bottom: 1rem; font-size: 0.85rem; padding: 0.2rem 0.55rem; }
+
+.yt-search {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: min(100%, 20rem);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  padding: 0.65rem 1.1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.yt-search:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 60%, var(--line));
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.yt-search input {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font-size: 0.9rem;
+  outline: none;
+}
+.yt-chips {
+  display: flex;
+  gap: 0.55rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+  scrollbar-width: none;
+}
+.yt-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  padding: 0.5rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.yt-chip span {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.yt-chip:hover { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
+.yt-chip[data-active] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.yt-chip[data-active] span { color: rgba(255, 255, 255, 0.78); }
+
+.yt-theater {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  color: #fff;
+  animation: lightbox-in 0.25s ease;
+}
+.yt-theater-scrim {
+  position: absolute;
+  inset: 0;
+  background: #0f0e0d;
+  cursor: default;
+}
+.yt-theater-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.9rem 1.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.75);
+}
+.yt-theater-body {
+  position: relative;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 1.25rem 3rem;
+}
+.yt-theater-grid {
+  display: grid;
+  gap: 2rem;
+  max-width: 92rem;
+  margin: 0 auto;
+}
+@media (min-width: 1100px) {
+  .yt-theater-grid { grid-template-columns: minmax(0, 1fr) 24rem; }
+}
+.yt-player {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 1.1rem;
+  background: #000;
+  box-shadow: 0 30px 80px -30px rgba(0, 0, 0, 0.9);
+}
+.yt-player iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.yt-theater-title {
+  margin-top: 1.1rem;
+  font-size: clamp(1.2rem, 2.2vw, 1.55rem);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+.yt-owner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.9rem;
+}
+.yt-pill {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.55rem 1.1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  transition: background 0.2s ease;
+}
+.yt-pill:hover { background: rgba(255, 255, 255, 0.2); }
+.yt-pill[data-strong] { background: var(--accent); }
+.yt-pill[data-strong]:hover { background: color-mix(in srgb, var(--accent) 85%, #fff); }
+.yt-description {
+  margin-top: 1rem;
+  border-radius: 0.9rem;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 0.9rem 1.05rem;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+.yt-description-text {
+  margin-top: 0.35rem;
+  display: -webkit-box;
+  overflow: hidden;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+  color: rgba(255, 255, 255, 0.86);
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+.yt-description[data-open] .yt-description-text {
+  display: block;
+  -webkit-line-clamp: unset;
+}
+.yt-description a {
+  color: #7fb4ff;
+}
+.yt-description a:hover { text-decoration: underline; }
+@media (max-width: 1099px) {
+  .yt-upnext { border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 1.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .yt-theater,
+  .yt-card-thumb img,
+  .yt-feature-thumb img { animation: none; transition: none; }
 }
 
 /* ---------- Devocionales ---------- */

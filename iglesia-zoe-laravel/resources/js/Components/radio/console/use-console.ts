@@ -1,6 +1,7 @@
 import { router } from "@inertiajs/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BEDS, Broadcaster, ProgramPlayer, postForm, useServerClock, type Autopilot, type LiveMode, type RadioConfig, type RadioLayer, type RadioState, type RadioTrack, type RadioUpcoming } from "@/lib/radio";
+import { BEDS, Broadcaster, ProgramPlayer, postForm, useServerClock, type Autopilot, type LiveMode, type RadioConfig, type RadioLayer, type RadioState, type RadioTrack, type RadioUpcoming, type SwitchTiming } from "@/lib/radio";
+import { LiveCapture, type CaptureBrief } from "@/lib/radio/capture";
 
 export type ConsoleLive = {
   session: string | null;
@@ -9,6 +10,7 @@ export type ConsoleLive = {
   started_at: number | null;
   music: number;
   overlay: number;
+  pads: number;
   muted: boolean;
   bed: boolean;
   mic: boolean;
@@ -60,10 +62,11 @@ type Signal = Snapshot & { pending: string[]; answers: { id: string; answer: str
  * State and engines of the live console: the server snapshot (polled every 1.5 s), the
  * monitor player, the microphone broadcaster and the actions that change what is on air.
  */
-export function useConsole(initial: Snapshot, episode: string) {
+export function useConsole(initial: Snapshot, episode: string, pending: CaptureBrief | null = null) {
   const serverClock = useServerClock();
   const player = useRef<ProgramPlayer | null>(null);
   const caster = useRef<Broadcaster | null>(null);
+  const captureEngine = useRef<LiveCapture | null>(null);
   caster.current ??= new Broadcaster();
 
   const [state, setState] = useState(initial.radio);
@@ -87,6 +90,8 @@ export function useConsole(initial: Snapshot, episode: string) {
   const [busy, setBusy] = useState(false);
   const [blend, setBlend] = useState(3);
   const [talks, setTalks] = useState<TalkSpan[]>([]);
+  const [capturing, setCapturing] = useState(false);
+  const [capture, setCapture] = useState<CaptureBrief | null>(null);
   const [, force] = useState(0);
   /** Pads fired here that the server has not confirmed yet: they stay on the timeline meanwhile. */
   const firing = useRef<RadioLayer[]>([]);
@@ -115,6 +120,35 @@ export function useConsole(initial: Snapshot, episode: string) {
   useEffect(() => {
     if (live.session && live.title) setEpisodeTitle(live.title);
   }, [live.session]);
+
+  useEffect(() => {
+    if (!pending) return;
+    let cancel = false;
+    (async () => {
+      const recording = pending.status === "recording" && pending.stale
+        ? (await postForm("/admin/radio/grabacion", { action: "finish", id: pending.id, duration: String(pending.duration ?? 0) })).recording
+        : pending.status === "ready"
+          ? pending
+          : null;
+      if (!cancel && recording?.status === "ready") setCapture(recording);
+      if (!cancel && pending.status === "recording" && !pending.stale) {
+        setNotice({ tone: "info", text: "Hay una grabación en curso en otra pestaña. Déjala terminar allí." });
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [pending]);
+
+  useEffect(() => {
+    if (!capturing) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [capturing]);
 
   useEffect(() => {
     const engine = caster.current!;
@@ -356,6 +390,39 @@ export function useConsole(initial: Snapshot, episode: string) {
     if (next.selfMonitor !== undefined) caster.current?.setReturn(next.selfMonitor);
   }
 
+  async function beginCapture(session: string | null | undefined) {
+    if (!session || config.live_source !== "consola" || captureEngine.current) return;
+    const engine = new LiveCapture(caster.current!);
+    captureEngine.current = engine;
+    const opened = await engine.start(session);
+    if (opened.recording?.status === "recording") {
+      setCapturing(true);
+      return;
+    }
+    captureEngine.current = null;
+    if (opened.recording?.status === "ready") setCapture(opened.recording);
+    if (opened.error) setNotice({ tone: "error", text: opened.error });
+  }
+
+  async function endCapture() {
+    const engine = captureEngine.current;
+    if (!engine || engine.done) return;
+    setCapturing(false);
+    const recording = await engine.finish(engine.id ? (serverClock.now() - (live.started_at ?? serverClock.now())) / 1000 : 0);
+    captureEngine.current = null;
+    if (recording?.status === "ready") setCapture(recording);
+    else if (recording?.status === "discarded") setNotice({ tone: "info", text: "La transmisión fue muy corta y no se guardó el audio." });
+  }
+
+  const endCaptureRef = useRef(endCapture);
+  endCaptureRef.current = endCapture;
+  const sessionSeen = useRef(live.session);
+  useEffect(() => {
+    const previous = sessionSeen.current;
+    sessionSeen.current = live.session;
+    if (previous && !live.session) void endCaptureRef.current();
+  }, [live.session]);
+
   async function startLive() {
     setBusy(true);
     setNotice(null);
@@ -367,15 +434,21 @@ export function useConsole(initial: Snapshot, episode: string) {
       } else if (data) {
         setNotice({ tone: "info", text: "¡Estás en vivo! Presiona «Hablar» cuando quieras salir al aire con tu voz." });
       }
+      if (data?.live?.session && config.live_source === "externo") {
+        setNotice({ tone: "info", text: "Estás al aire. La señal de la radio es externa, así que esta consola no graba ese audio." });
+      } else if (data?.live?.session) {
+        await beginCapture(data.live.session);
+      }
     }
     setBusy(false);
   }
 
   async function stopLive() {
-    if (!window.confirm("¿Terminar la transmisión en vivo? La programación sigue sonando.")) return;
+    if (!window.confirm("¿Terminar la transmisión en vivo? La grabación se detiene y podrás guardarla.")) return;
     setBusy(true);
     caster.current?.setTalking(false);
     setTalking(false);
+    await endCapture();
     await liveAction({ action: "stop" }, false);
     const at = serverClock.now();
     setTalks((list) => list.map((span) => (span.end === null ? { ...span, end: at } : span)));
@@ -383,7 +456,6 @@ export function useConsole(initial: Snapshot, episode: string) {
     caster.current?.closeMic();
     setMicOpen(false);
     setBusy(false);
-    setNotice(null);
   }
 
   /**
@@ -439,9 +511,9 @@ export function useConsole(initial: Snapshot, episode: string) {
     await musicAction({ action: "drop", id: trackId });
   }
 
-  /** Changes what the automatic music plays; it lands on a song boundary after the lead time. */
-  async function switchSource(playlist: string, shuffle: boolean) {
-    await musicAction({ action: "source", playlist, shuffle: shuffle ? "1" : "0" });
+  /** Changes what the automatic music plays, when the song on air ends or at the song boundary the operator picked. */
+  async function switchSource(playlist: string, shuffle: boolean, timing: SwitchTiming) {
+    await musicAction({ action: "source", playlist, shuffle: shuffle ? "1" : "0", when: timing.when, ...(timing.when === "at" ? { at: String(timing.at) } : {}) });
   }
 
   /** «Iniciar modo automático»: the source starts for every listener within seconds, from the chosen song ("" = from the top). */
@@ -532,6 +604,9 @@ export function useConsole(initial: Snapshot, episode: string) {
     openMic,
     startLive,
     stopLive,
+    capturing,
+    capture,
+    clearCapture: () => setCapture(null),
     toggleTalk,
     toggleAir,
     toggleAutofill,

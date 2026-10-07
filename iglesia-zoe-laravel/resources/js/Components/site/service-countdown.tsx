@@ -1,7 +1,8 @@
-import { usePage } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import { useEffect, useState } from "react";
 import { SocialIcon } from "@/Components/site/social-icons";
 import { useCopy } from "@/lib/copy";
+import { LIVE_HREF, useOnAir } from "@/lib/live";
 import { formatCountdown, nextService } from "@/lib/next-service";
 import { useSocial } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
@@ -16,6 +17,7 @@ export function ServiceCountdown({
   const [now, setNow] = useState(() => Date.now());
   const { settings } = usePage().props as unknown as { settings?: SiteSettings };
   const social = useSocial();
+  const onAir = useOnAir();
   const t = useCopy();
 
   useEffect(() => {
@@ -24,20 +26,18 @@ export function ServiceCountdown({
   }, []);
 
   const next = nextService(sunday, wednesday, new Date(now), { main: settings?.serviceDayMain, week: settings?.serviceDayWeek });
-  const href = next.live ? social.live : "/visita";
+  const live = next.live || onAir;
 
   return (
     <div className="service-chip">
-      <a
-        href={href}
-        target={next.live ? "_blank" : undefined}
-        rel={next.live ? "noreferrer" : undefined}
+      <Link
+        href={live ? LIVE_HREF : "/visita"}
         className="service-chip-link"
-        aria-label={next.live ? t("home.countdownLive") : `${t("home.countdownNext")}: ${next.label}`}
+        aria-label={live ? t("home.countdownLive") : `${t("home.countdownNext")}: ${next.label}`}
       />
       <div className="service-chip-body">
-        <p className="service-chip-time">{next.live ? t("nav.live") : formatCountdown(next.at - now)}</p>
-        <p className="service-chip-label">{next.live ? t("home.countdownLive") : t("home.countdownNext")}</p>
+        <p className="service-chip-time">{live ? t("nav.live") : formatCountdown(next.at - now)}</p>
+        <p className="service-chip-label">{live ? t("home.countdownLive") : t("home.countdownNext")}</p>
         {social.links.length > 0 && (
           <div className="service-chip-social">
             {social.links.map((item) => (

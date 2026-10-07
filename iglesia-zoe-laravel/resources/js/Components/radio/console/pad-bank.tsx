@@ -4,10 +4,9 @@ import { DuckIcon, StopIcon } from "@/Components/radio/icons";
 import { send } from "@/lib/actions";
 import { KIND_LABEL, duration, shortTitle, type RadioTrack } from "@/lib/radio";
 import { useTrackDrop } from "./drag";
-import { EffectsLibrary } from "./effects-library";
+import { EffectsLibrary, PadLoadingBar, starterEffects } from "./effects-library";
 import type { ConsoleApi } from "./use-console";
-
-const MAX_PADS = 16;
+import { MAX_PADS, type PadsApi } from "./use-pads";
 
 const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
 
@@ -20,10 +19,11 @@ export async function addPad(pads: RadioTrack[], track: RadioTrack): Promise<{ p
 }
 
 /** The effects bank: one button per chosen audio, played on top of the program for every listener. */
-export function PadBank({ api, pads, setPads, library, onAdd }: { api: ConsoleApi; pads: RadioTrack[]; setPads: (pads: RadioTrack[]) => void; library: RadioTrack[]; onAdd: (track: RadioTrack) => void }) {
+export function PadBank({ api, bank, library, onAdd }: { api: ConsoleApi; bank: PadsApi; library: RadioTrack[]; onAdd: (track: RadioTrack) => void }) {
   const { state, now, layerAction, firePad, warmPads } = api;
+  const { pads, setPads, loading, report } = bank;
   const [picking, setPicking] = useState(false);
-  const [effects, setEffects] = useState<"browse" | "starter" | null>(null);
+  const [effects, setEffects] = useState(false);
   const drop = useTrackDrop(library, onAdd);
   const [fired, setFired] = useState<string | null>(null);
   const sounding = state.layers.filter((layer) => layer.lane === "pad" && layer.start <= now && now < layer.end);
@@ -55,14 +55,22 @@ export function PadBank({ api, pads, setPads, library, onAdd }: { api: ConsoleAp
       <div className="cx-head">
         <p className="studio-label">Botonera · {pads.length}/{MAX_PADS}</p>
         <div className="flex gap-1">
-          <button type="button" onClick={() => setEffects("browse")} className="cx-btn" data-tone="green" title="Efectos de fábrica por categoría">Efectos</button>
-          <button type="button" onClick={() => setPicking(true)} className="cx-btn" data-tone="blue">Editar</button>
+          <button type="button" onClick={() => setEffects(true)} className="cx-btn" data-tone="green" title="Efectos de fábrica por categoría">Efectos</button>
+          <button type="button" disabled={loading !== null} onClick={() => setPicking(true)} className="cx-btn" data-tone="blue" title={loading ? "Espera a que terminen de cargarse los efectos" : undefined}>Editar</button>
           <button type="button" disabled={!sounding.length} onClick={() => api.stop({ lane: "pad" }, 1)} className="cx-btn" data-tone="amber">Fundir</button>
           <button type="button" disabled={!sounding.length} onClick={() => layerAction({ action: "stop", lane: "pad" })} className="cx-btn" data-tone="red" aria-label="Cortar la botonera">
             <StopIcon className="h-2.5 w-2.5" />
           </button>
         </div>
       </div>
+
+      {!effects ? <PadLoadingBar bank={bank} className="mt-2" /> : null}
+      {report && !effects && !loading ? (
+        <div className="fx-report mt-2" data-tone={report.tone} role="status">
+          <p className="min-w-0 flex-1">{report.text}</p>
+          <button type="button" onClick={bank.dismiss} className="opacity-60 hover:opacity-100" aria-label="Cerrar aviso">×</button>
+        </div>
+      ) : null}
 
       {pads.length ? (
         <div className="cx-pads mt-2">
@@ -96,15 +104,15 @@ export function PadBank({ api, pads, setPads, library, onAdd }: { api: ConsoleAp
         <div className="mt-2 rounded-lg border border-dashed border-white/15 px-3 py-4 text-center">
           <p className="text-xs text-white/55">La botonera está vacía. Cárgala con efectos listos para hacer radio o elige los tuyos.</p>
           <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
-            <button type="button" onClick={() => setEffects("starter")} className="cx-btn" data-tone="green">Cargar botonera básica</button>
-            <button type="button" onClick={() => setEffects("browse")} className="cx-btn">Ver todos los efectos</button>
+            <button type="button" disabled={loading !== null} onClick={() => bank.load(starterEffects())} className="cx-btn" data-tone="green">{loading ? "Cargando…" : "Cargar botonera básica"}</button>
+            <button type="button" onClick={() => setEffects(true)} className="cx-btn">Ver todos los efectos</button>
           </div>
         </div>
       )}
       <p className="mt-2 text-[10.5px] leading-4 text-white/35">Teclas 1–0 · suelta un sonido aquí para agregarlo · «Efectos» abre los sonidos de fábrica.</p>
 
       {picking ? <PadPicker library={library} chosen={pads} onClose={() => setPicking(false)} onSaved={setPads} /> : null}
-      {effects ? <EffectsLibrary pads={pads} onSaved={setPads} onClose={() => setEffects(null)} starter={effects === "starter"} /> : null}
+      {effects ? <EffectsLibrary bank={bank} onClose={() => setEffects(false)} /> : null}
     </div>
   );
 }

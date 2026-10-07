@@ -1,4 +1,7 @@
-import { mediaChromeStyle, mediaFocusStyle, normalizeFit, parseRatio, videoMime, type MediaAsset } from "@/lib/media";
+import { Slideshow } from "@/Components/site/slideshow";
+import { mediaChromeStyle, mediaFocusStyle, normalizeFit, parseRatio, slidesOf, videoMime, type MediaAsset } from "@/lib/media";
+
+type MediaFitMode = "auto" | "frame" | "cover" | "contain" | "cutout" | "hero" | "raw";
 
 export function MediaView({
   asset,
@@ -6,7 +9,7 @@ export function MediaView({
   className = "",
 }: {
   asset: MediaAsset;
-  fit?: "auto" | "frame" | "cover" | "contain" | "cutout" | "hero" | "raw";
+  fit?: MediaFitMode;
   className?: string;
 }) {
   if (!asset?.src) return null;
@@ -71,6 +74,33 @@ export function PageBand({
   const box = ratio.css || (mode === "fill" ? "4 / 5" : "");
 
   const chrome = mediaChromeStyle(asset);
+  const slides = slidesOf(asset);
+
+  if (slides.length > 1) {
+    const label = asset.alt || "Fotos";
+    if (mode === "natural" || !box) {
+      return (
+        <Slideshow count={slides.length} label={label} className={className} stageClassName="slides-natural">
+          {(index) => (
+            <div className="shot shot-natural" style={chrome}>
+              <MediaView asset={slides[index]} fit="frame" />
+            </div>
+          )}
+        </Slideshow>
+      );
+    }
+    return (
+      <Slideshow
+        count={slides.length}
+        label={label}
+        className={className}
+        stageClassName="shot relative w-full"
+        stageStyle={{ ...chrome, aspectRatio: box, maxHeight: "min(68svh, 560px)" }}
+      >
+        {(index) => <MediaView asset={slides[index]} fit={mode === "fit" ? "contain" : "cover"} />}
+      </Slideshow>
+    );
+  }
 
   if (mode === "natural" || !box) {
     return (
@@ -87,5 +117,16 @@ export function PageBand({
     >
       <MediaView asset={asset} fit={mode === "fit" ? "contain" : "cover"} />
     </div>
+  );
+}
+
+/** A photo that fills its box; with more photos it turns into a carousel with the controls over it. */
+export function MediaSlides({ asset, fit = "cover", className = "" }: { asset: MediaAsset; fit?: MediaFitMode; className?: string }) {
+  const slides = slidesOf(asset);
+  if (slides.length < 2) return <MediaView asset={asset} fit={fit} className={className} />;
+  return (
+    <Slideshow variant="fill" count={slides.length} label={asset.alt || "Fotos"}>
+      {(index) => <MediaView asset={slides[index]} fit={fit} className={className} />}
+    </Slideshow>
   );
 }

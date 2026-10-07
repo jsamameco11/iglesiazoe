@@ -76,7 +76,8 @@ class DesignEditorTest extends TestCase
         $this->assertSame(['still' => true], $saved['art']['write']);
         $this->assertArrayNotHasKey('inventado', $saved['art']);
 
-        $this->get('/')->assertInertia(fn (AssertableInertia $page) => $page
+        auth()->forgetGuards();
+        $this->get('http://localhost/')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
             ->where('design.pages.Home.background', '#f7f1e8')
             ->where('design.fontHref', 'https://fonts.bunny.net/css?family=young-serif:400,400i,500,600,700&display=swap'));
     }
@@ -104,13 +105,24 @@ class DesignEditorTest extends TestCase
         $this->assertSame(config('design.defaults.palette.accent'), LoadPublicSite::design()['palette']['accent']);
     }
 
-    public function test_a_signed_in_designer_can_preview_the_login_pages(): void
+    public function test_a_signed_in_designer_can_preview_the_panel_login(): void
     {
         $designer = $this->superadmin();
 
-        $this->actingAs($designer)->get('/acceso')->assertRedirect();
-        $this->actingAs($designer)->get('/acceso?vista-diseno=1')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Acceso'));
+        $this->actingAs($designer)->get(self::ADMIN.'/acceso')->assertRedirect();
         $this->actingAs($designer)->get(self::ADMIN.'/acceso?vista-diseno=1')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('AccesoAdmin'));
+    }
+
+    public function test_the_weekly_notice_does_not_cover_the_login_preview(): void
+    {
+        SiteSetting::query()->create([
+            'key' => 'weekly_notice',
+            'value' => ['enabled' => true, 'points' => [['title' => 'Envía tu informe', 'text' => '']]],
+            'updated_at' => now(),
+        ]);
+
+        $this->get('http://localhost/acceso')->assertInertia(fn (AssertableInertia $page) => $page->where('notice.points.0.title', 'Envía tu informe'));
+        $this->get('http://localhost/acceso?vista-diseno=1')->assertInertia(fn (AssertableInertia $page) => $page->where('notice', null));
     }
 
     private function superadmin(): User

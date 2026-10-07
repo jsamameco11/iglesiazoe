@@ -109,7 +109,7 @@ class WebInboxTest extends TestCase
                     ->where('rows.0.full_name', 'Pedro Díaz')
                     ->where('rows.0.network.label', 'RED I')
                     ->where('rows.1.network.label', 'RED H')
-                    ->where('rows.1.service', 'Domingos 10:00 a.m.')
+                    ->where('rows.1.service', 'Domingos 10:30 a.m.')
                     ->where('rows.1.region', 'Lambayeque')
                     ->where('rows.1.visit_date', fn (string $date) => CarbonImmutable::parse($date)->isSunday())
                     ->has('tabs', 4));
@@ -133,7 +133,7 @@ class WebInboxTest extends TestCase
         [$withPlace, $withoutPlace] = VisitPlan::query()->orderBy('created_at')->get()->all();
 
         $this->assertSame('Nueva visita planificada · RED H', Inbox::headline('visitas', $withPlace)['title']);
-        $this->assertSame('Rosa Díaz, 15 años · Domingos 10:00 a.m. · Lambayeque', Inbox::headline('visitas', $withPlace)['body']);
+        $this->assertSame('Rosa Díaz, 15 años · Domingos 10:30 a.m. · Lambayeque', Inbox::headline('visitas', $withPlace)['body']);
         $this->assertSame('Luis Ramos, 33 años · Miércoles 8:00 p.m.', Inbox::headline('visitas', $withoutPlace)['body']);
     }
 
@@ -232,7 +232,7 @@ class WebInboxTest extends TestCase
             'marital_status' => $marital,
             'country_code' => 'PE',
             'region' => 'Lambayeque',
-            'service' => 'Domingos 10:00 a.m.',
+            'service' => 'Domingos 10:30 a.m.',
         ])->assertOk();
         $this->travel(1)->seconds();
     }

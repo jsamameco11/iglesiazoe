@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Shared\Enums\Role;
 use App\Models\Sermon;
+use App\Models\User;
 use App\Models\VisitPlan;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -36,6 +38,31 @@ class PublicSiteTest extends TestCase
                 ->where('sermons.0.title', 'Mensaje 4')
                 ->missing('radio')
                 ->loadDeferredProps(fn (AssertableInertia $reload) => $reload->has('radio.on_air')));
+    }
+
+    public function test_visitors_never_receive_the_church_phone_but_the_panel_keeps_it(): void
+    {
+        foreach (['/', '/visita', '/contacto', '/radio'] as $path) {
+            $this->get($path)
+                ->assertOk()
+                ->assertInertia(fn (AssertableInertia $page) => $page
+                    ->where('settings.email', config('zoe.settings.email'))
+                    ->missing('settings.phone'));
+        }
+
+        $superadmin = User::query()->create([
+            'name' => 'Super',
+            'username' => 'super',
+            'email' => 'super@iglesiacristianazoe.pe',
+            'password' => 'secreto1',
+            'role' => Role::Superadmin,
+            'admin_types' => [],
+            'permissions' => [],
+            'active' => true,
+        ]);
+        $this->actingAs($superadmin)->get('http://admin.localhost/admin/contenido')
+            ->assertOk()
+            ->assertInertia(fn (AssertableInertia $page) => $page->where('settings.phone', config('zoe.settings.phone')));
     }
 
     public function test_a_visit_without_email_or_place_is_planned_for_the_chosen_service(): void

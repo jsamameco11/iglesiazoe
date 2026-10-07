@@ -188,7 +188,7 @@ class GamesController extends Controller
     private function render(string $component, Request $request, array $props): Response
     {
         return Inertia::render($component, [
-            'settings' => LoadPublicSite::settings(),
+            'settings' => LoadPublicSite::publicSettings(),
             'ministries' => LoadPublicSite::ministries(),
             'serveAreas' => LoadPublicSite::serveAreas(),
             'mediaOverrides' => LoadPublicSite::mediaOverrides(),

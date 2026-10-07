@@ -142,9 +142,21 @@ export function RouteCard({ route }: { route: RouteStep[] }) {
     <div className="aula-card">
       <p className="aula-kicker text-ink/50">Mi ruta</p>
       <h2 className="mt-1 text-xl font-semibold tracking-[-0.02em]">{pages.name("route")}</h2>
+      <nav className="aula-tabs" aria-label="Niveles de la ruta">
+        {route.map((step) => (
+          <button
+            key={step.id}
+            type="button"
+            data-state={step.state}
+            onClick={() => document.getElementById(`ruta-${step.id}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" })}
+          >
+            {step.name}
+          </button>
+        ))}
+      </nav>
       <ol className="aula-route mt-5">
         {route.map((step, index) => (
-          <li key={step.id} data-state={step.state}>
+          <li key={step.id} id={`ruta-${step.id}`} data-state={step.state}>
             <span className="aula-route-node">{step.state === "done" ? "✓" : index + 1}</span>
             <div className="min-w-0">
               <p className="flex flex-wrap items-center gap-2 font-semibold tracking-[-0.01em]">

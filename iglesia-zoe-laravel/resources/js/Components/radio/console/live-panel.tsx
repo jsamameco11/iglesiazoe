@@ -63,12 +63,13 @@ export function LivePanel({ api }: { api: ConsoleApi }) {
       <div className="cx-head">
         <p className="studio-label">Transmisión en vivo</p>
         {live.session ? <span className="cx-badge" data-tone="red">Desde {live.started_at ? clock(live.started_at) : "--"}</span> : null}
+        {api.capturing ? <span className="cx-badge" data-tone="red">Grabando</span> : null}
       </div>
       {live.session ? (
         <div className="mt-2 space-y-2">
           <EpisodeField api={api} wide />
           <p className="text-[12px] leading-5 text-white/60">
-            Mantén esta pestaña abierta.
+            {api.capturing ? "Se está grabando. Al terminar podrás guardarla." : "Mantén esta pestaña abierta."}
           </p>
           {!micOpen ? (
             <div className="flex items-center gap-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-2.5 py-2 text-[12px] text-amber-100">

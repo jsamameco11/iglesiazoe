@@ -12,10 +12,12 @@ use App\Http\Controllers\Admin\FinanceController;
 use App\Http\Controllers\Admin\GalleriesController;
 use App\Http\Controllers\Admin\InboxController;
 use App\Http\Controllers\Admin\LingobibleController;
+use App\Http\Controllers\Admin\LiveController;
 use App\Http\Controllers\Admin\MinistriesController;
 use App\Http\Controllers\Admin\NoticeController;
 use App\Http\Controllers\Admin\OcultoController;
 use App\Http\Controllers\Admin\PastEventsController;
+use App\Http\Controllers\Admin\RadioCaptureController;
 use App\Http\Controllers\Admin\RadioCatalogController;
 use App\Http\Controllers\Admin\RadioConsoleController;
 use App\Http\Controllers\Admin\RadioEditorController;
@@ -34,8 +36,10 @@ use App\Http\Controllers\Admin\SiteContentController;
 use App\Http\Controllers\Admin\SiteMediaController;
 use App\Http\Controllers\Admin\SitePagesController;
 use App\Http\Controllers\Admin\StudiesController;
+use App\Http\Controllers\Admin\TeachingsController;
 use App\Http\Controllers\Admin\TeamController;
 use App\Http\Controllers\Admin\ThemesController;
+use App\Http\Controllers\Admin\YouTubeController;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
 use Illuminate\Support\Facades\Route;
@@ -58,11 +62,11 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::get('/predicas', [SermonsController::class, 'predicas']);
         Route::post('/predicas', [SermonsController::class, 'saveSermon']);
         Route::post('/predicas/eliminar', [SermonsController::class, 'deleteSermon']);
+        Route::post('/predicas/revisar', [SermonsController::class, 'review']);
+        Route::post('/predicas/youtube', [SermonsController::class, 'saveYoutube']);
+        Route::post('/predicas/youtube/buscar', [SermonsController::class, 'syncYoutube'])->middleware('throttle:6,1');
         Route::get('/bautismos', [BaptismsController::class, 'bautismos']);
         Route::post('/bautismos', [BaptismsController::class, 'saveBaptism']);
-        Route::get('/recursos', [SectionsController::class, 'recursos']);
-        Route::post('/recursos', [SectionsController::class, 'saveTeaching']);
-        Route::post('/recursos/eliminar', [SectionsController::class, 'deleteTeaching']);
         Route::get('/galeria', [GalleriesController::class, 'index']);
         Route::post('/galeria', [GalleriesController::class, 'save']);
         Route::post('/galeria/foto', [GalleriesController::class, 'upload']);
@@ -74,6 +78,31 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
         Route::post('/involucrate', [SectionsController::class, 'saveArea']);
         Route::post('/involucrate/orden', [SectionsController::class, 'moveArea']);
         Route::post('/involucrate/eliminar', [SectionsController::class, 'deleteArea']);
+    });
+
+    Route::middleware($can('content.manage', 'live.manage'))->group(function () {
+        Route::get('/recursos', [TeachingsController::class, 'index']);
+        Route::post('/recursos', [TeachingsController::class, 'save']);
+        Route::post('/recursos/eliminar', [TeachingsController::class, 'destroy']);
+    });
+
+    Route::middleware($can('live.manage'))->group(function () {
+        Route::get('/transmision', [LiveController::class, 'index']);
+        Route::get('/transmision/estado', [LiveController::class, 'status']);
+        Route::post('/transmision', [LiveController::class, 'prepare']);
+        Route::post('/transmision/finalizar', [LiveController::class, 'end']);
+        Route::post('/transmision/clave', [LiveController::class, 'regenerateKey']);
+        Route::post('/transmision/predeterminados', [LiveController::class, 'saveDefaults']);
+        Route::post('/transmision/clave-youtube', [LiveController::class, 'saveManualKey']);
+        Route::post('/transmision/grabacion/reintentar', [LiveController::class, 'retryArchive']);
+        Route::get('/transmision/grabacion/{id}', [LiveController::class, 'download'])->whereUuid('id');
+        Route::get('/transmision/youtube/conectar', [YouTubeController::class, 'connect']);
+        Route::get('/transmision/youtube/volver', [YouTubeController::class, 'callback']);
+        Route::post('/transmision/youtube/desconectar', [YouTubeController::class, 'disconnect']);
+        Route::get('/transmision/youtube/listas', [YouTubeController::class, 'playlists']);
+        Route::post('/recursos/video/iniciar', [TeachingsController::class, 'uploadBegin']);
+        Route::post('/recursos/video/parte', [TeachingsController::class, 'uploadChunk']);
+        Route::post('/recursos/publicar', [TeachingsController::class, 'publish']);
     });
 
     Route::middleware($can('events.manage', 'content.manage'))->group(function () {
@@ -102,6 +131,7 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
             Route::post('/reprogramar', [RadioConsoleController::class, 'reschedule']);
             Route::get('/senal', [RadioConsoleController::class, 'signal']);
             Route::post('/senal/oferta', [RadioConsoleController::class, 'offer']);
+            Route::post('/grabacion', [RadioCaptureController::class, 'handle'])->middleware('throttle:180,1');
         });
         Route::middleware([$can('radio.console', 'radio.schedule'), 'throttle:120,1'])->get('/linea', [RadioScheduleController::class, 'program']);
         Route::middleware($can('radio.schedule'))->prefix('programacion')->group(function () {
@@ -225,6 +255,7 @@ Route::middleware(['auth', EnsureRole::class.':staff'])->prefix('admin')->group(
     Route::middleware($can('media.manage'))->group(function () {
         Route::get('/medios', [SiteMediaController::class, 'medios']);
         Route::post('/medios', [SiteMediaController::class, 'saveMedia']);
+        Route::post('/medios/carrusel', [SiteMediaController::class, 'saveSlides']);
     });
 
     Route::middleware($can('notices.manage'))->group(function () {

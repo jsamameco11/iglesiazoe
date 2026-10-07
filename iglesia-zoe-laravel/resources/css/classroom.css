@@ -231,12 +231,55 @@
   display: grid;
   gap: 0;
 }
+.aula-tabs {
+  display: flex;
+  gap: 0.4rem;
+  max-width: 100%;
+  margin-top: 1rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  padding-bottom: 0.15rem;
+}
+.aula-tabs::-webkit-scrollbar { display: none; }
+.aula-tabs button {
+  flex: 0 0 auto;
+  appearance: none;
+  cursor: pointer;
+  font-family: inherit;
+  border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+  border-radius: 999px;
+  background: var(--paper);
+  padding: 0.42rem 0.78rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--muted);
+  white-space: nowrap;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+.aula-tabs button:hover { border-color: color-mix(in srgb, var(--ink) 24%, transparent); color: var(--ink); }
+.aula-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.aula-tabs button[data-state="done"] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--accent) 12%, #fff);
+  color: var(--ink);
+}
+.aula-tabs button[data-state="current"] {
+  border-color: transparent;
+  background: var(--accent);
+  color: #fff;
+}
 .aula-route li {
   position: relative;
   display: grid;
   grid-template-columns: 2.2rem minmax(0, 1fr);
   gap: 0.9rem;
   padding-bottom: 1.1rem;
+  scroll-margin-top: 5.5rem;
 }
 .aula-route li:last-child { padding-bottom: 0; }
 .aula-route li:not(:last-child)::before {

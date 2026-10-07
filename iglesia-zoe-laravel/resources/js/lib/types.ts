@@ -18,9 +18,7 @@ export type SiteSettings = {
   instagram: string;
   tiktok: string;
   messengerUrl: string;
-  liveUrl: string;
   mapUrl: string;
-  liveYoutubeId: string;
   serviceDayMain: string;
   serviceDayWeek: string;
   prayerTopics: string[];
@@ -176,7 +174,10 @@ export type Teaching = {
   file_url: string | null;
   file_type: string | null;
   youtube_id: string | null;
-  active: boolean;
+  preacher: string | null;
+  cover: string | null;
+  duration: number | null;
+  from_live: boolean;
 };
 
 export type SermonSummary = {
@@ -186,7 +187,12 @@ export type SermonSummary = {
   series: string | null;
   sermon_date: string | null;
   youtube_id: string | null;
-  is_live: boolean;
+  description?: string | null;
+  duration?: number | null;
+  views?: number | null;
+  aired_at?: string | null;
+  thumbnail?: string | null;
+  channel?: string | null;
 };
 
 export type Ministry = {

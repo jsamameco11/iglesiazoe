@@ -1,4 +1,4 @@
-/* Iglesia Zoe · notifications for the web forms (planifica tu visita, bautismo, oración). */
+/* Iglesia Zoe · notifications: new web forms for the panel; radio programs, live services and new sermons for visitors. */
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
@@ -10,8 +10,8 @@ self.addEventListener("push", (event) => {
   } catch {
     data = { title: "Iglesia Zoe", body: event.data ? event.data.text() : "" };
   }
-  const title = data.title || "Nuevo formulario en la web";
-  const url = data.url || "/admin/formularios";
+  const title = data.title || "Iglesia Zoe";
+  const url = data.url || "/";
 
   event.waitUntil(
     (async () => {
@@ -32,7 +32,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = new URL(event.notification.data?.url || "/admin/formularios", self.location.origin).href;
+  const target = new URL(event.notification.data?.url || "/", self.location.origin).href;
 
   event.waitUntil(
     (async () => {

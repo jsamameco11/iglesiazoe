@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Domain\Radio\Timeline;
 use App\Domain\Shared\Models\UuidModel;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -43,6 +44,12 @@ class RadioSlot extends UuidModel
             'duck' => 'boolean',
             'volume' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => Timeline::flush());
+        static::deleted(fn () => Timeline::flush());
     }
 
     public static function layerLabel(int $layer): string

@@ -4,29 +4,24 @@ namespace App\Http\Controllers\Admin;
 
 use App\Domain\Media\Support\MediaLibrary;
 use App\Domain\Site\Actions\LoadPublicSite;
-use App\Domain\Site\Support\YouTube;
 use App\Http\Controllers\Controller;
 use App\Models\ChurchEvent;
 use App\Models\PastEvent;
 use App\Models\ServeArea;
 use App\Models\ServeRegistration;
-use App\Models\Teaching;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
-/** Events, teaching materials, áreas de servicio and the Involúcrate / Ruta del servidor pages of the public site. */
+/** Events, áreas de servicio and the Involúcrate / Ruta del servidor pages of the public site. */
 class SectionsController extends Controller
 {
     private const IMAGE_TYPES = ['jpg', 'jpeg', 'png', 'webp'];
-
-    private const TEACHING_TYPES = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'webp'];
 
     private const MESSAGES = [
         'required' => 'Completa el campo :attribute.',
@@ -108,79 +103,6 @@ class SectionsController extends Controller
         }
 
         return $this->saved('Evento eliminado.');
-    }
-
-    public function recursos(): Response
-    {
-        return Inertia::render('Admin/Recursos', [
-            'teachings' => Teaching::query()->orderByDesc('teaching_date')->get()->map->card(),
-            'accept' => '.'.implode(',.', self::TEACHING_TYPES),
-        ]);
-    }
-
-    public function saveTeaching(Request $request): JsonResponse
-    {
-        $existing = $this->find(Teaching::class, $request->input('id'));
-        if ($request->filled('id') && ! $existing) {
-            return $this->fail('Ese recurso ya no existe. Recarga la página.', 404);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'title' => 'required|string|min:3|max:160',
-            'kind' => ['required', Rule::in(Teaching::KINDS)],
-            'teaching_date' => 'required|date',
-            'summary' => 'nullable|string|max:400',
-            'youtube' => 'nullable|string|max:200',
-        ], self::MESSAGES, [
-            'title' => 'título',
-            'kind' => 'tipo',
-            'teaching_date' => 'fecha',
-            'summary' => 'descripción',
-            'youtube' => 'video',
-        ]);
-        if ($validator->fails()) {
-            return $this->fail($validator->errors()->first());
-        }
-
-        $data = $validator->validated();
-        $video = trim((string) ($data['youtube'] ?? ''));
-        unset($data['youtube']);
-        $data['youtube_id'] = $video === '' ? null : YouTube::id($video);
-        if ($video !== '' && ! $data['youtube_id']) {
-            return $this->fail('No reconocemos ese enlace de YouTube. Pega el enlace del video o su ID.');
-        }
-        $data['title'] = trim($data['title']);
-        $data['summary'] = trim((string) ($data['summary'] ?? '')) ?: null;
-        $data['active'] = $request->boolean('active');
-
-        $file = $request->file('file');
-        if ($file instanceof UploadedFile) {
-            $ext = MediaLibrary::extension($file, self::TEACHING_TYPES);
-            if (! $ext || $file->getSize() > 25 * 1024 * 1024) {
-                return $this->fail('El archivo debe ser PDF, Word, PowerPoint o una imagen de hasta 25 MB.');
-            }
-            $data['file_path'] = MediaLibrary::storePublic($file, 'recursos/'.substr($data['teaching_date'], 0, 4), $ext);
-            MediaLibrary::deletePublic($existing?->file_path);
-        }
-
-        if (empty($data['file_path'] ?? $existing?->file_path) && ! $data['youtube_id']) {
-            return $this->fail('Adjunta el archivo de la enseñanza o pega el enlace del video.');
-        }
-
-        $existing ? $existing->update($data) : Teaching::query()->create($data);
-
-        return $this->saved($existing ? 'Recurso actualizado.' : 'Recurso publicado.');
-    }
-
-    public function deleteTeaching(Request $request): JsonResponse
-    {
-        $teaching = $this->find(Teaching::class, $request->input('id'));
-        if ($teaching) {
-            MediaLibrary::deletePublic($teaching->file_path);
-            $teaching->delete();
-        }
-
-        return $this->saved('Recurso eliminado.');
     }
 
     public function areas(): Response

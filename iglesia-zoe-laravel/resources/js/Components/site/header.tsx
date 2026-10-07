@@ -1,22 +1,29 @@
 
 import { Link, usePage } from "@inertiajs/react";
 import { useEffect, useState } from "react";
+import { NotifyBell, NotifyCard } from "@/Components/site/notify-bell";
 import { AccessButton } from "@/Components/site/skin-switch";
 import { useCopy } from "@/lib/copy";
+import { LIVE_HREF, useOnAir } from "@/lib/live";
 import { useSitePages, type PageLink } from "@/lib/site-pages";
-import { useSocial } from "@/lib/social";
 import type { Ministry, ServeArea } from "@/lib/types";
 
 type NavLink = PageLink;
 
 function LiveButton({ ghost, className = "live-pill" }: { ghost?: boolean; className?: string }) {
-  const { live } = useSocial();
+  const onAir = useOnAir();
   const t = useCopy();
   return (
-    <a href={live} target="_blank" rel="noreferrer" tabIndex={ghost ? -1 : undefined} className={className}>
+    <Link
+      href={LIVE_HREF}
+      tabIndex={ghost ? -1 : undefined}
+      className={className}
+      data-on-air={onAir || undefined}
+      aria-label={onAir ? `${t("nav.live")}: transmitiendo ahora` : t("nav.live")}
+    >
       <span className="live-dot" aria-hidden />
       {t("nav.live")}
-    </a>
+    </Link>
   );
 }
 
@@ -263,6 +270,7 @@ function HeaderBar({
         {plain("give")}
       </nav>
       <div className="hidden items-center gap-4 xl:flex">
+        <NotifyBell ghost={ghost} />
         <LiveButton ghost={ghost} />
         <AccessButton ghost={ghost} invert={lightCta} />
         <Link href={pages.path("visit")} tabIndex={ghostTab} className="rounded-full bg-accent px-4 py-2 text-[14px] font-semibold text-white">
@@ -271,6 +279,7 @@ function HeaderBar({
       </div>
       <div className="flex items-center gap-2 sm:gap-3 xl:hidden">
         <RadioPill ghost={ghost} />
+        <NotifyBell ghost={ghost} />
         <LiveButton ghost={ghost} />
         <AccessButton ghost={ghost} invert={lightCta} />
         <button
@@ -326,6 +335,9 @@ function MobileMenu({ home, pathname, onClose }: { home: string; pathname: strin
           <Link href={pages.path("visit")} onClick={onClose} className="btn-accent shrink-0 rounded-full px-4 py-2.5 text-[13px] font-semibold">
             {pages.name("visit")}
           </Link>
+        </div>
+        <div className="sm:hidden">
+          <NotifyCard />
         </div>
         <div className="menu-links">
           <Link href={home} onClick={onClose}>{pages.name("home")}</Link>

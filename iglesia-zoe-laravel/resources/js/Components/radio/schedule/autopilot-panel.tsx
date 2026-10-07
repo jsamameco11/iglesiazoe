@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { Notice, button, useAction } from "@/Components/admin/ui";
-import { FallbackNotice, PendingSwitch, SourcePicker, leadLabel, sourceLabel } from "@/Components/radio/source-picker";
+import { Notice, useAction } from "@/Components/admin/ui";
+import { FallbackNotice, PendingSwitch, SourcePicker, SwitchScheduler, sourceLabel } from "@/Components/radio/source-picker";
 import { send } from "@/lib/actions";
 import { clock, type Autopilot, type RadioPlaylist } from "@/lib/radio";
 
 const ENDPOINT = "/admin/radio/programacion/piloto";
+const POINTS = { points: "1" };
 
 /** The station's automatic music: what fills every space without a block, on or off, repeating or once. */
 export function AutopilotPanel({ autopilot, playlists, now }: { autopilot: Autopilot; playlists: RadioPlaylist[]; now: number }) {
@@ -14,7 +15,6 @@ export function AutopilotPanel({ autopilot, playlists, now }: { autopilot: Autop
   const changed = playlist !== (autopilot.playlist ?? "") || shuffle !== autopilot.shuffle;
   const scheduled = Boolean(autopilot.pending) && autopilot.since > now;
   const current = sourceLabel(playlists, autopilot.playlist ?? "", autopilot.shuffle);
-  const lead = leadLabel(autopilot.lead ?? 300);
   const on = !autopilot.paused;
   const repeat = autopilot.repeat ?? true;
   const status = !on ? "Detenido" : autopilot.finished ? "Terminó" : autopilot.level === "none" ? "Sin canciones" : "Activo";
@@ -83,17 +83,24 @@ export function AutopilotPanel({ autopilot, playlists, now }: { autopilot: Autop
       <div className="mt-3">
         <Notice result={result} onClose={() => setResult(null)} />
       </div>
-      <button
-        type="button"
-        disabled={pending || !changed}
-        onClick={() => run(() => send(ENDPOINT, { playlist, shuffle: shuffle ? "1" : "0" }))}
-        className={`${button} mt-2 w-full`}
-      >
-        {pending ? "Guardando…" : changed ? `Programar cambio a: ${sourceLabel(playlists, playlist, shuffle)}` : "Ya está elegida esta música"}
-      </button>
-      <p className="mt-2 text-[11.5px] leading-4 text-muted">
-        El cambio entra con al menos {lead} de anticipación y justo cuando termina una canción, para que no se note el corte. La anticipación se ajusta en Ajustes (de 30 s a 30 min).
-      </p>
+      {changed ? (
+        <div className="mt-2">
+          <SwitchScheduler
+            endpoint={ENDPOINT}
+            pointsRequest={POINTS}
+            target={sourceLabel(playlists, playlist, shuffle)}
+            now={now}
+            busy={pending}
+            onConfirm={(timing) => run(() => send(ENDPOINT, { playlist, shuffle: shuffle ? "1" : "0", when: timing.when, ...(timing.when === "at" ? { at: String(timing.at) } : {}) }))}
+            onClose={() => {
+              setPlaylist(autopilot.playlist ?? "");
+              setShuffle(autopilot.shuffle);
+            }}
+          />
+        </div>
+      ) : (
+        <p className="mt-2 text-[11.5px] leading-4 text-muted">Elige otra lista o canciones aleatorias para programar el cambio: entra al terminar la canción que suena o en el punto que elijas, sin cortes.</p>
+      )}
     </section>
   );
 }

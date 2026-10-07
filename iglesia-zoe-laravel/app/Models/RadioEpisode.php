@@ -5,6 +5,9 @@ namespace App\Models;
 use App\Domain\Shared\Models\UuidModel;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 /**
  * A recorded program published on /radio so people can listen to it whenever they want.
@@ -23,15 +26,47 @@ class RadioEpisode extends UuidModel
         ];
     }
 
+    private const CARDS_KEY = 'radio.episodes.generation';
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => self::flushCards());
+        static::deleted(fn () => self::flushCards());
+    }
+
     public function track(): BelongsTo
     {
         return $this->belongsTo(RadioTrack::class, 'radio_track_id');
     }
 
-    /** Visible on /radio, newest first. */
+    /**
+     * Cards of the newest published episodes for /radio, kept in the cache until an episode or an audio changes.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function publishedCards(int $limit = 60): array
+    {
+        $generation = Cache::rememberForever(self::CARDS_KEY, fn () => Str::random(12));
+
+        return Cache::remember("radio.episodes.{$generation}.{$limit}", now()->addDay(), fn () => self::published()->limit($limit)->get()->map->card()->all());
+    }
+
+    /** Called whenever an episode or an audio changes; again after the transaction commits, so no cache keeps what it replaced. */
+    public static function flushCards(): void
+    {
+        Cache::forever(self::CARDS_KEY, Str::random(12));
+        DB::afterCommit(fn () => Cache::forever(self::CARDS_KEY, Str::random(12)));
+    }
+
+    /** Visible on /radio, newest first. A deactivated or missing audio stays out of the page. */
     public static function published(): Builder
     {
-        return self::query()->where('published', true)->with('track')->orderByDesc('aired_on')->orderByDesc('created_at');
+        return self::query()
+            ->where('published', true)
+            ->whereHas('track', fn (Builder $track) => $track->where('active', true)->whereNotNull('file_path')->where('file_path', '!=', ''))
+            ->with('track')
+            ->orderByDesc('aired_on')
+            ->orderByDesc('created_at');
     }
 
     public function card(): array

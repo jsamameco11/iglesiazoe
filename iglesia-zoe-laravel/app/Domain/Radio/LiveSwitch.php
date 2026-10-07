@@ -3,7 +3,6 @@
 namespace App\Domain\Radio;
 
 use App\Models\RadioSlot;
-use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
@@ -114,11 +113,8 @@ final class LiveSwitch
     /** The scheduled live block on air at $now, if any. */
     public static function liveSlot(int $now): ?RadioSlot
     {
-        return RadioSlot::query()->where('layer', RadioSlot::MAIN)->where('kind', RadioSlot::LIVE)
-            ->where('starts_at', '<=', CarbonImmutable::createFromTimestampMs($now))
-            ->where('starts_at', '>=', CarbonImmutable::createFromTimestampMs($now - Station::MAX_BLOCK * 1000))
-            ->orderByDesc('starts_at')->get()
-            ->first(fn (RadioSlot $slot) => $slot->endsAt()->getTimestampMs() > $now);
+        return Timeline::blocks($now - Station::MAX_BLOCK * 1000, $now + 1, true)->reverse()
+            ->first(fn (RadioSlot $slot) => $slot->kind === RadioSlot::LIVE && $slot->endsAt()->getTimestampMs() > $now);
     }
 
     private static function reconcile(array $config, array $live, int $now): ?array

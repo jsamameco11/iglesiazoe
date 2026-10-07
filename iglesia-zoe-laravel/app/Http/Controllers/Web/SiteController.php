@@ -7,6 +7,7 @@ use App\Domain\Radio\Station;
 use App\Domain\Site\Actions\LoadPublicSite;
 use App\Domain\Site\Actions\ResolveSiteSkin;
 use App\Domain\Site\Support\DevotionalArt;
+use App\Domain\Stream\LiveState;
 use App\Http\Controllers\Controller;
 use App\Models\BaptismEvent;
 use App\Models\ChurchEvent;
@@ -86,6 +87,7 @@ class SiteController extends Controller
         return Inertia::render('Sermons', [
             ...$this->shared($request),
             'sermons' => $this->publishedSermons(),
+            'live' => LiveState::current(),
         ]);
     }
 
@@ -93,7 +95,8 @@ class SiteController extends Controller
     {
         return Inertia::render('Teachings', [
             ...$this->shared($request),
-            'teachings' => Teaching::query()->where('active', true)->orderByDesc('teaching_date')->limit(120)->get()->map->card(),
+            'teachings' => Teaching::query()->onSite()->orderByDesc('teaching_date')->orderByDesc('created_at')->limit(120)->get()->map->card(),
+            'live' => LiveState::current(),
         ]);
     }
 
@@ -224,24 +227,16 @@ class SiteController extends Controller
 
     private function publishedSermons(?int $limit = null): array
     {
-        return Sermon::query()->where('published', true)->orderByDesc('sermon_date')
+        return Sermon::query()->onSite()
             ->when($limit, fn ($query) => $query->limit($limit))
             ->get()
-            ->map(fn ($sermon) => [
-                'id' => $sermon->id,
-                'title' => $sermon->title,
-                'preacher' => $sermon->preacher,
-                'series' => $sermon->series,
-                'sermon_date' => optional($sermon->sermon_date)->toDateString(),
-                'youtube_id' => $sermon->youtube_id,
-                'is_live' => $sermon->is_live,
-            ])->all();
+            ->map->card()->all();
     }
 
     private function shared(Request $request, bool $forceMarea = false): array
     {
         return [
-            'settings' => LoadPublicSite::settings(),
+            'settings' => LoadPublicSite::publicSettings(),
             'ministries' => LoadPublicSite::ministries(),
             'serveAreas' => LoadPublicSite::serveAreas(),
             'mediaOverrides' => LoadPublicSite::mediaOverrides(),

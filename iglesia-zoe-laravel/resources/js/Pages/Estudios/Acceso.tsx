@@ -6,7 +6,7 @@ import { talkUrlOf } from "@/lib/social";
 import type { SiteSettings } from "@/lib/types";
 import { section } from "@/lib/design";
 
-const field = "mt-1.5 w-full rounded-2xl border border-ink/12 bg-white px-4 py-3 text-[15px] text-ink outline-none transition focus:border-ink/40 focus:ring-4 focus:ring-ink/5";
+const field = "mt-1.5 w-full rounded-2xl border border-ink/12 bg-white px-4 py-3 text-base text-ink outline-none transition focus:border-ink/40 focus:ring-4 focus:ring-ink/5";
 
 export default function Acceso({ settings, levels }: { settings: SiteSettings; levels: string[] }) {
   const form = useForm({ username: "", password: "" });
@@ -15,8 +15,8 @@ export default function Acceso({ settings, levels }: { settings: SiteSettings; l
   return (
     <SiteLayout>
       <section className="page-wrap">
-        <div {...section("form", "Formulario de acceso")} className="grid items-center gap-12 lg:grid-cols-[minmax(0,27rem)_1fr] lg:gap-16">
-          <Rise>
+        <div {...section("form", "Formulario de acceso")} className="grid items-center gap-10 sm:gap-12 lg:grid-cols-[minmax(0,27rem)_minmax(0,1fr)] lg:gap-16">
+          <Rise className="min-w-0">
             <p className="kicker">Estudios · Aula virtual</p>
             <h1 className="acceso-title mt-4">Acceso de estudiantes</h1>
             <p className="mt-4 max-w-md text-[1.05rem] font-light leading-7 text-muted">
@@ -54,7 +54,7 @@ export default function Acceso({ settings, levels }: { settings: SiteSettings; l
                   className={field}
                 />
               </label>
-              <button disabled={form.processing} className="btn-accent mt-2 rounded-full px-6 py-3.5 text-[15px] font-semibold disabled:opacity-60">
+              <button disabled={form.processing} className="btn-accent mt-2 w-full rounded-full px-6 py-3.5 text-[15px] font-semibold disabled:opacity-60">
                 {form.processing ? "Ingresando…" : "Ingresar a mi aula"}
               </button>
             </form>
@@ -71,7 +71,7 @@ export default function Acceso({ settings, levels }: { settings: SiteSettings; l
             </div>
           </Rise>
 
-          <Rise from="right" delay={120}>
+          <Rise from="right" delay={120} className="min-w-0">
             <ClassroomPreview levels={levels} />
           </Rise>
         </div>

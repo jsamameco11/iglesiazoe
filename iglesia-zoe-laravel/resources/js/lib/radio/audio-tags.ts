@@ -38,9 +38,21 @@ export async function recognizeSong(file: File, hints: ArtistHints = new Map()):
   }
   const fromName = parseFileName(file.name, hints);
 
-  const tagTitle = clean(tags?.title);
-  const tagArtists = (tags?.artists ?? []).flatMap(splitCredits).filter(Boolean);
+  let tagTitle = clean(tags?.title);
+  let tagArtists = (tags?.artists ?? []).flatMap(splitCredits).filter(Boolean);
   if (!tagArtists.length && tags?.albumArtist) tagArtists.push(...splitCredits(tags.albumArtist));
+
+  // Downloads often keep «Song - Author» in the title tag, and the channel as the author.
+  if (tagTitle && namedSides(withoutNoise(tagTitle)).length >= 2) {
+    const tagged = new Map(hints);
+    tagArtists.forEach((name) => tagged.set(key(name), name));
+    const split = parseName(withoutNoise(tagTitle), tagged);
+    const credited = split.artist && (hints.has(key(split.artist)) || tagArtists.some((name) => key(name) === key(split.artist)));
+    if (split.title && (credited || !tagArtists.length)) {
+      tagTitle = split.title;
+      tagArtists = unique([split.artist, ...split.featured, ...tagArtists.filter((name) => credited && hints.has(key(name)))]);
+    }
+  }
 
   const titled = cleanTitle(tagTitle || fromName.title);
   const artists = tagArtists.length ? tagArtists : [fromName.artist, ...fromName.featured].filter(Boolean);
@@ -65,7 +77,17 @@ export async function recognizeSong(file: File, hints: ArtistHints = new Map()):
 /** What the computer adds to a copied or re-downloaded file: «… (1)», «… - copia», «… - Copy (2)». */
 const COPY_MARK = /(?:\s*[-–—]\s*(?:copia|copy)(?:\s*\(\d{1,2}\))?|\s*\(\d{1,2}\))\s*$/i;
 
-const NOISE = /\s*[([][^)\]]*\b(?:official|oficial|video|vídeo|audio|lyrics?|letra|visualizer|videoclip|hd|hq|4k|1080p|720p|kbps|mp3)\b[^)\]]*[)\]]/gi;
+const NOISE = /\s*[([][^)\]]*\b(?:official|oficial|video|vídeo|audio|lyrics?|letra|visualizer|videoclip|videolyrics?|hd|hq|4k|1080p|720p|kbps|mp3)\b[^)\]]*[)\]]/gi;
+
+/**
+ * Labels that videos and downloads add around a song name without brackets:
+ * «VideoLyric Danzo En El Río», «Way Maker Lyrics», «Gracias - Video Oficial», «Renuévame Con Letra HD».
+ */
+const LOOSE_LABEL = String.raw`(?:(?:official|oficial)\s+)?(?:music\s+)?(?:video\s*-?\s*lyrics?|lyrics?\s*-?\s*video|videolyrics?|lyricvideo|v[ií]deo\s*clip|videoclip|v[ií]deo|lyrics?|con\s+letra|letra|audio|visualizer|visualizador|clip)(?:\s+(?:official|oficial))?|(?:official|oficial)|hd|hq|4k|1080p|720p|480p|\d{2,3}\s*kbps|mp3|descargar|download|estreno|premiere`;
+/** At the start only labels that are never part of a name («Audio Adrenalina» keeps its «Audio»). */
+const START_LABEL = String.raw`videolyrics?|lyricvideo|video\s*-?\s*lyrics?|lyrics?\s*-?\s*video|(?:official|oficial)\s+(?:music\s+)?(?:video|v[ií]deo|audio)|(?:video|v[ií]deo|audio)\s+(?:official|oficial)|estreno|premiere`;
+const LABEL_AT_START = new RegExp(String.raw`^(?:(?:${START_LABEL})\b[\s:|·.-]*)+`, "i");
+const LABEL_AT_END = new RegExp(String.raw`(?:[\s:|·.-]*\b(?:${LOOSE_LABEL}))+[\s:|·.-]*$`, "i");
 const FEAT_IN_TITLE = /\s*[([]\s*(?:feat\.?|ft\.?|featuring|con)\s+([^)\]]+)[)\]]/i;
 const FEAT_AT_END = /\s+(?:feat\.?|ft\.?|featuring)\s+(.+)$/i;
 const FEAT_SPLIT = /\s+(?:feat\.?|ft\.?|featuring)\s+/i;
@@ -75,9 +97,12 @@ const key = (name: string) => clean(name).toLocaleLowerCase("es");
 
 /** File name without extension, track number, @mentions and video noise. */
 function baseName(name: string): string {
+  return withoutNoise(name.replace(/\.[a-z0-9]{2,4}$/i, "").replace(COPY_MARK, ""));
+}
+
+/** A name without underscores, track number, @mentions and bracketed video noise. */
+function withoutNoise(name: string): string {
   return name
-    .replace(/\.[a-z0-9]{2,4}$/i, "")
-    .replace(COPY_MARK, "")
     .replace(/_+/g, " ")
     .replace(NOISE, "")
     .replace(/[([]?\s*\b(?:feat\.?|ft\.?|featuring)\s+@[\w.]+(?:\s*(?:,|&|\by\b|\band\b|\bx\b)\s*@[\w.]+)*\s*[)\]]?/giu, " ")
@@ -103,6 +128,36 @@ function sides(text: string): string[] {
   return parts.map(clean).filter(Boolean);
 }
 
+/** A side of the name without the video labels at its edges, and whether it had any. */
+function unlabeled(side: string): { text: string; labeled: boolean } {
+  const text = clean(side.replace(LABEL_AT_START, "").replace(LABEL_AT_END, ""));
+  return { text, labeled: text !== clean(side) };
+}
+
+/** The sides of a file name that hold words, with the video labels taken out. */
+function namedSides(base: string): { text: string; labeled: boolean }[] {
+  return sides(base)
+    .map(unlabeled)
+    .filter((side) => /[\p{L}\p{N}]/u.test(side.text));
+}
+
+/** The known author a text starts or ends with, and the rest of it: «Miel San Marcos Danzo En El Río». */
+function authorAtEdge(text: string, hints: ArtistHints): { artist: string; title: string } | null {
+  const lower = text.toLocaleLowerCase("es");
+  let best: { artist: string; title: string; length: number } | null = null;
+  for (const [hint] of hints) {
+    if (hint.length < 3 || (best && hint.length <= best.length)) continue;
+    if (lower.startsWith(hint) && /^[\s,.:-]/.test(text.slice(hint.length))) {
+      best = { artist: text.slice(0, hint.length), title: text.slice(hint.length), length: hint.length };
+    } else if (lower.endsWith(hint) && /[\s,.:-]$/.test(text.slice(0, text.length - hint.length))) {
+      best = { artist: text.slice(text.length - hint.length), title: text.slice(0, text.length - hint.length), length: hint.length };
+    }
+  }
+  if (!best) return null;
+  const title = clean(best.title.replace(/^[\s,.:-]+|[\s,.:-]+$/g, ""));
+  return /[\p{L}\p{N}]/u.test(title) ? { artist: best.artist, title } : null;
+}
+
 /**
  * Authors to recognize in file names: those of the library, and any name that appears on one side of
  * the dash in two or more of the files being added («Nezareth - Alaben», «Hijos de Dios - Nezareth, …»).
@@ -114,11 +169,15 @@ export function artistHints(fileNames: string[], library: string[] = []): Artist
     if (!current || (isShouting(current) && !isShouting(name))) hints.set(key(name), clean(name));
   };
   library.filter(Boolean).forEach(add);
+  const known = new Set(hints.keys());
   const seen = new Map<string, { count: number; name: string }>();
   for (const fileName of fileNames) {
-    const parts = sides(baseName(fileName));
+    const parts = namedSides(baseName(fileName)).map((side) => side.text);
     if (parts.length < 2) continue;
-    const names = new Set([splitCredits(parts[0])[0], splitCredits(parts.slice(1).join(" - "))[0]].filter(Boolean));
+    const credits = [splitCredits(parts[0])[0], splitCredits(parts.slice(1).join(" - "))[0]].filter(Boolean);
+    // Next to a known author, the other side is the song, even when several files repeat it.
+    if (credits.some((name) => known.has(key(name)))) continue;
+    const names = new Set(credits);
     for (const name of names) {
       const entry = seen.get(key(name)) ?? { count: 0, name };
       entry.count++;
@@ -132,32 +191,34 @@ export function artistHints(fileNames: string[], library: string[] = []): Artist
 
 /**
  * «Nezareth - Alaben (Video Oficial).mp3» → author «Nezareth», song «Alaben». The author may come
- * first or last («Santo es el que vive - Montesanto»): the side with several names, a «ft.», or a
- * known author is the author's; otherwise the first one.
+ * first or last («VideoLyric Danzo En El Río - Miel San Marcos»): a known author, several names or a
+ * «ft.» point to the author's side, and the video labels («VideoLyric», «Letra») to the song's;
+ * otherwise the first side is the author's.
  */
 export function parseFileName(name: string, hints: ArtistHints = new Map()): { title: string; artist: string; featured: string[] } {
-  const base = baseName(name);
-  const parts = sides(base);
-  let titleText = base;
+  return parseName(baseName(name), hints);
+}
+
+/** Author, song and guests of a name already free of extension and track number. */
+function parseName(base: string, hints: ArtistHints): { title: string; artist: string; featured: string[] } {
+  const parts = namedSides(base);
+  let titleText = unlabeled(base).text;
   let artistText = "";
 
   if (parts.length >= 2) {
     const first = parts[0];
-    const last = parts.slice(1).join(" - ");
-    const score = (side: string) => {
-      const credits = splitCredits(side);
-      return (hints.has(key(credits[0] ?? "")) ? 5 : 0) + (credits.length > 1 ? 3 : 0) + (isShouting(side) ? 1 : 0);
+    const last = { text: parts.slice(1).map((side) => side.text).join(" - "), labeled: parts.slice(1).some((side) => side.labeled) };
+    const score = (side: { text: string; labeled: boolean }) => {
+      const credits = splitCredits(side.text);
+      const known = hints.has(key(credits[0] ?? "")) ? 6 : authorAtEdge(side.text, hints) ? 2 : 0;
+      return known + (credits.length > 1 ? 3 : 0) + (isShouting(side.text) ? 1 : 0) - (side.labeled ? 2 : 0);
     };
-    [artistText, titleText] = score(last) > score(first) ? [last, first] : [first, last];
+    [artistText, titleText] = score(last) > score(first) ? [last.text, first.text] : [first.text, last.text];
   } else {
-    const lower = base.toLocaleLowerCase("es");
-    for (const [hint] of hints) {
-      const at = lower.indexOf(hint);
-      if (at > 0 && /\s/.test(base[at - 1]) && !/[\p{L}\p{N}]/u.test(base[at + hint.length] ?? "")) {
-        titleText = base.slice(0, at);
-        artistText = base.slice(at);
-        break;
-      }
+    const edge = authorAtEdge(titleText, hints);
+    if (edge) {
+      artistText = edge.artist;
+      titleText = edge.title;
     }
   }
 
@@ -195,7 +256,7 @@ function tidyTitle(title: string): string {
 
 /** Takes «(feat. …)» and video noise out of a song name; the guests become co-authors. */
 export function cleanTitle(text: string): { title: string; featured: string[] } {
-  let title = clean(text).replace(NOISE, "");
+  let title = unlabeled(clean(text).replace(NOISE, "")).text || clean(text);
   const featured: string[] = [];
   const inParens = title.match(FEAT_IN_TITLE);
   if (inParens) {

@@ -56,7 +56,6 @@ export function Footer({
   const place = rule.logo ? rule.logoPlace : undefined;
   const align = (part: FooterPart) => footerAlignChoice(rule, part);
   const email = settings.email?.trim().toLowerCase();
-  const phone = settings.phone?.trim();
   const whatsapp = settings.whatsapp ? phoneLabel(settings.whatsapp) : "";
   const icons = [
     ...social.links.map((item) => ({ key: item.id, href: item.href, label: item.label, icon: <SocialIcon id={item.id} /> })),
@@ -112,13 +111,12 @@ export function Footer({
           <div className="site-footer-column" data-area="info" data-reveal-item>
             <h2 className="site-footer-title" data-align={align("titles")}>{t("footer.colVisit")}</h2>
             <address className="site-footer-links" data-align={align("links")}>
-              {phone && <a href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a>}
+              {social.messenger && <a href={social.messenger} target="_blank" rel="noreferrer">{t("footer.messenger")}</a>}
               {social.whatsapp && (
                 <a href={social.whatsapp} target="_blank" rel="noreferrer">
                   {whatsapp ? `${t("footer.writeTo")} ${whatsapp}` : t("footer.whatsapp")}
                 </a>
               )}
-              {social.messenger && <a href={social.messenger} target="_blank" rel="noreferrer">{t("footer.messenger")}</a>}
               {email && <a href={`mailto:${email}`} className="site-footer-email">{email}</a>}
               {settings.address && <span className="site-footer-place">{settings.address}</span>}
               {settings.sunday && <span>{settings.sunday}</span>}

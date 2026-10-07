@@ -3,7 +3,9 @@
 param(
   [string]$Server = "root@161.132.51.100",
   [string[]]$Sites = @("https://iglesiacristianazoe.miacademiapreu.com", "https://iglesiacristianazoe2.miacademiapreu.com", "https://admi-iglesiazoe.miacademiapreu.com"),
-  [switch]$SkipBuild
+  [switch]$SkipBuild,
+  # Once: also installs the live stream server (MediaMTX, queue worker, cron, ports). See stream-setup.sh.
+  [switch]$SetupStream
 )
 $ErrorActionPreference = "Stop"
 $app = Split-Path -Parent $PSScriptRoot
@@ -25,6 +27,12 @@ scp -q (Join-Path $PSScriptRoot "release.sh") "${Server}:/root/zoe-release.sh"
 if ($LASTEXITCODE -ne 0) { throw "scp failed" }
 ssh $Server "sed -i 's/\r$//' /root/zoe-release.sh && bash /root/zoe-release.sh"
 if ($LASTEXITCODE -ne 0) { throw "release failed on the server" }
+
+if ($SetupStream) {
+  scp -q (Join-Path $PSScriptRoot "stream-setup.sh") "${Server}:/root/zoe-stream-setup.sh"
+  ssh $Server "sed -i 's/\r$//' /root/zoe-stream-setup.sh && bash /root/zoe-stream-setup.sh"
+  if ($LASTEXITCODE -ne 0) { throw "stream setup failed on the server" }
+}
 
 foreach ($site in $Sites) {
   foreach ($path in "/", "/acceso") {

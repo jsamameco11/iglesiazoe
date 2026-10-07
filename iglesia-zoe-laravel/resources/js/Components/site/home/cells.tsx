@@ -1,7 +1,7 @@
 import { Link } from "@inertiajs/react";
 import { Rise } from "@/Components/motion/rise";
 import { Paragraphs, SectionHead } from "@/Components/site/section";
-import { MediaView } from "@/Components/site/media-view";
+import { MediaSlides } from "@/Components/site/media-view";
 import type { MediaAsset } from "@/lib/media";
 import type { SiteSettings } from "@/lib/types";
 import { section } from "@/lib/design";
@@ -14,7 +14,7 @@ export function CellsSection({ settings, asset }: { settings: SiteSettings; asse
       <div className="home-split">
         <Rise from="left">
           <div className="home-photo shot">
-            <MediaView asset={asset} fit="cover" />
+            <MediaSlides asset={asset} fit="cover" />
           </div>
         </Rise>
         <Rise from="right" delay={120}>

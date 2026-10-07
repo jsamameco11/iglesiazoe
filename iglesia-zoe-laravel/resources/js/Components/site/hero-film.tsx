@@ -1,7 +1,8 @@
 
 import { useEffect, useRef, useState } from "react";
-import { mediaFocusStyle, videoMime, type MediaAsset } from "@/lib/media";
+import { mediaFocusStyle, slidesOf, videoMime, type MediaAsset } from "@/lib/media";
 import { ServiceCountdown } from "@/Components/site/service-countdown";
+import { SlideDots, useSlideshow } from "@/Components/site/slideshow";
 import { section } from "@/lib/design";
 
 function HeroMedia({ asset, className }: { asset: MediaAsset; className: string }) {
@@ -38,6 +39,8 @@ export function HeroFilm({
 }) {
   const ref = useRef<HTMLElement>(null);
   const [fade, setFade] = useState(1);
+  const slides = slidesOf(asset);
+  const { active, go } = useSlideshow(slides.length, 6500);
 
   useEffect(() => {
     const onScroll = () => {
@@ -56,9 +59,18 @@ export function HeroFilm({
   return (
     <section {...section("hero", "Portada")} ref={ref} className="hero-bleed relative flex min-h-[max(100svh,560px)] w-full flex-col overflow-hidden">
       <div className="absolute inset-0" style={{ opacity: fade }}>
-        <HeroMedia asset={asset} className="hero-bleed-media" />
+        {slides.length > 1 ? (
+          slides.map((slide, index) => (
+            <div key={index} className="hero-slide" data-active={index === active || undefined} aria-hidden={index !== active}>
+              <HeroMedia asset={slide} className="hero-bleed-media" />
+            </div>
+          ))
+        ) : (
+          <HeroMedia asset={asset} className="hero-bleed-media" />
+        )}
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
       </div>
+      {slides.length > 1 ? <SlideDots total={slides.length} active={active} onPick={go} className="hero-dots" /> : null}
       <div className="hero-copy" style={{ opacity: fade }}>
         <div className="hero-copy-main">{children}</div>
         <ServiceCountdown sunday={sunday} wednesday={wednesday} />

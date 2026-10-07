@@ -12,7 +12,7 @@ const input = "visit-input";
 
 export function VisitForm({
   cta = "Quiero visitarlos",
-  sunday = "Domingo 10:00 a.m.",
+  sunday = "Domingos 10:30 a.m.",
   wednesday = "Miércoles 8:00 p.m.",
 }: {
   cta?: string;

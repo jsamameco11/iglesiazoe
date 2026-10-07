@@ -1,12 +1,15 @@
 import { useEffect, useState } from "react";
-import { FallbackNotice, PendingSwitch, SourcePicker, leadLabel, sourceLabel } from "@/Components/radio/source-picker";
+import { FallbackNotice, PendingSwitch, SourcePicker, SwitchScheduler, sourceLabel } from "@/Components/radio/source-picker";
 import { clock, type RadioBlock, type RadioPlaylist } from "@/lib/radio";
 import type { ConsoleApi } from "./use-console";
 
+const POINTS = { action: "points" };
+
 /**
  * The live switch and the automatic music: automatic or manual mode, cut the music for the
- * live signal or return to it, and what the automatic music plays (a change lands on a song
- * boundary after the lead time, or right away when returning from the live signal).
+ * live signal or return to it, and what the automatic music plays (a change lands when the
+ * song on air ends or at a song boundary the operator picks, or right away when returning
+ * from the live signal).
  */
 export function SwitchPanel({ api, day, playlists }: { api: ConsoleApi; day: RadioBlock[]; playlists: RadioPlaylist[] }) {
   const { state, config, autopilot, now } = api;
@@ -22,7 +25,11 @@ export function SwitchPanel({ api, day, playlists }: { api: ConsoleApi; day: Rad
   const changed = playlist !== (autopilot.playlist ?? "") || shuffle !== autopilot.shuffle;
   const current = sourceLabel(playlists, autopilot.playlist ?? "", autopilot.shuffle);
   const chosen = sourceLabel(playlists, playlist, shuffle);
-  const lead = leadLabel(autopilot.lead ?? 300);
+
+  function reset() {
+    setPlaylist(autopilot.playlist ?? "");
+    setShuffle(autopilot.shuffle);
+  }
 
   useEffect(() => {
     setPlaylist(autopilot.playlist ?? "");
@@ -40,7 +47,7 @@ export function SwitchPanel({ api, day, playlists }: { api: ConsoleApi; day: Rad
     : block && auto
       ? `«${block.title}» está programado hasta las ${clock(block.end)}: ${external ? "cuando la señal externa responda" : "al abrir la transmisión"} se corta la música sola. Mientras tanto suena el piloto automático.`
       : autopilot.pending && autopilot.since > now
-        ? `Suena el piloto automático: ${autopilot.pending.label}. A las ${clock(autopilot.since)} cambia a ${current}.`
+        ? `Suena el piloto automático: ${autopilot.pending.label}. A las ${clock(autopilot.since, true)} cambia a ${current}.`
         : `Suena el piloto automático: ${current}.`;
 
   const chip = cut
@@ -85,18 +92,6 @@ export function SwitchPanel({ api, day, playlists }: { api: ConsoleApi; day: Rad
             onPlaylist={setPlaylist}
             onShuffle={setShuffle}
           />
-          {!cut && changed ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => act(() => api.switchSource(playlist, shuffle))}
-              className="cx-btn !py-1.5"
-              data-tone="blue"
-              title={`Se programa con al menos ${lead} de anticipación y entra justo cuando termina una canción, sin cortes (la anticipación se cambia en Ajustes)`}
-            >
-              Programar cambio · {lead}
-            </button>
-          ) : null}
         </div>
 
         <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">
@@ -133,6 +128,18 @@ export function SwitchPanel({ api, day, playlists }: { api: ConsoleApi; day: Rad
       </div>
 
       <div className="mt-2 grid gap-1.5 empty:hidden">
+        {!cut && changed ? (
+          <SwitchScheduler
+            studio
+            endpoint="/admin/radio/musica-continua"
+            pointsRequest={POINTS}
+            target={chosen}
+            now={now}
+            busy={busy}
+            onConfirm={(timing) => act(() => api.switchSource(playlist, shuffle, timing))}
+            onClose={reset}
+          />
+        ) : null}
         <PendingSwitch studio autopilot={autopilot} now={now} busy={busy} onCancel={() => act(api.cancelSwitch)} />
         <FallbackNotice studio autopilot={autopilot} />
       </div>

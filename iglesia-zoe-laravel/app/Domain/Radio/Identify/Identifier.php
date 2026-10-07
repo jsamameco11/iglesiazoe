@@ -46,6 +46,8 @@ final class Identifier
     /** Albums of other cuts of the songs: karaoke, instrumentals, performance tracks, remixes. */
     private const CUT_ALBUM = '/\b(instrumental|instrumentales|instrumentals|pistas?|karaoke|performance tracks?|backing tracks?|playback|made popular|in the style of|tribute|tributo|remix|remixes|sped up|slowed|lofi|lo fi|piano)\b/';
 
+    /** Video labels written before a name: «VideoLyric Danzo En El Rio», «Official Video Mi Padre». */
+    private const LABEL_AT_START = '/^\s*(?:(?:video\s*-?\s*lyrics?|lyrics?\s*-?\s*video|videolyrics?|lyricvideo|(?:official|oficial)\s+(?:music\s+)?(?:video|v[ií]deo|audio)|(?:video|v[ií]deo|audio)\s+(?:official|oficial)|estreno|premiere)\b[\s:|·.-]*)+/iu';
 
     private const CACHE = 'radio-identify:v3:';
 
@@ -85,9 +87,10 @@ final class Identifier
     }
 
     /**
-     * Ways to read the song: as it came; or, when it came without author, with the author written
-     * in its name («Marcos Witt Gracias Tu Fidelidad») taken out: a known artist first, then an
-     * artist a database credits for the rest of the name.
+     * Ways to read the song: as it came; with name and author the other way round when the author
+     * is not a known artist («VideoLyric Danzo En El Rio - Miel San Marcos»); or, when it came
+     * without author, with the author written in its name («Marcos Witt Gracias Tu Fidelidad»)
+     * taken out: a known artist first, then an artist a database credits for the rest of the name.
      *
      * @return Generator<int, SongQuery>
      */
@@ -95,6 +98,10 @@ final class Identifier
     {
         if ($query->artist !== '') {
             yield $query;
+            $title = Text::cleanTitle(preg_replace(self::LABEL_AT_START, '', $query->artist) ?? $query->artist);
+            if (! MusicCatalog::artist($query->artist) && Text::key($title) !== '' && Text::key($title) !== Text::key($query->title)) {
+                yield $query->withArtist(MusicCatalog::artist($query->title)?->name ?? $query->title, $title);
+            }
 
             return;
         }
@@ -165,7 +172,10 @@ final class Identifier
         $best = $matched[0];
         $matched = array_values(array_filter($matched, fn (Candidate $candidate) => Text::similarity($candidate->artist, $best->artist) >= 0.85
             || ($artist !== '' && Text::similarity($candidate->artist, $artist) >= 0.85)));
-        $isLive = fn (Candidate $candidate) => Text::isLive($candidate->title.' '.($candidate->album ?? ''));
+        $liveVersions = array_filter($matched, fn (Candidate $candidate) => $candidate->album && Text::isLive($candidate->title.' '.$candidate->album));
+        $isLive = fn (Candidate $candidate) => Text::isLive($candidate->title.' '.($candidate->album ?? ''))
+            || ($candidate->album && $candidate->duration && collect($liveVersions)->contains(fn (Candidate $live) => $live->duration
+                && Text::albumKey($live->album) === Text::albumKey($candidate->album) && abs($live->duration - $candidate->duration) <= self::SAME_LENGTH));
         $this->completeAlbums($matched);
         if (! $query->live && $isLive($best)) {
             $best = collect($matched)->first(fn (Candidate $candidate) => ! $isLive($candidate) && $candidate->score >= $best->score - 0.05) ?? $best;
