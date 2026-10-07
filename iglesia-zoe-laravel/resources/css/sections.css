@@ -340,6 +340,24 @@
 @media (min-width: 768px) {
   .serve-rail { padding: 6rem 3rem 6.25rem; }
 }
+/* The generations block sits a little tighter (92% of a home section) above and below its cards. */
+.home-section[data-section="generations"] { padding-top: 5.06rem; }
+@media (min-width: 768px) {
+  .home-section[data-section="generations"] { padding-top: 6.9rem; }
+}
+@media (min-width: 1024px) {
+  .home-section[data-section="generations"] { padding-top: 8.28rem; }
+}
+/* Right after the generations cards, both paddings shrink so the gap between them is not too tall. */
+.home-section[data-section="generations"]:has(+ .serve-rail) { padding-bottom: 3.795rem; }
+.home-section[data-section="generations"] + .serve-rail { padding-top: 3.105rem; }
+@media (min-width: 768px) {
+  .home-section[data-section="generations"]:has(+ .serve-rail) { padding-bottom: 5.175rem; }
+  .home-section[data-section="generations"] + .serve-rail { padding-top: 4.14rem; }
+}
+@media (min-width: 1024px) {
+  .home-section[data-section="generations"]:has(+ .serve-rail) { padding-bottom: 6.21rem; }
+}
 /* Right before the radio band, the light gap under the arrows stays short. */
 .serve-rail:has(+ .home-section[data-section="radio"]) { padding-bottom: 2.5rem; }
 .serve-rail + .home-section[data-section="radio"] { padding-top: 2.5rem; }
