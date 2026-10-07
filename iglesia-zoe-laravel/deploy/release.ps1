@@ -21,6 +21,7 @@ if ($LASTEXITCODE -ne 0) { throw "tar failed" }
 Write-Host ("Package: {0:N1} MB" -f ((Get-Item $package).Length / 1MB))
 
 scp -q $package "${Server}:/root/zoe-release.tgz"
+if ($LASTEXITCODE -ne 0) { throw "scp of the package failed" }
 scp -q (Join-Path $PSScriptRoot "release.sh") "${Server}:/root/zoe-release.sh"
 if ($LASTEXITCODE -ne 0) { throw "scp failed" }
 ssh $Server "sed -i 's/\r$//' /root/zoe-release.sh && bash /root/zoe-release.sh"

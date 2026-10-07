@@ -27,6 +27,8 @@ for part in "${PARTS[@]}"; do
   mv "$STAGE/$part" "$APP/$part"
 done
 rm -rf "$STAGE"
+# A later run whose upload failed must never apply this package again.
+rm -f "$ARCHIVE"
 if [ "$LOCK_BEFORE" != "$(sha1sum composer.lock | cut -d' ' -f1)" ]; then
   echo "dependencias de PHP cambiaron: composer install"
   COMPOSER_ALLOW_SUPERUSER=1 composer install --no-dev --optimize-autoloader --no-interaction --no-progress

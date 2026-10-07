@@ -933,6 +933,19 @@
   background: #141518;
   padding: 0.2rem;
 }
+/* A slim dark scrollbar for the console instead of the light one of the site (Chrome and Edge ignore these rules while a scrollbar-color is inherited). */
+@supports selector(::-webkit-scrollbar) {
+  .cx-list { scrollbar-color: auto; scrollbar-width: auto; }
+  .cx-list::-webkit-scrollbar { width: 6px; }
+  .cx-list::-webkit-scrollbar-button { display: none; }
+  .cx-list::-webkit-scrollbar-track { margin-block: 0.4rem; background: transparent; }
+  .cx-list::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(255, 255, 255, 0.13); }
+  .cx-list::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.24); }
+  .cx-list::-webkit-scrollbar-thumb:active { background: rgba(255, 255, 255, 0.32); }
+}
+@supports not selector(::-webkit-scrollbar) {
+  .cx-list { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.16) transparent; }
+}
 .cx-sound {
   position: relative;
   display: flex;
