@@ -341,6 +341,45 @@ final class Station
     }
 
     /**
+     * «Siguiente»: the automatic song on air ($item, an id of items()) fades out and the song that
+     * came after it starts for every listener within seconds; the music goes on from there. A
+     * change of source still waiting is brought forward. Null when $item is no longer on air (or
+     * already fading out of a skip) or no automatic song follows it.
+     *
+     * @return ?array<string, mixed> the song that starts
+     */
+    public static function skipSong(string $item): ?array
+    {
+        $config = self::config();
+        $now = self::nowMs();
+        if (! $config['on_air'] || ! $config['autofill']) {
+            return null;
+        }
+        $automatic = fn (array $entry): bool => $entry['kind'] === 'musica' && $entry['slot'] === null && $entry['block'] === null;
+        $items = self::items($now, $now + 6 * 3600000, true, 40);
+        $at = array_search($item, array_column($items, 'id'), true);
+        if ($at === false || ! $automatic($items[$at]) || $items[$at]['start'] > $now) {
+            return null;
+        }
+        $song = $items[$at];
+        if (! empty($config['auto_prev']['fade']) && $song['origin'] < $config['auto_since']) {
+            return null;
+        }
+
+        foreach (array_slice($items, $at + 1) as $next) {
+            if (! $automatic($next) || $next['origin'] <= $song['origin']) {
+                continue;
+            }
+            $current = self::current($config);
+            $first = $next['origin'] >= $config['auto_since'] ? $next['track'] : $current['start'];
+
+            return self::firstSong(self::startAutopilot($current['playlist'], $current['shuffle'], $first)) ?? $next;
+        }
+
+        return null;
+    }
+
+    /**
      * The source of the automatic music on air at $now and since when it plays.
      *
      * @return array{playlist: ?string, shuffle: bool, start: ?string, from: int}

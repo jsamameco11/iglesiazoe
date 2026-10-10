@@ -108,6 +108,26 @@ class RadioSourceSwitchTest extends TestCase
         $this->assertEquals(0, $queue[1]['seek']);
     }
 
+    public function test_next_fades_out_the_song_on_air_and_starts_the_following_one_for_everyone(): void
+    {
+        $console = $this->admin(['radio.console']);
+        $onAir = $this->state('queue')[0];
+
+        $this->actingAs($console)->postJson(self::ADMIN.'/admin/radio/musica-continua', ['action' => 'next', 'item' => $onAir['id']])->assertOk()
+            ->assertJsonPath('autopilot.label', 'A')
+            ->assertJsonPath('message', fn (string $message) => str_contains($message, '«A 2»'));
+
+        $queue = $this->state('queue');
+        $this->assertSame(['A 1', 'A 2', 'A 3'], array_slice(array_column($queue, 'title'), 0, 3));
+        $this->assertSame($this->ms('15:00:07'), $queue[0]['end'], 'The song on air fades out instead of playing to its end.');
+        $this->assertSame($this->ms('15:00:03'), $queue[1]['start'], 'The next song starts in seconds, from its beginning.');
+        $this->assertEquals(0, $queue[1]['seek']);
+
+        $this->actingAs($console)->postJson(self::ADMIN.'/admin/radio/musica-continua', ['action' => 'next', 'item' => $onAir['id']])
+            ->assertStatus(409);
+        $this->assertSame($this->ms('15:00:03'), $this->state('queue')[1]['start'], 'Pressing again on the song fading out does not skip twice.');
+    }
+
     public function test_starting_from_silence_puts_the_radio_on_air_with_the_chosen_song_first(): void
     {
         Station::saveConfig(['on_air' => false, 'autofill' => false]);

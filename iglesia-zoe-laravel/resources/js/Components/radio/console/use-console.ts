@@ -85,6 +85,8 @@ export function useConsole(initial: Snapshot, episode: string) {
   const [speaking, setSpeaking] = useState(false);
   const [episodeTitle, setEpisodeTitle] = useState(initial.live.title || episode);
   const [busy, setBusy] = useState(false);
+  /** The queue item «Siguiente» was pressed on: it keeps sounding a few seconds while it fades out. */
+  const [skipped, setSkipped] = useState<string | null>(null);
   const [blend, setBlend] = useState(3);
   const [talks, setTalks] = useState<TalkSpan[]>([]);
   const [, force] = useState(0);
@@ -439,6 +441,20 @@ export function useConsole(initial: Snapshot, episode: string) {
     await musicAction({ action: "drop", id: trackId });
   }
 
+  /** «Siguiente»: the automatic song on air (an item of the queue) fades out and the next one starts for every listener. */
+  async function skipSong(itemId: string) {
+    if (skipped === itemId) return;
+    setSkipped(itemId);
+    const data = (await postForm("/admin/radio/musica-continua", { action: "next", item: itemId })) as Snapshot & { ok?: boolean; error?: string; message?: string };
+    if (!data.ok) {
+      setSkipped(null);
+      setNotice({ tone: "error", text: data.error ?? "No se pudo pasar a la siguiente canción. Inténtalo de nuevo." });
+      return;
+    }
+    apply(data);
+    if (data.message) setNotice({ tone: "info", text: data.message });
+  }
+
   /** Changes what the automatic music plays; it lands on a song boundary after the lead time. */
   async function switchSource(playlist: string, shuffle: boolean) {
     await musicAction({ action: "source", playlist, shuffle: shuffle ? "1" : "0" });
@@ -537,6 +553,8 @@ export function useConsole(initial: Snapshot, episode: string) {
     toggleAutofill,
     setRepeat,
     dropFromRotation,
+    skipSong,
+    skipped,
   };
 }
 

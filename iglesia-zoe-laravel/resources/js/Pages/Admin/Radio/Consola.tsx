@@ -11,7 +11,7 @@ import { SwitchPanel } from "@/Components/radio/console/switch-panel";
 import { LaunchNow, TodayList } from "@/Components/radio/console/today";
 import { UpcomingBubble } from "@/Components/radio/console/upcoming-bubble";
 import { useConsole, type Snapshot } from "@/Components/radio/console/use-console";
-import { HeadphonesIcon, MicIcon, UsersIcon } from "@/Components/radio/icons";
+import { HeadphonesIcon, MicIcon, NextIcon, UsersIcon } from "@/Components/radio/icons";
 import AdminLayout from "@/Layouts/AdminLayout";
 import { KIND_LABEL, clock, duration, shortTitle, type RadioBlock, type RadioPlaylist, type RadioTrack } from "@/lib/radio";
 import "../../../../css/radio.css";
@@ -37,6 +37,7 @@ export default function Consola({ radio, live, voice, config, autopilot, upcomin
   const current = state.queue.find((item) => item.start <= now && now < item.end) ?? null;
   const next = state.queue.find((item) => item.start > now) ?? null;
   const rotating = current && !current.slot && current.track ? current.track : null;
+  const skippable = current && current.kind === "musica" && !current.slot && !current.block && current.track ? current : null;
 
   async function onPad(track: RadioTrack) {
     const result = await addPad(pads, track);
@@ -68,6 +69,17 @@ export default function Consola({ radio, live, voice, config, autopilot, upcomin
             <span className="truncate text-white/90">{current ? shortTitle(current.title, 60) : "—"}</span>
             {current ? <span className="shrink-0 font-mono tabular-nums text-emerald-300">-{duration((current.end - now) / 1000)}</span> : null}
           </span>
+          {skippable ? (
+            <button
+              type="button"
+              onClick={() => api.skipSong(skippable.id)}
+              disabled={api.skipped === skippable.id}
+              className="cx-btn"
+              title="Pasa a la siguiente canción de la música automática: la actual se desvanece y la siguiente empieza para todos en unos segundos"
+            >
+              <NextIcon className="h-3 w-3" /> Siguiente
+            </button>
+          ) : null}
           {rotating && current ? (
             <button type="button" onClick={() => api.dropFromRotation(rotating, current.title)} className="cx-btn" data-tone="amber" title="Saca esta canción de la música continua: deja de sonar ahora y no se repite">
               No repetir

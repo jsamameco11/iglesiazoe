@@ -29,6 +29,16 @@ export function SkipIcon({ seconds, forward = false, className = "h-8 w-8" }: Pr
   );
 }
 
+/** Next song: a play arrow against a bar. */
+export function NextIcon({ className = "h-4 w-4" }: Props) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} aria-hidden>
+      <path d="M5 6.2v11.6a1 1 0 0 0 1.53.85l9.1-5.8a1 1 0 0 0 0-1.7l-9.1-5.8A1 1 0 0 0 5 6.2Z" fill="currentColor" />
+      <rect x="17" y="5" width="2.6" height="14" rx="1.1" fill="currentColor" />
+    </svg>
+  );
+}
+
 export function StopIcon({ className = "h-6 w-6" }: Props) {
   return (
     <svg viewBox="0 0 24 24" className={className} aria-hidden>

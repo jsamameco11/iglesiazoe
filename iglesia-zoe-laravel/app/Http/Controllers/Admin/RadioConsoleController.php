@@ -176,6 +176,14 @@ class RadioConsoleController extends RadioController
         if ($action === 'repeat') {
             return $this->answered($this->repeatMessage($request->boolean('on')));
         }
+        if ($action === 'next') {
+            $song = Station::skipSong((string) $request->input('item'));
+            if ($song === null) {
+                return $this->fail('Esa canción ya terminó o no hay otra canción automática después de ella.', 409);
+            }
+
+            return $this->answered("Siguiente canción: «{$song['title']}» empieza para todos los oyentes en unos segundos.");
+        }
         if ($action === 'drop') {
             $track = $this->find(RadioTrack::class, $request->input('id'));
             if (! $track || $track->kind !== 'musica') {
