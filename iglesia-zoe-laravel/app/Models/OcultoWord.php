@@ -8,7 +8,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 /** A secret word of El Cristiano Oculto, with what the faithful players see about it. */
 class OcultoWord extends UuidModel
 {
-    protected $fillable = ['oculto_category_id', 'word', 'description', 'reference', 'clues', 'active'];
+    /** Intermediate words are the best known; hard ones ask for a deeper knowledge of the Bible. */
+    public const LEVELS = ['intermedio' => 'Intermedio', 'dificil' => 'Difícil'];
+
+    protected $fillable = ['oculto_category_id', 'word', 'description', 'reference', 'clues', 'level', 'active'];
 
     protected function casts(): array
     {
@@ -29,6 +32,7 @@ class OcultoWord extends UuidModel
             'reference' => $this->reference,
             'clues' => array_values($this->clues ?? []),
             'category' => $this->category?->name,
+            'level' => $this->level,
         ];
     }
 
@@ -42,6 +46,7 @@ class OcultoWord extends UuidModel
             'description' => $this->description,
             'reference' => $this->reference,
             'clues' => array_values($this->clues ?? []),
+            'level' => $this->level,
             'active' => $this->active,
         ];
     }

@@ -1,7 +1,7 @@
 import { Link } from "@inertiajs/react";
 import { useState } from "react";
 import { Rise } from "@/Components/motion/rise";
-import { GamePage, Meter } from "@/Components/games/ui";
+import { ArrowRight, GamePage, Meter, primary } from "@/Components/games/ui";
 import { lingoProgress } from "@/lib/games";
 
 type Lesson = { id: string; title: string; xp: number; exercises: number };
@@ -21,19 +21,23 @@ export default function LingoPath({ path }: { path: Path }) {
 
   return (
     <GamePage kicker="LINGOBIBLE · Ruta" title={path.title} text={path.description ?? undefined} back={{ href: "/juegos/lingobible", label: "Todas las rutas" }}>
-      <Rise className="mt-10 flex flex-wrap items-center gap-5 rounded-[1.6rem] border border-line bg-card p-5 md:p-6">
+      <Rise className="game-dark mt-10 flex flex-wrap items-center gap-6 p-6 md:p-8">
         <div className="min-w-56 flex-1">
-          <p className="text-sm font-semibold text-ink">
+          <p className="game-label">Tu avance en esta ruta</p>
+          <p className="mt-2 text-lg font-semibold text-white">
             {passed} de {sequence.length} lecciones completadas
           </p>
-          <Meter value={passed} total={sequence.length} className="mt-3" />
+          <Meter value={passed} total={sequence.length} className="mt-4" dark />
         </div>
         {nextUp ? (
-          <Link href={`/juegos/lingobible/${path.slug}/${nextUp.id}`} className="btn-accent inline-flex rounded-full px-6 py-3 text-sm font-semibold">
-            {passed ? "Continuar" : "Empezar"}: {nextUp.title} →
+          <Link href={`/juegos/lingobible/${path.slug}/${nextUp.id}`} className={`${primary} w-full sm:w-auto`}>
+            <span className="truncate">
+              {passed ? "Continuar" : "Empezar"}: {nextUp.title}
+            </span>
+            <ArrowRight />
           </Link>
         ) : (
-          <span className="rounded-full bg-emerald-50 px-5 py-2.5 text-sm font-semibold text-emerald-900">Ruta completa ✓</span>
+          <span className="rounded-full bg-emerald-500/15 px-5 py-2.5 text-sm font-semibold text-emerald-200">Ruta completa ✓</span>
         )}
       </Rise>
 
@@ -41,7 +45,7 @@ export default function LingoPath({ path }: { path: Path }) {
         {path.units.map((unit, unitIndex) => (
           <Rise key={unit.id}>
             <section>
-              <p className="kicker">Unidad {unitIndex + 1}</p>
+              <p className="game-label">Unidad {unitIndex + 1}</p>
               <h2 className="editorial mt-2 text-3xl text-ink">{unit.title}</h2>
               {unit.description ? <p className="mt-2 max-w-2xl text-[15px] leading-7 text-muted">{unit.description}</p> : null}
               <ol className="mt-6 grid gap-3 md:grid-cols-2">
@@ -72,7 +76,10 @@ export default function LingoPath({ path }: { path: Path }) {
                   return (
                     <li key={lesson.id}>
                       {open ? (
-                        <Link href={`/juegos/lingobible/${path.slug}/${lesson.id}`} className="flex items-center gap-4 rounded-2xl border border-line bg-card px-4 py-4 transition hover:-translate-y-0.5 hover:border-ink/30">
+                        <Link
+                          href={`/juegos/lingobible/${path.slug}/${lesson.id}`}
+                          className={`game-lift flex items-center gap-4 rounded-2xl border bg-card px-4 py-4 ${lesson.id === nextUp?.id ? "border-accent ring-4 ring-accent/10" : "border-line"}`}
+                        >
                           {body}
                         </Link>
                       ) : (

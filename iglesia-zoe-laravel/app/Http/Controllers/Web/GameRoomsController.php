@@ -28,7 +28,7 @@ class GameRoomsController extends Controller
     {
         return $this->attempt(fn () => response()->json([
             'code' => mb_strtoupper($code),
-            'token' => Rooms::join($code, (string) $request->input('name')),
+            'token' => Rooms::join($code, (string) $request->input('name'), $request->filled('game') ? (string) $request->input('game') : null),
         ]));
     }
 

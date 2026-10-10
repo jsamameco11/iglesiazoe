@@ -3,22 +3,22 @@ import { Rise } from "@/Components/motion/rise";
 import { RebetQuestionCard } from "@/Components/games/rebet-question";
 import { RebetSetup, type RebetSettings } from "@/Components/games/rebet-setup";
 import { RoomLobby } from "@/Components/games/room-lobby";
-import { Scoreboard, ghost, primary } from "@/Components/games/ui";
+import { Avatar, EndActions, Scoreboard, Waiting } from "@/Components/games/ui";
 import { DIFFICULTY_LABEL, type RebetGrade, type RebetQuestion, type RebetRoomState, type Reply, type Theme } from "@/lib/games";
 
 type Act = (action: string, payload?: Record<string, unknown>) => Promise<Reply<RebetRoomState>>;
 
-export function RebetRoomView({ room, act, busy, themes }: { room: RebetRoomState; act: Act; busy: boolean; themes: Theme[] }) {
+export function RebetRoomView({ room, act, busy, themes, onExit }: { room: RebetRoomState; act: Act; busy: boolean; themes: Theme[]; onExit: () => void }) {
   if (room.status === "lobby") {
-    return <RebetLobby room={room} act={act} busy={busy} themes={themes} />;
+    return <RebetLobby room={room} act={act} busy={busy} themes={themes} onExit={onExit} />;
   }
   if (room.status === "finished") {
-    return <RebetPodium room={room} act={act} />;
+    return <RebetFinal room={room} act={act} busy={busy} onExit={onExit} />;
   }
   return <RebetPlaying room={room} act={act} />;
 }
 
-function RebetLobby({ room, act, busy, themes }: { room: RebetRoomState; act: Act; busy: boolean; themes: Theme[] }) {
+function RebetLobby({ room, act, busy, themes, onExit }: { room: RebetRoomState; act: Act; busy: boolean; themes: Theme[]; onExit: () => void }) {
   const [settings, setSettings] = useState<RebetSettings>(room.settings);
   const names = themes.filter((theme) => room.settings.categories.includes(theme.id)).map((theme) => theme.name);
 
@@ -32,11 +32,15 @@ function RebetLobby({ room, act, busy, themes }: { room: RebetRoomState; act: Ac
       room={room}
       minPlayers={2}
       busy={busy}
-      summary={`REBET · ${room.settings.count} preguntas · ${DIFFICULTY_LABEL[room.settings.difficulty]} · ${names.length ? names.join(", ") : "todos los temas"}`}
+      summary={[
+        `${room.settings.count} preguntas`,
+        `Dificultad ${DIFFICULTY_LABEL[room.settings.difficulty]?.toLowerCase()}`,
+        names.length ? names.slice(0, 2).join(", ") + (names.length > 2 ? ` y ${names.length - 2} más` : "") : "Todos los temas",
+      ]}
       settings={<RebetSetup themes={themes} counts={[5, 10, 15, 20]} value={settings} onChange={change} />}
       onStart={() => void act("start")}
       onKick={(id) => void act("kick", { player: id })}
-      onLeave={() => void act("leave")}
+      onLeave={onExit}
       onClose={() => window.confirm("¿Cerrar la sala para todos?") && void act("close")}
     />
   );
@@ -71,14 +75,10 @@ function RebetPlaying({ room, act }: { room: RebetRoomState; act: Act }) {
     [act, active],
   );
 
-  function next() {
-    setActive(null);
-  }
-
   const board = room.board ?? [];
 
   return (
-    <div className="mt-12 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
+    <div className="mt-8 grid items-start gap-6 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
       <div>
         {active ? (
           <RebetQuestionCard
@@ -89,34 +89,34 @@ function RebetPlaying({ room, act }: { room: RebetRoomState; act: Act }) {
             score={tally.score}
             streak={tally.streak}
             grade={grade}
-            onNext={next}
+            onNext={() => setActive(null)}
             nextLabel={active.number < (room.total ?? 0) ? "Siguiente" : "Terminar"}
           />
         ) : mine?.done ? (
-          <Rise className="panel p-8 text-center md:p-12">
-            <p className="kicker">¡Terminaste!</p>
-            <p className="editorial mt-4 text-6xl tabular-nums text-ink">{mine.score.toLocaleString("es-PE")}</p>
-            <p className="mt-2 text-muted">
+          <Rise className="game-dark p-8 text-center md:p-12">
+            <p className="game-label">¡Terminaste!</p>
+            <p className="editorial mt-4 text-6xl tabular-nums text-white md:text-7xl">{mine.score.toLocaleString("es-PE")}</p>
+            <p className="mt-2 text-white/70">
               puntos · {mine.correct} de {room.total} correctas · mejor racha {mine.best}
             </p>
-            <p className="mt-6 flex items-center justify-center gap-3 text-[15px] text-muted">
-              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-accent" /> Esperando a que los demás terminen…
-            </p>
+            <div className="mt-7 flex justify-center">
+              <Waiting dark>Esperando a que los demás terminen…</Waiting>
+            </div>
           </Rise>
         ) : (
-          <div className="panel grid min-h-80 place-items-center p-10 text-muted">Cargando la siguiente pregunta…</div>
+          <div className="game-surface grid min-h-80 animate-pulse place-items-center p-10 text-muted">Cargando la siguiente pregunta…</div>
         )}
       </div>
-      <aside>
+      <aside className="lg:sticky lg:top-28">
         <div className="flex items-center justify-between">
-          <p className="kicker">Marcador en vivo</p>
+          <p className="game-label">Marcador en vivo</p>
           {room.me.host ? (
-            <button type="button" className="text-xs font-semibold text-muted hover:text-accent" onClick={() => window.confirm("¿Terminar la partida para todos ahora?") && void act("finish")}>
+            <button type="button" className="rounded-full px-3 py-1.5 text-xs font-semibold text-muted transition hover:bg-sage hover:text-accent" onClick={() => window.confirm("¿Terminar la partida para todos ahora?") && void act("finish")}>
               Terminar para todos
             </button>
           ) : null}
         </div>
-        <div className="mt-4">
+        <div className="mt-3">
           <Scoreboard rows={board} me={room.me.id} total={room.total} />
         </div>
       </aside>
@@ -124,27 +124,59 @@ function RebetPlaying({ room, act }: { room: RebetRoomState; act: Act }) {
   );
 }
 
-function RebetPodium({ room, act }: { room: RebetRoomState; act: Act }) {
+function RebetFinal({ room, act, busy, onExit }: { room: RebetRoomState; act: Act; busy: boolean; onExit: () => void }) {
   const board = room.board ?? [];
   const winner = board[0];
+  const mine = board.findIndex((row) => row.id === room.me.id);
   return (
-    <Rise className="panel mx-auto mt-12 max-w-3xl p-7 md:p-10">
-      <p className="kicker">Resultado final</p>
-      <p className="editorial mt-3 text-5xl leading-tight text-ink">{winner ? `¡Ganó ${winner.name}!` : "Partida terminada"}</p>
-      {winner ? <p className="mt-2 text-muted">{winner.score.toLocaleString("es-PE")} puntos · {winner.correct} correctas</p> : null}
-      <div className="mt-8">
-        <Scoreboard rows={board} me={room.me.id} total={room.total} />
-      </div>
-      <div className="mt-8 flex flex-wrap gap-3">
-        {room.me.host ? (
-          <>
-            <button type="button" className={primary} onClick={() => void act("lobby")}>Volver a la misma sala</button>
-            <button type="button" className={ghost} onClick={() => window.confirm("¿Cerrar la sala para todos?") && void act("close")}>Cerrar sala</button>
-          </>
+    <div className="mx-auto mt-8 grid max-w-4xl gap-5">
+      <Rise className="game-dark p-7 text-center md:p-10">
+        <p className="game-label">Resultado final</p>
+        <h2 className="editorial mt-3 text-[2.4rem] leading-tight text-white md:text-6xl">{winner ? `¡Ganó ${winner.name}!` : "Partida terminada"}</h2>
+        {mine >= 0 ? <p className="mt-3 text-white/70">Quedaste en el puesto {mine + 1} de {board.length}.</p> : null}
+        <div className="mx-auto mt-8 max-w-xl">
+          <Podium rows={board} />
+        </div>
+      </Rise>
+      <Scoreboard rows={board} me={room.me.id} total={room.total} />
+      <EndActions
+        busy={busy}
+        onLobby={() => void act("lobby")}
+        onExit={onExit}
+        lobbyText="Todos regresan a la sala con el mismo código para jugar otra vez."
+        exitText="Dejas la sala y vuelves al menú de REBET."
+      />
+      {room.me.host ? (
+        <button type="button" className="justify-self-center text-sm font-semibold text-muted transition hover:text-accent" onClick={() => window.confirm("¿Cerrar la sala para todos?") && void act("close")}>
+          Cerrar la sala para todos
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/** The top three on steps of different heights: second, first, third. */
+export function Podium({ rows }: { rows: { id: string; name: string; score: number }[] }) {
+  const top = rows.slice(0, 3);
+  if (top.length < 2) return null;
+  const places = [top[1], top[0], top[2]];
+  const heights = ["h-24", "h-32", "h-16"];
+  const labels = [2, 1, 3];
+  const tones = ["bg-white/15", "bg-accent", "bg-white/10"];
+  return (
+    <div className="game-podium">
+      {places.map((row, index) =>
+        row ? (
+          <div key={row.id} className="game-pop flex flex-col items-center gap-2" style={{ animationDelay: `${index * 120}ms` }}>
+            <Avatar name={row.name} size={labels[index] === 1 ? "xl" : "lg"} />
+            <p className="max-w-full truncate text-sm font-semibold text-white">{row.name}</p>
+            <p className="text-xs font-semibold tabular-nums text-white/70">{row.score.toLocaleString("es-PE")}</p>
+            <div className={`step w-full ${heights[index]} ${tones[index]}`}>{labels[index]}</div>
+          </div>
         ) : (
-          <p className="text-[15px] text-muted">El anfitrión puede volver a la sala para jugar otra partida con el mismo código.</p>
-        )}
-      </div>
-    </Rise>
+          <div key={`empty-${index}`} />
+        ),
+      )}
+    </div>
   );
 }

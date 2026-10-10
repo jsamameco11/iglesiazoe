@@ -53,7 +53,9 @@ Route::prefix('juegos')->group(function () {
     Route::get('/lingobible/{slug}', [GamesController::class, 'lingoPath'])->where('slug', '[a-z0-9-]+')->name('games.lingobible.path');
     Route::get('/lingobible/{slug}/{lesson}', [GamesController::class, 'lingoLesson'])->where(['slug' => '[a-z0-9-]+', 'lesson' => '[0-9a-f-]{36}'])->name('games.lingobible.lesson');
     Route::get('/el-cristiano-oculto', [GamesController::class, 'oculto'])->name('games.oculto');
-    Route::get('/sala/{code}', [GamesController::class, 'room'])->where('code', '[A-Za-z0-9]{3,12}')->name('games.room');
+    Route::get('/rebet/sala/{code}', [GamesController::class, 'rebetRoom'])->where('code', '[A-Za-z0-9]{3,12}')->name('games.rebet.room');
+    Route::get('/el-cristiano-oculto/sala/{code}', [GamesController::class, 'ocultoRoom'])->where('code', '[A-Za-z0-9]{3,12}')->name('games.oculto.room');
+    Route::get('/sala/{code}', [GamesController::class, 'legacyRoom'])->where('code', '[A-Za-z0-9]{3,12}')->name('games.room');
 
     Route::middleware('throttle:games')->group(function () {
         Route::get('/rebet/preguntas', [GamesController::class, 'rebetQuestions']);

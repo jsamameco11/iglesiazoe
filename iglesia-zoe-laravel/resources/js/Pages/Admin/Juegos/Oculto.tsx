@@ -6,7 +6,10 @@ import AdminLayout from "@/Layouts/AdminLayout";
 import { useSiteUrl } from "@/lib/access";
 import { fold } from "@/lib/text";
 
-type Word = { id: string; category_id: string; word: string; description: string | null; reference: string | null; clues: string[]; active: boolean };
+type Level = "intermedio" | "dificil";
+type Word = { id: string; category_id: string; word: string; description: string | null; reference: string | null; clues: string[]; level: Level; active: boolean };
+
+const LEVELS: Record<Level, string> = { intermedio: "Intermedio", dificil: "Difícil" };
 
 type Props = { themes: AdminTheme[]; words: Word[] };
 
@@ -14,6 +17,7 @@ export default function Oculto({ themes, words }: Props) {
   const site = useSiteUrl();
   const [theme, setTheme] = useState("");
   const [state, setState] = useState("");
+  const [level, setLevel] = useState("");
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
@@ -25,9 +29,10 @@ export default function Oculto({ themes, words }: Props) {
       (item) =>
         (!theme || item.category_id === theme) &&
         (!state || (state === "active" ? item.active : !item.active)) &&
+        (!level || item.level === level) &&
         (!needle || fold([item.word, item.description, item.reference, ...item.clues].join(" ")).includes(needle)),
     );
-  }, [words, theme, state, search]);
+  }, [words, theme, state, level, search]);
   const pages = usePages(filtered, 24);
 
   function filter(apply: () => void) {
@@ -52,7 +57,7 @@ export default function Oculto({ themes, words }: Props) {
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <Stat label="Temas" value={themes.length} note={`${themes.filter((item) => item.active).length} visibles`} />
         <Stat label="Palabras" value={words.length} note={`${words.filter((item) => item.active).length} activas en el juego`} />
-        <Stat label="Con pistas" value={words.filter((item) => item.clues.length).length} note="Palabras que traen pistas para los jugadores" />
+        <Stat label="Nivel intermedio" value={words.filter((item) => item.level === "intermedio").length} note={`${words.filter((item) => item.level === "dificil").length} en nivel difícil`} />
       </div>
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
@@ -64,6 +69,14 @@ export default function Oculto({ themes, words }: Props) {
           {creating ? <WordForm themes={themes} defaultTheme={theme} onDone={() => setCreating(false)} /> : null}
 
           <SearchBar value={search} onChange={(value) => filter(() => setSearch(value))} placeholder="Palabra, descripción, cita o pista">
+            <label className="text-xs font-semibold text-muted">
+              Nivel
+              <select value={level} onChange={(event) => filter(() => setLevel(event.target.value))} className={`${input} min-w-36`}>
+                <option value="">Todos</option>
+                <option value="intermedio">Intermedio</option>
+                <option value="dificil">Difícil</option>
+              </select>
+            </label>
             <label className="text-xs font-semibold text-muted">
               Estado
               <select value={state} onChange={(event) => filter(() => setState(event.target.value))} className={`${input} min-w-36`}>
@@ -102,6 +115,7 @@ export default function Oculto({ themes, words }: Props) {
                       </div>
                       {item.description ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted">{item.description}</p> : null}
                       <div className="mt-auto flex flex-wrap gap-1.5 pt-3">
+                        <Pill tone={item.level === "intermedio" ? "bg-emerald-50 text-emerald-800" : "bg-accent-soft text-accent"}>{LEVELS[item.level] ?? "Difícil"}</Pill>
                         {!item.active ? <Pill tone="bg-red-50 text-red-700">Oculta</Pill> : null}
                         {item.clues.map((clue) => <Pill key={clue}>{clue}</Pill>)}
                       </div>
@@ -131,13 +145,18 @@ function WordForm({ word, themes, defaultTheme, onDone }: { word?: Word; themes:
       className="ring-4 ring-accent-soft"
     >
       <h2 className="text-lg font-semibold tracking-[-0.02em]">{word ? `Editar «${word.word}»` : "Nueva palabra"}</h2>
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Field label="Palabra secreta">
           <input name="word" required minLength={2} maxLength={80} defaultValue={word?.word} autoFocus={!word} className={input} />
         </Field>
         <Field label="Tema">
           <select name="oculto_category_id" required defaultValue={word?.category_id ?? (defaultTheme || themes[0]?.id)} className={input}>
             {themes.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Nivel">
+          <select name="level" defaultValue={word?.level ?? "intermedio"} className={input}>
+            {Object.entries(LEVELS).map(([key, name]) => <option key={key} value={key}>{name}</option>)}
           </select>
         </Field>
         <Field label="Cita bíblica">

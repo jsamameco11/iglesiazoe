@@ -1,7 +1,6 @@
-import { Link, router } from "@inertiajs/react";
-import { useState } from "react";
+import { Link } from "@inertiajs/react";
 import { Rise } from "@/Components/motion/rise";
-import { GameEmblem, GamePage, field, primary } from "@/Components/games/ui";
+import { ArrowRight, GameEmblem, GamePage } from "@/Components/games/ui";
 import { section } from "@/lib/design";
 import { useSitePages } from "@/lib/site-pages";
 
@@ -14,8 +13,8 @@ const GAMES = [
     name: "REBET",
     tagline: "Trivia bíblica contra el reloj",
     text: "Responde antes de que se acabe el tiempo. Mientras más rápido y más seguidas aciertes, más puntos sumas.",
-    modes: ["Solo", "Por turnos en un celular", "Sala en vivo"],
-    stat: (stats: Stats) => `${stats.rebet} preguntas`,
+    modes: ["Solo", "Por turnos", "Sala en vivo"],
+    stat: (stats: Stats) => `${stats.rebet.toLocaleString("es-PE")} preguntas`,
   },
   {
     key: "lingobible" as const,
@@ -23,29 +22,22 @@ const GAMES = [
     name: "LINGOBIBLE",
     tagline: "Rutas cortas para conocer la Palabra",
     text: "Lecciones breves con el texto bíblico a la vista. Avanza ruta por ruta, gana estrellas y desbloquea la siguiente lección.",
-    modes: ["Rutas temáticas", "Estrellas y XP", "Tu avance queda en tu celular"],
-    stat: (stats: Stats) => `${stats.lingobible} lecciones`,
+    modes: ["Rutas temáticas", "Estrellas y XP", "Avance guardado"],
+    stat: (stats: Stats) => `${stats.lingobible.toLocaleString("es-PE")} lecciones`,
   },
   {
     key: "oculto" as const,
     href: "/juegos/el-cristiano-oculto",
     name: "El Cristiano Oculto",
     tagline: "Pistas, sospechas y una palabra secreta",
-    text: "Todos conocen la palabra menos uno. Den pistas sin decirla, descubran quién no la sabe y voten antes de que escape.",
-    modes: ["Un solo celular", "Sala en vivo", "De 3 a 15 jugadores"],
-    stat: (stats: Stats) => `${stats.oculto} palabras`,
+    text: "Todos conocen la palabra menos uno. Den pistas sin decirla, voten por quien sospechan y descubran al cristiano oculto.",
+    modes: ["Un celular", "Sala en vivo", "Intermedio y difícil"],
+    stat: (stats: Stats) => `${stats.oculto.toLocaleString("es-PE")} palabras`,
   },
 ];
 
 export default function GamesIndex({ stats }: { stats: Stats }) {
   const pages = useSitePages();
-  const [code, setCode] = useState("");
-
-  function enter(event: React.FormEvent) {
-    event.preventDefault();
-    const clean = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
-    if (clean.length >= 3) router.visit(`/juegos/sala/${clean}`);
-  }
 
   return (
     <GamePage
@@ -53,50 +45,47 @@ export default function GamesIndex({ stats }: { stats: Stats }) {
       title={pages.name("games") || "Juegos"}
       text="Aprende la Biblia jugando, solo, en familia o con toda tu célula. Sin descargar nada y sin crear una cuenta."
     >
-      <section {...section("list", "Juegos")} className="mt-16 grid gap-6 lg:grid-cols-3">
+      <section {...section("list", "Juegos")} className="mt-14 grid gap-5 md:mt-16 lg:grid-cols-3 lg:gap-6">
         {GAMES.map((game, index) => (
-          <Rise key={game.key} delay={index * 90}>
-            <Link href={game.href} className="panel group flex h-full flex-col p-7 transition duration-300 hover:-translate-y-1 md:p-8">
-              <div className="flex items-start justify-between gap-4">
-                <GameEmblem game={game.key} className="h-14 w-14" />
-                <span className="rounded-full bg-sage px-3 py-1 text-xs font-semibold text-ink">{game.stat(stats)}</span>
+          <Rise key={game.key} delay={index * 90} className="h-full">
+            <Link href={game.href} className="game-surface game-lift group flex h-full flex-col overflow-hidden">
+              <div className="flex items-center justify-between gap-4 border-b border-line bg-[radial-gradient(110%_140%_at_0%_0%,var(--accent-soft)_0%,transparent_60%)] bg-sage/40 px-7 py-6 md:px-8">
+                <GameEmblem game={game.key} className="h-14 w-14 transition duration-300 group-hover:scale-105" />
+                <span className="rounded-full border border-line bg-card px-3 py-1 text-xs font-semibold tabular-nums text-ink">{game.stat(stats)}</span>
               </div>
-              <p className="kicker mt-7">{game.tagline}</p>
-              <h2 className="editorial mt-3 text-4xl leading-[1.02] text-ink">{game.name}</h2>
-              <p className="mt-4 text-[15px] leading-7 text-muted">{game.text}</p>
-              <ul className="mt-6 flex flex-wrap gap-2">
-                {game.modes.map((mode) => (
-                  <li key={mode} className="rounded-full border border-line px-3 py-1 text-xs font-medium text-muted">{mode}</li>
-                ))}
-              </ul>
-              <span className="mt-auto pt-8">
-                <span className="btn-accent inline-flex rounded-full px-6 py-3 text-sm font-semibold">Jugar →</span>
-              </span>
+              <div className="flex flex-1 flex-col px-7 pb-7 pt-6 md:px-8 md:pb-8">
+                <p className="game-label">{game.tagline}</p>
+                <h2 className="editorial mt-3 text-[2.1rem] leading-[1.02] text-ink md:text-4xl">{game.name}</h2>
+                <p className="mt-4 text-[15px] leading-7 text-muted">{game.text}</p>
+                <ul className="mt-6 flex flex-wrap gap-1.5">
+                  {game.modes.map((mode) => (
+                    <li key={mode} className="rounded-full bg-sage/80 px-2.5 py-1 text-xs font-medium text-ink/80">
+                      {mode}
+                    </li>
+                  ))}
+                </ul>
+                <span className="mt-auto flex items-center justify-between pt-8">
+                  <span className="text-[15px] font-semibold text-ink">Jugar ahora</span>
+                  <span className="grid h-11 w-11 place-items-center rounded-full border border-line text-ink transition group-hover:border-accent group-hover:bg-accent group-hover:text-white">
+                    <ArrowRight />
+                  </span>
+                </span>
+              </div>
             </Link>
           </Rise>
         ))}
       </section>
 
-      <Rise {...section("rooms", "Salas en vivo")} className="panel mt-16 grid gap-8 p-7 md:p-10 lg:grid-cols-[1.2fr_1fr] lg:items-center">
-        <div>
-          <p className="kicker">Salas en vivo</p>
-          <h2 className="editorial mt-3 text-3xl leading-tight text-ink md:text-4xl">¿Te pasaron un código?</h2>
-          <p className="mt-3 max-w-lg text-[15px] leading-7 text-muted">
-            En REBET y El Cristiano Oculto alguien abre una sala y cada uno entra desde su celular con el código que aparece en su pantalla.
-          </p>
-        </div>
-        <form onSubmit={enter} className="flex flex-col gap-3 sm:flex-row">
-          <input
-            value={code}
-            onChange={(event) => setCode(event.target.value.toUpperCase())}
-            placeholder="Ej. LUZ482"
-            aria-label="Código de la sala"
-            maxLength={12}
-            autoCapitalize="characters"
-            className={`${field} text-center text-lg font-semibold uppercase tracking-[0.3em] sm:text-left`}
-          />
-          <button className={primary} disabled={code.trim().length < 3}>Entrar</button>
-        </form>
+      <Rise {...section("rooms", "Salas en vivo")} className="mt-14 grid gap-4 rounded-[1.6rem] border border-line bg-card/60 p-6 sm:grid-cols-[auto_1fr] sm:items-center md:p-7">
+        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-accent-soft text-accent">
+          <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <rect x="3.5" y="6" width="17" height="12" rx="2.5" />
+            <path d="M7.5 10.5h2M11 10.5h2M14.5 10.5h2M8 14h8" />
+          </svg>
+        </span>
+        <p className="text-[15px] leading-7 text-muted">
+          <span className="font-semibold text-ink">¿Te pasaron un código?</span> Entra al juego de la sala (REBET o El Cristiano Oculto) y escríbelo en “¿Te pasaron un código?”. Cada código abre solo una sala de su propio juego.
+        </p>
       </Rise>
     </GamePage>
   );

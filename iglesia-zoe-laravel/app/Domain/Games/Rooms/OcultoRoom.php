@@ -8,9 +8,10 @@ use App\Models\OcultoCategory;
 use App\Models\OcultoWord;
 
 /**
- * El Cristiano Oculto in a live room: every phone opens its own secret card, players give
- * their clues in turn, then vote in secret. A hidden player who is not caught escapes to
- * another round with the same word, up to the rounds the host chose.
+ * El Cristiano Oculto in a live room: every phone opens its own secret card, each player
+ * still in the game gives one clue per round and then everyone votes from their phone.
+ * The most voted player is out; the game goes on to the next round until the hidden
+ * players are found or the rounds for that many players run out.
  */
 class OcultoRoom implements RoomRules
 {
@@ -26,8 +27,7 @@ class OcultoRoom implements RoomRules
         return [
             'categories' => OcultoCategory::query()->where('active', true)->whereIn('id', $themes)->pluck('id')->all(),
             'impostors' => min(max((int) ($input['impostors'] ?? 1), 1), 2),
-            'clue_rounds' => min(max((int) ($input['clue_rounds'] ?? Oculto::CLUE_PASSES), 1), 3),
-            'rounds' => min(max((int) ($input['rounds'] ?? 1), 1), 8),
+            'level' => Oculto::level($input['level'] ?? null) ?? Oculto::DEFAULT_LEVEL,
         ];
     }
 
@@ -38,9 +38,9 @@ class OcultoRoom implements RoomRules
             throw new RoomError('Se necesitan al menos 3 jugadores.');
         }
         $settings = $room->settings;
-        $word = Oculto::randomWord($settings['categories']);
+        $word = Oculto::randomWord($settings['categories'] ?? [], $settings['level'] ?? Oculto::DEFAULT_LEVEL);
         if (! $word) {
-            throw new RoomError('No hay palabras publicadas para estos temas.');
+            throw new RoomError('No hay palabras de este nivel para los temas elegidos. Elige otros temas.');
         }
         $order = $room->playerIds();
         shuffle($order);
@@ -49,15 +49,16 @@ class OcultoRoom implements RoomRules
 
         $room->state = [
             'word' => $word->id,
-            'impostors' => array_slice($hidden, 0, min($settings['impostors'], Oculto::maxImpostors($seated))),
+            'impostors' => array_slice($hidden, 0, min($settings['impostors'] ?? 1, Oculto::maxImpostors($seated))),
+            'names' => collect($room->players)->mapWithKeys(fn (array $player) => [$player['id'] => $player['name']])->all(),
             'order' => $order,
-            'rounds' => min($settings['rounds'], Oculto::maxRounds($seated)),
+            'alive' => $order,
+            'rounds' => Oculto::maxRounds($seated),
             'round' => 1,
-            'pass' => 1,
             'turn' => 0,
             'votes' => [],
-            'escaped' => null,
-            'outcome' => null,
+            'history' => [],
+            'winner' => null,
         ];
         $room->status = 'clues';
     }
@@ -75,24 +76,29 @@ class OcultoRoom implements RoomRules
             return [];
         }
 
+        if ($action === 'continue') {
+            if ($room->status === 'reveal' && (int) ($input['round'] ?? $state['round']) === $state['round']) {
+                $state['round']++;
+                $state['turn'] = 0;
+                $state['votes'] = [];
+                $room->state = $state;
+                $room->status = 'clues';
+            }
+
+            return [];
+        }
+
         if ($action === 'spoke') {
             if ($room->status !== 'clues') {
                 throw new RoomError('Ya terminó la ronda de pistas.');
             }
-            $speaker = $state['order'][$state['turn']] ?? null;
+            $speaker = $state['alive'][$state['turn']] ?? null;
             if ($speaker !== $player['id'] && ! $player['host']) {
                 throw new RoomError('Espera tu turno para dar la pista.');
             }
             $state['turn']++;
-            if ($state['turn'] >= count($state['order'])) {
-                $state['turn'] = 0;
-                $state['pass']++;
-                if ($state['pass'] > $room->settings['clue_rounds']) {
-                    $state['votes'] = [];
-                    $room->status = 'voting';
-                }
-            }
             $room->state = $state;
+            $this->closeClues($room);
 
             return [];
         }
@@ -102,15 +108,18 @@ class OcultoRoom implements RoomRules
             if ($room->status !== 'voting') {
                 throw new RoomError('La votación no está abierta.');
             }
+            if (! in_array($player['id'], $state['alive'], true)) {
+                throw new RoomError('Ya saliste de esta partida; ahora solo miras.');
+            }
             if ($target === $player['id']) {
                 throw new RoomError('No puedes votar por ti.');
             }
-            if (! in_array($target, $state['order'], true)) {
+            if (! in_array($target, $state['alive'], true)) {
                 throw new RoomError('Ese jugador ya no está en la partida.');
             }
             $state['votes'][$player['id']] = $target;
             $room->state = $state;
-            if (count($state['votes']) >= count($state['order'])) {
+            if (count($state['votes']) >= count($state['alive'])) {
                 $this->resolve($room);
             }
 
@@ -135,28 +144,33 @@ class OcultoRoom implements RoomRules
     public function forget(GameRoom $room, string $playerId): void
     {
         $state = $room->state;
-        $position = array_search($playerId, $state['order'], true);
+        if (! isset($state['alive'])) {
+            return;
+        }
+        $position = array_search($playerId, $state['alive'], true);
         if ($position !== false) {
-            array_splice($state['order'], $position, 1);
+            array_splice($state['alive'], $position, 1);
             if ($position < $state['turn']) {
                 $state['turn']--;
             }
-            if ($state['turn'] >= count($state['order'])) {
-                $state['turn'] = 0;
-            }
         }
-        $state['impostors'] = array_values(array_diff($state['impostors'], [$playerId]));
+        $state['order'] = array_values(array_diff($state['order'], [$playerId]));
         unset($state['votes'][$playerId]);
         $state['votes'] = array_filter($state['votes'], fn (string $target) => $target !== $playerId);
         $room->state = $state;
 
-        if (in_array($room->status, ['clues', 'voting'], true) && (count($state['order']) < Oculto::MIN_PLAYERS || ! $state['impostors'])) {
+        if ($room->status === 'result') {
+            return;
+        }
+        if (count($state['alive']) < 2 || ! array_intersect($state['impostors'], $state['alive'])) {
             $room->status = 'lobby';
             $room->state = ['notice' => 'La partida se detuvo porque alguien salió. Vuelvan a empezar cuando estén listos.'];
 
             return;
         }
-        if ($room->status === 'voting' && $state['order'] && count($state['votes']) >= count($state['order'])) {
+        if ($room->status === 'clues') {
+            $this->closeClues($room);
+        } elseif ($room->status === 'voting' && count($state['votes']) >= count($state['alive'])) {
             $this->resolve($room);
         }
     }
@@ -164,52 +178,70 @@ class OcultoRoom implements RoomRules
     public function view(GameRoom $room, array $player): array
     {
         $state = $room->state;
-        if ($room->status === 'lobby' || ! $state || ! isset($state['word'])) {
+        if ($room->status === 'lobby' || ! isset($state['word'], $state['alive'])) {
             return ['notice' => $state['notice'] ?? null];
         }
         $word = OcultoWord::query()->with('category')->find($state['word']);
         $hidden = in_array($player['id'], $state['impostors'], true);
         $ended = $room->status === 'result';
-        $names = fn (array $ids) => array_values(array_filter(array_map(fn (string $id) => $room->nameOf($id), $ids)));
+        $name = fn (?string $id) => $id ? ($state['names'][$id] ?? $room->nameOf($id)) : null;
+        $round = fn (array $entry) => [
+            'round' => $entry['round'],
+            'out' => $entry['out'],
+            'name' => $name($entry['out']),
+            'hidden' => $entry['hidden'],
+            'tally' => collect($entry['tally'])->map(fn (int $votes, string $id) => ['id' => $id, 'name' => $name($id), 'votes' => $votes])->values()->all(),
+        ];
 
         return [
             'card' => $hidden && ! $ended
-                ? ['impostor' => true, 'category' => $word?->category?->name]
+                ? ['impostor' => true, 'category' => $word?->category?->name, 'level' => $word?->level]
                 : ['impostor' => $hidden, ...($word?->card() ?? [])],
             'round' => $state['round'],
             'rounds' => $state['rounds'],
-            'pass' => min($state['pass'], $room->settings['clue_rounds']),
             'order' => $state['order'],
-            'speaker' => $room->status === 'clues' ? ($state['order'][$state['turn']] ?? null) : null,
+            'alive' => $state['alive'],
+            'speaker' => $room->status === 'clues' ? ($state['alive'][$state['turn']] ?? null) : null,
             'voted' => array_keys($state['votes']),
             'my_vote' => $state['votes'][$player['id']] ?? null,
-            'escaped' => $state['escaped'] ? [...$state['escaped'], 'top' => $room->nameOf($state['escaped']['top'])] : null,
+            'last' => $state['history'] ? $round(end($state['history'])) : null,
             'outcome' => $ended ? [
-                ...$state['outcome'],
-                'top' => $room->nameOf($state['outcome']['top']),
-                'impostors' => $names($state['impostors']),
-                'tally' => collect($state['outcome']['tally'])->map(fn (int $votes, string $id) => ['name' => $room->nameOf($id), 'votes' => $votes])->filter(fn (array $row) => $row['name'])->values()->all(),
+                'winner' => $state['winner'],
+                'impostors' => array_map(fn (string $id) => ['id' => $id, 'name' => $name($id)], $state['impostors']),
+                'history' => array_map($round, $state['history']),
             ] : null,
         ];
+    }
+
+    /** Once everyone still in the game has spoken, the vote opens. */
+    private function closeClues(GameRoom $room): void
+    {
+        $state = $room->state;
+        if ($state['turn'] >= count($state['alive'])) {
+            $state['turn'] = 0;
+            $state['votes'] = [];
+            $room->state = $state;
+            $room->status = 'voting';
+        }
     }
 
     private function resolve(GameRoom $room): void
     {
         $state = $room->state;
-        $result = Oculto::tally($state['votes'], $state['impostors']);
-        if (! $result['caught'] && $state['round'] < $state['rounds']) {
-            $state['escaped'] = ['round' => $state['round'], 'top' => $result['top']];
-            $state['round']++;
-            $state['pass'] = 1;
-            $state['turn'] = 0;
-            $state['votes'] = [];
-            $room->state = $state;
-            $room->status = 'clues';
-
-            return;
+        $result = Oculto::tally($state['votes']);
+        $out = $result['out'];
+        if ($out !== null) {
+            $state['alive'] = array_values(array_diff($state['alive'], [$out]));
         }
-        $state['outcome'] = ['caught' => $result['caught'], 'top' => $result['top'], 'tally' => $result['tally']];
+        $state['history'][] = [
+            'round' => $state['round'],
+            'out' => $out,
+            'hidden' => $out !== null && in_array($out, $state['impostors'], true),
+            'tally' => $result['tally'],
+        ];
+        $state['votes'] = [];
+        $state['winner'] = Oculto::winner($state['alive'], array_values(array_intersect($state['impostors'], $state['alive'])), $state['round'], $state['rounds']);
         $room->state = $state;
-        $room->status = 'result';
+        $room->status = $state['winner'] ? 'result' : 'reveal';
     }
 }

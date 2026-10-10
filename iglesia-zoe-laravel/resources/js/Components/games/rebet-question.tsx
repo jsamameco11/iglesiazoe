@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Countdown, Meter, OptionButton, primary, type OptionState } from "@/Components/games/ui";
+import { Alert, ArrowRight, Countdown, Meter, OptionButton, primary, type OptionState } from "@/Components/games/ui";
 import { DIFFICULTY_LABEL, type RebetGrade, type RebetQuestion } from "@/lib/games";
 
 const LETTERS = ["A", "B", "C", "D"];
@@ -90,60 +90,63 @@ export function RebetQuestionCard({
     return "faded";
   };
 
+  const timedOut = result && !result.correct && (result.late || picked === -1);
+
   return (
-    <div className="panel p-6 md:p-9">
-      <div className="flex items-center justify-between gap-4">
+    <div className="game-surface overflow-hidden">
+      <div className="flex items-center justify-between gap-4 border-b border-line bg-sage/35 px-5 py-4 md:px-7">
         <div className="min-w-0">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">
+          <p className="game-label">
             Pregunta {number} de {total}
             {player ? <span className="text-accent"> · {player}</span> : null}
           </p>
-          <p className="mt-1 truncate text-sm text-muted">
-            {question.category} · {DIFFICULTY_LABEL[question.difficulty]}
-          </p>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {question.category ? <span className="max-w-[12rem] truncate rounded-full bg-card px-2.5 py-1 text-xs font-medium text-ink">{question.category}</span> : null}
+            <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-semibold text-accent">{DIFFICULTY_LABEL[question.difficulty]}</span>
+          </div>
         </div>
-        <div className="flex items-center gap-5">
-          <div className="hidden text-right sm:block">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted">Puntos</p>
-            <p className="text-xl font-semibold tabular-nums text-ink">{score.toLocaleString("es-PE")}</p>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <p className="game-label">Puntos</p>
+            <p className="text-xl font-bold tabular-nums text-ink">{score.toLocaleString("es-PE")}</p>
+            {streak > 1 ? <p className="text-xs font-semibold text-accent">Racha ×{streak}</p> : null}
           </div>
           <Countdown left={result ? Math.max(left, 0) : left} total={question.time_limit} />
         </div>
       </div>
-      <Meter value={number - (result ? 0 : 1)} total={total} className="mt-5" />
+      <Meter value={number - (result ? 0 : 1)} total={total} />
 
-      <h2 className="editorial mt-8 text-[1.9rem] leading-[1.12] text-ink md:text-[2.4rem]">{question.question}</h2>
+      <div className="p-6 md:p-9">
+        <h2 className="editorial text-[1.7rem] leading-[1.15] md:text-[2.3rem]">{question.question}</h2>
 
-      <div className="mt-8 grid gap-3 md:grid-cols-2">
-        {question.options.map((option, index) => (
-          <OptionButton key={index} label={LETTERS[index]} text={option} state={stateOf(index)} disabled={picked !== null} onClick={() => void answer(index)} />
-        ))}
-      </div>
-
-      {error ? <div className="mt-5"><Alert>{error}</Alert></div> : null}
-
-      {result ? (
-        <div className={`mt-7 rounded-[1.4rem] p-5 md:p-6 ${result.correct ? "bg-emerald-50" : "bg-accent-soft"}`} aria-live="polite">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={`text-lg font-semibold ${result.correct ? "text-emerald-900" : "text-ink"}`}>
-              {result.correct ? "¡Correcto!" : result.late || picked === -1 ? "Se acabó el tiempo" : "No era esa"}
-            </p>
-            {result.correct ? (
-              <p className="text-lg font-semibold tabular-nums text-emerald-900">
-                +{result.points.toLocaleString("es-PE")}
-                {streak > 1 ? <span className="ml-2 text-sm font-medium">· racha de {streak}</span> : null}
-              </p>
-            ) : null}
-          </div>
-          {result.explanation ? <p className="mt-2 text-[15px] leading-7 text-ink/80">{result.explanation}</p> : null}
-          {result.reference ? <p className="mt-2 text-sm font-semibold text-accent">{result.reference}</p> : null}
-          <button type="button" onClick={onNext} className={`${primary} mt-5`} autoFocus>
-            {nextLabel} →
-          </button>
+        <div className="mt-8 grid gap-3 md:grid-cols-2">
+          {question.options.map((option, index) => (
+            <OptionButton key={index} label={LETTERS[index]} text={option} state={stateOf(index)} disabled={picked !== null} onClick={() => void answer(index)} />
+          ))}
         </div>
-      ) : (
-        <p className="mt-6 hidden text-xs text-muted md:block">Atajo: teclas 1–4 o A–D.</p>
-      )}
+
+        {error ? <div className="mt-5"><Alert>{error}</Alert></div> : null}
+
+        {result ? (
+          <div className={`game-pop mt-7 rounded-[1.4rem] border p-5 md:p-6 ${result.correct ? "border-emerald-200 bg-emerald-50" : "border-accent/20 bg-accent-soft"}`} aria-live="polite">
+            <div className="flex flex-wrap items-center gap-4">
+              <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-full text-xl font-bold text-white ${result.correct ? "bg-emerald-600" : "bg-accent"}`}>{result.correct ? "✓" : timedOut ? "⏱" : "✕"}</span>
+              <div className="min-w-0 flex-1">
+                <p className={`text-lg font-semibold ${result.correct ? "text-emerald-900" : "text-ink"}`}>{result.correct ? "¡Correcto!" : timedOut ? "Se acabó el tiempo" : "No era esa"}</p>
+                {!result.correct ? <p className="text-sm text-muted">La respuesta era «{question.options[result.right]}».</p> : null}
+              </div>
+              {result.correct ? <p className="text-2xl font-bold tabular-nums text-emerald-800">+{result.points.toLocaleString("es-PE")}</p> : null}
+            </div>
+            {result.explanation ? <p className="mt-4 text-[15px] leading-7 text-ink/80">{result.explanation}</p> : null}
+            {result.reference ? <p className="mt-2 text-sm font-semibold text-accent">{result.reference}</p> : null}
+            <button type="button" onClick={onNext} className={`${primary} mt-5 w-full sm:w-auto`} autoFocus>
+              {nextLabel} <ArrowRight />
+            </button>
+          </div>
+        ) : (
+          <p className="mt-6 hidden text-xs text-muted md:block">Atajo: teclas 1–4 o A–D.</p>
+        )}
+      </div>
     </div>
   );
 }

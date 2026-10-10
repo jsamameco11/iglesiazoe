@@ -15,6 +15,14 @@ class Rooms
 {
     public const GAMES = ['rebet' => RebetRoom::class, 'oculto' => OcultoRoom::class];
 
+    public const TITLES = ['rebet' => 'REBET', 'oculto' => 'El Cristiano Oculto'];
+
+    /** Address of each game's page; its rooms live under it. */
+    public const PATHS = ['rebet' => 'rebet', 'oculto' => 'el-cristiano-oculto'];
+
+    /** Once a game is over anyone can take the group back to the room. */
+    private const ENDED = ['result', 'finished'];
+
     private const CODE_WORDS = ['FE', 'LUZ', 'REY', 'PAZ', 'VID', 'SOL', 'MAR', 'ARCA', 'ROCA', 'MANA'];
 
     /** Rooms nobody touched for this long are gone. */
@@ -60,12 +68,15 @@ class Rooms
         return $room && $room->active_at?->gt(now()->subHours(self::IDLE_HOURS)) ? $room : null;
     }
 
-    /** Seats a new player and returns their token. */
-    public static function join(string $code, string $name): string
+    /** Seats a new player and returns their token; a code only opens rooms of the game it was typed in. */
+    public static function join(string $code, string $name, ?string $game = null): string
     {
         $name = self::cleanName($name);
 
-        return self::locked($code, function (GameRoom $room) use ($name) {
+        return self::locked($code, function (GameRoom $room) use ($name, $game) {
+            if ($game && $room->game !== $game) {
+                throw new RoomError('Ese código es de una sala de '.(self::TITLES[$room->game] ?? 'otro juego').'. Entra desde ese juego.');
+            }
             if ($room->status === 'closed') {
                 throw new RoomError('Esta sala ya se cerró.');
             }
@@ -138,7 +149,9 @@ class Rooms
                     $rules->start($room);
                     break;
                 case 'lobby':
-                    self::hostOnly($player);
+                    if (! in_array($room->status, self::ENDED, true)) {
+                        self::hostOnly($player);
+                    }
                     $room->status = 'lobby';
                     $room->state = null;
                     break;

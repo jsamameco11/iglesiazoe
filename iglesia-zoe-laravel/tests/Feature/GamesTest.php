@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Domain\Games\Oculto;
 use App\Models\GameRoom;
 use App\Models\LingoExercise;
 use App\Models\LingoPath;
 use App\Models\OcultoWord;
 use App\Models\RebetQuestion;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Collection;
 use Inertia\Testing\AssertableInertia;
 use Tests\TestCase;
 
@@ -19,13 +21,13 @@ class GamesTest extends TestCase
     {
         $this->assertSame(228, RebetQuestion::query()->count());
         $this->assertSame(637, LingoExercise::query()->count());
-        $this->assertSame(1100, OcultoWord::query()->count());
-        $this->assertSame(947, OcultoWord::query()->where('active', true)->count());
+        $this->assertSame(1122, OcultoWord::query()->count());
+        $this->assertSame(969, OcultoWord::query()->where('active', true)->count());
 
         $this->get('/juegos')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
             ->component('Games/Index')
             ->where('stats.rebet', 228)
-            ->where('stats.oculto', 947));
+            ->where('stats.oculto', 969));
     }
 
     public function test_game_pages_never_send_the_answers_ahead(): void
@@ -98,74 +100,134 @@ class GamesTest extends TestCase
         $this->getJson("/juegos/salas/{$code}", ['X-Game-Token' => 'not-a-real-token-at-all-000'])->assertForbidden();
     }
 
-    public function test_the_hidden_player_never_sees_the_word_and_is_caught_by_the_vote(): void
+    public function test_the_hidden_player_never_sees_the_word_and_is_caught_in_the_first_vote(): void
     {
-        $host = $this->postJson('/juegos/salas', ['game' => 'oculto', 'name' => 'Fiorella', 'settings' => ['clue_rounds' => 1]])->assertOk()->json();
-        $code = $host['code'];
-        $tokens = ['Fiorella' => $host['token']];
-        foreach (['Brayan', 'Kiara', 'Yolanda'] as $name) {
-            $tokens[$name] = $this->postJson("/juegos/salas/{$code}/entrar", ['name' => $name])->assertOk()->json('token');
-        }
-        $this->postJson("/juegos/salas/{$code}", ['action' => 'start'], ['X-Game-Token' => $host['token']])->assertOk()->assertJson(['status' => 'clues']);
+        [$code, $byId, $room] = $this->ocultoRoom(['Brayan', 'Kiara', 'Yolanda'], ['level' => 'intermedio']);
         $this->postJson("/juegos/salas/{$code}/entrar", ['name' => 'Tarde'])->assertStatus(422);
-
-        $room = GameRoom::query()->where('code', $code)->firstOrFail();
-        $byId = collect($room->players)->mapWithKeys(fn (array $player) => [$player['id'] => $tokens[$player['name']]]);
         $hiddenId = $room->state['impostors'][0];
-        $word = OcultoWord::query()->findOrFail($room->state['word'])->word;
+        $word = OcultoWord::query()->findOrFail($room->state['word']);
+        $this->assertSame('intermedio', $word->level);
+        $this->assertSame(2, $room->state['rounds']);
 
         $hiddenView = $this->getJson("/juegos/salas/{$code}", ['X-Game-Token' => $byId[$hiddenId]])->json();
         $this->assertTrue($hiddenView['card']['impostor']);
-        $this->assertStringNotContainsString($word, json_encode($hiddenView, JSON_UNESCAPED_UNICODE));
-        $faithfulId = collect($room->state['order'])->first(fn (string $id) => $id !== $hiddenId);
-        $this->getJson("/juegos/salas/{$code}", ['X-Game-Token' => $byId[$faithfulId]])->assertJsonPath('card.word', $word);
-
+        $this->assertStringNotContainsString($word->word, json_encode($hiddenView, JSON_UNESCAPED_UNICODE));
         $order = $room->state['order'];
+        $faithfulId = collect($order)->first(fn (string $id) => $id !== $hiddenId);
+        $this->getJson("/juegos/salas/{$code}", ['X-Game-Token' => $byId[$faithfulId]])->assertJsonPath('card.word', $word->word);
+
         $notFirst = $order[1] === $room->players[0]['id'] ? $order[2] : $order[1];
         $this->postJson("/juegos/salas/{$code}", ['action' => 'spoke'], ['X-Game-Token' => $byId[$notFirst]])->assertStatus(422);
-        foreach ($order as $id) {
-            $this->postJson("/juegos/salas/{$code}", ['action' => 'spoke'], ['X-Game-Token' => $byId[$id]])->assertOk();
-        }
-        $this->getJson("/juegos/salas/{$code}", ['X-Game-Token' => $host['token']])->assertJson(['status' => 'voting']);
+        $this->giveClues($code, $byId, $order);
+        $this->getJson("/juegos/salas/{$code}", ['X-Game-Token' => $byId[$faithfulId]])->assertJson(['status' => 'voting']);
+        $this->postJson("/juegos/salas/{$code}", ['action' => 'lobby'], ['X-Game-Token' => $byId[$faithfulId]])->assertStatus(422);
 
         $this->postJson("/juegos/salas/{$code}", ['action' => 'vote', 'player' => $hiddenId], ['X-Game-Token' => $byId[$hiddenId]])->assertStatus(422);
-        $faithfulTarget = $faithfulId;
-        foreach ($order as $id) {
-            $this->postJson("/juegos/salas/{$code}", ['action' => 'vote', 'player' => $id === $hiddenId ? $faithfulTarget : $hiddenId], ['X-Game-Token' => $byId[$id]])->assertOk();
-        }
+        $this->vote($code, $byId, $order, fn (string $voter) => $voter === $hiddenId ? $faithfulId : $hiddenId);
 
         $result = $this->getJson("/juegos/salas/{$code}", ['X-Game-Token' => $byId[$hiddenId]])->assertJson(['status' => 'result'])->json();
-        $this->assertTrue($result['outcome']['caught']);
-        $this->assertSame($word, $result['card']['word']);
-        $this->assertCount(1, $result['outcome']['impostors']);
+        $this->assertSame('group', $result['outcome']['winner']);
+        $this->assertSame($word->word, $result['card']['word']);
+        $this->assertSame([['id' => $hiddenId, 'name' => $room->nameOf($hiddenId)]], $result['outcome']['impostors']);
+        $this->assertSame($hiddenId, $result['outcome']['history'][0]['out']);
+        $this->assertTrue($result['outcome']['history'][0]['hidden']);
+
+        $this->postJson("/juegos/salas/{$code}", ['action' => 'lobby'], ['X-Game-Token' => $byId[$faithfulId]])->assertOk()->assertJson(['status' => 'lobby']);
     }
 
-    public function test_an_uncaught_hidden_player_escapes_to_another_round_with_the_same_word(): void
+    public function test_a_wrong_vote_sends_that_player_out_and_the_game_goes_to_the_next_round(): void
     {
-        $host = $this->postJson('/juegos/salas', ['game' => 'oculto', 'name' => 'Fiorella', 'settings' => ['clue_rounds' => 1, 'rounds' => 2]])->json();
-        $code = $host['code'];
-        $tokens = ['Fiorella' => $host['token']];
-        foreach (['Brayan', 'Kiara', 'Yolanda'] as $name) {
-            $tokens[$name] = $this->postJson("/juegos/salas/{$code}/entrar", ['name' => $name])->json('token');
-        }
-        $this->postJson("/juegos/salas/{$code}", ['action' => 'start'], ['X-Game-Token' => $host['token']])->assertOk();
-        $room = GameRoom::query()->where('code', $code)->firstOrFail();
-        $byId = collect($room->players)->mapWithKeys(fn (array $player) => [$player['id'] => $tokens[$player['name']]]);
+        [$code, $byId, $room] = $this->ocultoRoom(['Brayan', 'Kiara', 'Yolanda']);
         $order = $room->state['order'];
         $hiddenId = $room->state['impostors'][0];
-        $innocent = collect($order)->first(fn (string $id) => $id !== $hiddenId);
+        [$first, $second] = array_values(array_diff($order, [$hiddenId]));
 
-        foreach ($order as $id) {
-            $this->postJson("/juegos/salas/{$code}", ['action' => 'spoke'], ['X-Game-Token' => $byId[$id]]);
-        }
-        foreach ($order as $id) {
-            $target = $id === $innocent ? $hiddenId : $innocent;
-            $this->postJson("/juegos/salas/{$code}", ['action' => 'vote', 'player' => $target], ['X-Game-Token' => $byId[$id]])->assertOk();
-        }
+        $this->giveClues($code, $byId, $order);
+        $this->vote($code, $byId, $order, fn (string $voter) => $voter === $first ? $hiddenId : $first);
 
-        $room->refresh();
-        $this->assertSame('clues', $room->status);
-        $this->assertSame(2, $room->state['round']);
-        $this->assertSame($innocent, $room->state['escaped']['top']);
+        $reveal = $this->getJson("/juegos/salas/{$code}", ['X-Game-Token' => $byId[$second]])->assertJson(['status' => 'reveal', 'round' => 1])->json();
+        $this->assertSame($first, $reveal['last']['out']);
+        $this->assertFalse($reveal['last']['hidden']);
+        $this->assertNotContains($first, $reveal['alive']);
+
+        $this->postJson("/juegos/salas/{$code}", ['action' => 'continue', 'round' => 1], ['X-Game-Token' => $byId[$second]])->assertOk()->assertJson(['status' => 'clues', 'round' => 2]);
+        $this->postJson("/juegos/salas/{$code}", ['action' => 'continue', 'round' => 1], ['X-Game-Token' => $byId[$hiddenId]])->assertOk()->assertJson(['round' => 2]);
+
+        $alive = array_values(array_diff($order, [$first]));
+        $this->giveClues($code, $byId, $alive);
+        $this->postJson("/juegos/salas/{$code}", ['action' => 'vote', 'player' => $hiddenId], ['X-Game-Token' => $byId[$first]])->assertStatus(422);
+        $this->vote($code, $byId, $alive, fn (string $voter) => $voter === $second ? $hiddenId : $second);
+
+        $result = $this->getJson("/juegos/salas/{$code}", ['X-Game-Token' => $byId[$first]])->assertJson(['status' => 'result'])->json();
+        $this->assertSame('hidden', $result['outcome']['winner']);
+        $this->assertCount(2, $result['outcome']['history']);
+        $this->assertSame(1, Oculto::maxRounds(3));
+    }
+
+    public function test_a_room_code_only_opens_rooms_of_its_own_game(): void
+    {
+        $code = $this->postJson('/juegos/salas', ['game' => 'rebet', 'name' => 'Pastor Luis'])->json('code');
+
+        $this->postJson("/juegos/salas/{$code}/entrar", ['name' => 'Ana', 'game' => 'oculto'])->assertStatus(422)->assertJsonFragment(['error' => 'Ese código es de una sala de REBET. Entra desde ese juego.']);
+        $this->postJson("/juegos/salas/{$code}/entrar", ['name' => 'Ana', 'game' => 'rebet'])->assertOk();
+
+        $this->get("/juegos/el-cristiano-oculto/sala/{$code}")->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->component('Games/Room')->where('game', 'oculto')->where('found', false)->where('elsewhere', 'rebet'));
+        $this->get("/juegos/rebet/sala/{$code}")->assertOk()->assertInertia(fn (AssertableInertia $page) => $page
+            ->where('found', true)->where('joinable', true));
+        $this->get("/juegos/sala/{$code}")->assertRedirect("/juegos/rebet/sala/{$code}");
+    }
+
+    public function test_each_oculto_level_deals_its_own_words(): void
+    {
+        $this->assertSame('intermedio', OcultoWord::query()->where('word', 'Moisés')->value('level'));
+        $this->assertSame('dificil', OcultoWord::query()->where('word', 'Abed-nego')->value('level'));
+        $this->assertSame('intermedio', OcultoWord::query()->where('word', 'Los Diez Mandamientos')->value('level'));
+
+        foreach (['intermedio', 'dificil'] as $level) {
+            for ($i = 0; $i < 5; $i++) {
+                $this->getJson("/juegos/el-cristiano-oculto/palabra?nivel={$level}")->assertOk()->assertJsonPath('word.level', $level);
+            }
+        }
+        $this->get('/juegos/el-cristiano-oculto')->assertInertia(fn (AssertableInertia $page) => $page->has('themes.0.levels.intermedio'));
+    }
+
+    /**
+     * Opens a started El Cristiano Oculto room with Fiorella as host.
+     *
+     * @param  list<string>  $guests
+     * @param  array<string, mixed>  $settings
+     * @return array{0: string, 1: Collection<string, string>, 2: GameRoom}
+     */
+    private function ocultoRoom(array $guests, array $settings = []): array
+    {
+        $host = $this->postJson('/juegos/salas', ['game' => 'oculto', 'name' => 'Fiorella', 'settings' => $settings])->assertOk()->json();
+        $tokens = ['Fiorella' => $host['token']];
+        foreach ($guests as $name) {
+            $tokens[$name] = $this->postJson("/juegos/salas/{$host['code']}/entrar", ['name' => $name, 'game' => 'oculto'])->assertOk()->json('token');
+        }
+        $this->postJson("/juegos/salas/{$host['code']}", ['action' => 'start'], ['X-Game-Token' => $host['token']])->assertOk()->assertJson(['status' => 'clues']);
+        $room = GameRoom::query()->where('code', $host['code'])->firstOrFail();
+
+        return [$host['code'], collect($room->players)->mapWithKeys(fn (array $player) => [$player['id'] => $tokens[$player['name']]]), $room];
+    }
+
+    /** @param  list<string>  $speakers */
+    private function giveClues(string $code, Collection $byId, array $speakers): void
+    {
+        foreach ($speakers as $id) {
+            $this->postJson("/juegos/salas/{$code}", ['action' => 'spoke'], ['X-Game-Token' => $byId[$id]])->assertOk();
+        }
+    }
+
+    /**
+     * @param  list<string>  $voters
+     * @param  callable(string): string  $choice
+     */
+    private function vote(string $code, Collection $byId, array $voters, callable $choice): void
+    {
+        foreach ($voters as $id) {
+            $this->postJson("/juegos/salas/{$code}", ['action' => 'vote', 'player' => $choice($id)], ['X-Game-Token' => $byId[$id]])->assertOk();
+        }
     }
 }

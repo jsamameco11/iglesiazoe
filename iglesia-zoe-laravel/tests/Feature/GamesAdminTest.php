@@ -33,7 +33,7 @@ class GamesAdminTest extends TestCase
                 ->has('themes', 37)
                 ->has('questions', 228));
         $this->get(self::ADMIN.'/admin/juegos/lingobible')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Admin/Juegos/Lingobible')->has('selected.units'));
-        $this->get(self::ADMIN.'/admin/juegos/cristiano-oculto')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Admin/Juegos/Oculto')->has('words', 1100));
+        $this->get(self::ADMIN.'/admin/juegos/cristiano-oculto')->assertOk()->assertInertia(fn (AssertableInertia $page) => $page->component('Admin/Juegos/Oculto')->has('words', 1122));
 
         $this->assertNotContains('games.manage', Permissions::forTypes(['atmosfera']));
         $this->actingAs($this->admin('renato', ['atmosfera']));
@@ -113,15 +113,19 @@ class GamesAdminTest extends TestCase
             'word' => 'Zarza ardiente',
             'reference' => 'Éxodo 3:2',
             'clues' => "fuego\r\nmonte\n\nfuego\nsandalias",
+            'level' => 'intermedio',
             'active' => '1',
         ])->assertOk();
 
         $word = $theme->words()->where('word', 'Zarza ardiente')->firstOrFail();
         $this->assertSame(['fuego', 'monte', 'sandalias'], $word->clues);
+        $this->assertSame('intermedio', $word->level);
         $this->assertTrue($word->active);
 
+        $this->postJson(self::ADMIN.'/admin/juegos/cristiano-oculto/palabra', ['id' => $word->id, 'oculto_category_id' => $theme->id, 'word' => 'Zarza ardiente', 'level' => 'experto'])->assertStatus(422);
         $this->postJson(self::ADMIN.'/admin/juegos/cristiano-oculto/palabra', ['id' => $word->id, 'oculto_category_id' => $theme->id, 'word' => 'Zarza ardiente'])->assertOk();
         $this->assertFalse($word->fresh()->active);
+        $this->assertSame('intermedio', $word->fresh()->level);
     }
 
     /** @param  list<string>  $types */

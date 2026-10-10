@@ -6,7 +6,7 @@ set -euo pipefail
 
 APP=/opt/iglesia-zoe-app
 ARCHIVE=${1:-/root/zoe-release.tgz}
-PARTS=(app config routes bootstrap/app.php database/migrations database/seeders resources/views public/build public/geo-data public/sw.js public/.htaccess composer.json composer.lock)
+PARTS=(app config routes bootstrap/app.php database/data database/migrations database/seeders resources/views public/build public/geo-data public/sw.js public/.htaccess composer.json composer.lock)
 
 cd "$APP"
 STAMP=$(date +%Y%m%d-%H%M%S)

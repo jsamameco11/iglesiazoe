@@ -1,6 +1,21 @@
 import { csrf } from "@/lib/actions";
 
-export type Theme = { id: string; slug: string; name: string; questions?: number; words?: number };
+export type Theme = { id: string; slug: string; name: string; questions?: number; words?: number; levels?: Record<string, number> };
+
+export type RoomGame = "rebet" | "oculto";
+
+export const GAME_TITLE: Record<RoomGame, string> = { rebet: "REBET", oculto: "El Cristiano Oculto" };
+
+export const GAME_PATH: Record<RoomGame, string> = { rebet: "/juegos/rebet", oculto: "/juegos/el-cristiano-oculto" };
+
+export const roomUrl = (game: RoomGame, code: string) => `${GAME_PATH[game]}/sala/${code.toUpperCase()}`;
+
+export type OcultoLevel = "intermedio" | "dificil";
+
+export const OCULTO_LEVELS: { key: OcultoLevel; title: string; text: string }[] = [
+  { key: "intermedio", title: "Intermedio", text: "Palabras y frases conocidas: personajes, lugares e historias que casi todos recuerdan." },
+  { key: "dificil", title: "Difícil", text: "Para quienes conocen bien la Biblia: nombres, símbolos y pasajes menos comunes." },
+];
 
 export type RebetQuestion = {
   id: string;
@@ -21,13 +36,14 @@ export type OcultoCard = {
   description?: string | null;
   reference?: string | null;
   clues?: string[];
+  level?: OcultoLevel;
 };
 
 export type RoomPlayer = { id: string; name: string; host: boolean };
 
 export type RoomBase = {
   code: string;
-  game: "rebet" | "oculto";
+  game: RoomGame;
   status: string;
   version: number;
   me: RoomPlayer;
@@ -55,19 +71,21 @@ export type RebetRoomState = RoomBase & {
   result?: RebetGrade;
 };
 
+export type OcultoRound = { round: number; out: string | null; name: string | null; hidden: boolean; tally: { id: string; name: string | null; votes: number }[] };
+
 export type OcultoRoomState = RoomBase & {
-  settings: { categories: string[]; impostors: number; clue_rounds: number; rounds: number };
+  settings: { categories: string[]; impostors: number; level: OcultoLevel };
   notice?: string | null;
   card?: OcultoCard;
   round?: number;
   rounds?: number;
-  pass?: number;
   order?: string[];
+  alive?: string[];
   speaker?: string | null;
   voted?: string[];
   my_vote?: string | null;
-  escaped?: { round: number; top: string | null } | null;
-  outcome?: { caught: boolean; top: string | null; impostors: string[]; tally: { name: string; votes: number }[] } | null;
+  last?: OcultoRound | null;
+  outcome?: { winner: "group" | "hidden"; impostors: { id: string; name: string | null }[]; history: OcultoRound[] } | null;
 };
 
 export const DIFFICULTY_LABEL: Record<string, string> = { easy: "Fácil", medium: "Intermedio", hard: "Difícil", expert: "Experto", mixed: "Mixta" };

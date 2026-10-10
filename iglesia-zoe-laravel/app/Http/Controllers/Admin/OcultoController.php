@@ -71,11 +71,13 @@ class OcultoController extends GameContentController
             'word' => 'required|string|min:2|max:80',
             'description' => 'nullable|string|max:400',
             'reference' => 'nullable|string|max:120',
+            'level' => 'nullable|in:'.implode(',', array_keys(OcultoWord::LEVELS)),
         ], [
             'oculto_category_id' => 'tema',
             'word' => 'palabra',
             'description' => 'descripción',
             'reference' => 'cita bíblica',
+            'level' => 'nivel',
         ]);
         if ($data instanceof JsonResponse) {
             return $data;
@@ -88,6 +90,7 @@ class OcultoController extends GameContentController
             return $this->fail('Esa palabra ya está en este tema.');
         }
         $data['clues'] = array_slice(array_values(array_unique(array_map(fn (string $clue) => mb_substr($clue, 0, 60), $this->lines($request->input('clues'))))), 0, self::MAX_CLUES);
+        $data['level'] = ($data['level'] ?? null) ?: ($word->level ?? 'dificil');
         $data['active'] = $request->boolean('active');
 
         $word ? $word->update($data) : OcultoWord::query()->create($data);

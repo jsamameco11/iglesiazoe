@@ -1,0 +1,254 @@
+/* Bible games: the table, the cards and the players, always in the colors of the active skin. */
+
+.game-label {
+  font-family: var(--font-accent);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.game-dark .game-label,
+.secret-card[data-role="hidden"] .game-label {
+  color: rgb(255 255 255 / 0.62);
+}
+
+.game-surface {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 1.75rem;
+  box-shadow:
+    0 1px 0 rgb(255 255 255 / 0.8) inset,
+    0 26px 52px -34px rgb(28 24 20 / 0.42),
+    0 2px 6px rgb(28 24 20 / 0.05);
+}
+
+.game-dark {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 1.75rem;
+  color: #fff;
+  background:
+    radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--accent) 38%, transparent) 0%, transparent 58%),
+    radial-gradient(90% 80% at 0% 100%, color-mix(in srgb, var(--accent) 18%, transparent) 0%, transparent 62%),
+    var(--ink);
+  box-shadow: 0 34px 70px -36px rgb(20 14 8 / 0.7);
+}
+
+.game-dark::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.5;
+  background-image: radial-gradient(rgb(255 255 255 / 0.07) 1px, transparent 1px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(to bottom, #000, transparent 85%);
+}
+
+.game-tint {
+  border-radius: 1.75rem;
+  background:
+    radial-gradient(110% 120% at 0% 0%, var(--accent-soft) 0%, transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--sage) 55%, var(--card)), var(--card));
+  border: 1px solid var(--line);
+}
+
+.game-lift {
+  transition:
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.35s ease,
+    border-color 0.2s ease;
+}
+
+.game-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 34px 60px -34px rgb(28 24 20 / 0.5);
+}
+
+/* Players: initials on a tone of the palette picked from their name. */
+.game-avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 999px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #fff;
+  letter-spacing: 0.02em;
+  box-shadow: 0 0 0 3px var(--card);
+}
+
+.game-avatar[data-tone="0"] {
+  background: var(--accent);
+}
+.game-avatar[data-tone="1"] {
+  background: var(--ink);
+}
+.game-avatar[data-tone="2"] {
+  background: var(--clay-deep);
+}
+.game-avatar[data-tone="3"] {
+  background: var(--amber-deep);
+}
+.game-avatar[data-tone="4"] {
+  background: color-mix(in srgb, var(--accent) 55%, var(--ink));
+}
+.game-avatar[data-tone="5"] {
+  background: color-mix(in srgb, var(--ink) 70%, var(--sage));
+}
+
+.game-dark .game-avatar {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 80%, #000);
+}
+
+/* The secret card of El Cristiano Oculto. */
+.secret-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 1.9rem;
+  min-height: 26rem;
+  background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow:
+    0 40px 70px -40px rgb(28 24 20 / 0.6),
+    0 2px 10px rgb(28 24 20 / 0.08);
+}
+
+.secret-card.is-summary {
+  min-height: 0;
+}
+
+.secret-card .secret-frame {
+  position: absolute;
+  inset: 12px;
+  border-radius: 1.4rem;
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+  pointer-events: none;
+}
+
+.secret-card .secret-frame::before,
+.secret-card .secret-frame::after {
+  content: "";
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+.secret-card .secret-frame::before {
+  top: -1px;
+  left: -1px;
+  border-width: 2px 0 0 2px;
+  border-top-left-radius: 1.4rem;
+}
+
+.secret-card .secret-frame::after {
+  right: -1px;
+  bottom: -1px;
+  border-width: 0 2px 2px 0;
+  border-bottom-right-radius: 1.4rem;
+}
+
+.secret-card[data-role="hidden"] {
+  background:
+    radial-gradient(90% 70% at 50% 0%, color-mix(in srgb, var(--accent) 30%, transparent), transparent 70%),
+    var(--ink);
+  border-color: transparent;
+  color: #fff;
+}
+
+.secret-cover {
+  position: absolute;
+  inset: 0;
+  color: #fff;
+  background:
+    radial-gradient(80% 60% at 50% 38%, color-mix(in srgb, var(--accent) 42%, transparent), transparent 70%),
+    repeating-linear-gradient(135deg, rgb(255 255 255 / 0.035) 0 2px, transparent 2px 14px),
+    var(--ink);
+}
+
+.secret-cover::after {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border-radius: 1.4rem;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  pointer-events: none;
+}
+
+.secret-cover .secret-hint {
+  animation: game-nudge 1.8s ease-in-out infinite;
+}
+
+@keyframes game-nudge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes game-pop {
+  0% {
+    transform: scale(0.94);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.game-pop {
+  animation: game-pop 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* A code typed letter by letter. */
+.game-code {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+}
+
+.game-code::placeholder {
+  letter-spacing: 0.2em;
+  font-weight: 600;
+  opacity: 0.45;
+}
+
+/* Podium of REBET. */
+.game-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.game-podium .step {
+  border-radius: 1.2rem 1.2rem 0.6rem 0.6rem;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 1.6rem;
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .secret-cover .secret-hint,
+  .game-pop {
+    animation: none;
+  }
+  .game-lift,
+  .game-lift:hover {
+    transition: none;
+    transform: none;
+  }
+}

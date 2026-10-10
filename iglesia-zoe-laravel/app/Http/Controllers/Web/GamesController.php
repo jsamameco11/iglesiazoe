@@ -15,6 +15,7 @@ use App\Models\LingoUnit;
 use App\Models\OcultoWord;
 use App\Models\RebetQuestion;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -164,23 +165,46 @@ class GamesController extends Controller
 
     public function ocultoWord(Request $request): JsonResponse
     {
-        $word = Oculto::randomWord(array_values(array_filter((array) $request->query('temas', []), 'is_string')));
+        $word = Oculto::randomWord(
+            array_values(array_filter((array) $request->query('temas', []), 'is_string')),
+            (string) $request->query('nivel', Oculto::DEFAULT_LEVEL),
+        );
 
         return $word
             ? response()->json(['word' => $word->card()])
-            : $this->fail('No hay palabras publicadas para estos temas.', 404);
+            : $this->fail('No hay palabras de este nivel para los temas elegidos.', 404);
     }
 
-    public function room(Request $request, string $code): Response
+    public function rebetRoom(Request $request, string $code): Response
+    {
+        return $this->room($request, 'rebet', $code);
+    }
+
+    public function ocultoRoom(Request $request, string $code): Response
+    {
+        return $this->room($request, 'oculto', $code);
+    }
+
+    /** Links shared before each game had its own rooms still land in the right game. */
+    public function legacyRoom(string $code): RedirectResponse
     {
         $room = Rooms::find($code);
 
+        return redirect($room ? '/juegos/'.Rooms::PATHS[$room->game].'/sala/'.$room->code : '/juegos');
+    }
+
+    private function room(Request $request, string $game, string $code): Response
+    {
+        $room = Rooms::find($code);
+        $open = $room && $room->status !== 'closed';
+
         return $this->render('Games/Room', $request, [
             'code' => mb_strtoupper($code),
-            'game' => $room && $room->status !== 'closed' ? $room->game : null,
-            'joinable' => $room?->status === 'lobby',
-            'rebetThemes' => $room?->game === 'rebet' ? Rebet::themes() : [],
-            'ocultoThemes' => $room?->game === 'oculto' ? Oculto::themes() : [],
+            'game' => $game,
+            'found' => $open && $room->game === $game,
+            'elsewhere' => $open && $room->game !== $game ? $room->game : null,
+            'joinable' => $room?->status === 'lobby' && $room->game === $game,
+            'themes' => $game === 'rebet' ? Rebet::themes() : Oculto::themes(),
         ]);
     }
 
